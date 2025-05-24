@@ -1,18 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Calendar, Clock, FileText, User, Star } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import DashboardHeader from '@/components/features/dashboard/DashboardHeader';
+import ProjectCard from '@/components/features/dashboard/ProjectCard';
+import EmptyProjectsState from '@/components/features/dashboard/EmptyProjectsState';
+import LoadingState from '@/components/features/dashboard/LoadingState';
 
 interface Project {
   id: string;
@@ -70,103 +65,18 @@ const GlobalDashboard = () => {
     }
   };
 
-  const getLastContent = (content: string) => {
-    if (!content) return 'No content written yet...';
-    const lines = content.split('\n').filter(line => line.trim());
-    return lines[lines.length - 1] || 'No content written yet...';
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading your projects...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Petites Mains</h1>
-              <p className="text-slate-600 mt-2">Your creative writing workspace</p>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              {/* Subscription Button */}
-              <Button 
-                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-medium"
-                size="sm"
-              >
-                <Star className="w-4 h-4 mr-2" />
-                Upgrade to Pro
-              </Button>
-
-              {/* User Account Menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src="/placeholder.svg" alt="User avatar" />
-                      <AvatarFallback>
-                        <User className="h-5 w-5" />
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end">
-                  <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <FileText className="mr-2 h-4 w-4" />
-                    <span>Subscription</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Clock className="mr-2 h-4 w-4" />
-                    <span>Global Analytics</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <span>Sign out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DashboardHeader />
 
       {/* Projects Grid */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         {projects.length === 0 ? (
-          <div className="text-center py-16">
-            <FileText className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-slate-900 mb-2">No projects yet</h2>
-            <p className="text-slate-600 mb-6">Create your first writing project to get started</p>
-            <Button 
-              onClick={createNewProject} 
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Create First Project
-            </Button>
-          </div>
+          <EmptyProjectsState onCreateProject={createNewProject} />
         ) : (
           <>
             <div className="flex justify-between items-center mb-6">
@@ -181,38 +91,7 @@ const GlobalDashboard = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {projects.map(project => (
-                <Card 
-                  key={project.id} 
-                  className="hover:shadow-lg transition-shadow cursor-pointer" 
-                  onClick={() => navigate(`/project/${project.id}`)}
-                >
-                  <CardHeader>
-                    <CardTitle className="text-lg font-semibold text-slate-900 line-clamp-1">
-                      {project.title}
-                    </CardTitle>
-                    <div className="flex items-center space-x-4 text-sm text-slate-500">
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        {formatDate(project.created_at)}
-                      </div>
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-1" />
-                        {formatDate(project.updated_at)}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-slate-600 text-sm mb-4 line-clamp-2">
-                      {project.description}
-                    </p>
-                    <div className="bg-slate-50 rounded-lg p-3">
-                      <p className="text-xs text-slate-500 mb-1">Last written:</p>
-                      <p className="text-sm text-slate-700 italic line-clamp-2">
-                        "{getLastContent(project.content)}"
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+                <ProjectCard key={project.id} project={project} />
               ))}
             </div>
           </>
