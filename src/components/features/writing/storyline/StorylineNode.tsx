@@ -21,20 +21,30 @@ interface StorylineNodeProps {
 }
 
 const StorylineNode = ({ node, isDragged, onEdit, onDelete, onDragStart }: StorylineNodeProps) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent text selection and other default behaviors
+    onDragStart(e, node);
+  };
+
   return (
     <div
-      className="absolute cursor-move storyline-node"
+      className="absolute cursor-move storyline-node select-none"
       style={{
         left: node.position.x,
         top: node.position.y,
-        zIndex: isDragged ? 10 : 1
+        zIndex: isDragged ? 10 : 1,
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none',
+        msUserSelect: 'none'
       }}
-      onMouseDown={(e) => onDragStart(e, node)}
+      onMouseDown={handleMouseDown}
+      unselectable="on"
     >
-      <Card className="w-28 hover:shadow-lg transition-shadow group">
-        <CardContent className="p-2">
+      <Card className="w-28 hover:shadow-lg transition-shadow group select-none">
+        <CardContent className="p-2 select-none">
           <div className="flex items-start justify-between mb-1">
-            <h4 className="text-xs font-medium text-slate-900 line-clamp-2">
+            <h4 className="text-xs font-medium text-slate-900 line-clamp-2 select-none">
               {node.title}
             </h4>
             <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-0.5">
@@ -44,6 +54,7 @@ const StorylineNode = ({ node, isDragged, onEdit, onDelete, onDragStart }: Story
                 className="h-3 w-3"
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   onEdit(node);
                 }}
               >
@@ -55,6 +66,7 @@ const StorylineNode = ({ node, isDragged, onEdit, onDelete, onDragStart }: Story
                 className="h-3 w-3"
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   onDelete(node.id);
                 }}
               >
@@ -62,7 +74,7 @@ const StorylineNode = ({ node, isDragged, onEdit, onDelete, onDragStart }: Story
               </Button>
             </div>
           </div>
-          <span className="text-xs bg-slate-100 text-slate-600 px-1 py-0.5 rounded">
+          <span className="text-xs bg-slate-100 text-slate-600 px-1 py-0.5 rounded select-none">
             {node.node_type}
           </span>
         </CardContent>

@@ -58,6 +58,7 @@ const StorylineCanvas = ({
 
   const handleNodeDragStart = useCallback((e: React.MouseEvent, node: StorylineNodeData) => {
     e.stopPropagation(); // Prevent canvas panning when dragging nodes
+    e.preventDefault(); // Prevent text selection and other default behaviors
     setDraggedNode(node.id);
     
     // Get the container element to calculate proper bounds
@@ -81,6 +82,8 @@ const StorylineCanvas = ({
     });
 
     const handleMouseMove = (e: MouseEvent) => {
+      e.preventDefault(); // Prevent text selection during drag
+      
       // Convert current mouse position to world coordinates
       const currentMouseWorldPos = screenToWorld(e.clientX - containerRect.left, e.clientY - containerRect.top);
       
@@ -111,21 +114,29 @@ const StorylineCanvas = ({
 
   return (
     <div 
-      className="flex-1 relative overflow-hidden bg-slate-50 cursor-grab active:cursor-grabbing"
+      className="flex-1 relative overflow-hidden bg-slate-50 cursor-grab active:cursor-grabbing select-none"
+      style={{
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none',
+        msUserSelect: 'none'
+      }}
       onMouseDown={onCanvasMouseDown}
       onMouseMove={onCanvasMouseMove}
       onMouseUp={onCanvasMouseUp}
       onMouseLeave={onCanvasMouseUp}
       onWheel={onWheel}
+      unselectable="on"
     >
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 select-none"
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          transformOrigin: '0 0'
+          transformOrigin: '0 0',
+          userSelect: 'none'
         }}
       >
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ minWidth: '2000px', minHeight: '2000px' }}>
+        <svg className="absolute inset-0 w-full h-full pointer-events-none select-none" style={{ minWidth: '2000px', minHeight: '2000px' }}>
           {/* Grid Pattern */}
           <defs>
             <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
