@@ -215,16 +215,16 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
   }, []);
 
   return (
-    <div className="h-full bg-white flex flex-col border-t border-slate-200">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-200">
-        <h3 className="font-semibold text-slate-900">Storyline Map</h3>
+    <div className="h-full bg-white flex flex-col">
+      {/* Compact Header */}
+      <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-slate-50">
+        <h3 className="font-semibold text-slate-900 text-sm">Storyline Map</h3>
         <Button 
           size="sm" 
           onClick={() => setShowNodeForm(true)}
-          className="bg-gradient-to-r from-purple-600 to-blue-600"
+          className="bg-gradient-to-r from-purple-600 to-blue-600 text-xs h-7"
         >
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="w-3 h-3 mr-1" />
           Add Node
         </Button>
       </div>
@@ -294,34 +294,34 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
               document.addEventListener('mouseup', handleMouseUp);
             }}
           >
-            <Card className="w-32 hover:shadow-lg transition-shadow group">
-              <CardContent className="p-3">
-                <div className="flex items-start justify-between mb-2">
+            <Card className="w-28 hover:shadow-lg transition-shadow group">
+              <CardContent className="p-2">
+                <div className="flex items-start justify-between mb-1">
                   <h4 className="text-xs font-medium text-slate-900 line-clamp-2">
                     {node.title}
                   </h4>
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-0.5">
                     <Button 
                       size="icon" 
                       variant="ghost" 
-                      className="h-4 w-4"
+                      className="h-3 w-3"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleNodeEdit(node);
                       }}
                     >
-                      <Edit3 className="w-2 h-2" />
+                      <Edit3 className="w-1.5 h-1.5" />
                     </Button>
                     <Button 
                       size="icon" 
                       variant="ghost" 
-                      className="h-4 w-4"
+                      className="h-3 w-3"
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteNode(node.id);
                       }}
                     >
-                      <Trash2 className="w-2 h-2" />
+                      <Trash2 className="w-1.5 h-1.5" />
                     </Button>
                   </div>
                 </div>
@@ -337,26 +337,27 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
       {/* Node Form Modal */}
       {showNodeForm && (
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
-          <Card className="w-96 max-w-full mx-4">
-            <CardContent className="p-6">
-              <h3 className="font-semibold text-slate-900 mb-4">
+          <Card className="w-80 max-w-full mx-4">
+            <CardContent className="p-4">
+              <h3 className="font-semibold text-slate-900 mb-3 text-sm">
                 {editingNode ? 'Edit Node' : 'Create New Node'}
               </h3>
-              <form onSubmit={editingNode ? (e) => { e.preventDefault(); updateNode(); } : createNode} className="space-y-4">
+              <form onSubmit={editingNode ? (e) => { e.preventDefault(); updateNode(); } : createNode} className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Title</label>
                   <Input
                     value={nodeForm.title}
                     onChange={(e) => setNodeForm({...nodeForm, title: e.target.value})}
                     required
+                    className="text-sm h-8"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Type</label>
                   <select
                     value={nodeForm.node_type}
                     onChange={(e) => setNodeForm({...nodeForm, node_type: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                    className="w-full px-2 py-1 border border-slate-300 rounded-md text-sm h-8"
                   >
                     <option value="scene">Scene</option>
                     <option value="character">Character</option>
@@ -366,20 +367,22 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Content</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Content</label>
                   <Textarea
                     value={nodeForm.content}
                     onChange={(e) => setNodeForm({...nodeForm, content: e.target.value})}
-                    rows={3}
+                    rows={2}
+                    className="text-sm"
                   />
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Button type="submit" className="bg-gradient-to-r from-purple-600 to-blue-600">
+                  <Button type="submit" className="bg-gradient-to-r from-purple-600 to-blue-600 text-xs h-7">
                     {editingNode ? 'Update' : 'Create'}
                   </Button>
                   <Button 
                     type="button" 
                     variant="outline"
+                    className="text-xs h-7"
                     onClick={() => {
                       setShowNodeForm(false);
                       setEditingNode(null);

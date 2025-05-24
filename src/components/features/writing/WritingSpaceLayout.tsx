@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
 import TextEditorPanel from './TextEditorPanel';
@@ -28,50 +28,92 @@ const WritingSpaceLayout = ({
   onChapterSelect, 
   onContentChange 
 }: WritingSpaceLayoutProps) => {
+  const [overlayHeight, setOverlayHeight] = useState(30); // Default 30% of screen height
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    const startY = e.clientY;
+    const startHeight = overlayHeight;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const windowHeight = window.innerHeight;
+      const deltaY = startY - e.clientY;
+      const deltaPercent = (deltaY / windowHeight) * 100;
+      const newHeight = Math.min(75, Math.max(10, startHeight + deltaPercent));
+      setOverlayHeight(newHeight);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   return (
-    <div className="flex-1">
-      <ResizablePanelGroup direction="vertical" className="h-full">
-        {/* Top Panel - Horizontal Writing Panels */}
-        <ResizablePanel defaultSize={70} minSize={40}>
-          <ResizablePanelGroup direction="horizontal" className="h-full">
-            {/* Worldbuilding Panel */}
-            <ResizablePanel defaultSize={25} minSize={20}>
-              <WorldbuildingPanel projectId={projectId} />
-            </ResizablePanel>
-            
-            <ResizableHandle withHandle />
-            
-            {/* Text Editor Panel */}
-            <ResizablePanel defaultSize={50} minSize={30}>
-              <TextEditorPanel 
-                chapter={currentChapter}
-                onContentChange={onContentChange}
-              />
-            </ResizablePanel>
-            
-            <ResizableHandle withHandle />
-            
-            {/* Chapter Organizer Panel */}
-            <ResizablePanel defaultSize={25} minSize={20}>
-              <ChapterOrganizerPanel 
-                projectId={projectId}
-                currentChapter={currentChapter}
-                onChapterSelect={onChapterSelect}
-              />
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </ResizablePanel>
+    <div className="flex-1 relative">
+      {/* Main Horizontal Panels */}
+      <div className="h-full">
+        <ResizablePanelGroup direction="horizontal" className="h-full">
+          {/* Worldbuilding Panel */}
+          <ResizablePanel defaultSize={25} minSize={20}>
+            <WorldbuildingPanel projectId={projectId} />
+          </ResizablePanel>
+          
+          <ResizableHandle withHandle />
+          
+          {/* Text Editor Panel */}
+          <ResizablePanel defaultSize={50} minSize={30}>
+            <TextEditorPanel 
+              chapter={currentChapter}
+              onContentChange={onContentChange}
+            />
+          </ResizablePanel>
+          
+          <ResizableHandle withHandle />
+          
+          {/* Chapter Organizer Panel */}
+          <ResizablePanel defaultSize={25} minSize={20}>
+            <ChapterOrganizerPanel 
+              projectId={projectId}
+              currentChapter={currentChapter}
+              onChapterSelect={onChapterSelect}
+            />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
 
-        <ResizableHandle withHandle />
+      {/* Storyline Overlay Panel */}
+      <div
+        className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-10"
+        style={{ height: `${overlayHeight}%` }}
+      >
+        {/* Drag Handle */}
+        <div
+          className={`h-6 bg-slate-100 border-b border-slate-200 flex items-center justify-center cursor-row-resize hover:bg-slate-200 transition-colors ${
+            isDragging ? 'bg-slate-200' : ''
+          }`}
+          onMouseDown={handleMouseDown}
+        >
+          <div className="flex space-x-1">
+            <div className="w-8 h-1 bg-slate-400 rounded-full"></div>
+            <div className="w-8 h-1 bg-slate-400 rounded-full"></div>
+            <div className="w-8 h-1 bg-slate-400 rounded-full"></div>
+          </div>
+        </div>
 
-        {/* Bottom Panel - Storyline Panel (Permanent) */}
-        <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
+        {/* Storyline Panel Content */}
+        <div className="h-[calc(100%-24px)]">
           <StorylinePanel 
             projectId={projectId}
             chapterId={currentChapter?.id}
           />
-        </ResizablePanel>
-      </ResizablePanelGroup>
+        </div>
+      </div>
     </div>
   );
 };
