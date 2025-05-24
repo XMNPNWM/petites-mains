@@ -60,28 +60,6 @@ const StorylineCanvas = ({
     };
   }, [pan, zoom]);
 
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    console.log('Context menu triggered', e);
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Get the canvas container element
-    const canvasElement = e.currentTarget as HTMLElement;
-    const rect = canvasElement.getBoundingClientRect();
-    
-    // Calculate position relative to canvas
-    const canvasX = e.clientX - rect.left;
-    const canvasY = e.clientY - rect.top;
-    
-    console.log('Canvas coordinates:', { canvasX, canvasY });
-    
-    // Convert to world coordinates for node placement
-    const worldPos = screenToWorld(canvasX, canvasY);
-    console.log('World coordinates:', worldPos);
-    
-    setContextPosition(worldPos);
-  }, [screenToWorld]);
-
   const handleCreateNode = useCallback((nodeType: string, position: { x: number; y: number }) => {
     console.log('Creating node:', nodeType, 'at position:', position);
     onCreateNode(nodeType, position);
@@ -162,12 +140,21 @@ const StorylineCanvas = ({
     onConnectionLabelEdit(connectionId, screenPosition);
   }, [onConnectionLabelEdit]);
 
+  // Handle context menu positioning
+  const handleContextMenuTrigger = useCallback((position: { x: number; y: number }) => {
+    console.log('Context menu triggered at position:', position);
+    const worldPos = screenToWorld(position.x, position.y);
+    console.log('World coordinates:', worldPos);
+    setContextPosition(worldPos);
+  }, [screenToWorld]);
+
   return (
     <StorylineContextMenu
       worldbuildingElements={worldbuildingElements}
       onCreateNode={handleCreateNode}
       onCreateFromWorldbuilding={handleCreateFromWorldbuilding}
       contextPosition={contextPosition}
+      onContextMenuTrigger={handleContextMenuTrigger}
     >
       <div 
         className="flex-1 relative overflow-hidden bg-slate-50 cursor-grab active:cursor-grabbing select-none"
@@ -182,7 +169,6 @@ const StorylineCanvas = ({
         onMouseUp={onCanvasMouseUp}
         onMouseLeave={onCanvasMouseUp}
         onWheel={onWheel}
-        onContextMenu={handleContextMenu}
         unselectable="on"
       >
         <div

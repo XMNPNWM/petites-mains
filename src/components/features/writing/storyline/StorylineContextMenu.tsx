@@ -25,6 +25,7 @@ interface StorylineContextMenuProps {
   onCreateNode: (nodeType: string, position: { x: number; y: number }) => void;
   onCreateFromWorldbuilding: (element: WorldbuildingElement, position: { x: number; y: number }) => void;
   contextPosition: { x: number; y: number } | null;
+  onContextMenuTrigger: (position: { x: number; y: number }) => void;
 }
 
 const NODE_TYPES = [
@@ -41,7 +42,8 @@ const StorylineContextMenu = ({
   worldbuildingElements,
   onCreateNode,
   onCreateFromWorldbuilding,
-  contextPosition
+  contextPosition,
+  onContextMenuTrigger
 }: StorylineContextMenuProps) => {
   // Group worldbuilding elements by type
   const groupedElements = worldbuildingElements.reduce((acc, element) => {
@@ -66,9 +68,24 @@ const StorylineContextMenu = ({
     }
   };
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    console.log('Context menu event triggered', e.clientX, e.clientY);
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Get position relative to the trigger element
+    const rect = e.currentTarget.getBoundingClientRect();
+    const position = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+    
+    onContextMenuTrigger(position);
+  };
+
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>
+      <ContextMenuTrigger asChild onContextMenu={handleContextMenu}>
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">
