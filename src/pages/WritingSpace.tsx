@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Download, Map } from 'lucide-react';
+import { ArrowLeft, Save, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,7 +29,6 @@ const WritingSpace = () => {
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
-  const [showStoryline, setShowStoryline] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -139,59 +138,52 @@ const WritingSpace = () => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 relative">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Worldbuilding Panel */}
-          <ResizablePanel defaultSize={25} minSize={20}>
-            <WorldbuildingPanel projectId={projectId!} />
+      {/* Main Content - Vertical Layout */}
+      <div className="flex-1">
+        <ResizablePanelGroup direction="vertical" className="h-full">
+          {/* Top Panel - Horizontal Writing Panels */}
+          <ResizablePanel defaultSize={70} minSize={40}>
+            <ResizablePanelGroup direction="horizontal" className="h-full">
+              {/* Worldbuilding Panel */}
+              <ResizablePanel defaultSize={25} minSize={20}>
+                <WorldbuildingPanel projectId={projectId!} />
+              </ResizablePanel>
+              
+              <ResizableHandle withHandle />
+              
+              {/* Text Editor Panel */}
+              <ResizablePanel defaultSize={50} minSize={30}>
+                <TextEditorPanel 
+                  chapter={currentChapter}
+                  onContentChange={(content) => 
+                    setCurrentChapter(prev => prev ? {...prev, content} : null)
+                  }
+                />
+              </ResizablePanel>
+              
+              <ResizableHandle withHandle />
+              
+              {/* Chapter Organizer Panel */}
+              <ResizablePanel defaultSize={25} minSize={20}>
+                <ChapterOrganizerPanel 
+                  projectId={projectId!}
+                  currentChapter={currentChapter}
+                  onChapterSelect={handleChapterSelect}
+                />
+              </ResizablePanel>
+            </ResizablePanelGroup>
           </ResizablePanel>
-          
-          <ResizableHandle withHandle />
-          
-          {/* Text Editor Panel */}
-          <ResizablePanel defaultSize={50} minSize={30}>
-            <TextEditorPanel 
-              chapter={currentChapter}
-              onContentChange={(content) => 
-                setCurrentChapter(prev => prev ? {...prev, content} : null)
-              }
-            />
-          </ResizablePanel>
-          
-          <ResizableHandle withHandle />
-          
-          {/* Chapter Organizer Panel */}
-          <ResizablePanel defaultSize={25} minSize={20}>
-            <ChapterOrganizerPanel 
-              projectId={projectId!}
-              currentChapter={currentChapter}
-              onChapterSelect={handleChapterSelect}
-            />
-          </ResizablePanel>
-        </ResizablePanelGroup>
 
-        {/* Storyline Panel (Bottom) */}
-        {showStoryline && (
-          <div className="absolute bottom-0 left-0 right-0 h-96 bg-white border-t border-slate-200 z-10">
+          <ResizableHandle withHandle />
+
+          {/* Bottom Panel - Storyline Panel (Permanent) */}
+          <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
             <StorylinePanel 
               projectId={projectId!}
               chapterId={currentChapter?.id}
-              onClose={() => setShowStoryline(false)}
             />
-          </div>
-        )}
-      </div>
-
-      {/* Storyline Toggle Button */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
-        <Button
-          onClick={() => setShowStoryline(!showStoryline)}
-          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg"
-        >
-          <Map className="w-4 h-4 mr-2" />
-          {showStoryline ? 'Hide Storyline' : 'Show Storyline'}
-        </Button>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
     </div>
   );

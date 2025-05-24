@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Edit3, Trash2 } from 'lucide-react';
+import { Plus, Edit3, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,10 +24,9 @@ interface StorylineConnection {
 interface StorylinePanelProps {
   projectId: string;
   chapterId?: string;
-  onClose: () => void;
 }
 
-const StorylinePanel = ({ projectId, chapterId, onClose }: StorylinePanelProps) => {
+const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
   const [nodes, setNodes] = useState<StorylineNode[]>([]);
   const [connections, setConnections] = useState<StorylineConnection[]>([]);
   const [selectedNode, setSelectedNode] = useState<StorylineNode | null>(null);
@@ -216,23 +215,18 @@ const StorylinePanel = ({ projectId, chapterId, onClose }: StorylinePanelProps) 
   }, []);
 
   return (
-    <div className="h-full bg-white flex flex-col">
+    <div className="h-full bg-white flex flex-col border-t border-slate-200">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-200">
         <h3 className="font-semibold text-slate-900">Storyline Map</h3>
-        <div className="flex items-center space-x-2">
-          <Button 
-            size="sm" 
-            onClick={() => setShowNodeForm(true)}
-            className="bg-gradient-to-r from-purple-600 to-blue-600"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Node
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
+        <Button 
+          size="sm" 
+          onClick={() => setShowNodeForm(true)}
+          className="bg-gradient-to-r from-purple-600 to-blue-600"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Add Node
+        </Button>
       </div>
 
       {/* Canvas */}
