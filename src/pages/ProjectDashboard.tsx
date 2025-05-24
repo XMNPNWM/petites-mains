@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import InlineEditableText from '@/components/ui/inline-editable-text';
+import ReadOnlyStorylineMap from '@/components/features/dashboard/ReadOnlyStorylineMap';
 
 interface Project {
   id: string;
@@ -42,6 +43,14 @@ interface StorylineNode {
   title: string;
   content: string;
   node_type: string;
+  position: { x: number; y: number };
+}
+
+interface StorylineConnection {
+  id: string;
+  source_id: string;
+  target_id: string;
+  label: string;
 }
 
 const ProjectDashboard = () => {
@@ -52,6 +61,7 @@ const ProjectDashboard = () => {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [worldElements, setWorldElements] = useState<WorldElement[]>([]);
   const [storylineNodes, setStorylineNodes] = useState<StorylineNode[]>([]);
+  const [storylineConnections, setStorylineConnections] = useState<StorylineConnection[]>([]);
   const [currentPanel, setCurrentPanel] = useState(0);
 
   const panels = [
@@ -108,16 +118,35 @@ const ProjectDashboard = () => {
       if (worldError) throw worldError;
       setWorldElements(worldData || []);
 
-      // Fetch storyline nodes
+      // Fetch storyline nodes with proper position handling
       const { data: nodesData, error: nodesError } = await supabase
         .from('storyline_nodes')
         .select('*')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false })
-        .limit(5);
+        .eq('project_id', projectId);
 
       if (nodesError) throw nodesError;
-      setStorylineNodes(nodesData || []);
+      
+      // Transform the data to match our interface
+      const transformedNodes: StorylineNode[] = (nodesData || []).map(node => ({
+        id: node.id,
+        title: node.title,
+        content: node.content || '',
+        node_type: node.node_type,
+        position: typeof node.position === 'object' && node.position !== null
+          ? node.position as { x: number; y: number }
+          : { x: 100 + Math.random() * 300, y: 100 + Math.random() * 300 }
+      }));
+      
+      setStorylineNodes(transformedNodes);
+
+      // Fetch storyline connections
+      const { data: connectionsData, error: connectionsError } = await supabase
+        .from('storyline_connections')
+        .select('*')
+        .eq('project_id', projectId);
+
+      if (connectionsError) throw connectionsError;
+      setStorylineConnections(connectionsData || []);
 
     } catch (error) {
       console.error('Error fetching project data:', error);
@@ -165,21 +194,11 @@ const ProjectDashboard = () => {
   };
 
   const renderStorylinePanel = () => (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-slate-900">Recent Storyline Nodes</h3>
-      {storylineNodes.length === 0 ? (
-        <p className="text-slate-500 text-center py-8">No storyline nodes created yet</p>
-      ) : (
-        <div className="space-y-3">
-          {storylineNodes.map((node) => (
-            <Card key={node.id} className="p-4">
-              <h4 className="font-medium text-slate-900">{node.title}</h4>
-              <p className="text-sm text-slate-600 mt-1">{node.node_type}</p>
-              <p className="text-sm text-slate-700 mt-2 line-clamp-2">{node.content}</p>
-            </Card>
-          ))}
-        </div>
-      )}
+    <div className="h-full">
+      <ReadOnlyStorylineMap 
+        nodes={storylineNodes}
+        connections={storylineConnections}
+      />
     </div>
   );
 
