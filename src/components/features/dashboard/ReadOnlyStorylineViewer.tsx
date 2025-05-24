@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -54,7 +53,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
   };
 
   const calculateViewportCenter = (nodesList: StorylineNode[]) => {
-    if (nodesList.length === 0) return { x: 200, y: 200 };
+    if (nodesList.length === 0) return { x: 400, y: 300 };
 
     // Calculate bounding box of all nodes
     const positions = nodesList.map(node => node.position);
@@ -67,9 +66,9 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
 
-    // Center the nodes in the viewport (400x300 typical visible area)
-    const viewportCenterX = 400;
-    const viewportCenterY = 300;
+    // Center the nodes in the viewport (larger area for full screen)
+    const viewportCenterX = 600;
+    const viewportCenterY = 400;
 
     return {
       x: viewportCenterX - centerX,
@@ -181,7 +180,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
 
   if (nodes.length === 0) {
     return (
-      <div className="h-full bg-white flex flex-col">
+      <div className="h-screen bg-white flex flex-col">
         <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-slate-50">
           <h3 className="font-semibold text-slate-900 text-sm">Storyline Map</h3>
         </div>
@@ -193,7 +192,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
   }
 
   return (
-    <div className="h-full bg-white flex flex-col">
+    <div className="h-screen bg-white flex flex-col">
       {/* Header with controls */}
       <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-slate-50">
         <h3 className="font-semibold text-slate-900 text-sm">Storyline Map</h3>
@@ -228,7 +227,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
         </div>
       </div>
 
-      {/* Canvas with proper height and scroll handling */}
+      {/* Canvas with full height */}
       <div 
         className="flex-1 relative overflow-hidden bg-slate-50 cursor-grab active:cursor-grabbing"
         onMouseDown={handleMouseDown}
@@ -236,7 +235,6 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
-        style={{ minHeight: '400px' }}
       >
         <div
           className="absolute inset-0"
@@ -248,7 +246,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
           {/* SVG for grid and connections */}
           <svg 
             className="absolute inset-0 w-full h-full pointer-events-none" 
-            style={{ minWidth: '2000px', minHeight: '2000px' }}
+            style={{ minWidth: '3000px', minHeight: '3000px' }}
           >
             {/* Grid Pattern */}
             <defs>

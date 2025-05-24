@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Users, Globe, BarChart3, Edit3 } from 'lucide-react';
@@ -147,7 +148,7 @@ const ProjectDashboard = () => {
   };
 
   const renderStorylinePanel = () => (
-    <div className="h-full min-h-[600px]">
+    <div className="h-full">
       <ReadOnlyStorylineViewer 
         projectId={projectId!}
       />
@@ -348,8 +349,8 @@ const ProjectDashboard = () => {
 
       {/* Panel Content */}
       <div className="flex-1 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 py-8 h-full">
-          <div className="h-full overflow-y-auto">
+        <div className="max-w-7xl mx-auto h-full">
+          <div className={`h-full ${currentPanel === 0 ? '' : 'px-6 py-8 overflow-y-auto'}`}>
             {renderCurrentPanel()}
           </div>
         </div>
