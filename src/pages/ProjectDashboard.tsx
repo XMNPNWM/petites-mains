@@ -4,6 +4,7 @@ import { ArrowLeft, BookOpen, Users, Globe, BarChart3, Edit3 } from 'lucide-reac
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import InlineEditableText from '@/components/ui/inline-editable-text';
 
 interface Project {
   id: string;
@@ -120,6 +121,24 @@ const ProjectDashboard = () => {
 
     } catch (error) {
       console.error('Error fetching project data:', error);
+    }
+  };
+
+  const updateProjectDescription = async (newDescription: string) => {
+    if (!project) return;
+
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ description: newDescription })
+        .eq('id', project.id);
+
+      if (error) throw error;
+      
+      setProject(prev => prev ? { ...prev, description: newDescription } : null);
+    } catch (error) {
+      console.error('Error updating project description:', error);
+      throw error;
     }
   };
 
@@ -313,7 +332,12 @@ const ProjectDashboard = () => {
               </Button>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">{project.title}</h1>
-                <p className="text-slate-600">{project.description}</p>
+                <InlineEditableText
+                  value={project.description}
+                  onSave={updateProjectDescription}
+                  placeholder="Add a project description..."
+                  maxLength={200}
+                />
               </div>
             </div>
             <div>
