@@ -2,6 +2,7 @@
 import React from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
+import { stripHtmlTags, getWordCount } from '@/lib/contentUtils';
 
 interface Chapter {
   id: string;
@@ -18,8 +19,13 @@ interface TextEditorPanelProps {
 }
 
 const TextEditorPanel = ({ chapter, onContentChange }: TextEditorPanelProps) => {
-  const wordCount = chapter?.content ? 
-    chapter.content.split(' ').filter(word => word.length > 0).length : 0;
+  const cleanContent = chapter?.content ? stripHtmlTags(chapter.content) : '';
+  const wordCount = getWordCount(cleanContent);
+
+  const handleContentChange = (newContent: string) => {
+    // Pass the plain text content
+    onContentChange(newContent);
+  };
 
   return (
     <div className="h-full bg-slate-50 p-6 flex flex-col">
@@ -44,8 +50,8 @@ const TextEditorPanel = ({ chapter, onContentChange }: TextEditorPanelProps) => 
           <Card className="flex-1 flex flex-col">
             <CardContent className="p-6 flex-1 flex flex-col">
               <Textarea
-                value={chapter.content}
-                onChange={(e) => onContentChange(e.target.value)}
+                value={cleanContent}
+                onChange={(e) => handleContentChange(e.target.value)}
                 placeholder="Start writing your story..."
                 className="flex-1 resize-none border-none focus-visible:ring-0 text-base leading-relaxed"
               />

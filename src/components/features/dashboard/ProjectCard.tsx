@@ -3,6 +3,7 @@ import React from 'react';
 import { Calendar, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
+import { getTextPreview } from '@/lib/contentUtils';
 
 interface Project {
   id: string;
@@ -22,8 +23,11 @@ const ProjectCard = ({ project }: ProjectCardProps) => {
 
   const getLastContent = (content: string) => {
     if (!content) return 'No content written yet...';
-    const lines = content.split('\n').filter(line => line.trim());
-    return lines[lines.length - 1] || 'No content written yet...';
+    
+    const cleanText = getTextPreview(content, 150);
+    if (!cleanText.trim()) return 'No content written yet...';
+    
+    return cleanText;
   };
 
   const formatDate = (dateString: string) => {

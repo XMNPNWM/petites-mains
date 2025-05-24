@@ -18,9 +18,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import ChapterSidebar from './ChapterSidebar';
+import { stripHtmlTags, getWordCount } from '@/lib/contentUtils';
 
 const TextEditor = () => {
-  const [content, setContent] = useState(`Chapter 1: The Beginning
+  const initialContent = `Chapter 1: The Beginning
 
 The morning mist clung to the cobblestones like a shroud, and Aria Shadowmere moved through it like a ghost. Her footsteps were silent, her breathing controlled, every muscle in her body coiled and ready for action. This was what she had trained for her entire life – the perfect assassination.
 
@@ -28,13 +29,13 @@ But as she crept closer to her target, something felt wrong. The shadows that ha
 
 She paused at the corner of the alley, her hand instinctively moving to the blade at her hip. Lord Blackthorne's manor loomed before her, its towers piercing the gray dawn sky like accusatory fingers. Somewhere within those walls lay her target, sleeping peacefully, unaware that death was approaching on silent feet.
 
-Aria took a deep breath and stepped forward, not knowing that this single step would change the course of her life forever...`);
+Aria took a deep breath and stepped forward, not knowing that this single step would change the course of her life forever...`;
 
-  const [wordCount, setWordCount] = useState(content.split(' ').length);
+  const [content, setContent] = useState(initialContent);
+  const wordCount = getWordCount(content);
 
   const handleContentChange = (newContent: string) => {
     setContent(newContent);
-    setWordCount(newContent.split(' ').filter(word => word.length > 0).length);
   };
 
   return (

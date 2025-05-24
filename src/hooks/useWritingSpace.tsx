@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { getWordCount } from '@/lib/contentUtils';
 
 interface Project {
   id: string;
@@ -71,11 +72,13 @@ export const useWritingSpace = () => {
     if (!currentChapter) return;
     
     try {
+      const wordCount = getWordCount(currentChapter.content);
+      
       const { error } = await supabase
         .from('chapters')
         .update({ 
           content: currentChapter.content,
-          word_count: currentChapter.content.split(' ').filter(word => word.length > 0).length,
+          word_count: wordCount,
           updated_at: new Date().toISOString()
         })
         .eq('id', currentChapter.id);
