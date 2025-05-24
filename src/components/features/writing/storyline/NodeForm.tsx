@@ -4,24 +4,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-
-interface NodeFormData {
-  title: string;
-  content: string;
-  node_type: string;
-}
-
-interface StorylineNodeData {
-  id: string;
-  title: string;
-  content: string;
-  node_type: string;
-  position: { x: number; y: number };
-}
+import { StorylineNode, NodeFormData } from './types';
 
 interface NodeFormProps {
   isVisible: boolean;
-  editingNode: StorylineNodeData | null;
+  editingNode: StorylineNode | null;
   formData: NodeFormData;
   onFormChange: (field: keyof NodeFormData, value: string) => void;
   onSubmit: (e: React.FormEvent) => void;

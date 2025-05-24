@@ -1,29 +1,15 @@
 
 import React, { useCallback } from 'react';
 import StorylineNode from './StorylineNode';
-
-interface StorylineNodeData {
-  id: string;
-  title: string;
-  content: string;
-  node_type: string;
-  position: { x: number; y: number };
-}
-
-interface StorylineConnection {
-  id: string;
-  source_id: string;
-  target_id: string;
-  label: string;
-}
+import { StorylineNode as StorylineNodeType, StorylineConnection } from './types';
 
 interface StorylineCanvasProps {
-  nodes: StorylineNodeData[];
+  nodes: StorylineNodeType[];
   connections: StorylineConnection[];
   zoom: number;
   pan: { x: number; y: number };
   draggedNode: string | null;
-  onNodeEdit: (node: StorylineNodeData) => void;
+  onNodeEdit: (node: StorylineNodeType) => void;
   onNodeDelete: (nodeId: string) => void;
   onNodeDrag: (nodeId: string, newPosition: { x: number; y: number }) => void;
   onCanvasMouseDown: (e: React.MouseEvent) => void;
@@ -56,7 +42,7 @@ const StorylineCanvas = ({
     };
   }, [pan, zoom]);
 
-  const handleNodeDragStart = useCallback((e: React.MouseEvent, node: StorylineNodeData) => {
+  const handleNodeDragStart = useCallback((e: React.MouseEvent, node: StorylineNodeType) => {
     e.stopPropagation(); // Prevent canvas panning when dragging nodes
     e.preventDefault(); // Prevent text selection and other default behaviors
     setDraggedNode(node.id);

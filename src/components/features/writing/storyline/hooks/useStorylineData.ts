@@ -1,0 +1,83 @@
+
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { StorylineNode, StorylineConnection } from '../types';
+import { calculateViewportCenter } from '../utils/viewportUtils';
+
+export const useStorylineData = (projectId: string) => {
+  const [nodes, setNodes] = useState<StorylineNode[]>([]);
+  const [connections, setConnections] = useState<StorylineConnection[]>([]);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+
+  const fetchStorylineData = async () => {
+    try {
+      // Fetch nodes
+      const { data: nodesData, error: nodesError } = await supabase
+        .from('storyline_nodes')
+        .select('*')
+        .eq('project_id', projectId);
+
+      if (nodesError) throw nodesError;
+      
+      // Transform the data to match our interface
+      const transformedNodes: StorylineNode[] = (nodesData || []).map(node => ({
+        id: node.id,
+        title: node.title,
+        content: node.content || '',
+        node_type: node.node_type,
+        position: typeof node.position === 'object' && node.position !== null
+          ? node.position as { x: number; y: number }
+          : { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }
+      }));
+      
+      setNodes(transformedNodes);
+
+      // Center viewport on nodes if they exist
+      if (transformedNodes.length > 0) {
+        const centerPosition = calculateViewportCenter(transformedNodes);
+        setPan(centerPosition);
+      }
+
+      // Fetch connections
+      const { data: connectionsData, error: connectionsError } = await supabase
+        .from('storyline_connections')
+        .select('*')
+        .eq('project_id', projectId);
+
+      if (connectionsError) throw connectionsError;
+      setConnections(connectionsData || []);
+    } catch (error) {
+      console.error('Error fetching storyline data:', error);
+    }
+  };
+
+  const updateNodePosition = async (nodeId: string, newPosition: { x: number; y: number }) => {
+    try {
+      const { error } = await supabase
+        .from('storyline_nodes')
+        .update({ position: newPosition })
+        .eq('id', nodeId);
+
+      if (error) throw error;
+      
+      setNodes(prev => prev.map(node => 
+        node.id === nodeId ? { ...node, position: newPosition } : node
+      ));
+    } catch (error) {
+      console.error('Error updating node position:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchStorylineData();
+  }, [projectId]);
+
+  return {
+    nodes,
+    connections,
+    pan,
+    setPan,
+    fetchStorylineData,
+    updateNodePosition
+  };
+};

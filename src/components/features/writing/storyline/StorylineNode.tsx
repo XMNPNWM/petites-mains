@@ -3,21 +3,14 @@ import React from 'react';
 import { Edit3, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-
-interface StorylineNodeData {
-  id: string;
-  title: string;
-  content: string;
-  node_type: string;
-  position: { x: number; y: number };
-}
+import { StorylineNode as StorylineNodeType } from './types';
 
 interface StorylineNodeProps {
-  node: StorylineNodeData;
+  node: StorylineNodeType;
   isDragged: boolean;
-  onEdit: (node: StorylineNodeData) => void;
+  onEdit: (node: StorylineNodeType) => void;
   onDelete: (nodeId: string) => void;
-  onDragStart: (e: React.MouseEvent, node: StorylineNodeData) => void;
+  onDragStart: (e: React.MouseEvent, node: StorylineNodeType) => void;
 }
 
 const StorylineNode = ({ node, isDragged, onEdit, onDelete, onDragStart }: StorylineNodeProps) => {
