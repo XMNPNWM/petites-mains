@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import InlineEditableText from '@/components/ui/inline-editable-text';
-import StorylinePanel from '@/components/features/writing/StorylinePanel';
+import ReadOnlyStorylineViewer from '@/components/features/dashboard/ReadOnlyStorylineViewer';
 
 interface Project {
   id: string;
@@ -148,7 +148,7 @@ const ProjectDashboard = () => {
 
   const renderStorylinePanel = () => (
     <div className="h-full">
-      <StorylinePanel 
+      <ReadOnlyStorylineViewer 
         projectId={projectId!}
       />
     </div>
