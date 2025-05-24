@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -37,7 +37,6 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
   }, [projectId]);
 
   const normalizeNodeType = (nodeType: string): string => {
-    // Normalize node types to match display expectations
     const typeMap: { [key: string]: string } = {
       'plotPoint': 'plot',
       'locations': 'location',
@@ -55,7 +54,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
   };
 
   const calculateViewportCenter = (nodesList: StorylineNode[]) => {
-    if (nodesList.length === 0) return { x: 0, y: 0 };
+    if (nodesList.length === 0) return { x: 200, y: 200 };
 
     // Calculate bounding box of all nodes
     const positions = nodesList.map(node => node.position);
@@ -64,22 +63,18 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
     const minY = Math.min(...positions.map(p => p.y));
     const maxY = Math.max(...positions.map(p => p.y));
 
-    // Calculate center point
+    // Calculate center point of all nodes
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
 
-    // Calculate pan offset to center the nodes in the viewport
-    // Assuming viewport is roughly 800x600, center it
+    // Center the nodes in the viewport (400x300 typical visible area)
     const viewportCenterX = 400;
     const viewportCenterY = 300;
 
-    const panX = viewportCenterX - centerX;
-    const panY = viewportCenterY - centerY;
-
-    console.log('Calculated viewport center:', { centerX, centerY, panX, panY });
-    console.log('Node positions:', positions);
-
-    return { x: panX, y: panY };
+    return {
+      x: viewportCenterX - centerX,
+      y: viewportCenterY - centerY
+    };
   };
 
   const fetchStorylineData = async () => {
@@ -96,23 +91,34 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
       
       console.log('Raw nodes data:', nodesData);
       
-      // Transform the data to match our interface
-      const transformedNodes: StorylineNode[] = (nodesData || []).map(node => ({
-        id: node.id,
-        title: node.title,
-        content: node.content || '',
-        node_type: normalizeNodeType(node.node_type),
-        position: typeof node.position === 'object' && node.position !== null
-          ? node.position as { x: number; y: number }
-          : { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }
-      }));
+      // Transform the data and ensure valid positions
+      const transformedNodes: StorylineNode[] = (nodesData || []).map((node, index) => {
+        let position = { x: 100 + index * 150, y: 100 + index * 100 };
+        
+        // Try to use existing position if valid
+        if (node.position && typeof node.position === 'object' && node.position !== null) {
+          const pos = node.position as { x: number; y: number };
+          if (typeof pos.x === 'number' && typeof pos.y === 'number') {
+            position = pos;
+          }
+        }
+        
+        return {
+          id: node.id,
+          title: node.title,
+          content: node.content || '',
+          node_type: normalizeNodeType(node.node_type),
+          position
+        };
+      });
       
       console.log('Transformed nodes:', transformedNodes);
       setNodes(transformedNodes);
 
-      // Calculate and set initial viewport position to show all nodes
+      // Center viewport on nodes if they exist
       if (transformedNodes.length > 0) {
         const centerPosition = calculateViewportCenter(transformedNodes);
+        console.log('Setting pan to:', centerPosition);
         setPan(centerPosition);
       }
 
@@ -138,6 +144,13 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
     setZoom(prev => Math.max(prev - 0.2, 0.5));
   };
 
+  // Add mouse wheel zoom support
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setZoom(prev => Math.min(2, Math.max(0.5, prev + delta)));
+  }, []);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
     setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
@@ -160,6 +173,9 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
       const centerPosition = calculateViewportCenter(nodes);
       setPan(centerPosition);
       setZoom(1);
+    } else {
+      setPan({ x: 200, y: 200 });
+      setZoom(1);
     }
   };
 
@@ -178,7 +194,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
 
   return (
     <div className="h-full bg-white flex flex-col">
-      {/* Compact Header - matching StorylinePanel */}
+      {/* Header with controls */}
       <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-slate-50">
         <h3 className="font-semibold text-slate-900 text-sm">Storyline Map</h3>
         <div className="flex items-center space-x-2">
@@ -212,29 +228,37 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
         </div>
       </div>
 
-      {/* Canvas - matching StorylinePanel exactly */}
-      <div className="flex-1 relative overflow-hidden bg-slate-50">
+      {/* Canvas with proper height and scroll handling */}
+      <div 
+        className="flex-1 relative overflow-hidden bg-slate-50 cursor-grab active:cursor-grabbing"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+        style={{ minHeight: '400px' }}
+      >
         <div
-          className="absolute inset-0 cursor-grab active:cursor-grabbing"
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
+          className="absolute inset-0"
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: '0 0'
           }}
         >
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ minWidth: '2000px', minHeight: '2000px' }}>
-            {/* Grid Pattern - matching StorylinePanel */}
+          {/* SVG for grid and connections */}
+          <svg 
+            className="absolute inset-0 w-full h-full pointer-events-none" 
+            style={{ minWidth: '2000px', minHeight: '2000px' }}
+          >
+            {/* Grid Pattern */}
             <defs>
-              <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <pattern id="storyline-grid" width="20" height="20" patternUnits="userSpaceOnUse">
                 <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e2e8f0" strokeWidth="1"/>
               </pattern>
             </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
+            <rect width="100%" height="100%" fill="url(#storyline-grid)" />
             
-            {/* Connections - matching StorylinePanel */}
+            {/* Connections */}
             {connections.map((connection) => {
               const sourceNode = nodes.find(n => n.id === connection.source_id);
               const targetNode = nodes.find(n => n.id === connection.target_id);
@@ -255,7 +279,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
             })}
           </svg>
 
-          {/* Nodes - matching StorylinePanel exactly */}
+          {/* Nodes */}
           {nodes.map((node) => (
             <div
               key={node.id}
@@ -265,7 +289,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
                 top: node.position.y
               }}
             >
-              <Card className="w-28 hover:shadow-lg transition-shadow">
+              <Card className="w-28 shadow-md border border-slate-200">
                 <CardContent className="p-2">
                   <div className="flex items-start justify-between mb-1">
                     <h4 className="text-xs font-medium text-slate-900 line-clamp-2">

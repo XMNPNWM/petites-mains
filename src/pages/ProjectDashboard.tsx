@@ -147,7 +147,7 @@ const ProjectDashboard = () => {
   };
 
   const renderStorylinePanel = () => (
-    <div className="h-full">
+    <div className="h-full min-h-[600px]">
       <ReadOnlyStorylineViewer 
         projectId={projectId!}
       />
