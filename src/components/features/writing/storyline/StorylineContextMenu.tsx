@@ -53,12 +53,14 @@ const StorylineContextMenu = ({
   }, {} as Record<string, WorldbuildingElement[]>);
 
   const handleCreateNode = (nodeType: string) => {
+    console.log('Context menu create node:', nodeType, 'at position:', contextPosition);
     if (contextPosition) {
       onCreateNode(nodeType, contextPosition);
     }
   };
 
   const handleCreateFromWorldbuilding = (element: WorldbuildingElement) => {
+    console.log('Context menu create from worldbuilding:', element.name, 'at position:', contextPosition);
     if (contextPosition) {
       onCreateFromWorldbuilding(element, contextPosition);
     }
