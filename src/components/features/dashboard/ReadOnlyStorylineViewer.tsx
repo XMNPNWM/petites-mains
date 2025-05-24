@@ -36,8 +36,56 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
     fetchStorylineData();
   }, [projectId]);
 
+  const normalizeNodeType = (nodeType: string): string => {
+    // Normalize node types to match display expectations
+    const typeMap: { [key: string]: string } = {
+      'plotPoint': 'plot',
+      'locations': 'location',
+      'plot': 'plot',
+      'scene': 'scene',
+      'character': 'character',
+      'conflict': 'conflict',
+      'resolution': 'resolution',
+      'location': 'location',
+      'organization': 'organization',
+      'artifact': 'artifact'
+    };
+    
+    return typeMap[nodeType] || nodeType;
+  };
+
+  const calculateViewportCenter = (nodesList: StorylineNode[]) => {
+    if (nodesList.length === 0) return { x: 0, y: 0 };
+
+    // Calculate bounding box of all nodes
+    const positions = nodesList.map(node => node.position);
+    const minX = Math.min(...positions.map(p => p.x));
+    const maxX = Math.max(...positions.map(p => p.x));
+    const minY = Math.min(...positions.map(p => p.y));
+    const maxY = Math.max(...positions.map(p => p.y));
+
+    // Calculate center point
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    // Calculate pan offset to center the nodes in the viewport
+    // Assuming viewport is roughly 800x600, center it
+    const viewportCenterX = 400;
+    const viewportCenterY = 300;
+
+    const panX = viewportCenterX - centerX;
+    const panY = viewportCenterY - centerY;
+
+    console.log('Calculated viewport center:', { centerX, centerY, panX, panY });
+    console.log('Node positions:', positions);
+
+    return { x: panX, y: panY };
+  };
+
   const fetchStorylineData = async () => {
     try {
+      console.log('Fetching storyline data for project:', projectId);
+      
       // Fetch nodes
       const { data: nodesData, error: nodesError } = await supabase
         .from('storyline_nodes')
@@ -46,18 +94,27 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
 
       if (nodesError) throw nodesError;
       
+      console.log('Raw nodes data:', nodesData);
+      
       // Transform the data to match our interface
       const transformedNodes: StorylineNode[] = (nodesData || []).map(node => ({
         id: node.id,
         title: node.title,
         content: node.content || '',
-        node_type: node.node_type,
+        node_type: normalizeNodeType(node.node_type),
         position: typeof node.position === 'object' && node.position !== null
           ? node.position as { x: number; y: number }
           : { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }
       }));
       
+      console.log('Transformed nodes:', transformedNodes);
       setNodes(transformedNodes);
+
+      // Calculate and set initial viewport position to show all nodes
+      if (transformedNodes.length > 0) {
+        const centerPosition = calculateViewportCenter(transformedNodes);
+        setPan(centerPosition);
+      }
 
       // Fetch connections
       const { data: connectionsData, error: connectionsError } = await supabase
@@ -66,6 +123,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
         .eq('project_id', projectId);
 
       if (connectionsError) throw connectionsError;
+      console.log('Connections data:', connectionsData);
       setConnections(connectionsData || []);
     } catch (error) {
       console.error('Error fetching storyline data:', error);
@@ -95,6 +153,14 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
 
   const handleMouseUp = () => {
     setIsDragging(false);
+  };
+
+  const resetView = () => {
+    if (nodes.length > 0) {
+      const centerPosition = calculateViewportCenter(nodes);
+      setPan(centerPosition);
+      setZoom(1);
+    }
   };
 
   if (nodes.length === 0) {
@@ -135,6 +201,14 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
           >
             <ZoomIn className="w-3 h-3" />
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={resetView}
+            className="h-7 px-2 text-xs"
+          >
+            Reset
+          </Button>
         </div>
       </div>
 
@@ -147,10 +221,11 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0'
           }}
         >
-          <svg className="absolute inset-0 w-full h-full pointer-events-none">
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ minWidth: '2000px', minHeight: '2000px' }}>
             {/* Grid Pattern - matching StorylinePanel */}
             <defs>
               <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
