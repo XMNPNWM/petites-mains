@@ -20,6 +20,8 @@ interface Chapter {
   title: string;
   content: string;
   word_count: number;
+  order_index: number;
+  status: string;
 }
 
 const WritingSpace = () => {

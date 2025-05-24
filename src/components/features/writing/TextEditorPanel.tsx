@@ -8,6 +8,8 @@ interface Chapter {
   title: string;
   content: string;
   word_count: number;
+  order_index: number;
+  status: string;
 }
 
 interface TextEditorPanelProps {
@@ -26,7 +28,16 @@ const TextEditorPanel = ({ chapter, onContentChange }: TextEditorPanelProps) => 
           {/* Chapter Header */}
           <div className="mb-4">
             <h2 className="text-xl font-bold text-slate-900">{chapter.title}</h2>
-            <p className="text-sm text-slate-600">{wordCount} words</p>
+            <div className="flex items-center space-x-4 text-sm text-slate-600">
+              <span>{wordCount} words</span>
+              <span className={`px-2 py-1 rounded text-xs ${
+                chapter.status === 'published' ? 'bg-green-100 text-green-700' :
+                chapter.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-gray-100 text-gray-700'
+              }`}>
+                {chapter.status}
+              </span>
+            </div>
           </div>
 
           {/* Editor */}

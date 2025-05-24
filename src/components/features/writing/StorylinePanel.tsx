@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Plus, Edit3, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -55,7 +54,19 @@ const StorylinePanel = ({ projectId, chapterId, onClose }: StorylinePanelProps) 
         .eq('project_id', projectId);
 
       if (nodesError) throw nodesError;
-      setNodes(nodesData || []);
+      
+      // Transform the data to match our interface
+      const transformedNodes: StorylineNode[] = (nodesData || []).map(node => ({
+        id: node.id,
+        title: node.title,
+        content: node.content || '',
+        node_type: node.node_type,
+        position: typeof node.position === 'object' && node.position !== null
+          ? node.position as { x: number; y: number }
+          : { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }
+      }));
+      
+      setNodes(transformedNodes);
 
       // Fetch connections
       const { data: connectionsData, error: connectionsError } = await supabase
