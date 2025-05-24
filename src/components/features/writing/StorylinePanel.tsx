@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import StorylineControls from './storyline/StorylineControls';
 import StorylineCanvas from './storyline/StorylineCanvas';
 import NodeForm from './storyline/NodeForm';
+import DeleteNodeDialog from './storyline/DeleteNodeDialog';
 
 interface StorylineNode {
   id: string;
@@ -43,6 +43,16 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
     title: '',
     content: '',
     node_type: 'scene'
+  });
+
+  const [deleteDialogState, setDeleteDialogState] = useState<{
+    isOpen: boolean;
+    nodeId: string | null;
+    nodeName: string;
+  }>({
+    isOpen: false,
+    nodeId: null,
+    nodeName: ''
   });
 
   useEffect(() => {
@@ -225,10 +235,19 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
   };
 
   const deleteNode = async (nodeId: string) => {
-    // Ask user if they want to delete from worldbuilding too
-    const deleteFromWorld = window.confirm(
-      'Do you want to also delete this element from your worldbuilding library?'
-    );
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    setDeleteDialogState({
+      isOpen: true,
+      nodeId,
+      nodeName: node.title
+    });
+  };
+
+  const handleDeleteConfirm = async (deleteFromWorldbuilding: boolean) => {
+    const { nodeId } = deleteDialogState;
+    if (!nodeId) return;
 
     try {
       // Delete the node
@@ -248,7 +267,7 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
       if (connectionsError) throw connectionsError;
 
       // Optionally delete from worldbuilding
-      if (deleteFromWorld) {
+      if (deleteFromWorldbuilding) {
         const node = nodes.find(n => n.id === nodeId);
         if (node) {
           const { error: worldError } = await supabase
@@ -261,10 +280,15 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
         }
       }
 
+      setDeleteDialogState({ isOpen: false, nodeId: null, nodeName: '' });
       fetchStorylineData();
     } catch (error) {
       console.error('Error deleting node:', error);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogState({ isOpen: false, nodeId: null, nodeName: '' });
   };
 
   const handleNodeEdit = (node: StorylineNode) => {
@@ -346,6 +370,13 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
         onFormChange={handleFormChange}
         onSubmit={handleFormSubmit}
         onCancel={resetForm}
+      />
+
+      <DeleteNodeDialog
+        isOpen={deleteDialogState.isOpen}
+        nodeName={deleteDialogState.nodeName}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
       />
     </div>
   );
