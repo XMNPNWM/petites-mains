@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Users, Globe, BarChart3, Edit3 } from 'lucide-react';
@@ -12,6 +11,7 @@ interface Project {
   description: string;
   created_at: string;
   updated_at: string;
+  last_active_chapter_id?: string;
 }
 
 interface Chapter {
@@ -130,6 +130,21 @@ const ProjectDashboard = () => {
     navigate(route);
   };
 
+  const handleWriteButtonClick = () => {
+    if (project?.last_active_chapter_id) {
+      goToWritingSpace(project.last_active_chapter_id);
+    } else {
+      goToWritingSpace();
+    }
+  };
+
+  const getWriteButtonText = () => {
+    if (project?.last_active_chapter_id) {
+      return 'Continue Writing';
+    }
+    return chapters.length > 0 ? 'Start Writing' : 'Create First Chapter';
+  };
+
   const renderStorylinePanel = () => (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-slate-900">Recent Storyline Nodes</h3>
@@ -197,25 +212,10 @@ const ProjectDashboard = () => {
 
   const renderChaptersPanel = () => (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">Chapters</h3>
-        <Button 
-          onClick={() => goToWritingSpace()}
-          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-        >
-          <Edit3 className="w-4 h-4 mr-2" />
-          Write
-        </Button>
-      </div>
+      <h3 className="text-lg font-semibold text-slate-900">Chapters</h3>
       {chapters.length === 0 ? (
         <div className="text-center py-8">
           <p className="text-slate-500 mb-4">No chapters created yet</p>
-          <Button 
-            onClick={() => goToWritingSpace()}
-            variant="outline"
-          >
-            Create First Chapter
-          </Button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -315,6 +315,15 @@ const ProjectDashboard = () => {
                 <h1 className="text-2xl font-bold text-slate-900">{project.title}</h1>
                 <p className="text-slate-600">{project.description}</p>
               </div>
+            </div>
+            <div>
+              <Button 
+                onClick={handleWriteButtonClick}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              >
+                <Edit3 className="w-4 h-4 mr-2" />
+                {getWriteButtonText()}
+              </Button>
             </div>
           </div>
         </div>
