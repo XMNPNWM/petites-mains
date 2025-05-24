@@ -1,7 +1,8 @@
 
 import React from 'react';
-import { Star, User, FileText, Clock } from 'lucide-react';
+import { Star, User, FileText, Clock, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,8 +11,27 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useAuth } from '@/contexts/AuthContext';
 
 const DashboardHeader = () => {
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
+  const getInitials = (name: string | undefined) => {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   return (
     <div className="bg-white border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-6 py-8">
@@ -24,6 +44,7 @@ const DashboardHeader = () => {
           <div className="flex items-center space-x-3">
             {/* Subscription Button */}
             <Button 
+              onClick={() => navigate('/subscription')}
               className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-medium"
               size="sm"
             >
@@ -38,26 +59,27 @@ const DashboardHeader = () => {
                   <Avatar className="h-10 w-10">
                     <AvatarImage src="/placeholder.svg" alt="User avatar" />
                     <AvatarFallback>
-                      <User className="h-5 w-5" />
+                      {getInitials(user?.user_metadata?.full_name)}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end">
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/profile')}>
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/subscription')}>
                   <FileText className="mr-2 h-4 w-4" />
                   <span>Subscription</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/analytics')}>
                   <Clock className="mr-2 h-4 w-4" />
                   <span>Global Analytics</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
                   <span>Sign out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>

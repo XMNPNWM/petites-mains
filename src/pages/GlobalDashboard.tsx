@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import DashboardHeader from '@/components/features/dashboard/DashboardHeader';
 import ProjectCard from '@/components/features/dashboard/ProjectCard';
 import EmptyProjectsState from '@/components/features/dashboard/EmptyProjectsState';
@@ -21,17 +22,21 @@ interface Project {
 const GlobalDashboard = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    if (user) {
+      fetchProjects();
+    }
+  }, [user]);
 
   const fetchProjects = async () => {
     try {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
+        .eq('user_id', user?.id)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
@@ -51,7 +56,7 @@ const GlobalDashboard = () => {
           title: 'New Project',
           description: 'A new writing project',
           content: '',
-          user_id: 'temp-user-id' // TODO: Replace with actual user ID when auth is implemented
+          user_id: user?.id
         }])
         .select()
         .single();
