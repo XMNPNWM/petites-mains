@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { StorylineNode, NodeFormData, DeleteDialogState } from '../types';
+import { StorylineNode, NodeFormData, DeleteDialogState, WorldbuildingElement, ConnectionLabelState } from '../types';
 
 export const useStorylineActions = (
   projectId: string,
@@ -22,6 +22,69 @@ export const useStorylineActions = (
     nodeId: null,
     nodeName: ''
   });
+  const [connectionLabelState, setConnectionLabelState] = useState<ConnectionLabelState>({
+    isEditing: false,
+    connectionId: null,
+    position: null
+  });
+
+  const createNodeAtPosition = async (nodeType: string, position: { x: number; y: number }) => {
+    try {
+      const { data: nodeData, error: nodeError } = await supabase
+        .from('storyline_nodes')
+        .insert([{
+          title: `New ${nodeType}`,
+          content: '',
+          node_type: nodeType,
+          project_id: projectId,
+          position,
+          layer: 1
+        }])
+        .select()
+        .single();
+
+      if (nodeError) throw nodeError;
+
+      // Also create worldbuilding element
+      const { error: worldError } = await supabase
+        .from('worldbuilding_elements')
+        .insert([{
+          name: `New ${nodeType}`,
+          type: nodeType,
+          description: '',
+          project_id: projectId
+        }]);
+
+      if (worldError) throw worldError;
+
+      onDataChange();
+    } catch (error) {
+      console.error('Error creating node:', error);
+    }
+  };
+
+  const createNodeFromWorldbuilding = async (element: WorldbuildingElement, position: { x: number; y: number }) => {
+    try {
+      const { data: nodeData, error: nodeError } = await supabase
+        .from('storyline_nodes')
+        .insert([{
+          title: element.name,
+          content: element.description || '',
+          node_type: element.type,
+          project_id: projectId,
+          position,
+          layer: 1
+        }])
+        .select()
+        .single();
+
+      if (nodeError) throw nodeError;
+
+      onDataChange();
+    } catch (error) {
+      console.error('Error creating node from worldbuilding:', error);
+    }
+  };
 
   const createNode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,11 +235,28 @@ export const useStorylineActions = (
     }
   };
 
+  const startEditingConnectionLabel = (connectionId: string, position: { x: number; y: number }) => {
+    setConnectionLabelState({
+      isEditing: true,
+      connectionId,
+      position
+    });
+  };
+
+  const cancelEditingConnectionLabel = () => {
+    setConnectionLabelState({
+      isEditing: false,
+      connectionId: null,
+      position: null
+    });
+  };
+
   return {
     editingNode,
     showNodeForm,
     nodeForm,
     deleteDialogState,
+    connectionLabelState,
     setShowNodeForm,
     deleteNode,
     handleDeleteConfirm,
@@ -184,6 +264,10 @@ export const useStorylineActions = (
     handleNodeEdit,
     resetForm,
     handleFormChange,
-    handleFormSubmit
+    handleFormSubmit,
+    createNodeAtPosition,
+    createNodeFromWorldbuilding,
+    startEditingConnectionLabel,
+    cancelEditingConnectionLabel
   };
 };

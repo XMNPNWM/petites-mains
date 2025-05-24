@@ -1,29 +1,21 @@
 
 import React from 'react';
-import { Plus, ZoomIn, ZoomOut } from 'lucide-react';
+import { ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface StorylineControlsProps {
   zoom: number;
-  onAddNode: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetView: () => void;
 }
 
-const StorylineControls = ({ zoom, onAddNode, onZoomIn, onZoomOut, onResetView }: StorylineControlsProps) => {
+const StorylineControls = ({ zoom, onZoomIn, onZoomOut, onResetView }: StorylineControlsProps) => {
   return (
     <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-slate-50">
       <h3 className="font-semibold text-slate-900 text-sm">Storyline Map</h3>
       <div className="flex items-center space-x-2">
-        <Button 
-          size="sm" 
-          onClick={onAddNode}
-          className="bg-gradient-to-r from-purple-600 to-blue-600 text-xs h-7"
-        >
-          <Plus className="w-3 h-3 mr-1" />
-          Add Node
-        </Button>
+        <span className="text-xs text-slate-500">Right-click to add nodes</span>
         <div className="w-px h-4 bg-slate-300"></div>
         <Button
           size="sm"

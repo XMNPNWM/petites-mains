@@ -1,12 +1,13 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { StorylineNode, StorylineConnection } from '../types';
+import { StorylineNode, StorylineConnection, WorldbuildingElement } from '../types';
 import { calculateViewportCenter } from '../utils/viewportUtils';
 
 export const useStorylineData = (projectId: string) => {
   const [nodes, setNodes] = useState<StorylineNode[]>([]);
   const [connections, setConnections] = useState<StorylineConnection[]>([]);
+  const [worldbuildingElements, setWorldbuildingElements] = useState<WorldbuildingElement[]>([]);
   const [pan, setPan] = useState({ x: 0, y: 0 });
 
   const fetchStorylineData = async () => {
@@ -46,6 +47,15 @@ export const useStorylineData = (projectId: string) => {
 
       if (connectionsError) throw connectionsError;
       setConnections(connectionsData || []);
+
+      // Fetch worldbuilding elements
+      const { data: worldbuildingData, error: worldbuildingError } = await supabase
+        .from('worldbuilding_elements')
+        .select('id, name, type, description')
+        .eq('project_id', projectId);
+
+      if (worldbuildingError) throw worldbuildingError;
+      setWorldbuildingElements(worldbuildingData || []);
     } catch (error) {
       console.error('Error fetching storyline data:', error);
     }
@@ -68,6 +78,23 @@ export const useStorylineData = (projectId: string) => {
     }
   };
 
+  const updateConnectionLabel = async (connectionId: string, label: string) => {
+    try {
+      const { error } = await supabase
+        .from('storyline_connections')
+        .update({ label })
+        .eq('id', connectionId);
+
+      if (error) throw error;
+      
+      setConnections(prev => prev.map(connection => 
+        connection.id === connectionId ? { ...connection, label } : connection
+      ));
+    } catch (error) {
+      console.error('Error updating connection label:', error);
+    }
+  };
+
   useEffect(() => {
     fetchStorylineData();
   }, [projectId]);
@@ -75,9 +102,11 @@ export const useStorylineData = (projectId: string) => {
   return {
     nodes,
     connections,
+    worldbuildingElements,
     pan,
     setPan,
     fetchStorylineData,
-    updateNodePosition
+    updateNodePosition,
+    updateConnectionLabel
   };
 };

@@ -14,6 +14,13 @@ export interface StorylineConnection {
   label: string;
 }
 
+export interface WorldbuildingElement {
+  id: string;
+  name: string;
+  type: string;
+  description?: string;
+}
+
 export interface NodeFormData {
   title: string;
   content: string;
@@ -31,4 +38,10 @@ export interface ViewportState {
   pan: { x: number; y: number };
   isPanning: boolean;
   panStart: { x: number; y: number };
+}
+
+export interface ConnectionLabelState {
+  isEditing: boolean;
+  connectionId: string | null;
+  position: { x: number; y: number } | null;
 }

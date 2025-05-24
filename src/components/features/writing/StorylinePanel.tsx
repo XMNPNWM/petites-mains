@@ -17,9 +17,11 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
   const {
     nodes,
     connections,
+    worldbuildingElements,
     pan: dataPan,
     fetchStorylineData,
-    updateNodePosition
+    updateNodePosition,
+    updateConnectionLabel
   } = useStorylineData(projectId);
 
   const {
@@ -42,6 +44,7 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
     showNodeForm,
     nodeForm,
     deleteDialogState,
+    connectionLabelState,
     setShowNodeForm,
     deleteNode,
     handleDeleteConfirm,
@@ -49,7 +52,11 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
     handleNodeEdit,
     resetForm,
     handleFormChange,
-    handleFormSubmit
+    handleFormSubmit,
+    createNodeAtPosition,
+    createNodeFromWorldbuilding,
+    startEditingConnectionLabel,
+    cancelEditingConnectionLabel
   } = useStorylineActions(projectId, nodes, zoom, pan, fetchStorylineData);
 
   // Update pan when data pan changes
@@ -57,11 +64,15 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
     setPan(dataPan);
   }, [dataPan, setPan]);
 
+  const handleConnectionLabelSave = async (connectionId: string, label: string) => {
+    await updateConnectionLabel(connectionId, label);
+    cancelEditingConnectionLabel();
+  };
+
   return (
     <div className="h-full bg-white flex flex-col">
       <StorylineControls
         zoom={zoom}
-        onAddNode={() => setShowNodeForm(true)}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onResetView={resetView}
@@ -70,9 +81,11 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
       <StorylineCanvas
         nodes={nodes}
         connections={connections}
+        worldbuildingElements={worldbuildingElements}
         zoom={zoom}
         pan={pan}
         draggedNode={draggedNode}
+        connectionLabelState={connectionLabelState}
         onNodeEdit={handleNodeEdit}
         onNodeDelete={deleteNode}
         onNodeDrag={updateNodePosition}
@@ -80,6 +93,11 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
         onCanvasMouseMove={handleCanvasMouseMove}
         onCanvasMouseUp={handleCanvasMouseUp}
         onWheel={handleWheel}
+        onCreateNode={createNodeAtPosition}
+        onCreateFromWorldbuilding={createNodeFromWorldbuilding}
+        onConnectionLabelEdit={startEditingConnectionLabel}
+        onConnectionLabelSave={handleConnectionLabelSave}
+        onConnectionLabelCancel={cancelEditingConnectionLabel}
         setDraggedNode={setDraggedNode}
       />
 
