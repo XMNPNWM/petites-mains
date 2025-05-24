@@ -1,11 +1,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit3, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
+import StorylineControls from './storyline/StorylineControls';
+import StorylineCanvas from './storyline/StorylineCanvas';
+import NodeForm from './storyline/NodeForm';
 
 interface StorylineNode {
   id: string;
@@ -197,9 +195,7 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
 
       if (worldError) throw worldError;
 
-      setNodeForm({ title: '', content: '', node_type: 'scene' });
-      setShowNodeForm(false);
-      setEditingNode(null);
+      resetForm();
       fetchStorylineData();
     } catch (error) {
       console.error('Error creating node:', error);
@@ -221,9 +217,7 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
 
       if (error) throw error;
 
-      setNodeForm({ title: '', content: '', node_type: 'scene' });
-      setShowNodeForm(false);
-      setEditingNode(null);
+      resetForm();
       fetchStorylineData();
     } catch (error) {
       console.error('Error updating node:', error);
@@ -300,272 +294,59 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
     }
   }, []);
 
-  // Convert screen coordinates to world coordinates
-  const screenToWorld = useCallback((screenX: number, screenY: number) => {
-    return {
-      x: (screenX - pan.x) / zoom,
-      y: (screenY - pan.y) / zoom
-    };
-  }, [pan, zoom]);
+  const resetForm = () => {
+    setNodeForm({ title: '', content: '', node_type: 'scene' });
+    setShowNodeForm(false);
+    setEditingNode(null);
+  };
+
+  const handleFormChange = (field: keyof typeof nodeForm, value: string) => {
+    setNodeForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    if (editingNode) {
+      e.preventDefault();
+      updateNode();
+    } else {
+      createNode(e);
+    }
+  };
 
   return (
     <div className="h-full bg-white flex flex-col">
-      {/* Header with zoom controls */}
-      <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-slate-50">
-        <h3 className="font-semibold text-slate-900 text-sm">Storyline Map</h3>
-        <div className="flex items-center space-x-2">
-          <Button 
-            size="sm" 
-            onClick={() => setShowNodeForm(true)}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-xs h-7"
-          >
-            <Plus className="w-3 h-3 mr-1" />
-            Add Node
-          </Button>
-          <div className="w-px h-4 bg-slate-300"></div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleZoomOut}
-            className="h-7 w-7 p-0 text-xs"
-          >
-            <ZoomOut className="w-3 h-3" />
-          </Button>
-          <span className="text-xs text-slate-500 min-w-12 text-center">
-            {Math.round(zoom * 100)}%
-          </span>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleZoomIn}
-            className="h-7 w-7 p-0 text-xs"
-          >
-            <ZoomIn className="w-3 h-3" />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={resetView}
-            className="h-7 px-2 text-xs"
-          >
-            Reset
-          </Button>
-        </div>
-      </div>
+      <StorylineControls
+        zoom={zoom}
+        onAddNode={() => setShowNodeForm(true)}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetView={resetView}
+      />
 
-      {/* Canvas with pan and zoom */}
-      <div 
-        className="flex-1 relative overflow-hidden bg-slate-50 cursor-grab active:cursor-grabbing"
-        onMouseDown={handleCanvasMouseDown}
-        onMouseMove={handleCanvasMouseMove}
-        onMouseUp={handleCanvasMouseUp}
-        onMouseLeave={handleCanvasMouseUp}
+      <StorylineCanvas
+        nodes={nodes}
+        connections={connections}
+        zoom={zoom}
+        pan={pan}
+        draggedNode={draggedNode}
+        onNodeEdit={handleNodeEdit}
+        onNodeDelete={deleteNode}
+        onNodeDrag={handleNodeDrag}
+        onCanvasMouseDown={handleCanvasMouseDown}
+        onCanvasMouseMove={handleCanvasMouseMove}
+        onCanvasMouseUp={handleCanvasMouseUp}
         onWheel={handleWheel}
-      >
-        <div
-          className="absolute inset-0"
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: '0 0'
-          }}
-        >
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ minWidth: '2000px', minHeight: '2000px' }}>
-            {/* Grid Pattern */}
-            <defs>
-              <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e2e8f0" strokeWidth="1"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-            
-            {/* Connections */}
-            {connections.map((connection) => {
-              const sourceNode = nodes.find(n => n.id === connection.source_id);
-              const targetNode = nodes.find(n => n.id === connection.target_id);
-              if (!sourceNode || !targetNode) return null;
-              
-              return (
-                <line
-                  key={connection.id}
-                  x1={sourceNode.position.x + 60}
-                  y1={sourceNode.position.y + 30}
-                  x2={targetNode.position.x + 60}
-                  y2={targetNode.position.y + 30}
-                  stroke="rgba(148, 163, 184, 0.6)"
-                  strokeWidth="2"
-                  strokeDasharray="5,5"
-                />
-              );
-            })}
-          </svg>
+        setDraggedNode={setDraggedNode}
+      />
 
-          {/* Nodes */}
-          {nodes.map((node) => (
-            <div
-              key={node.id}
-              className="absolute cursor-move storyline-node"
-              style={{
-                left: node.position.x,
-                top: node.position.y,
-                zIndex: draggedNode === node.id ? 10 : 1
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation(); // Prevent canvas panning when dragging nodes
-                setDraggedNode(node.id);
-                
-                // Get the container element to calculate proper bounds
-                const container = e.currentTarget.closest('.flex-1') as HTMLElement;
-                const containerRect = container.getBoundingClientRect();
-                
-                // Calculate the initial offset between mouse and node position in world coordinates
-                const mouseWorldPos = screenToWorld(e.clientX - containerRect.left, e.clientY - containerRect.top);
-                const dragOffset = {
-                  x: mouseWorldPos.x - node.position.x,
-                  y: mouseWorldPos.y - node.position.y
-                };
-
-                console.log('Drag start:', {
-                  mouseScreen: { x: e.clientX - containerRect.left, y: e.clientY - containerRect.top },
-                  mouseWorld: mouseWorldPos,
-                  nodePos: node.position,
-                  offset: dragOffset,
-                  pan,
-                  zoom
-                });
-
-                const handleMouseMove = (e: MouseEvent) => {
-                  // Convert current mouse position to world coordinates
-                  const currentMouseWorldPos = screenToWorld(e.clientX - containerRect.left, e.clientY - containerRect.top);
-                  
-                  // Calculate new node position by subtracting the initial offset
-                  const newPosition = {
-                    x: currentMouseWorldPos.x - dragOffset.x,
-                    y: currentMouseWorldPos.y - dragOffset.y
-                  };
-
-                  console.log('Drag move:', {
-                    mouseScreen: { x: e.clientX - containerRect.left, y: e.clientY - containerRect.top },
-                    mouseWorld: currentMouseWorldPos,
-                    newPos: newPosition
-                  });
-
-                  handleNodeDrag(node.id, newPosition);
-                };
-
-                const handleMouseUp = () => {
-                  setDraggedNode(null);
-                  document.removeEventListener('mousemove', handleMouseMove);
-                  document.removeEventListener('mouseup', handleMouseUp);
-                };
-
-                document.addEventListener('mousemove', handleMouseMove);
-                document.addEventListener('mouseup', handleMouseUp);
-              }}
-            >
-              <Card className="w-28 hover:shadow-lg transition-shadow group">
-                <CardContent className="p-2">
-                  <div className="flex items-start justify-between mb-1">
-                    <h4 className="text-xs font-medium text-slate-900 line-clamp-2">
-                      {node.title}
-                    </h4>
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-0.5">
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        className="h-3 w-3"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleNodeEdit(node);
-                        }}
-                      >
-                        <Edit3 className="w-1.5 h-1.5" />
-                      </Button>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        className="h-3 w-3"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteNode(node.id);
-                        }}
-                      >
-                        <Trash2 className="w-1.5 h-1.5" />
-                      </Button>
-                    </div>
-                  </div>
-                  <span className="text-xs bg-slate-100 text-slate-600 px-1 py-0.5 rounded">
-                    {node.node_type}
-                  </span>
-                </CardContent>
-              </Card>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Node Form Modal */}
-      {showNodeForm && (
-        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
-          <Card className="w-80 max-w-full mx-4">
-            <CardContent className="p-4">
-              <h3 className="font-semibold text-slate-900 mb-3 text-sm">
-                {editingNode ? 'Edit Node' : 'Create New Node'}
-              </h3>
-              <form onSubmit={editingNode ? (e) => { e.preventDefault(); updateNode(); } : createNode} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Title</label>
-                  <Input
-                    value={nodeForm.title}
-                    onChange={(e) => setNodeForm({...nodeForm, title: e.target.value})}
-                    required
-                    className="text-sm h-8"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Type</label>
-                  <select
-                    value={nodeForm.node_type}
-                    onChange={(e) => setNodeForm({...nodeForm, node_type: e.target.value})}
-                    className="w-full px-2 py-1 border border-slate-300 rounded-md text-sm h-8"
-                  >
-                    <option value="scene">Scene</option>
-                    <option value="character">Character</option>
-                    <option value="plot">Plot Point</option>
-                    <option value="conflict">Conflict</option>
-                    <option value="resolution">Resolution</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Content</label>
-                  <Textarea
-                    value={nodeForm.content}
-                    onChange={(e) => setNodeForm({...nodeForm, content: e.target.value})}
-                    rows={2}
-                    className="text-sm"
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button type="submit" className="bg-gradient-to-r from-purple-600 to-blue-600 text-xs h-7">
-                    {editingNode ? 'Update' : 'Create'}
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    className="text-xs h-7"
-                    onClick={() => {
-                      setShowNodeForm(false);
-                      setEditingNode(null);
-                      setNodeForm({ title: '', content: '', node_type: 'scene' });
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <NodeForm
+        isVisible={showNodeForm}
+        editingNode={editingNode}
+        formData={nodeForm}
+        onFormChange={handleFormChange}
+        onSubmit={handleFormSubmit}
+        onCancel={resetForm}
+      />
     </div>
   );
 };
