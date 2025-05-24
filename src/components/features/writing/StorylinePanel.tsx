@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit3, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -299,6 +300,14 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
     }
   }, []);
 
+  // Convert screen coordinates to world coordinates
+  const screenToWorld = useCallback((screenX: number, screenY: number) => {
+    return {
+      x: (screenX - pan.x) / zoom,
+      y: (screenY - pan.y) / zoom
+    };
+  }, [pan, zoom]);
+
   return (
     <div className="h-full bg-white flex flex-col">
       {/* Header with zoom controls */}
@@ -403,15 +412,43 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
               onMouseDown={(e) => {
                 e.stopPropagation(); // Prevent canvas panning when dragging nodes
                 setDraggedNode(node.id);
-                const rect = e.currentTarget.getBoundingClientRect();
-                const startX = (e.clientX - rect.left) / zoom;
-                const startY = (e.clientY - rect.top) / zoom;
+                
+                // Get the container element to calculate proper bounds
+                const container = e.currentTarget.closest('.flex-1') as HTMLElement;
+                const containerRect = container.getBoundingClientRect();
+                
+                // Calculate the initial offset between mouse and node position in world coordinates
+                const mouseWorldPos = screenToWorld(e.clientX - containerRect.left, e.clientY - containerRect.top);
+                const dragOffset = {
+                  x: mouseWorldPos.x - node.position.x,
+                  y: mouseWorldPos.y - node.position.y
+                };
+
+                console.log('Drag start:', {
+                  mouseScreen: { x: e.clientX - containerRect.left, y: e.clientY - containerRect.top },
+                  mouseWorld: mouseWorldPos,
+                  nodePos: node.position,
+                  offset: dragOffset,
+                  pan,
+                  zoom
+                });
 
                 const handleMouseMove = (e: MouseEvent) => {
+                  // Convert current mouse position to world coordinates
+                  const currentMouseWorldPos = screenToWorld(e.clientX - containerRect.left, e.clientY - containerRect.top);
+                  
+                  // Calculate new node position by subtracting the initial offset
                   const newPosition = {
-                    x: (e.clientX - pan.x) / zoom - startX,
-                    y: (e.clientY - pan.y) / zoom - startY
+                    x: currentMouseWorldPos.x - dragOffset.x,
+                    y: currentMouseWorldPos.y - dragOffset.y
                   };
+
+                  console.log('Drag move:', {
+                    mouseScreen: { x: e.clientX - containerRect.left, y: e.clientY - containerRect.top },
+                    mouseWorld: currentMouseWorldPos,
+                    newPos: newPosition
+                  });
+
                   handleNodeDrag(node.id, newPosition);
                 };
 
