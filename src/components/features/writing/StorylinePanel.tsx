@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit3, Trash2 } from 'lucide-react';
+import { Plus, Edit3, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,12 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
   const [showNodeForm, setShowNodeForm] = useState(false);
   const [editingNode, setEditingNode] = useState<StorylineNode | null>(null);
   const [draggedNode, setDraggedNode] = useState<string | null>(null);
+  
+  // Viewport state for pan and zoom
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
 
   const [nodeForm, setNodeForm] = useState({
     title: '',
@@ -43,6 +49,30 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
   useEffect(() => {
     fetchStorylineData();
   }, [projectId]);
+
+  const calculateViewportCenter = (nodesList: StorylineNode[]) => {
+    if (nodesList.length === 0) return { x: 0, y: 0 };
+
+    // Calculate bounding box of all nodes
+    const positions = nodesList.map(node => node.position);
+    const minX = Math.min(...positions.map(p => p.x));
+    const maxX = Math.max(...positions.map(p => p.x));
+    const minY = Math.min(...positions.map(p => p.y));
+    const maxY = Math.max(...positions.map(p => p.y));
+
+    // Calculate center point
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    // Calculate pan offset to center the nodes in the viewport
+    const viewportCenterX = 200; // Adjusted for smaller panel
+    const viewportCenterY = 200;
+
+    const panX = viewportCenterX - centerX;
+    const panY = viewportCenterY - centerY;
+
+    return { x: panX, y: panY };
+  };
 
   const fetchStorylineData = async () => {
     try {
@@ -67,6 +97,12 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
       
       setNodes(transformedNodes);
 
+      // Center viewport on nodes if they exist
+      if (transformedNodes.length > 0) {
+        const centerPosition = calculateViewportCenter(transformedNodes);
+        setPan(centerPosition);
+      }
+
       // Fetch connections
       const { data: connectionsData, error: connectionsError } = await supabase
         .from('storyline_connections')
@@ -80,11 +116,60 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
     }
   };
 
+  // Zoom controls
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(prev + 0.2, 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => Math.max(prev - 0.2, 0.3));
+  };
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setZoom(prev => Math.min(3, Math.max(0.3, prev + delta)));
+  }, []);
+
+  // Canvas panning
+  const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only start panning if clicking on canvas background, not on nodes
+    if ((e.target as HTMLElement).closest('.storyline-node')) return;
+    
+    setIsPanning(true);
+    setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+  }, [pan]);
+
+  const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isPanning) return;
+    setPan({
+      x: e.clientX - panStart.x,
+      y: e.clientY - panStart.y
+    });
+  }, [isPanning, panStart]);
+
+  const handleCanvasMouseUp = useCallback(() => {
+    setIsPanning(false);
+  }, []);
+
+  const resetView = () => {
+    if (nodes.length > 0) {
+      const centerPosition = calculateViewportCenter(nodes);
+      setPan(centerPosition);
+    } else {
+      setPan({ x: 0, y: 0 });
+    }
+    setZoom(1);
+  };
+
   const createNode = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
-      const position = { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 };
+      // Calculate position in world coordinates (accounting for current pan/zoom)
+      const worldX = (200 - pan.x) / zoom + Math.random() * 100;
+      const worldY = (200 - pan.y) / zoom + Math.random() * 100;
+      const position = { x: worldX, y: worldY };
       
       const { data: nodeData, error: nodeError } = await supabase
         .from('storyline_nodes')
@@ -216,122 +301,169 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
 
   return (
     <div className="h-full bg-white flex flex-col">
-      {/* Compact Header */}
+      {/* Header with zoom controls */}
       <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-slate-50">
         <h3 className="font-semibold text-slate-900 text-sm">Storyline Map</h3>
-        <Button 
-          size="sm" 
-          onClick={() => setShowNodeForm(true)}
-          className="bg-gradient-to-r from-purple-600 to-blue-600 text-xs h-7"
-        >
-          <Plus className="w-3 h-3 mr-1" />
-          Add Node
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button 
+            size="sm" 
+            onClick={() => setShowNodeForm(true)}
+            className="bg-gradient-to-r from-purple-600 to-blue-600 text-xs h-7"
+          >
+            <Plus className="w-3 h-3 mr-1" />
+            Add Node
+          </Button>
+          <div className="w-px h-4 bg-slate-300"></div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleZoomOut}
+            className="h-7 w-7 p-0 text-xs"
+          >
+            <ZoomOut className="w-3 h-3" />
+          </Button>
+          <span className="text-xs text-slate-500 min-w-12 text-center">
+            {Math.round(zoom * 100)}%
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleZoomIn}
+            className="h-7 w-7 p-0 text-xs"
+          >
+            <ZoomIn className="w-3 h-3" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={resetView}
+            className="h-7 px-2 text-xs"
+          >
+            Reset
+          </Button>
+        </div>
       </div>
 
-      {/* Canvas */}
-      <div className="flex-1 relative overflow-hidden bg-slate-50">
-        <svg className="absolute inset-0 w-full h-full pointer-events-none">
-          {/* Grid Pattern */}
-          <defs>
-            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e2e8f0" strokeWidth="1"/>
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-          
-          {/* Connections */}
-          {connections.map((connection) => {
-            const sourceNode = nodes.find(n => n.id === connection.source_id);
-            const targetNode = nodes.find(n => n.id === connection.target_id);
-            if (!sourceNode || !targetNode) return null;
+      {/* Canvas with pan and zoom */}
+      <div 
+        className="flex-1 relative overflow-hidden bg-slate-50 cursor-grab active:cursor-grabbing"
+        onMouseDown={handleCanvasMouseDown}
+        onMouseMove={handleCanvasMouseMove}
+        onMouseUp={handleCanvasMouseUp}
+        onMouseLeave={handleCanvasMouseUp}
+        onWheel={handleWheel}
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0'
+          }}
+        >
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ minWidth: '2000px', minHeight: '2000px' }}>
+            {/* Grid Pattern */}
+            <defs>
+              <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e2e8f0" strokeWidth="1"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
             
-            return (
-              <line
-                key={connection.id}
-                x1={sourceNode.position.x + 60}
-                y1={sourceNode.position.y + 30}
-                x2={targetNode.position.x + 60}
-                y2={targetNode.position.y + 30}
-                stroke="rgba(148, 163, 184, 0.6)"
-                strokeWidth="2"
-                strokeDasharray="5,5"
-              />
-            );
-          })}
-        </svg>
+            {/* Connections */}
+            {connections.map((connection) => {
+              const sourceNode = nodes.find(n => n.id === connection.source_id);
+              const targetNode = nodes.find(n => n.id === connection.target_id);
+              if (!sourceNode || !targetNode) return null;
+              
+              return (
+                <line
+                  key={connection.id}
+                  x1={sourceNode.position.x + 60}
+                  y1={sourceNode.position.y + 30}
+                  x2={targetNode.position.x + 60}
+                  y2={targetNode.position.y + 30}
+                  stroke="rgba(148, 163, 184, 0.6)"
+                  strokeWidth="2"
+                  strokeDasharray="5,5"
+                />
+              );
+            })}
+          </svg>
 
-        {/* Nodes */}
-        {nodes.map((node) => (
-          <div
-            key={node.id}
-            className="absolute cursor-move"
-            style={{
-              left: node.position.x,
-              top: node.position.y,
-              zIndex: draggedNode === node.id ? 10 : 1
-            }}
-            onMouseDown={(e) => {
-              setDraggedNode(node.id);
-              const startX = e.clientX - node.position.x;
-              const startY = e.clientY - node.position.y;
+          {/* Nodes */}
+          {nodes.map((node) => (
+            <div
+              key={node.id}
+              className="absolute cursor-move storyline-node"
+              style={{
+                left: node.position.x,
+                top: node.position.y,
+                zIndex: draggedNode === node.id ? 10 : 1
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation(); // Prevent canvas panning when dragging nodes
+                setDraggedNode(node.id);
+                const rect = e.currentTarget.getBoundingClientRect();
+                const startX = (e.clientX - rect.left) / zoom;
+                const startY = (e.clientY - rect.top) / zoom;
 
-              const handleMouseMove = (e: MouseEvent) => {
-                const newPosition = {
-                  x: e.clientX - startX,
-                  y: e.clientY - startY
+                const handleMouseMove = (e: MouseEvent) => {
+                  const newPosition = {
+                    x: (e.clientX - pan.x) / zoom - startX,
+                    y: (e.clientY - pan.y) / zoom - startY
+                  };
+                  handleNodeDrag(node.id, newPosition);
                 };
-                handleNodeDrag(node.id, newPosition);
-              };
 
-              const handleMouseUp = () => {
-                setDraggedNode(null);
-                document.removeEventListener('mousemove', handleMouseMove);
-                document.removeEventListener('mouseup', handleMouseUp);
-              };
+                const handleMouseUp = () => {
+                  setDraggedNode(null);
+                  document.removeEventListener('mousemove', handleMouseMove);
+                  document.removeEventListener('mouseup', handleMouseUp);
+                };
 
-              document.addEventListener('mousemove', handleMouseMove);
-              document.addEventListener('mouseup', handleMouseUp);
-            }}
-          >
-            <Card className="w-28 hover:shadow-lg transition-shadow group">
-              <CardContent className="p-2">
-                <div className="flex items-start justify-between mb-1">
-                  <h4 className="text-xs font-medium text-slate-900 line-clamp-2">
-                    {node.title}
-                  </h4>
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-0.5">
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      className="h-3 w-3"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleNodeEdit(node);
-                      }}
-                    >
-                      <Edit3 className="w-1.5 h-1.5" />
-                    </Button>
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      className="h-3 w-3"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteNode(node.id);
-                      }}
-                    >
-                      <Trash2 className="w-1.5 h-1.5" />
-                    </Button>
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+              }}
+            >
+              <Card className="w-28 hover:shadow-lg transition-shadow group">
+                <CardContent className="p-2">
+                  <div className="flex items-start justify-between mb-1">
+                    <h4 className="text-xs font-medium text-slate-900 line-clamp-2">
+                      {node.title}
+                    </h4>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-0.5">
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-3 w-3"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNodeEdit(node);
+                        }}
+                      >
+                        <Edit3 className="w-1.5 h-1.5" />
+                      </Button>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-3 w-3"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNode(node.id);
+                        }}
+                      >
+                        <Trash2 className="w-1.5 h-1.5" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                <span className="text-xs bg-slate-100 text-slate-600 px-1 py-0.5 rounded">
-                  {node.node_type}
-                </span>
-              </CardContent>
-            </Card>
-          </div>
-        ))}
+                  <span className="text-xs bg-slate-100 text-slate-600 px-1 py-0.5 rounded">
+                    {node.node_type}
+                  </span>
+                </CardContent>
+              </Card>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Node Form Modal */}
