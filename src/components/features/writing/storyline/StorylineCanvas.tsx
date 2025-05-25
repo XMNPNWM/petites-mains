@@ -97,7 +97,7 @@ const StorylineCanvas = React.memo(({
   const handleConnectionClick = useCallback((e: React.MouseEvent, connectionId: string) => {
     e.stopPropagation();
     
-    const canvas = e.currentTarget.closest('.overflow-hidden') as HTMLElement;
+    const canvas = e.currentTarget.closest('div[style*="background"]') as HTMLElement;
     const canvasRect = canvas.getBoundingClientRect();
     
     const screenPosition = {
@@ -109,7 +109,6 @@ const StorylineCanvas = React.memo(({
   }, [onConnectionLabelEdit]);
 
   const handleContextMenuTrigger = useCallback((position: { x: number; y: number }) => {
-    // Position is already in screen coordinates, no need to convert
     return position;
   }, []);
 
@@ -122,21 +121,26 @@ const StorylineCanvas = React.memo(({
       onMouseUp={onCanvasMouseUp}
       onWheel={onWheel}
     >
+      {/* Connections Layer - positioned absolutely to avoid clipping */}
+      <ConnectionsLayer
+        nodes={nodes}
+        connections={connections}
+        zoom={zoom}
+        pan={pan}
+        connectionCreationState={connectionCreationState}
+        onConnectionClick={handleConnectionClick}
+      />
+
+      {/* Nodes Layer - in transformed container */}
       <div
         className="absolute inset-0 select-none"
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           transformOrigin: '0 0',
-          userSelect: 'none'
+          userSelect: 'none',
+          zIndex: 2
         }}
       >
-        <ConnectionsLayer
-          nodes={nodes}
-          connections={connections}
-          connectionCreationState={connectionCreationState}
-          onConnectionClick={handleConnectionClick}
-        />
-
         <NodesLayer
           nodes={nodes}
           zoom={zoom}
@@ -154,6 +158,7 @@ const StorylineCanvas = React.memo(({
         />
       </div>
 
+      {/* Overlays - positioned at canvas level */}
       <CanvasOverlays
         connectionLabelState={connectionLabelState}
         connectionCreationState={connectionCreationState}

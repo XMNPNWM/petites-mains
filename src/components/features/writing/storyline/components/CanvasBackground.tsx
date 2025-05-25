@@ -22,7 +22,7 @@ const CanvasBackground = React.memo(({
 }: CanvasBackgroundProps) => {
   return (
     <div 
-      className="flex-1 relative overflow-hidden bg-slate-50 cursor-grab active:cursor-grabbing select-none"
+      className="flex-1 relative bg-slate-50 cursor-grab active:cursor-grabbing select-none"
       style={{
         userSelect: 'none',
         WebkitUserSelect: 'none',

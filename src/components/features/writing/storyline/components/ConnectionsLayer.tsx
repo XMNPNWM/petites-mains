@@ -6,6 +6,8 @@ import { NODE_DIMENSIONS } from '../constants/nodeConstants';
 interface ConnectionsLayerProps {
   nodes: StorylineNode[];
   connections: StorylineConnection[];
+  zoom: number;
+  pan: { x: number; y: number };
   connectionCreationState: {
     isCreating: boolean;
     previewConnection: { start: { x: number; y: number }; end: { x: number; y: number } } | null;
@@ -16,11 +18,25 @@ interface ConnectionsLayerProps {
 const ConnectionsLayer = React.memo(({
   nodes,
   connections,
+  zoom,
+  pan,
   connectionCreationState,
   onConnectionClick
 }: ConnectionsLayerProps) => {
   return (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ minWidth: '5000px', minHeight: '5000px' }}>
+    <svg 
+      className="absolute inset-0 w-full h-full pointer-events-none" 
+      style={{ 
+        width: '100vw',
+        height: '100vh',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        zIndex: 1
+      }}
+      viewBox={`${-pan.x / zoom} ${-pan.y / zoom} ${window.innerWidth / zoom} ${window.innerHeight / zoom}`}
+      preserveAspectRatio="xMidYMid meet"
+    >
       {/* Connections */}
       {connections.map((connection) => {
         const sourceNode = nodes.find(n => n.id === connection.source_id);
@@ -43,8 +59,8 @@ const ConnectionsLayer = React.memo(({
               x2={targetX}
               y2={targetY}
               stroke="rgba(148, 163, 184, 0.6)"
-              strokeWidth="2"
-              strokeDasharray="5,5"
+              strokeWidth={2 / zoom}
+              strokeDasharray={`${5 / zoom},${5 / zoom}`}
               className="pointer-events-auto cursor-pointer hover:stroke-slate-500"
               onClick={(e) => onConnectionClick(e, connection.id)}
             />
@@ -53,7 +69,8 @@ const ConnectionsLayer = React.memo(({
                 x={midX}
                 y={midY}
                 textAnchor="middle"
-                className="fill-slate-600 text-xs pointer-events-auto cursor-pointer"
+                fontSize={12 / zoom}
+                className="fill-slate-600 pointer-events-auto cursor-pointer"
                 onClick={(e) => onConnectionClick(e, connection.id)}
               >
                 {connection.label}
@@ -71,8 +88,8 @@ const ConnectionsLayer = React.memo(({
           x2={connectionCreationState.previewConnection.end.x}
           y2={connectionCreationState.previewConnection.end.y}
           stroke="rgba(59, 130, 246, 0.8)"
-          strokeWidth="2"
-          strokeDasharray="3,3"
+          strokeWidth={2 / zoom}
+          strokeDasharray={`${3 / zoom},${3 / zoom}`}
           className="pointer-events-none"
         />
       )}
