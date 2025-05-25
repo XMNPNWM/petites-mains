@@ -76,12 +76,18 @@ const WritingSpaceLayout = ({
   };
 
   return (
-    <div className="flex-1 relative">
-      {/* Main Horizontal Panels */}
-      <div className="h-full">
+    <div className="flex-1 relative overflow-hidden">
+      {/* Main Horizontal Panels - Calculate height to account for overlay */}
+      <div 
+        className="absolute inset-0"
+        style={{ 
+          height: `calc(100% - ${overlayHeight}%)`,
+          top: 0
+        }}
+      >
         <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* Worldbuilding Panel */}
-          <ResizablePanel defaultSize={25} minSize={20}>
+          <ResizablePanel defaultSize={25} minSize={20} className="overflow-hidden">
             <WorldbuildingPanel 
               projectId={projectId} 
               refreshTrigger={worldbuildingRefreshTrigger}
@@ -91,7 +97,7 @@ const WritingSpaceLayout = ({
           <ResizableHandle withHandle />
           
           {/* Text Editor Panel */}
-          <ResizablePanel defaultSize={50} minSize={30}>
+          <ResizablePanel defaultSize={50} minSize={30} className="overflow-hidden">
             <TextEditorPanel 
               chapter={currentChapter}
               onContentChange={onContentChange}
@@ -101,7 +107,7 @@ const WritingSpaceLayout = ({
           <ResizableHandle withHandle />
           
           {/* Chapter Organizer Panel */}
-          <ResizablePanel defaultSize={25} minSize={20}>
+          <ResizablePanel defaultSize={25} minSize={20} className="overflow-hidden">
             <ChapterOrganizerPanel 
               projectId={projectId}
               currentChapter={currentChapter}
@@ -113,7 +119,7 @@ const WritingSpaceLayout = ({
 
       {/* Storyline Overlay Panel */}
       <div
-        className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-10"
+        className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-10 overflow-hidden"
         style={{ height: `${overlayHeight}%` }}
       >
         {/* Drag Handle */}
@@ -137,7 +143,7 @@ const WritingSpaceLayout = ({
         </div>
 
         {/* Storyline Panel Content */}
-        <div className="h-[calc(100%-24px)]">
+        <div className="h-[calc(100%-24px)] overflow-hidden">
           <StorylinePanel 
             projectId={projectId}
             chapterId={currentChapter?.id}

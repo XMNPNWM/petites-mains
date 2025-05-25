@@ -27,7 +27,7 @@ const WritingSpace = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-slate-50">
+    <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
       <WritingSpaceHeader
         project={project}
         currentChapter={currentChapter}

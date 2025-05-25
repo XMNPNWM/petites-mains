@@ -87,43 +87,47 @@ const StorylinePanel = ({ projectId, chapterId, onDataChange }: StorylinePanelPr
   };
 
   return (
-    <div className="h-full bg-white flex flex-col">
-      <StorylineControls
-        zoom={zoom}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onResetView={resetView}
-      />
+    <div className="h-full bg-white flex flex-col overflow-hidden">
+      <div className="flex-shrink-0">
+        <StorylineControls
+          zoom={zoom}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onResetView={resetView}
+        />
+      </div>
 
-      <StorylineCanvas
-        nodes={nodes}
-        connections={connections}
-        worldbuildingElements={worldbuildingElements}
-        zoom={zoom}
-        pan={pan}
-        draggedNode={draggedNode}
-        selectedNode={selectedNode}
-        connectionLabelState={connectionLabelState}
-        connectionCreationState={connectionCreationState}
-        onNodeEdit={handleNodeEdit}
-        onNodeDelete={deleteNode}
-        onNodeDrag={updateNodePosition}
-        onCanvasMouseDown={handleCanvasMouseDown}
-        onCanvasMouseMove={handleCanvasMouseMove}
-        onCanvasMouseUp={handleCanvasMouseUp}
-        onWheel={handleWheel}
-        onCreateNode={createNodeAtPosition}
-        onCreateFromWorldbuilding={createNodeFromWorldbuilding}
-        onConnectionLabelEdit={startEditingConnectionLabel}
-        onConnectionLabelSave={handleConnectionLabelSave}
-        onConnectionLabelCancel={cancelEditingConnectionLabel}
-        onConnectionStart={startConnectionCreation}
-        onConnectionPreviewUpdate={updateConnectionPreview}
-        onConnectionFinish={finishConnectionCreation}
-        onConnectionCancel={cancelConnectionCreation}
-        setDraggedNode={setDraggedNode}
-        setSelectedNode={setSelectedNode}
-      />
+      <div className="flex-1 overflow-hidden">
+        <StorylineCanvas
+          nodes={nodes}
+          connections={connections}
+          worldbuildingElements={worldbuildingElements}
+          zoom={zoom}
+          pan={pan}
+          draggedNode={draggedNode}
+          selectedNode={selectedNode}
+          connectionLabelState={connectionLabelState}
+          connectionCreationState={connectionCreationState}
+          onNodeEdit={handleNodeEdit}
+          onNodeDelete={deleteNode}
+          onNodeDrag={updateNodePosition}
+          onCanvasMouseDown={handleCanvasMouseDown}
+          onCanvasMouseMove={handleCanvasMouseMove}
+          onCanvasMouseUp={handleCanvasMouseUp}
+          onWheel={handleWheel}
+          onCreateNode={createNodeAtPosition}
+          onCreateFromWorldbuilding={createNodeFromWorldbuilding}
+          onConnectionLabelEdit={startEditingConnectionLabel}
+          onConnectionLabelSave={handleConnectionLabelSave}
+          onConnectionLabelCancel={cancelEditingConnectionLabel}
+          onConnectionStart={startConnectionCreation}
+          onConnectionPreviewUpdate={updateConnectionPreview}
+          onConnectionFinish={finishConnectionCreation}
+          onConnectionCancel={cancelConnectionCreation}
+          setDraggedNode={setDraggedNode}
+          setSelectedNode={setSelectedNode}
+        />
+      </div>
 
       <NodeForm
         isVisible={showNodeForm}
