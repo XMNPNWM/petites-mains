@@ -296,6 +296,78 @@ export type Database = {
           },
         ]
       }
+      subscribers: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          stripe_customer_id: string | null
+          subscribed: boolean
+          subscription_end: string | null
+          subscription_tier: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          stripe_customer_id?: string | null
+          subscribed?: boolean
+          subscription_end?: string | null
+          subscription_tier?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          stripe_customer_id?: string | null
+          subscribed?: boolean
+          subscription_end?: string | null
+          subscription_tier?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      usage_tracking: {
+        Row: {
+          ai_credits_limit: number
+          ai_credits_used: number
+          created_at: string
+          current_projects: number
+          id: string
+          total_word_count: number
+          updated_at: string
+          user_id: string | null
+          worldbuilding_elements_count: number
+        }
+        Insert: {
+          ai_credits_limit?: number
+          ai_credits_used?: number
+          created_at?: string
+          current_projects?: number
+          id?: string
+          total_word_count?: number
+          updated_at?: string
+          user_id?: string | null
+          worldbuilding_elements_count?: number
+        }
+        Update: {
+          ai_credits_limit?: number
+          ai_credits_used?: number
+          created_at?: string
+          current_projects?: number
+          id?: string
+          total_word_count?: number
+          updated_at?: string
+          user_id?: string | null
+          worldbuilding_elements_count?: number
+        }
+        Relationships: []
+      }
       worldbuilding_elements: {
         Row: {
           created_at: string | null
