@@ -84,7 +84,10 @@ const StorylineContextMenu = ({
         }
       }}
     >
-      <ContextMenuTrigger onContextMenu={handleContextMenu}>
+      <ContextMenuTrigger 
+        className="w-full h-full flex flex-col"
+        onContextMenu={handleContextMenu}
+      >
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">

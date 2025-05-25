@@ -192,6 +192,135 @@ const StorylineCanvas = ({
 
   console.log('StorylineCanvas rendering with nodes:', nodes.length, 'connections:', connections.length);
 
+  const canvasContent = (
+    <div 
+      className="flex-1 relative overflow-hidden bg-slate-50 cursor-grab active:cursor-grabbing select-none"
+      style={{
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none',
+        msUserSelect: 'none'
+      }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={onCanvasMouseUp}
+      onMouseLeave={onCanvasMouseUp}
+      onWheel={onWheel}
+      unselectable="on"
+    >
+      <div
+        className="absolute inset-0 select-none"
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transformOrigin: '0 0',
+          userSelect: 'none'
+        }}
+      >
+        {/* Grid Pattern */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none">
+          <defs>
+            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e2e8f0" strokeWidth="1"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid)" />
+          
+          {/* Connections */}
+          {connections.map((connection) => {
+            const sourceNode = nodes.find(n => n.id === connection.source_id);
+            const targetNode = nodes.find(n => n.id === connection.target_id);
+            if (!sourceNode || !targetNode) return null;
+            
+            const sourceX = sourceNode.position.x + 56; // Center of node (112px / 2)
+            const sourceY = sourceNode.position.y + 40; // Center height
+            const targetX = targetNode.position.x + 56;
+            const targetY = targetNode.position.y + 40;
+            
+            const midX = (sourceX + targetX) / 2;
+            const midY = (sourceY + targetY) / 2;
+            
+            return (
+              <g key={connection.id}>
+                <line
+                  x1={sourceX}
+                  y1={sourceY}
+                  x2={targetX}
+                  y2={targetY}
+                  stroke="rgba(148, 163, 184, 0.6)"
+                  strokeWidth="2"
+                  strokeDasharray="5,5"
+                  className="pointer-events-auto cursor-pointer hover:stroke-slate-500"
+                  onClick={(e) => handleConnectionClick(e, connection.id)}
+                />
+                {connection.label && (
+                  <text
+                    x={midX}
+                    y={midY}
+                    textAnchor="middle"
+                    className="fill-slate-600 text-xs pointer-events-auto cursor-pointer"
+                    onClick={(e) => handleConnectionClick(e, connection.id)}
+                  >
+                    {connection.label}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {/* Connection Preview */}
+          {connectionCreationState.isCreating && connectionCreationState.previewConnection && (
+            <line
+              x1={connectionCreationState.previewConnection.start.x}
+              y1={connectionCreationState.previewConnection.start.y}
+              x2={connectionCreationState.previewConnection.end.x}
+              y2={connectionCreationState.previewConnection.end.y}
+              stroke="rgba(59, 130, 246, 0.8)"
+              strokeWidth="2"
+              strokeDasharray="3,3"
+              className="pointer-events-none"
+            />
+          )}
+        </svg>
+      </div>
+
+      {/* Nodes */}
+      {nodes.map((node) => (
+        <StorylineNode
+          key={node.id}
+          node={node}
+          isDragged={draggedNode === node.id}
+          isSelected={selectedNode === node.id}
+          isConnectionSource={connectionCreationState.sourceNodeId === node.id}
+          onEdit={onNodeEdit}
+          onDelete={onNodeDelete}
+          onClick={handleNodeClick}
+          onDragStart={handleNodeDragStart}
+          onConnectionStart={onConnectionStart}
+          onConnectionFinish={onConnectionFinish}
+        />
+      ))}
+
+      {/* Connection Label Form */}
+      {connectionLabelState.isEditing && connectionLabelState.connectionId && connectionLabelState.position && (
+        <ConnectionLabelForm
+          connectionId={connectionLabelState.connectionId}
+          currentLabel={connections.find(c => c.id === connectionLabelState.connectionId)?.label || ''}
+          position={connectionLabelState.position}
+          onSave={onConnectionLabelSave}
+          onCancel={onConnectionLabelCancel}
+        />
+      )}
+
+      {/* Connection Creation Instructions */}
+      {connectionCreationState.isCreating && (
+        <div className="absolute top-4 left-4 bg-blue-100 border border-blue-300 rounded-lg p-3 z-20">
+          <p className="text-sm text-blue-800 font-medium">Creating Connection</p>
+          <p className="text-xs text-blue-600">Click on a target node or connection circle to connect, or click elsewhere to cancel</p>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <StorylineContextMenu
       worldbuildingElements={worldbuildingElements}
@@ -199,132 +328,7 @@ const StorylineCanvas = ({
       onCreateFromWorldbuilding={handleCreateFromWorldbuilding}
       onContextMenuTrigger={handleContextMenuTrigger}
     >
-      <div 
-        className="flex-1 relative overflow-hidden bg-slate-50 cursor-grab active:cursor-grabbing select-none"
-        style={{
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-          MozUserSelect: 'none',
-          msUserSelect: 'none'
-        }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={onCanvasMouseUp}
-        onMouseLeave={onCanvasMouseUp}
-        onWheel={onWheel}
-        unselectable="on"
-      >
-        <div
-          className="absolute inset-0 select-none"
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: '0 0',
-            userSelect: 'none'
-          }}
-        >
-          {/* Grid Pattern */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none">
-            <defs>
-              <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e2e8f0" strokeWidth="1"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-            
-            {/* Connections */}
-            {connections.map((connection) => {
-              const sourceNode = nodes.find(n => n.id === connection.source_id);
-              const targetNode = nodes.find(n => n.id === connection.target_id);
-              if (!sourceNode || !targetNode) return null;
-              
-              const sourceX = sourceNode.position.x + 56; // Center of node (112px / 2)
-              const sourceY = sourceNode.position.y + 40; // Center height
-              const targetX = targetNode.position.x + 56;
-              const targetY = targetNode.position.y + 40;
-              
-              const midX = (sourceX + targetX) / 2;
-              const midY = (sourceY + targetY) / 2;
-              
-              return (
-                <g key={connection.id}>
-                  <line
-                    x1={sourceX}
-                    y1={sourceY}
-                    x2={targetX}
-                    y2={targetY}
-                    stroke="rgba(148, 163, 184, 0.6)"
-                    strokeWidth="2"
-                    strokeDasharray="5,5"
-                    className="pointer-events-auto cursor-pointer hover:stroke-slate-500"
-                    onClick={(e) => handleConnectionClick(e, connection.id)}
-                  />
-                  {connection.label && (
-                    <text
-                      x={midX}
-                      y={midY}
-                      textAnchor="middle"
-                      className="fill-slate-600 text-xs pointer-events-auto cursor-pointer"
-                      onClick={(e) => handleConnectionClick(e, connection.id)}
-                    >
-                      {connection.label}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-
-            {/* Connection Preview */}
-            {connectionCreationState.isCreating && connectionCreationState.previewConnection && (
-              <line
-                x1={connectionCreationState.previewConnection.start.x}
-                y1={connectionCreationState.previewConnection.start.y}
-                x2={connectionCreationState.previewConnection.end.x}
-                y2={connectionCreationState.previewConnection.end.y}
-                stroke="rgba(59, 130, 246, 0.8)"
-                strokeWidth="2"
-                strokeDasharray="3,3"
-                className="pointer-events-none"
-              />
-            )}
-          </svg>
-        </div>
-
-        {/* Nodes */}
-        {nodes.map((node) => (
-          <StorylineNode
-            key={node.id}
-            node={node}
-            isDragged={draggedNode === node.id}
-            isSelected={selectedNode === node.id}
-            isConnectionSource={connectionCreationState.sourceNodeId === node.id}
-            onEdit={onNodeEdit}
-            onDelete={onNodeDelete}
-            onClick={handleNodeClick}
-            onDragStart={handleNodeDragStart}
-            onConnectionStart={onConnectionStart}
-            onConnectionFinish={onConnectionFinish}
-          />
-        ))}
-
-        {/* Connection Label Form */}
-        {connectionLabelState.isEditing && connectionLabelState.connectionId && connectionLabelState.position && (
-          <ConnectionLabelForm
-            connectionId={connectionLabelState.connectionId}
-            currentLabel={connections.find(c => c.id === connectionLabelState.connectionId)?.label || ''}
-            position={connectionLabelState.position}
-            onSave={onConnectionLabelSave}
-            onCancel={onConnectionLabelCancel}
-          />
-        )}
-
-        {/* Connection Creation Instructions */}
-        {connectionCreationState.isCreating && (
-          <div className="absolute top-4 left-4 bg-blue-100 border border-blue-300 rounded-lg p-3 z-20">
-            <p className="text-sm text-blue-800 font-medium">Creating Connection</p>
-            <p className="text-xs text-blue-600">Click on a target node or connection circle to connect, or click elsewhere to cancel</p>
-          </div>
-        )}
-      </div>
+      {canvasContent}
     </StorylineContextMenu>
   );
 };
