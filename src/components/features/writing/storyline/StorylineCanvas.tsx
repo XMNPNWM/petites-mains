@@ -190,6 +190,8 @@ const StorylineCanvas = ({
     return position;
   }, []);
 
+  console.log('StorylineCanvas rendering with nodes:', nodes.length, 'connections:', connections.length);
+
   return (
     <StorylineContextMenu
       worldbuildingElements={worldbuildingElements}

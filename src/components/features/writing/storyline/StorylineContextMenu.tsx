@@ -84,13 +84,8 @@ const StorylineContextMenu = ({
         }
       }}
     >
-      <ContextMenuTrigger 
-        asChild
-        onContextMenu={handleContextMenu}
-      >
-        <div className="w-full h-full">
-          {children}
-        </div>
+      <ContextMenuTrigger onContextMenu={handleContextMenu}>
+        {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">
         <ContextMenuSub>
