@@ -104,9 +104,10 @@ export const useDragHandler = ({
         console.log(`[Drag] Click detected on node ${nodeId}, selecting`);
         setSelectedNode(nodeId);
       } else {
-        // If we dragged, clear the dragged state
-        console.log(`[Drag] Drag completed for node ${nodeId}`);
+        // If we dragged, clear both dragged and selected states to properly "drop" the node
+        console.log(`[Drag] Drag completed for node ${nodeId}, clearing both drag and selection states`);
         setDraggedNode(null);
+        setSelectedNode(null);
       }
       
       // Clean up
