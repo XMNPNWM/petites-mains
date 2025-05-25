@@ -115,6 +115,7 @@ export const useStorylineActions = (
   };
 
   const startConnectionCreation = (sourceNodeId: string, sourcePosition: { x: number; y: number }) => {
+    console.log('Starting connection creation:', { sourceNodeId, sourcePosition });
     setConnectionCreationState({
       isCreating: true,
       sourceNodeId,
@@ -139,16 +140,25 @@ export const useStorylineActions = (
 
   const finishConnectionCreation = async (targetNodeId: string) => {
     if (connectionCreationState.isCreating && connectionCreationState.sourceNodeId) {
-      await createConnection(connectionCreationState.sourceNodeId, targetNodeId);
-      setConnectionCreationState({
-        isCreating: false,
-        sourceNodeId: null,
-        previewConnection: null
+      // Prevent self-connections
+      if (connectionCreationState.sourceNodeId === targetNodeId) {
+        console.log('Cannot connect node to itself');
+        cancelConnectionCreation();
+        return;
+      }
+
+      console.log('Finishing connection:', {
+        source: connectionCreationState.sourceNodeId,
+        target: targetNodeId
       });
+
+      await createConnection(connectionCreationState.sourceNodeId, targetNodeId);
+      cancelConnectionCreation();
     }
   };
 
   const cancelConnectionCreation = () => {
+    console.log('Canceling connection creation');
     setConnectionCreationState({
       isCreating: false,
       sourceNodeId: null,

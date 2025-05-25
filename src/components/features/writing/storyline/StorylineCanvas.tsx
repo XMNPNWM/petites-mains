@@ -1,4 +1,3 @@
-
 import React, { useCallback, useState } from 'react';
 import StorylineNode from './StorylineNode';
 import StorylineContextMenu from './StorylineContextMenu';
@@ -113,6 +112,11 @@ const StorylineCanvas = ({
   }, [onCanvasMouseMove, connectionCreationState.isCreating, onConnectionPreviewUpdate, screenToWorld]);
 
   const handleNodeDragStart = useCallback((e: React.MouseEvent, node: StorylineNodeType) => {
+    // Don't start dragging if we're in connection creation mode
+    if (connectionCreationState.isCreating) {
+      return;
+    }
+
     e.stopPropagation();
     e.preventDefault();
     setDraggedNode(node.id);
@@ -147,7 +151,7 @@ const StorylineCanvas = ({
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [screenToWorld, setDraggedNode, onNodeDrag]);
+  }, [screenToWorld, setDraggedNode, onNodeDrag, connectionCreationState.isCreating]);
 
   const handleConnectionClick = useCallback((e: React.MouseEvent, connectionId: string) => {
     e.stopPropagation();
@@ -213,16 +217,21 @@ const StorylineCanvas = ({
               const targetNode = nodes.find(n => n.id === connection.target_id);
               if (!sourceNode || !targetNode) return null;
               
-              const midX = (sourceNode.position.x + targetNode.position.x + 120) / 2;
-              const midY = (sourceNode.position.y + targetNode.position.y + 60) / 2;
+              const sourceX = sourceNode.position.x + 56; // Center of node (112px / 2)
+              const sourceY = sourceNode.position.y + 40; // Center height
+              const targetX = targetNode.position.x + 56;
+              const targetY = targetNode.position.y + 40;
+              
+              const midX = (sourceX + targetX) / 2;
+              const midY = (sourceY + targetY) / 2;
               
               return (
                 <g key={connection.id}>
                   <line
-                    x1={sourceNode.position.x + 60}
-                    y1={sourceNode.position.y + 30}
-                    x2={targetNode.position.x + 60}
-                    y2={targetNode.position.y + 30}
+                    x1={sourceX}
+                    y1={sourceY}
+                    x2={targetX}
+                    y2={targetY}
                     stroke="rgba(148, 163, 184, 0.6)"
                     strokeWidth="2"
                     strokeDasharray="5,5"
@@ -290,7 +299,7 @@ const StorylineCanvas = ({
         {connectionCreationState.isCreating && (
           <div className="absolute top-4 left-4 bg-blue-100 border border-blue-300 rounded-lg p-3 z-20">
             <p className="text-sm text-blue-800 font-medium">Creating Connection</p>
-            <p className="text-xs text-blue-600">Click on a target node to connect, or click elsewhere to cancel</p>
+            <p className="text-xs text-blue-600">Click on a target node or connection circle to connect, or click elsewhere to cancel</p>
           </div>
         )}
       </div>
