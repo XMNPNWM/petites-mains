@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Edit3, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,9 +7,11 @@ import { StorylineNode as StorylineNodeType } from './types';
 interface StorylineNodeProps {
   node: StorylineNodeType;
   isDragged: boolean;
+  isSelected: boolean;
   isConnectionSource: boolean;
   onEdit: (node: StorylineNodeType) => void;
   onDelete: (nodeId: string) => void;
+  onClick: (e: React.MouseEvent, node: StorylineNodeType) => void;
   onDragStart: (e: React.MouseEvent, node: StorylineNodeType) => void;
   onConnectionStart: (nodeId: string, position: { x: number; y: number }) => void;
   onConnectionFinish: (nodeId: string) => void;
@@ -19,9 +20,11 @@ interface StorylineNodeProps {
 const StorylineNode = ({ 
   node, 
   isDragged, 
+  isSelected,
   isConnectionSource,
   onEdit, 
   onDelete, 
+  onClick,
   onDragStart,
   onConnectionStart,
   onConnectionFinish
@@ -42,9 +45,32 @@ const StorylineNode = ({
       return;
     }
     
-    // Regular drag behavior
-    e.preventDefault();
-    onDragStart(e, node);
+    // Handle click for selection
+    onClick(e, node);
+    
+    // Start drag after a small delay to distinguish between click and drag
+    const startX = e.clientX;
+    const startY = e.clientY;
+    
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = Math.abs(moveEvent.clientX - startX);
+      const deltaY = Math.abs(moveEvent.clientY - startY);
+      
+      // If mouse moved more than 5px, start dragging
+      if (deltaX > 5 || deltaY > 5) {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        onDragStart(e, node);
+      }
+    };
+    
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   };
 
   const handleMouseUp = (e: React.MouseEvent) => {
@@ -80,15 +106,36 @@ const StorylineNode = ({
     onConnectionStart(node.id, connectionPoint);
   };
 
+  // Determine the visual state of the node
+  const getNodeClassName = () => {
+    let className = "absolute cursor-move storyline-node select-none group";
+    
+    if (isConnectionSource) {
+      className += " ring-2 ring-blue-400";
+    } else if (isSelected) {
+      className += " ring-2 ring-purple-400 ring-opacity-60";
+    }
+    
+    return className;
+  };
+
+  const getCardClassName = () => {
+    let className = "w-28 hover:shadow-lg transition-all duration-200 select-none";
+    
+    if (isSelected) {
+      className += " shadow-lg border-purple-300";
+    }
+    
+    return className;
+  };
+
   return (
     <div
-      className={`absolute cursor-move storyline-node select-none group ${
-        isConnectionSource ? 'ring-2 ring-blue-400' : ''
-      }`}
+      className={getNodeClassName()}
       style={{
         left: node.position.x,
         top: node.position.y,
-        zIndex: isDragged ? 10 : 1,
+        zIndex: isDragged ? 10 : isSelected ? 5 : 1,
         userSelect: 'none',
         WebkitUserSelect: 'none',
         MozUserSelect: 'none',
@@ -98,7 +145,7 @@ const StorylineNode = ({
       onMouseUp={handleMouseUp}
       unselectable="on"
     >
-      <Card className="w-28 hover:shadow-lg transition-shadow select-none">
+      <Card className={getCardClassName()}>
         <CardContent className="p-2 select-none">
           <div className="flex items-start justify-between mb-1">
             <h4 className="text-xs font-medium text-slate-900 line-clamp-2 select-none">

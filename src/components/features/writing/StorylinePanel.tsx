@@ -1,4 +1,3 @@
-
 import React from 'react';
 import StorylineControls from './storyline/StorylineControls';
 import StorylineCanvas from './storyline/StorylineCanvas';
@@ -28,8 +27,10 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
     zoom,
     pan,
     draggedNode,
+    selectedNode,
     setPan,
     setDraggedNode,
+    setSelectedNode,
     handleZoomIn,
     handleZoomOut,
     handleWheel,
@@ -90,6 +91,7 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
         zoom={zoom}
         pan={pan}
         draggedNode={draggedNode}
+        selectedNode={selectedNode}
         connectionLabelState={connectionLabelState}
         connectionCreationState={connectionCreationState}
         onNodeEdit={handleNodeEdit}
@@ -109,6 +111,7 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
         onConnectionFinish={finishConnectionCreation}
         onConnectionCancel={cancelConnectionCreation}
         setDraggedNode={setDraggedNode}
+        setSelectedNode={setSelectedNode}
       />
 
       <NodeForm

@@ -10,6 +10,7 @@ export const useViewportControls = (nodes: StorylineNode[], initialPan: { x: num
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [draggedNode, setDraggedNode] = useState<string | null>(null);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
   // Zoom controls
   const handleZoomIn = () => {
@@ -30,6 +31,9 @@ export const useViewportControls = (nodes: StorylineNode[], initialPan: { x: num
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
     // Only start panning if clicking on canvas background, not on nodes
     if ((e.target as HTMLElement).closest('.storyline-node')) return;
+    
+    // Deselect any selected node when clicking on empty canvas
+    setSelectedNode(null);
     
     setIsPanning(true);
     setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
@@ -61,8 +65,10 @@ export const useViewportControls = (nodes: StorylineNode[], initialPan: { x: num
     zoom,
     pan,
     draggedNode,
+    selectedNode,
     setPan,
     setDraggedNode,
+    setSelectedNode,
     handleZoomIn,
     handleZoomOut,
     handleWheel,
