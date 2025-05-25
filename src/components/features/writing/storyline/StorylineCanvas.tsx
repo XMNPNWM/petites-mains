@@ -41,7 +41,7 @@ interface StorylineCanvasProps {
   setSelectedNode: (nodeId: string | null) => void;
 }
 
-const StorylineCanvas = ({
+const StorylineCanvas = React.memo(({
   nodes,
   connections,
   worldbuildingElements,
@@ -118,61 +118,9 @@ const StorylineCanvas = ({
     onCanvasMouseMove(e);
   }, [onCanvasMouseMove, connectionCreationState.isCreating, onConnectionPreviewUpdate, screenToWorld]);
 
-  const handleNodeClick = useCallback((e: React.MouseEvent, node: StorylineNodeType) => {
-    // If not in connection creation mode and not dragging, select the node
-    if (!connectionCreationState.isCreating) {
-      e.stopPropagation();
-      setSelectedNode(node.id);
-    }
-  }, [connectionCreationState.isCreating, setSelectedNode]);
-
-  const handleNodeDragStart = useCallback((e: React.MouseEvent, node: StorylineNodeType) => {
-    // Don't start dragging if we're in connection creation mode
-    if (connectionCreationState.isCreating) {
-      return;
-    }
-
-    e.stopPropagation();
-    e.preventDefault();
-    
-    // Select the node when starting to drag it
-    setSelectedNode(node.id);
-    setDraggedNode(node.id);
-    
-    // Get the canvas container (the one with the transform)
-    const canvas = e.currentTarget.closest('.overflow-hidden') as HTMLElement;
-    const canvasRect = canvas.getBoundingClientRect();
-    
-    // Convert screen coordinates to world coordinates
-    const mouseWorldPos = screenToWorld(e.clientX - canvasRect.left, e.clientY - canvasRect.top);
-    const dragOffset = {
-      x: mouseWorldPos.x - node.position.x,
-      y: mouseWorldPos.y - node.position.y
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      e.preventDefault();
-      
-      // Convert current mouse position to world coordinates
-      const currentMouseWorldPos = screenToWorld(e.clientX - canvasRect.left, e.clientY - canvasRect.top);
-      
-      const newPosition = {
-        x: currentMouseWorldPos.x - dragOffset.x,
-        y: currentMouseWorldPos.y - dragOffset.y
-      };
-
-      onNodeDrag(node.id, newPosition);
-    };
-
-    const handleMouseUp = () => {
-      setDraggedNode(null);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  }, [screenToWorld, setDraggedNode, setSelectedNode, onNodeDrag, connectionCreationState.isCreating]);
+  const handleNodeDrag = useCallback((nodeId: string, newPosition: { x: number; y: number }) => {
+    onNodeDrag(nodeId, newPosition);
+  }, [onNodeDrag]);
 
   const handleConnectionClick = useCallback((e: React.MouseEvent, connectionId: string) => {
     e.stopPropagation();
@@ -202,7 +150,14 @@ const StorylineCanvas = ({
         userSelect: 'none',
         WebkitUserSelect: 'none',
         MozUserSelect: 'none',
-        msUserSelect: 'none'
+        msUserSelect: 'none',
+        // Infinite grid background using CSS
+        backgroundImage: `
+          linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+          linear-gradient(to bottom, #e2e8f0 1px, transparent 1px)
+        `,
+        backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
+        backgroundPosition: `${pan.x}px ${pan.y}px`
       }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -219,15 +174,8 @@ const StorylineCanvas = ({
           userSelect: 'none'
         }}
       >
-        {/* Grid Pattern */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none">
-          <defs>
-            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e2e8f0" strokeWidth="1"/>
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-          
+        {/* SVG for connections only */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ minWidth: '5000px', minHeight: '5000px' }}>
           {/* Connections */}
           {connections.map((connection) => {
             const sourceNode = nodes.find(n => n.id === connection.source_id);
@@ -290,15 +238,18 @@ const StorylineCanvas = ({
           <StorylineNode
             key={node.id}
             node={node}
+            zoom={zoom}
+            pan={pan}
             isDragged={draggedNode === node.id}
             isSelected={selectedNode === node.id}
             isConnectionSource={connectionCreationState.sourceNodeId === node.id}
             onEdit={onNodeEdit}
             onDelete={onNodeDelete}
-            onClick={handleNodeClick}
-            onDragStart={handleNodeDragStart}
+            onDrag={handleNodeDrag}
             onConnectionStart={onConnectionStart}
             onConnectionFinish={onConnectionFinish}
+            setDraggedNode={setDraggedNode}
+            setSelectedNode={setSelectedNode}
           />
         ))}
       </div>
@@ -334,6 +285,8 @@ const StorylineCanvas = ({
       {canvasContent}
     </StorylineContextMenu>
   );
-};
+});
+
+StorylineCanvas.displayName = 'StorylineCanvas';
 
 export default StorylineCanvas;

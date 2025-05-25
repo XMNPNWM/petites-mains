@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useCallback } from 'react';
 import { Edit3, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,37 +7,52 @@ import { StorylineNode as StorylineNodeType } from './types';
 
 interface StorylineNodeProps {
   node: StorylineNodeType;
+  zoom: number;
+  pan: { x: number; y: number };
   isDragged: boolean;
   isSelected: boolean;
   isConnectionSource: boolean;
   onEdit: (node: StorylineNodeType) => void;
   onDelete: (nodeId: string) => void;
-  onClick: (e: React.MouseEvent, node: StorylineNodeType) => void;
-  onDragStart: (e: React.MouseEvent, node: StorylineNodeType) => void;
+  onDrag: (nodeId: string, newPosition: { x: number; y: number }) => void;
   onConnectionStart: (nodeId: string, position: { x: number; y: number }) => void;
   onConnectionFinish: (nodeId: string) => void;
+  setDraggedNode: (nodeId: string | null) => void;
+  setSelectedNode: (nodeId: string | null) => void;
 }
 
-const StorylineNode = ({ 
+const StorylineNode = React.memo(({ 
   node, 
+  zoom,
+  pan,
   isDragged, 
   isSelected,
   isConnectionSource,
   onEdit, 
   onDelete, 
-  onClick,
-  onDragStart,
+  onDrag,
   onConnectionStart,
-  onConnectionFinish
+  onConnectionFinish,
+  setDraggedNode,
+  setSelectedNode
 }: StorylineNodeProps) => {
   const nodeWidth = 112; // w-28 = 112px
   const nodeHeight = 80; // approximate height
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  // Convert screen coordinates to world coordinates
+  const screenToWorld = useCallback((screenX: number, screenY: number) => {
+    return {
+      x: (screenX - pan.x) / zoom,
+      y: (screenY - pan.y) / zoom
+    };
+  }, [pan, zoom]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     // Check if Ctrl/Cmd key is pressed for connection creation
     if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      e.stopPropagation();
       const nodeCenter = {
         x: node.position.x + nodeWidth / 2,
         y: node.position.y + nodeHeight / 2
@@ -44,45 +60,60 @@ const StorylineNode = ({
       onConnectionStart(node.id, nodeCenter);
       return;
     }
+
+    // Select the node
+    setSelectedNode(node.id);
+
+    // Get the canvas container
+    const canvas = e.currentTarget.closest('.overflow-hidden') as HTMLElement;
+    if (!canvas) return;
+
+    const canvasRect = canvas.getBoundingClientRect();
     
-    // Handle click for selection
-    onClick(e, node);
-    
-    // Start drag after a small delay to distinguish between click and drag
-    const startX = e.clientX;
-    const startY = e.clientY;
-    
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const deltaX = Math.abs(moveEvent.clientX - startX);
-      const deltaY = Math.abs(moveEvent.clientY - startY);
-      
-      // If mouse moved more than 5px, start dragging
-      if (deltaX > 5 || deltaY > 5) {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        onDragStart(e, node);
-      }
+    // Convert screen coordinates to world coordinates
+    const mouseWorldPos = screenToWorld(e.clientX - canvasRect.left, e.clientY - canvasRect.top);
+    const dragOffset = {
+      x: mouseWorldPos.x - node.position.x,
+      y: mouseWorldPos.y - node.position.y
     };
-    
+
+    // Start dragging immediately
+    setDraggedNode(node.id);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      moveEvent.preventDefault();
+      
+      // Convert current mouse position to world coordinates
+      const currentMouseWorldPos = screenToWorld(moveEvent.clientX - canvasRect.left, moveEvent.clientY - canvasRect.top);
+      
+      const newPosition = {
+        x: currentMouseWorldPos.x - dragOffset.x,
+        y: currentMouseWorldPos.y - dragOffset.y
+      };
+
+      onDrag(node.id, newPosition);
+    };
+
     const handleMouseUp = () => {
+      setDraggedNode(null);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-    
+
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  };
+  }, [node, screenToWorld, setDraggedNode, setSelectedNode, onDrag, onConnectionStart]);
 
-  const handleMouseUp = (e: React.MouseEvent) => {
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
     // If we're in connection creation mode and this is not the source node
     if (!isConnectionSource) {
       e.preventDefault();
       e.stopPropagation();
       onConnectionFinish(node.id);
     }
-  };
+  }, [isConnectionSource, onConnectionFinish, node.id]);
 
-  const handleConnectionCircleClick = (e: React.MouseEvent, position: 'top' | 'right' | 'bottom' | 'left') => {
+  const handleConnectionCircleClick = useCallback((e: React.MouseEvent, position: 'top' | 'right' | 'bottom' | 'left') => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -104,7 +135,7 @@ const StorylineNode = ({
     }
     
     onConnectionStart(node.id, connectionPoint);
-  };
+  }, [node, onConnectionStart]);
 
   // Determine the visual state of the node
   const getNodeClassName = () => {
@@ -234,6 +265,8 @@ const StorylineNode = ({
       />
     </div>
   );
-};
+});
+
+StorylineNode.displayName = 'StorylineNode';
 
 export default StorylineNode;
