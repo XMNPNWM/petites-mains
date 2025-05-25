@@ -66,6 +66,16 @@ const StorylineContextMenu = ({
     }
   };
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const position = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+    setContextPosition(position);
+    onContextMenuTrigger(position);
+  };
+
   return (
     <ContextMenu 
       onOpenChange={(open) => {
@@ -76,17 +86,11 @@ const StorylineContextMenu = ({
     >
       <ContextMenuTrigger 
         asChild
-        onContextMenu={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          const position = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
-          };
-          setContextPosition(position);
-          onContextMenuTrigger(position);
-        }}
+        onContextMenu={handleContextMenu}
       >
-        {children}
+        <div className="w-full h-full">
+          {children}
+        </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">
         <ContextMenuSub>
