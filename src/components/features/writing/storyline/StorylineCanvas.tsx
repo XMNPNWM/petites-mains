@@ -109,9 +109,9 @@ const StorylineCanvas = ({
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     // Update connection preview if creating connection
     if (connectionCreationState.isCreating) {
-      const container = e.currentTarget.closest('.flex-1') as HTMLElement;
-      const containerRect = container.getBoundingClientRect();
-      const mouseWorldPos = screenToWorld(e.clientX - containerRect.left, e.clientY - containerRect.top);
+      const canvas = e.currentTarget as HTMLElement;
+      const canvasRect = canvas.getBoundingClientRect();
+      const mouseWorldPos = screenToWorld(e.clientX - canvasRect.left, e.clientY - canvasRect.top);
       onConnectionPreviewUpdate(mouseWorldPos);
     }
     
@@ -139,10 +139,12 @@ const StorylineCanvas = ({
     setSelectedNode(node.id);
     setDraggedNode(node.id);
     
-    const container = e.currentTarget.closest('.flex-1') as HTMLElement;
-    const containerRect = container.getBoundingClientRect();
+    // Get the canvas container (the one with the transform)
+    const canvas = e.currentTarget.closest('.overflow-hidden') as HTMLElement;
+    const canvasRect = canvas.getBoundingClientRect();
     
-    const mouseWorldPos = screenToWorld(e.clientX - containerRect.left, e.clientY - containerRect.top);
+    // Convert screen coordinates to world coordinates
+    const mouseWorldPos = screenToWorld(e.clientX - canvasRect.left, e.clientY - canvasRect.top);
     const dragOffset = {
       x: mouseWorldPos.x - node.position.x,
       y: mouseWorldPos.y - node.position.y
@@ -151,7 +153,8 @@ const StorylineCanvas = ({
     const handleMouseMove = (e: MouseEvent) => {
       e.preventDefault();
       
-      const currentMouseWorldPos = screenToWorld(e.clientX - containerRect.left, e.clientY - containerRect.top);
+      // Convert current mouse position to world coordinates
+      const currentMouseWorldPos = screenToWorld(e.clientX - canvasRect.left, e.clientY - canvasRect.top);
       
       const newPosition = {
         x: currentMouseWorldPos.x - dragOffset.x,
@@ -174,12 +177,12 @@ const StorylineCanvas = ({
   const handleConnectionClick = useCallback((e: React.MouseEvent, connectionId: string) => {
     e.stopPropagation();
     
-    const container = e.currentTarget.closest('.flex-1') as HTMLElement;
-    const containerRect = container.getBoundingClientRect();
+    const canvas = e.currentTarget.closest('.overflow-hidden') as HTMLElement;
+    const canvasRect = canvas.getBoundingClientRect();
     
     const screenPosition = {
-      x: (e.clientX - containerRect.left),
-      y: (e.clientY - containerRect.top)
+      x: (e.clientX - canvasRect.left),
+      y: (e.clientY - canvasRect.top)
     };
     
     onConnectionLabelEdit(connectionId, screenPosition);
