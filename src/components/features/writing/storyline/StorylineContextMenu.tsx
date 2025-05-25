@@ -24,7 +24,6 @@ interface StorylineContextMenuProps {
   worldbuildingElements: WorldbuildingElement[];
   onCreateNode: (nodeType: string, position: { x: number; y: number }) => void;
   onCreateFromWorldbuilding: (element: WorldbuildingElement, position: { x: number; y: number }) => void;
-  contextPosition: { x: number; y: number } | null;
   onContextMenuTrigger: (position: { x: number; y: number }) => void;
 }
 
@@ -42,9 +41,10 @@ const StorylineContextMenu = ({
   worldbuildingElements,
   onCreateNode,
   onCreateFromWorldbuilding,
-  contextPosition,
   onContextMenuTrigger
 }: StorylineContextMenuProps) => {
+  const [contextPosition, setContextPosition] = React.useState<{ x: number; y: number } | null>(null);
+
   // Group worldbuilding elements by type
   const groupedElements = worldbuildingElements.reduce((acc, element) => {
     if (!acc[element.type]) {
@@ -55,37 +55,37 @@ const StorylineContextMenu = ({
   }, {} as Record<string, WorldbuildingElement[]>);
 
   const handleCreateNode = (nodeType: string) => {
-    console.log('Context menu create node:', nodeType, 'at position:', contextPosition);
     if (contextPosition) {
       onCreateNode(nodeType, contextPosition);
     }
   };
 
   const handleCreateFromWorldbuilding = (element: WorldbuildingElement) => {
-    console.log('Context menu create from worldbuilding:', element.name, 'at position:', contextPosition);
     if (contextPosition) {
       onCreateFromWorldbuilding(element, contextPosition);
     }
   };
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    console.log('Context menu event triggered', e.clientX, e.clientY);
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Get position relative to the trigger element
-    const rect = e.currentTarget.getBoundingClientRect();
-    const position = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    };
-    
-    onContextMenuTrigger(position);
-  };
-
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild onContextMenu={handleContextMenu}>
+    <ContextMenu 
+      onOpenChange={(open) => {
+        if (!open) {
+          setContextPosition(null);
+        }
+      }}
+    >
+      <ContextMenuTrigger 
+        asChild
+        onContextMenu={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const position = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+          };
+          setContextPosition(position);
+          onContextMenuTrigger(position);
+        }}
+      >
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">

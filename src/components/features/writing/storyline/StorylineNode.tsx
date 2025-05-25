@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Edit3, Trash2 } from 'lucide-react';
+import { Edit3, Trash2, Link } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { StorylineNode as StorylineNodeType } from './types';
@@ -8,20 +8,56 @@ import { StorylineNode as StorylineNodeType } from './types';
 interface StorylineNodeProps {
   node: StorylineNodeType;
   isDragged: boolean;
+  isConnectionSource: boolean;
   onEdit: (node: StorylineNodeType) => void;
   onDelete: (nodeId: string) => void;
   onDragStart: (e: React.MouseEvent, node: StorylineNodeType) => void;
+  onConnectionStart: (nodeId: string, position: { x: number; y: number }) => void;
+  onConnectionFinish: (nodeId: string) => void;
 }
 
-const StorylineNode = ({ node, isDragged, onEdit, onDelete, onDragStart }: StorylineNodeProps) => {
+const StorylineNode = ({ 
+  node, 
+  isDragged, 
+  isConnectionSource,
+  onEdit, 
+  onDelete, 
+  onDragStart,
+  onConnectionStart,
+  onConnectionFinish
+}: StorylineNodeProps) => {
   const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent text selection and other default behaviors
+    // Check if Ctrl/Cmd key is pressed for connection creation
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      const nodeCenter = {
+        x: node.position.x + 60, // Center of node (w-28 = 112px / 2 = 56px, roughly 60)
+        y: node.position.y + 30  // Center of node height
+      };
+      onConnectionStart(node.id, nodeCenter);
+      return;
+    }
+    
+    // Regular drag behavior
+    e.preventDefault();
     onDragStart(e, node);
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    // If we're in connection creation mode and this is not the source node
+    if (!isConnectionSource) {
+      e.preventDefault();
+      e.stopPropagation();
+      onConnectionFinish(node.id);
+    }
   };
 
   return (
     <div
-      className="absolute cursor-move storyline-node select-none"
+      className={`absolute cursor-move storyline-node select-none ${
+        isConnectionSource ? 'ring-2 ring-blue-400' : ''
+      }`}
       style={{
         left: node.position.x,
         top: node.position.y,
@@ -32,6 +68,7 @@ const StorylineNode = ({ node, isDragged, onEdit, onDelete, onDragStart }: Story
         msUserSelect: 'none'
       }}
       onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
       unselectable="on"
     >
       <Card className="w-28 hover:shadow-lg transition-shadow group select-none">
@@ -41,6 +78,23 @@ const StorylineNode = ({ node, isDragged, onEdit, onDelete, onDragStart }: Story
               {node.title}
             </h4>
             <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-0.5">
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                className="h-3 w-3"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  const nodeCenter = {
+                    x: node.position.x + 60,
+                    y: node.position.y + 30
+                  };
+                  onConnectionStart(node.id, nodeCenter);
+                }}
+                title="Create connection (or Ctrl+drag)"
+              >
+                <Link className="w-1.5 h-1.5" />
+              </Button>
               <Button 
                 size="icon" 
                 variant="ghost" 

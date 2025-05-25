@@ -45,6 +45,7 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
     nodeForm,
     deleteDialogState,
     connectionLabelState,
+    connectionCreationState,
     setShowNodeForm,
     deleteNode,
     handleDeleteConfirm,
@@ -56,7 +57,11 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
     createNodeAtPosition,
     createNodeFromWorldbuilding,
     startEditingConnectionLabel,
-    cancelEditingConnectionLabel
+    cancelEditingConnectionLabel,
+    startConnectionCreation,
+    updateConnectionPreview,
+    finishConnectionCreation,
+    cancelConnectionCreation
   } = useStorylineActions(projectId, nodes, zoom, pan, fetchStorylineData);
 
   // Update pan when data pan changes
@@ -86,6 +91,7 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
         pan={pan}
         draggedNode={draggedNode}
         connectionLabelState={connectionLabelState}
+        connectionCreationState={connectionCreationState}
         onNodeEdit={handleNodeEdit}
         onNodeDelete={deleteNode}
         onNodeDrag={updateNodePosition}
@@ -98,6 +104,10 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
         onConnectionLabelEdit={startEditingConnectionLabel}
         onConnectionLabelSave={handleConnectionLabelSave}
         onConnectionLabelCancel={cancelEditingConnectionLabel}
+        onConnectionStart={startConnectionCreation}
+        onConnectionPreviewUpdate={updateConnectionPreview}
+        onConnectionFinish={finishConnectionCreation}
+        onConnectionCancel={cancelConnectionCreation}
         setDraggedNode={setDraggedNode}
       />
 

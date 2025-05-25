@@ -5,6 +5,12 @@ import StorylineContextMenu from './StorylineContextMenu';
 import ConnectionLabelForm from './ConnectionLabelForm';
 import { StorylineNode as StorylineNodeType, StorylineConnection, WorldbuildingElement, ConnectionLabelState } from './types';
 
+interface ConnectionCreationState {
+  isCreating: boolean;
+  sourceNodeId: string | null;
+  previewConnection: { start: { x: number; y: number }; end: { x: number; y: number } } | null;
+}
+
 interface StorylineCanvasProps {
   nodes: StorylineNodeType[];
   connections: StorylineConnection[];
@@ -13,6 +19,7 @@ interface StorylineCanvasProps {
   pan: { x: number; y: number };
   draggedNode: string | null;
   connectionLabelState: ConnectionLabelState;
+  connectionCreationState: ConnectionCreationState;
   onNodeEdit: (node: StorylineNodeType) => void;
   onNodeDelete: (nodeId: string) => void;
   onNodeDrag: (nodeId: string, newPosition: { x: number; y: number }) => void;
@@ -25,6 +32,10 @@ interface StorylineCanvasProps {
   onConnectionLabelEdit: (connectionId: string, position: { x: number; y: number }) => void;
   onConnectionLabelSave: (connectionId: string, label: string) => void;
   onConnectionLabelCancel: () => void;
+  onConnectionStart: (sourceNodeId: string, sourcePosition: { x: number; y: number }) => void;
+  onConnectionPreviewUpdate: (mousePosition: { x: number; y: number }) => void;
+  onConnectionFinish: (targetNodeId: string) => void;
+  onConnectionCancel: () => void;
   setDraggedNode: (nodeId: string | null) => void;
 }
 
@@ -36,6 +47,7 @@ const StorylineCanvas = ({
   pan,
   draggedNode,
   connectionLabelState,
+  connectionCreationState,
   onNodeEdit,
   onNodeDelete,
   onNodeDrag,
@@ -48,10 +60,12 @@ const StorylineCanvas = ({
   onConnectionLabelEdit,
   onConnectionLabelSave,
   onConnectionLabelCancel,
+  onConnectionStart,
+  onConnectionPreviewUpdate,
+  onConnectionFinish,
+  onConnectionCancel,
   setDraggedNode
 }: StorylineCanvasProps) => {
-  const [contextPosition, setContextPosition] = useState<{ x: number; y: number } | null>(null);
-
   // Convert screen coordinates to world coordinates
   const screenToWorld = useCallback((screenX: number, screenY: number) => {
     return {
@@ -61,24 +75,22 @@ const StorylineCanvas = ({
   }, [pan, zoom]);
 
   const handleCreateNode = useCallback((nodeType: string, position: { x: number; y: number }) => {
-    console.log('Creating node:', nodeType, 'at position:', position);
     onCreateNode(nodeType, position);
-    setContextPosition(null);
   }, [onCreateNode]);
 
   const handleCreateFromWorldbuilding = useCallback((element: WorldbuildingElement, position: { x: number; y: number }) => {
-    console.log('Creating node from worldbuilding:', element.name, 'at position:', position);
     onCreateFromWorldbuilding(element, position);
-    setContextPosition(null);
   }, [onCreateFromWorldbuilding]);
 
-  // Modified mouse down handler to not interfere with right-click
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    console.log('Mouse down:', e.button, e.target);
-    
-    // Skip panning for right-click (button 2) to allow context menu
+    // Skip handling for right-click (context menu)
     if (e.button === 2) {
-      console.log('Right click detected, skipping pan');
+      return;
+    }
+    
+    // Cancel connection creation if clicking on empty canvas
+    if (connectionCreationState.isCreating) {
+      onConnectionCancel();
       return;
     }
     
@@ -86,7 +98,19 @@ const StorylineCanvas = ({
     if (e.button === 0) {
       onCanvasMouseDown(e);
     }
-  }, [onCanvasMouseDown]);
+  }, [onCanvasMouseDown, connectionCreationState.isCreating, onConnectionCancel]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    // Update connection preview if creating connection
+    if (connectionCreationState.isCreating) {
+      const container = e.currentTarget.closest('.flex-1') as HTMLElement;
+      const containerRect = container.getBoundingClientRect();
+      const mouseWorldPos = screenToWorld(e.clientX - containerRect.left, e.clientY - containerRect.top);
+      onConnectionPreviewUpdate(mouseWorldPos);
+    }
+    
+    onCanvasMouseMove(e);
+  }, [onCanvasMouseMove, connectionCreationState.isCreating, onConnectionPreviewUpdate, screenToWorld]);
 
   const handleNodeDragStart = useCallback((e: React.MouseEvent, node: StorylineNodeType) => {
     e.stopPropagation();
@@ -123,12 +147,11 @@ const StorylineCanvas = ({
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [screenToWorld, setDraggedNode, onNodeDrag, pan, zoom]);
+  }, [screenToWorld, setDraggedNode, onNodeDrag]);
 
   const handleConnectionClick = useCallback((e: React.MouseEvent, connectionId: string) => {
     e.stopPropagation();
     
-    // Get screen coordinates for the form position
     const container = e.currentTarget.closest('.flex-1') as HTMLElement;
     const containerRect = container.getBoundingClientRect();
     
@@ -140,12 +163,9 @@ const StorylineCanvas = ({
     onConnectionLabelEdit(connectionId, screenPosition);
   }, [onConnectionLabelEdit]);
 
-  // Handle context menu positioning
   const handleContextMenuTrigger = useCallback((position: { x: number; y: number }) => {
-    console.log('Context menu triggered at position:', position);
     const worldPos = screenToWorld(position.x, position.y);
-    console.log('World coordinates:', worldPos);
-    setContextPosition(worldPos);
+    return worldPos;
   }, [screenToWorld]);
 
   return (
@@ -153,7 +173,6 @@ const StorylineCanvas = ({
       worldbuildingElements={worldbuildingElements}
       onCreateNode={handleCreateNode}
       onCreateFromWorldbuilding={handleCreateFromWorldbuilding}
-      contextPosition={contextPosition}
       onContextMenuTrigger={handleContextMenuTrigger}
     >
       <div 
@@ -165,7 +184,7 @@ const StorylineCanvas = ({
           msUserSelect: 'none'
         }}
         onMouseDown={handleMouseDown}
-        onMouseMove={onCanvasMouseMove}
+        onMouseMove={handleMouseMove}
         onMouseUp={onCanvasMouseUp}
         onMouseLeave={onCanvasMouseUp}
         onWheel={onWheel}
@@ -224,6 +243,20 @@ const StorylineCanvas = ({
                 </g>
               );
             })}
+
+            {/* Connection Preview */}
+            {connectionCreationState.isCreating && connectionCreationState.previewConnection && (
+              <line
+                x1={connectionCreationState.previewConnection.start.x}
+                y1={connectionCreationState.previewConnection.start.y}
+                x2={connectionCreationState.previewConnection.end.x}
+                y2={connectionCreationState.previewConnection.end.y}
+                stroke="rgba(59, 130, 246, 0.8)"
+                strokeWidth="2"
+                strokeDasharray="3,3"
+                className="pointer-events-none"
+              />
+            )}
           </svg>
 
           {/* Nodes */}
@@ -232,9 +265,12 @@ const StorylineCanvas = ({
               key={node.id}
               node={node}
               isDragged={draggedNode === node.id}
+              isConnectionSource={connectionCreationState.sourceNodeId === node.id}
               onEdit={onNodeEdit}
               onDelete={onNodeDelete}
               onDragStart={handleNodeDragStart}
+              onConnectionStart={onConnectionStart}
+              onConnectionFinish={onConnectionFinish}
             />
           ))}
         </div>
@@ -248,6 +284,14 @@ const StorylineCanvas = ({
             onSave={onConnectionLabelSave}
             onCancel={onConnectionLabelCancel}
           />
+        )}
+
+        {/* Connection Creation Instructions */}
+        {connectionCreationState.isCreating && (
+          <div className="absolute top-4 left-4 bg-blue-100 border border-blue-300 rounded-lg p-3 z-20">
+            <p className="text-sm text-blue-800 font-medium">Creating Connection</p>
+            <p className="text-xs text-blue-600">Click on a target node to connect, or click elsewhere to cancel</p>
+          </div>
         )}
       </div>
     </StorylineContextMenu>

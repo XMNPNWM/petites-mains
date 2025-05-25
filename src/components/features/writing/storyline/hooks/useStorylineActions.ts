@@ -1,7 +1,12 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StorylineNode, NodeFormData, DeleteDialogState, WorldbuildingElement, ConnectionLabelState } from '../types';
+
+interface ConnectionCreationState {
+  isCreating: boolean;
+  sourceNodeId: string | null;
+  previewConnection: { start: { x: number; y: number }; end: { x: number; y: number } } | null;
+}
 
 export const useStorylineActions = (
   projectId: string,
@@ -26,6 +31,11 @@ export const useStorylineActions = (
     isEditing: false,
     connectionId: null,
     position: null
+  });
+  const [connectionCreationState, setConnectionCreationState] = useState<ConnectionCreationState>({
+    isCreating: false,
+    sourceNodeId: null,
+    previewConnection: null
   });
 
   const createNodeAtPosition = async (nodeType: string, position: { x: number; y: number }) => {
@@ -84,6 +94,66 @@ export const useStorylineActions = (
     } catch (error) {
       console.error('Error creating node from worldbuilding:', error);
     }
+  };
+
+  const createConnection = async (sourceId: string, targetId: string) => {
+    try {
+      const { error } = await supabase
+        .from('storyline_connections')
+        .insert([{
+          project_id: projectId,
+          source_id: sourceId,
+          target_id: targetId,
+          label: ''
+        }]);
+
+      if (error) throw error;
+      onDataChange();
+    } catch (error) {
+      console.error('Error creating connection:', error);
+    }
+  };
+
+  const startConnectionCreation = (sourceNodeId: string, sourcePosition: { x: number; y: number }) => {
+    setConnectionCreationState({
+      isCreating: true,
+      sourceNodeId,
+      previewConnection: {
+        start: sourcePosition,
+        end: sourcePosition
+      }
+    });
+  };
+
+  const updateConnectionPreview = (mousePosition: { x: number; y: number }) => {
+    if (connectionCreationState.isCreating && connectionCreationState.previewConnection) {
+      setConnectionCreationState(prev => ({
+        ...prev,
+        previewConnection: {
+          start: prev.previewConnection!.start,
+          end: mousePosition
+        }
+      }));
+    }
+  };
+
+  const finishConnectionCreation = async (targetNodeId: string) => {
+    if (connectionCreationState.isCreating && connectionCreationState.sourceNodeId) {
+      await createConnection(connectionCreationState.sourceNodeId, targetNodeId);
+      setConnectionCreationState({
+        isCreating: false,
+        sourceNodeId: null,
+        previewConnection: null
+      });
+    }
+  };
+
+  const cancelConnectionCreation = () => {
+    setConnectionCreationState({
+      isCreating: false,
+      sourceNodeId: null,
+      previewConnection: null
+    });
   };
 
   const createNode = async (e: React.FormEvent) => {
@@ -257,6 +327,7 @@ export const useStorylineActions = (
     nodeForm,
     deleteDialogState,
     connectionLabelState,
+    connectionCreationState,
     setShowNodeForm,
     deleteNode,
     handleDeleteConfirm,
@@ -268,6 +339,10 @@ export const useStorylineActions = (
     createNodeAtPosition,
     createNodeFromWorldbuilding,
     startEditingConnectionLabel,
-    cancelEditingConnectionLabel
+    cancelEditingConnectionLabel,
+    startConnectionCreation,
+    updateConnectionPreview,
+    finishConnectionCreation,
+    cancelConnectionCreation
   };
 };
