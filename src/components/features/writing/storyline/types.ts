@@ -19,6 +19,8 @@ export interface WorldbuildingElement {
   name: string;
   type: string;
   description?: string;
+  storyline_node_id?: string | null;
+  created_from_storyline?: boolean;
 }
 
 export interface NodeFormData {
