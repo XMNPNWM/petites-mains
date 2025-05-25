@@ -34,22 +34,33 @@ export const useDragHandler = ({
     e.preventDefault();
     e.stopPropagation();
 
+    console.log(`[Drag] Starting drag for node ${nodeId}`, { nodePosition, zoom, pan });
+
     // Store initial mouse position for drag threshold
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     hasDragged.current = false;
 
-    // Get the canvas container
-    const canvas = e.currentTarget.closest('.overflow-hidden') as HTMLElement;
-    if (!canvas) return;
+    // Get the canvas container using the data attribute
+    const canvas = e.currentTarget.closest('[data-storyline-canvas]') as HTMLElement;
+    if (!canvas) {
+      console.error('[Drag] Canvas not found');
+      return;
+    }
+
+    console.log('[Drag] Canvas found:', canvas);
 
     const mouseCanvasPos = getCanvasMousePosition(e, canvas);
+    console.log('[Drag] Mouse canvas position:', mouseCanvasPos);
     
     // Convert screen coordinates to world coordinates
     const mouseWorldPos = screenToWorld(mouseCanvasPos.x, mouseCanvasPos.y);
+    console.log('[Drag] Mouse world position:', mouseWorldPos);
+    
     const dragOffset = {
       x: mouseWorldPos.x - nodePosition.x,
       y: mouseWorldPos.y - nodePosition.y
     };
+    console.log('[Drag] Drag offset:', dragOffset);
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!dragStartPos.current) return;
@@ -65,6 +76,7 @@ export const useDragHandler = ({
           setDraggedNode(nodeId);
           // Clear selection when starting to drag
           setSelectedNode(null);
+          console.log(`[Drag] Started dragging node ${nodeId}`);
         }
         
         moveEvent.preventDefault();
@@ -81,6 +93,7 @@ export const useDragHandler = ({
           y: currentMouseWorldPos.y - dragOffset.y
         };
 
+        console.log(`[Drag] Moving node ${nodeId} to:`, newPosition);
         onDrag(nodeId, newPosition);
       }
     };
@@ -88,9 +101,11 @@ export const useDragHandler = ({
     const handleMouseUp = () => {
       // If we didn't drag, this was a click - select the node
       if (!hasDragged.current) {
+        console.log(`[Drag] Click detected on node ${nodeId}, selecting`);
         setSelectedNode(nodeId);
       } else {
         // If we dragged, clear the dragged state
+        console.log(`[Drag] Drag completed for node ${nodeId}`);
         setDraggedNode(null);
       }
       
@@ -104,7 +119,7 @@ export const useDragHandler = ({
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [nodeId, nodePosition, screenToWorld, setDraggedNode, setSelectedNode, onDrag]);
+  }, [nodeId, nodePosition, screenToWorld, setDraggedNode, setSelectedNode, onDrag, zoom, pan]);
 
   return { handleMouseDown };
 };

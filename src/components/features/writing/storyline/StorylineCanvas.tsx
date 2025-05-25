@@ -97,7 +97,9 @@ const StorylineCanvas = React.memo(({
   const handleConnectionClick = useCallback((e: React.MouseEvent, connectionId: string) => {
     e.stopPropagation();
     
-    const canvas = e.currentTarget.closest('div[style*="background"]') as HTMLElement;
+    const canvas = e.currentTarget.closest('[data-storyline-canvas]') as HTMLElement;
+    if (!canvas) return;
+    
     const canvasRect = canvas.getBoundingClientRect();
     
     const screenPosition = {
@@ -121,7 +123,7 @@ const StorylineCanvas = React.memo(({
       onMouseUp={onCanvasMouseUp}
       onWheel={onWheel}
     >
-      {/* Connections Layer - positioned absolutely to avoid clipping */}
+      {/* Connections Layer - positioned absolutely */}
       <ConnectionsLayer
         nodes={nodes}
         connections={connections}
@@ -131,32 +133,22 @@ const StorylineCanvas = React.memo(({
         onConnectionClick={handleConnectionClick}
       />
 
-      {/* Nodes Layer - in transformed container */}
-      <div
-        className="absolute inset-0 select-none"
-        style={{
-          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          transformOrigin: '0 0',
-          userSelect: 'none',
-          zIndex: 2
-        }}
-      >
-        <NodesLayer
-          nodes={nodes}
-          zoom={zoom}
-          pan={pan}
-          draggedNode={draggedNode}
-          selectedNode={selectedNode}
-          connectionSourceNodeId={connectionCreationState.sourceNodeId}
-          onNodeEdit={onNodeEdit}
-          onNodeDelete={onNodeDelete}
-          onNodeDrag={onNodeDrag}
-          onConnectionStart={onConnectionStart}
-          onConnectionFinish={onConnectionFinish}
-          setDraggedNode={setDraggedNode}
-          setSelectedNode={setSelectedNode}
-        />
-      </div>
+      {/* Nodes Layer - directly positioned in world coordinates */}
+      <NodesLayer
+        nodes={nodes}
+        zoom={zoom}
+        pan={pan}
+        draggedNode={draggedNode}
+        selectedNode={selectedNode}
+        connectionSourceNodeId={connectionCreationState.sourceNodeId}
+        onNodeEdit={onNodeEdit}
+        onNodeDelete={onNodeDelete}
+        onNodeDrag={onNodeDrag}
+        onConnectionStart={onConnectionStart}
+        onConnectionFinish={onConnectionFinish}
+        setDraggedNode={setDraggedNode}
+        setSelectedNode={setSelectedNode}
+      />
 
       {/* Overlays - positioned at canvas level */}
       <CanvasOverlays

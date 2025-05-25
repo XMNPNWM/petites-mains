@@ -7,14 +7,17 @@ export const createScreenToWorldTransform = (pan: { x: number; y: number }, zoom
 };
 
 export const getCanvasMousePosition = (
-  e: React.MouseEvent,
+  e: React.MouseEvent | { clientX: number; clientY: number },
   canvasElement: HTMLElement
 ) => {
   const canvasRect = canvasElement.getBoundingClientRect();
-  return {
+  const position = {
     x: e.clientX - canvasRect.left,
     y: e.clientY - canvasRect.top
   };
+  console.log('[Coordinate] Canvas rect:', canvasRect);
+  console.log('[Coordinate] Mouse position relative to canvas:', position);
+  return position;
 };
 
 export const calculateNodeConnectionPoint = (

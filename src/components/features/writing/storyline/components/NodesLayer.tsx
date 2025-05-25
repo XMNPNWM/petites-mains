@@ -35,7 +35,15 @@ const NodesLayer = React.memo(({
   setSelectedNode
 }: NodesLayerProps) => {
   return (
-    <>
+    <div
+      className="absolute inset-0 select-none"
+      style={{
+        transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+        transformOrigin: '0 0',
+        userSelect: 'none',
+        zIndex: 2
+      }}
+    >
       {nodes.map((node) => (
         <StorylineNode
           key={node.id}
@@ -54,7 +62,7 @@ const NodesLayer = React.memo(({
           setSelectedNode={setSelectedNode}
         />
       ))}
-    </>
+    </div>
   );
 });
 
