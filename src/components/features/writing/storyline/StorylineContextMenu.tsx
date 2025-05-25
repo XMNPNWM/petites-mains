@@ -74,7 +74,8 @@ const StorylineContextMenu = ({
         }
       }}
     >
-      <ContextMenuTrigger
+      <ContextMenuTrigger 
+        asChild
         onContextMenu={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const position = {
@@ -85,9 +86,7 @@ const StorylineContextMenu = ({
           onContextMenuTrigger(position);
         }}
       >
-        <div className="w-full h-full">
-          {children}
-        </div>
+        {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">
         <ContextMenuSub>
