@@ -32,11 +32,20 @@ const WritingSpaceLayout = ({
   const [isDragging, setIsDragging] = useState(false);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    // Prevent text selection during drag
+    e.preventDefault();
+    e.stopPropagation();
+    
     setIsDragging(true);
     const startY = e.clientY;
     const startHeight = overlayHeight;
 
+    // Add no-select class to body to prevent text selection everywhere
+    document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
+
     const handleMouseMove = (e: MouseEvent) => {
+      e.preventDefault();
       const windowHeight = window.innerHeight;
       const deltaY = startY - e.clientY;
       const deltaPercent = (deltaY / windowHeight) * 100;
@@ -46,6 +55,11 @@ const WritingSpaceLayout = ({
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      
+      // Restore text selection
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
+      
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
@@ -94,12 +108,18 @@ const WritingSpaceLayout = ({
       >
         {/* Drag Handle */}
         <div
-          className={`h-6 bg-slate-100 border-b border-slate-200 flex items-center justify-center cursor-row-resize hover:bg-slate-200 transition-colors ${
+          className={`h-6 bg-slate-100 border-b border-slate-200 flex items-center justify-center cursor-row-resize hover:bg-slate-200 transition-colors select-none ${
             isDragging ? 'bg-slate-200' : ''
           }`}
           onMouseDown={handleMouseDown}
+          style={{
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            MozUserSelect: 'none',
+            msUserSelect: 'none'
+          }}
         >
-          <div className="flex space-x-1">
+          <div className="flex space-x-1 pointer-events-none">
             <div className="w-8 h-1 bg-slate-400 rounded-full"></div>
             <div className="w-8 h-1 bg-slate-400 rounded-full"></div>
             <div className="w-8 h-1 bg-slate-400 rounded-full"></div>
