@@ -1,9 +1,8 @@
 
 import React from 'react';
-import { Edit3, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { StorylineNode } from '../types';
+import NodeActionButtons from './NodeActionButtons';
 
 interface NodeCardProps {
   node: StorylineNode;
@@ -30,32 +29,11 @@ const NodeCard = React.memo(({ node, isSelected, onEdit, onDelete }: NodeCardPro
           <h4 className="text-xs font-medium text-slate-900 line-clamp-2 select-none">
             {node.title}
           </h4>
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-0.5">
-            <Button 
-              size="icon" 
-              variant="ghost" 
-              className="h-3 w-3"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                onEdit(node);
-              }}
-            >
-              <Edit3 className="w-1.5 h-1.5" />
-            </Button>
-            <Button 
-              size="icon" 
-              variant="ghost" 
-              className="h-3 w-3"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                onDelete(node.id);
-              }}
-            >
-              <Trash2 className="w-1.5 h-1.5" />
-            </Button>
-          </div>
+          <NodeActionButtons
+            node={node}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
         </div>
         <span className="text-xs bg-slate-100 text-slate-600 px-1 py-0.5 rounded select-none">
           {node.node_type}
