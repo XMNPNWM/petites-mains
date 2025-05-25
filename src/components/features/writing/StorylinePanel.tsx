@@ -1,3 +1,4 @@
+
 import React from 'react';
 import StorylineControls from './storyline/StorylineControls';
 import StorylineCanvas from './storyline/StorylineCanvas';
@@ -40,6 +41,15 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
     resetView
   } = useViewportControls(nodes, dataPan);
 
+  // Enhanced data change handler that also refreshes worldbuilding
+  const handleDataChange = () => {
+    fetchStorylineData();
+    // Trigger worldbuilding refresh
+    if ((window as any).refreshWorldbuilding) {
+      (window as any).refreshWorldbuilding();
+    }
+  };
+
   const {
     editingNode,
     showNodeForm,
@@ -63,7 +73,7 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
     updateConnectionPreview,
     finishConnectionCreation,
     cancelConnectionCreation
-  } = useStorylineActions(projectId, nodes, zoom, pan, fetchStorylineData);
+  } = useStorylineActions(projectId, nodes, zoom, pan, handleDataChange);
 
   // Update pan when data pan changes
   React.useEffect(() => {

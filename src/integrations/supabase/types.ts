@@ -299,31 +299,37 @@ export type Database = {
       worldbuilding_elements: {
         Row: {
           created_at: string | null
+          created_from_storyline: boolean | null
           description: string | null
           details: Json | null
           id: string
           name: string
           project_id: string
+          storyline_node_id: string | null
           type: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          created_from_storyline?: boolean | null
           description?: string | null
           details?: Json | null
           id?: string
           name: string
           project_id: string
+          storyline_node_id?: string | null
           type: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          created_from_storyline?: boolean | null
           description?: string | null
           details?: Json | null
           id?: string
           name?: string
           project_id?: string
+          storyline_node_id?: string | null
           type?: string
           updated_at?: string | null
         }
@@ -333,6 +339,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worldbuilding_elements_storyline_node_id_fkey"
+            columns: ["storyline_node_id"]
+            isOneToOne: false
+            referencedRelation: "storyline_nodes"
             referencedColumns: ["id"]
           },
         ]

@@ -35,23 +35,33 @@ const DeleteNodeDialog = ({ isOpen, nodeName, onConfirm, onCancel }: DeleteNodeD
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && handleCancel()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Node</AlertDialogTitle>
+          <AlertDialogTitle>Delete Storyline Node</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete "{nodeName}"? This action cannot be undone.
+            Are you sure you want to delete the storyline node "{nodeName}"? This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         
-        <div className="flex items-center space-x-2 py-4">
-          <input
-            type="checkbox"
-            id="deleteFromWorldbuilding"
-            checked={deleteFromWorldbuilding}
-            onChange={(e) => setDeleteFromWorldbuilding(e.target.checked)}
-            className="rounded border-gray-300"
-          />
-          <label htmlFor="deleteFromWorldbuilding" className="text-sm text-gray-700">
-            Also delete this element from your worldbuilding library
-          </label>
+        <div className="space-y-4 py-4">
+          <div className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
+            <input
+              type="checkbox"
+              id="deleteFromWorldbuilding"
+              checked={deleteFromWorldbuilding}
+              onChange={(e) => setDeleteFromWorldbuilding(e.target.checked)}
+              className="mt-1 rounded border-gray-300"
+            />
+            <div className="flex-1">
+              <label htmlFor="deleteFromWorldbuilding" className="text-sm font-medium text-gray-900 cursor-pointer">
+                Also delete from worldbuilding library
+              </label>
+              <p className="text-xs text-gray-600 mt-1">
+                {deleteFromWorldbuilding 
+                  ? "The linked worldbuilding element will be permanently deleted."
+                  : "The worldbuilding element will be kept but unlinked from this storyline node."
+                }
+              </p>
+            </div>
+          </div>
         </div>
 
         <AlertDialogFooter>
@@ -60,7 +70,7 @@ const DeleteNodeDialog = ({ isOpen, nodeName, onConfirm, onCancel }: DeleteNodeD
             onClick={handleConfirm}
             className="bg-red-600 hover:bg-red-700"
           >
-            Delete
+            Delete Node
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit3, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, ChevronDown, ChevronRight, Link } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,10 +12,13 @@ interface WorldElement {
   name: string;
   type: string;
   description: string;
+  storyline_node_id?: string | null;
+  created_from_storyline?: boolean;
 }
 
 interface WorldbuildingPanelProps {
   projectId: string;
+  onRefresh?: () => void;
 }
 
 const CATEGORIES = [
@@ -30,7 +33,7 @@ const CATEGORIES = [
   { value: 'artifact', label: 'Artifacts' }
 ];
 
-const WorldbuildingPanel = ({ projectId }: WorldbuildingPanelProps) => {
+const WorldbuildingPanel = ({ projectId, onRefresh }: WorldbuildingPanelProps) => {
   const [elements, setElements] = useState<WorldElement[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingElement, setEditingElement] = useState<WorldElement | null>(null);
@@ -46,6 +49,17 @@ const WorldbuildingPanel = ({ projectId }: WorldbuildingPanelProps) => {
   useEffect(() => {
     fetchElements();
   }, [projectId]);
+
+  // Add effect to listen for external refresh calls
+  useEffect(() => {
+    if (onRefresh) {
+      const handleRefresh = () => {
+        fetchElements();
+      };
+      // Store the refresh function globally so it can be called from outside
+      (window as any).refreshWorldbuilding = handleRefresh;
+    }
+  }, [onRefresh]);
 
   const fetchElements = async () => {
     try {
@@ -76,7 +90,11 @@ const WorldbuildingPanel = ({ projectId }: WorldbuildingPanelProps) => {
       } else {
         const { error } = await supabase
           .from('worldbuilding_elements')
-          .insert([{ ...formData, project_id: projectId }]);
+          .insert([{ 
+            ...formData, 
+            project_id: projectId,
+            created_from_storyline: false
+          }]);
         
         if (error) throw error;
       }
@@ -91,6 +109,12 @@ const WorldbuildingPanel = ({ projectId }: WorldbuildingPanelProps) => {
   };
 
   const handleEdit = (element: WorldElement) => {
+    // Prevent editing elements that are linked to storyline nodes
+    if (element.storyline_node_id) {
+      alert('This element is linked to a storyline node. Edit it from the storyline map to sync changes.');
+      return;
+    }
+
     setEditingElement(element);
     setFormData({
       name: element.name,
@@ -101,6 +125,14 @@ const WorldbuildingPanel = ({ projectId }: WorldbuildingPanelProps) => {
   };
 
   const handleDelete = async (id: string) => {
+    const element = elements.find(el => el.id === id);
+    
+    // Prevent deleting elements that are linked to storyline nodes
+    if (element?.storyline_node_id) {
+      alert('This element is linked to a storyline node. Delete it from the storyline map to remove the link.');
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('worldbuilding_elements')
@@ -199,7 +231,17 @@ const WorldbuildingPanel = ({ projectId }: WorldbuildingPanelProps) => {
                         <CardContent className="p-3">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <h4 className="font-medium text-slate-900 text-sm">{element.name}</h4>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium text-slate-900 text-sm">{element.name}</h4>
+                                {element.storyline_node_id && (
+                                  <div className="flex items-center gap-1">
+                                    <Link className="w-3 h-3 text-blue-500" />
+                                    <span className="text-xs text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
+                                      {element.created_from_storyline ? 'Synced' : 'Linked'}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
                               <p className="text-xs text-slate-600 mt-2 line-clamp-2">{element.description}</p>
                             </div>
                             <div className="flex items-center space-x-1 ml-2">
@@ -208,6 +250,8 @@ const WorldbuildingPanel = ({ projectId }: WorldbuildingPanelProps) => {
                                 variant="ghost" 
                                 className="h-6 w-6"
                                 onClick={() => handleEdit(element)}
+                                disabled={!!element.storyline_node_id}
+                                title={element.storyline_node_id ? 'Edit from storyline map' : 'Edit element'}
                               >
                                 <Edit3 className="w-3 h-3" />
                               </Button>
@@ -216,6 +260,8 @@ const WorldbuildingPanel = ({ projectId }: WorldbuildingPanelProps) => {
                                 variant="ghost" 
                                 className="h-6 w-6"
                                 onClick={() => handleDelete(element.id)}
+                                disabled={!!element.storyline_node_id}
+                                title={element.storyline_node_id ? 'Delete from storyline map' : 'Delete element'}
                               >
                                 <Trash2 className="w-3 h-3" />
                               </Button>

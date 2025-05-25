@@ -55,14 +55,16 @@ export const useStorylineActions = (
 
       if (nodeError) throw nodeError;
 
-      // Also create worldbuilding element
+      // Create linked worldbuilding element
       const { error: worldError } = await supabase
         .from('worldbuilding_elements')
         .insert([{
           name: `New ${nodeType}`,
           type: nodeType,
           description: '',
-          project_id: projectId
+          project_id: projectId,
+          storyline_node_id: nodeData.id,
+          created_from_storyline: true
         }]);
 
       if (worldError) throw worldError;
@@ -89,6 +91,19 @@ export const useStorylineActions = (
         .single();
 
       if (nodeError) throw nodeError;
+
+      // Link existing worldbuilding element to new node if it's not already linked
+      if (!element.storyline_node_id) {
+        const { error: linkError } = await supabase
+          .from('worldbuilding_elements')
+          .update({ 
+            storyline_node_id: nodeData.id,
+            created_from_storyline: false // Keep original source
+          })
+          .eq('id', element.id);
+
+        if (linkError) throw linkError;
+      }
 
       onDataChange();
     } catch (error) {
@@ -188,14 +203,16 @@ export const useStorylineActions = (
 
       if (nodeError) throw nodeError;
 
-      // Also create worldbuilding element
+      // Create linked worldbuilding element
       const { error: worldError } = await supabase
         .from('worldbuilding_elements')
         .insert([{
           name: nodeForm.title,
           type: nodeForm.node_type,
           description: nodeForm.content,
-          project_id: projectId
+          project_id: projectId,
+          storyline_node_id: nodeData.id,
+          created_from_storyline: true
         }]);
 
       if (worldError) throw worldError;
@@ -211,7 +228,7 @@ export const useStorylineActions = (
     if (!editingNode) return;
 
     try {
-      const { error } = await supabase
+      const { error: nodeError } = await supabase
         .from('storyline_nodes')
         .update({
           title: nodeForm.title,
@@ -220,7 +237,19 @@ export const useStorylineActions = (
         })
         .eq('id', editingNode.id);
 
-      if (error) throw error;
+      if (nodeError) throw nodeError;
+
+      // Update linked worldbuilding element
+      const { error: worldError } = await supabase
+        .from('worldbuilding_elements')
+        .update({
+          name: nodeForm.title,
+          type: nodeForm.node_type,
+          description: nodeForm.content
+        })
+        .eq('storyline_node_id', editingNode.id);
+
+      if (worldError) throw worldError;
 
       resetForm();
       onDataChange();
@@ -245,15 +274,7 @@ export const useStorylineActions = (
     if (!nodeId) return;
 
     try {
-      // Delete the node
-      const { error: nodeError } = await supabase
-        .from('storyline_nodes')
-        .delete()
-        .eq('id', nodeId);
-
-      if (nodeError) throw nodeError;
-
-      // Delete connections
+      // Delete connections first
       const { error: connectionsError } = await supabase
         .from('storyline_connections')
         .delete()
@@ -261,19 +282,32 @@ export const useStorylineActions = (
 
       if (connectionsError) throw connectionsError;
 
-      // Optionally delete from worldbuilding
+      // Handle worldbuilding element based on user choice
       if (deleteFromWorldbuilding) {
-        const node = nodes.find(n => n.id === nodeId);
-        if (node) {
-          const { error: worldError } = await supabase
-            .from('worldbuilding_elements')
-            .delete()
-            .eq('name', node.title)
-            .eq('project_id', projectId);
+        // Delete linked worldbuilding element
+        const { error: worldError } = await supabase
+          .from('worldbuilding_elements')
+          .delete()
+          .eq('storyline_node_id', nodeId);
 
-          if (worldError) console.error('Error deleting from worldbuilding:', worldError);
-        }
+        if (worldError) throw worldError;
+      } else {
+        // Unlink worldbuilding element but keep it
+        const { error: unlinkError } = await supabase
+          .from('worldbuilding_elements')
+          .update({ storyline_node_id: null })
+          .eq('storyline_node_id', nodeId);
+
+        if (unlinkError) throw unlinkError;
       }
+
+      // Delete the storyline node
+      const { error: nodeError } = await supabase
+        .from('storyline_nodes')
+        .delete()
+        .eq('id', nodeId);
+
+      if (nodeError) throw nodeError;
 
       setDeleteDialogState({ isOpen: false, nodeId: null, nodeName: '' });
       onDataChange();
