@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StorylineNode, NodeFormData, DeleteDialogState, ConnectionLabelState, WorldbuildingElement } from '../types';
@@ -20,6 +19,19 @@ const NODE_TYPE_MAPPING: Record<string, string> = {
   'religion': 'religion',
   'politics': 'politics',
   'artifact': 'artifact'
+};
+
+// Helper function to transform database response to StorylineNode
+const transformToStorylineNode = (dbNode: any): StorylineNode => {
+  return {
+    id: dbNode.id,
+    title: dbNode.title,
+    content: dbNode.content || '',
+    node_type: dbNode.node_type,
+    position: typeof dbNode.position === 'object' && dbNode.position !== null
+      ? dbNode.position as { x: number; y: number }
+      : { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }
+  };
 };
 
 export const useStorylineActions = (
@@ -158,8 +170,9 @@ export const useStorylineActions = (
 
         if (error) throw error;
         
-        // Create corresponding worldbuilding element
-        await createOrUpdateWorldbuildingElement(data as StorylineNode);
+        // Transform and create corresponding worldbuilding element
+        const transformedNode = transformToStorylineNode(data);
+        await createOrUpdateWorldbuildingElement(transformedNode);
         
         console.log('Created storyline node and worldbuilding element:', nodeForm.title);
       }
@@ -188,8 +201,9 @@ export const useStorylineActions = (
 
       if (error) throw error;
       
-      // Create corresponding worldbuilding element
-      await createOrUpdateWorldbuildingElement(data as StorylineNode);
+      // Transform and create corresponding worldbuilding element
+      const transformedNode = transformToStorylineNode(data);
+      await createOrUpdateWorldbuildingElement(transformedNode);
       
       console.log('Created node at position and worldbuilding element:', data.title);
       onDataChange();
