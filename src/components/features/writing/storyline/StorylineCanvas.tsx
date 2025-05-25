@@ -281,26 +281,26 @@ const StorylineCanvas = ({
             />
           )}
         </svg>
+
+        {/* Nodes - Now inside the transformed container */}
+        {nodes.map((node) => (
+          <StorylineNode
+            key={node.id}
+            node={node}
+            isDragged={draggedNode === node.id}
+            isSelected={selectedNode === node.id}
+            isConnectionSource={connectionCreationState.sourceNodeId === node.id}
+            onEdit={onNodeEdit}
+            onDelete={onNodeDelete}
+            onClick={handleNodeClick}
+            onDragStart={handleNodeDragStart}
+            onConnectionStart={onConnectionStart}
+            onConnectionFinish={onConnectionFinish}
+          />
+        ))}
       </div>
 
-      {/* Nodes */}
-      {nodes.map((node) => (
-        <StorylineNode
-          key={node.id}
-          node={node}
-          isDragged={draggedNode === node.id}
-          isSelected={selectedNode === node.id}
-          isConnectionSource={connectionCreationState.sourceNodeId === node.id}
-          onEdit={onNodeEdit}
-          onDelete={onNodeDelete}
-          onClick={handleNodeClick}
-          onDragStart={handleNodeDragStart}
-          onConnectionStart={onConnectionStart}
-          onConnectionFinish={onConnectionFinish}
-        />
-      ))}
-
-      {/* Connection Label Form */}
+      {/* Connection Label Form - Outside transformed container for proper positioning */}
       {connectionLabelState.isEditing && connectionLabelState.connectionId && connectionLabelState.position && (
         <ConnectionLabelForm
           connectionId={connectionLabelState.connectionId}
@@ -311,7 +311,7 @@ const StorylineCanvas = ({
         />
       )}
 
-      {/* Connection Creation Instructions */}
+      {/* Connection Creation Instructions - Outside transformed container */}
       {connectionCreationState.isCreating && (
         <div className="absolute top-4 left-4 bg-blue-100 border border-blue-300 rounded-lg p-3 z-20">
           <p className="text-sm text-blue-800 font-medium">Creating Connection</p>
