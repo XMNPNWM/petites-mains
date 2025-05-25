@@ -11,9 +11,10 @@ import { useViewportControls } from './storyline/hooks/useViewportControls';
 interface StorylinePanelProps {
   projectId: string;
   chapterId?: string;
+  onDataChange?: () => void;
 }
 
-const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
+const StorylinePanel = ({ projectId, chapterId, onDataChange }: StorylinePanelProps) => {
   const {
     nodes,
     connections,
@@ -41,14 +42,14 @@ const StorylinePanel = ({ projectId, chapterId }: StorylinePanelProps) => {
     resetView
   } = useViewportControls(nodes, dataPan);
 
-  // Enhanced data change handler that also refreshes worldbuilding
-  const handleDataChange = () => {
+  // Enhanced data change handler that triggers the parent callback
+  const handleDataChange = React.useCallback(() => {
+    console.log('StorylinePanel: Data changed, fetching and notifying parent...');
     fetchStorylineData();
-    // Trigger worldbuilding refresh
-    if ((window as any).refreshWorldbuilding) {
-      (window as any).refreshWorldbuilding();
+    if (onDataChange) {
+      onDataChange();
     }
-  };
+  }, [fetchStorylineData, onDataChange]);
 
   const {
     editingNode,

@@ -18,7 +18,7 @@ interface WorldElement {
 
 interface WorldbuildingPanelProps {
   projectId: string;
-  onRefresh?: () => void;
+  refreshTrigger?: number;
 }
 
 const CATEGORIES = [
@@ -33,7 +33,7 @@ const CATEGORIES = [
   { value: 'artifact', label: 'Artifacts' }
 ];
 
-const WorldbuildingPanel = ({ projectId, onRefresh }: WorldbuildingPanelProps) => {
+const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelProps) => {
   const [elements, setElements] = useState<WorldElement[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingElement, setEditingElement] = useState<WorldElement | null>(null);
@@ -46,23 +46,9 @@ const WorldbuildingPanel = ({ projectId, onRefresh }: WorldbuildingPanelProps) =
     description: ''
   });
 
-  useEffect(() => {
-    fetchElements();
-  }, [projectId]);
-
-  // Add effect to listen for external refresh calls
-  useEffect(() => {
-    if (onRefresh) {
-      const handleRefresh = () => {
-        fetchElements();
-      };
-      // Store the refresh function globally so it can be called from outside
-      (window as any).refreshWorldbuilding = handleRefresh;
-    }
-  }, [onRefresh]);
-
   const fetchElements = async () => {
     try {
+      console.log('WorldbuildingPanel: Fetching elements...');
       const { data, error } = await supabase
         .from('worldbuilding_elements')
         .select('*')
@@ -70,11 +56,25 @@ const WorldbuildingPanel = ({ projectId, onRefresh }: WorldbuildingPanelProps) =
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      console.log('WorldbuildingPanel: Fetched elements:', data);
       setElements(data || []);
     } catch (error) {
       console.error('Error fetching elements:', error);
     }
   };
+
+  // Initial fetch
+  useEffect(() => {
+    fetchElements();
+  }, [projectId]);
+
+  // Refresh when trigger changes (from storyline updates)
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      console.log('WorldbuildingPanel: Refresh triggered by storyline change');
+      fetchElements();
+    }
+  }, [refreshTrigger]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

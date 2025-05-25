@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
 import TextEditorPanel from './TextEditorPanel';
@@ -30,6 +30,13 @@ const WritingSpaceLayout = ({
 }: WritingSpaceLayoutProps) => {
   const [overlayHeight, setOverlayHeight] = useState(30); // Default 30% of screen height
   const [isDragging, setIsDragging] = useState(false);
+  const [worldbuildingRefreshTrigger, setWorldbuildingRefreshTrigger] = useState(0);
+
+  // Callback to refresh worldbuilding panel when storyline changes
+  const handleStorylineDataChange = useCallback(() => {
+    console.log('Storyline data changed, refreshing worldbuilding panel...');
+    setWorldbuildingRefreshTrigger(prev => prev + 1);
+  }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Prevent text selection during drag
@@ -75,7 +82,10 @@ const WritingSpaceLayout = ({
         <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* Worldbuilding Panel */}
           <ResizablePanel defaultSize={25} minSize={20}>
-            <WorldbuildingPanel projectId={projectId} />
+            <WorldbuildingPanel 
+              projectId={projectId} 
+              refreshTrigger={worldbuildingRefreshTrigger}
+            />
           </ResizablePanel>
           
           <ResizableHandle withHandle />
@@ -131,6 +141,7 @@ const WritingSpaceLayout = ({
           <StorylinePanel 
             projectId={projectId}
             chapterId={currentChapter?.id}
+            onDataChange={handleStorylineDataChange}
           />
         </div>
       </div>
