@@ -10,13 +10,27 @@ export const getCanvasMousePosition = (
   e: React.MouseEvent | { clientX: number; clientY: number },
   canvasElement: HTMLElement
 ) => {
+  if (!canvasElement) {
+    console.error('[Coordinate] Canvas element is null');
+    return { x: 0, y: 0 };
+  }
+
   const canvasRect = canvasElement.getBoundingClientRect();
+  console.log('[Coordinate] Canvas rect:', {
+    left: canvasRect.left,
+    top: canvasRect.top,
+    width: canvasRect.width,
+    height: canvasRect.height
+  });
+
   const position = {
     x: e.clientX - canvasRect.left,
     y: e.clientY - canvasRect.top
   };
-  console.log('[Coordinate] Canvas rect:', canvasRect);
+  
+  console.log('[Coordinate] Client position:', { clientX: e.clientX, clientY: e.clientY });
   console.log('[Coordinate] Mouse position relative to canvas:', position);
+  
   return position;
 };
 

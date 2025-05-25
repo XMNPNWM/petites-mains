@@ -50,21 +50,29 @@ export const useNodeConnectionHandlers = ({
   });
 
   const handleNodeMouseDown = useCallback((e: React.MouseEvent) => {
-    // Check for connection creation first
-    if (handleKeyboardConnectionStart(e)) {
-      return;
+    console.log(`[NodeHandler] Mouse down on node ${nodeId}, checking for connection mode`);
+    
+    // Check for connection creation first (Ctrl+click or Cmd+click)
+    if (e.ctrlKey || e.metaKey) {
+      console.log(`[NodeHandler] Connection mode detected for node ${nodeId}`);
+      if (handleKeyboardConnectionStart(e)) {
+        return; // Connection started, don't handle as drag
+      }
     }
     
     // Otherwise handle normal drag
+    console.log(`[NodeHandler] Starting normal drag for node ${nodeId}`);
     handleMouseDown(e);
-  }, [handleKeyboardConnectionStart, handleMouseDown]);
+  }, [handleKeyboardConnectionStart, handleMouseDown, nodeId]);
 
   const handleNodeMouseUp = useCallback((e: React.MouseEvent) => {
-    // Only handle connection finish if we're not the source node
+    console.log(`[NodeHandler] Mouse up on node ${nodeId}, isConnectionSource: ${isConnectionSource}`);
+    
+    // Only handle connection finish if we're not the source node and not dragging
     if (!isConnectionSource) {
       handleConnectionFinish(e);
     }
-  }, [isConnectionSource, handleConnectionFinish]);
+  }, [isConnectionSource, handleConnectionFinish, nodeId]);
 
   return {
     handleNodeMouseDown,
