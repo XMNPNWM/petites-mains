@@ -1,5 +1,5 @@
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import StorylineNode from './StorylineNode';
 import StorylineContextMenu from './StorylineContextMenu';
 import ConnectionLabelForm from './ConnectionLabelForm';
@@ -76,7 +76,7 @@ const StorylineCanvas = React.memo(({
       x: (screenX - pan.x) / zoom,
       y: (screenY - pan.y) / zoom
     };
-  }, [pan, zoom]);
+  }, [pan.x, pan.y, zoom]);
 
   const handleCreateNode = useCallback((nodeType: string, position: { x: number; y: number }) => {
     const worldPos = screenToWorld(position.x, position.y);
@@ -140,8 +140,6 @@ const StorylineCanvas = React.memo(({
     // Position is already in screen coordinates, no need to convert
     return position;
   }, []);
-
-  console.log('StorylineCanvas rendering with nodes:', nodes.length, 'connections:', connections.length);
 
   const canvasContent = (
     <div 

@@ -1,5 +1,5 @@
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import { Edit3, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,6 +21,8 @@ interface StorylineNodeProps {
   setSelectedNode: (nodeId: string | null) => void;
 }
 
+const DRAG_THRESHOLD = 5; // pixels
+
 const StorylineNode = React.memo(({ 
   node, 
   zoom,
@@ -38,6 +40,8 @@ const StorylineNode = React.memo(({
 }: StorylineNodeProps) => {
   const nodeWidth = 112; // w-28 = 112px
   const nodeHeight = 80; // approximate height
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+  const hasDragged = useRef(false);
 
   // Convert screen coordinates to world coordinates
   const screenToWorld = useCallback((screenX: number, screenY: number) => {
@@ -45,7 +49,7 @@ const StorylineNode = React.memo(({
       x: (screenX - pan.x) / zoom,
       y: (screenY - pan.y) / zoom
     };
-  }, [pan, zoom]);
+  }, [pan.x, pan.y, zoom]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -61,8 +65,9 @@ const StorylineNode = React.memo(({
       return;
     }
 
-    // Select the node
-    setSelectedNode(node.id);
+    // Store initial mouse position for drag threshold
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
+    hasDragged.current = false;
 
     // Get the canvas container
     const canvas = e.currentTarget.closest('.overflow-hidden') as HTMLElement;
@@ -77,25 +82,49 @@ const StorylineNode = React.memo(({
       y: mouseWorldPos.y - node.position.y
     };
 
-    // Start dragging immediately
-    setDraggedNode(node.id);
-
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      moveEvent.preventDefault();
+      if (!dragStartPos.current) return;
       
-      // Convert current mouse position to world coordinates
-      const currentMouseWorldPos = screenToWorld(moveEvent.clientX - canvasRect.left, moveEvent.clientY - canvasRect.top);
+      // Check if we've moved enough to start dragging
+      const deltaX = Math.abs(moveEvent.clientX - dragStartPos.current.x);
+      const deltaY = Math.abs(moveEvent.clientY - dragStartPos.current.y);
       
-      const newPosition = {
-        x: currentMouseWorldPos.x - dragOffset.x,
-        y: currentMouseWorldPos.y - dragOffset.y
-      };
+      if (deltaX > DRAG_THRESHOLD || deltaY > DRAG_THRESHOLD) {
+        if (!hasDragged.current) {
+          // First time crossing threshold - start dragging
+          hasDragged.current = true;
+          setDraggedNode(node.id);
+          // Clear selection when starting to drag
+          setSelectedNode(null);
+        }
+        
+        moveEvent.preventDefault();
+        
+        // Convert current mouse position to world coordinates
+        const currentMouseWorldPos = screenToWorld(moveEvent.clientX - canvasRect.left, moveEvent.clientY - canvasRect.top);
+        
+        const newPosition = {
+          x: currentMouseWorldPos.x - dragOffset.x,
+          y: currentMouseWorldPos.y - dragOffset.y
+        };
 
-      onDrag(node.id, newPosition);
+        onDrag(node.id, newPosition);
+      }
     };
 
     const handleMouseUp = () => {
-      setDraggedNode(null);
+      // If we didn't drag, this was a click - select the node
+      if (!hasDragged.current) {
+        setSelectedNode(node.id);
+      } else {
+        // If we dragged, clear the dragged state
+        setDraggedNode(null);
+      }
+      
+      // Clean up
+      dragStartPos.current = null;
+      hasDragged.current = false;
+      
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
@@ -135,10 +164,10 @@ const StorylineNode = React.memo(({
     }
     
     onConnectionStart(node.id, connectionPoint);
-  }, [node, onConnectionStart]);
+  }, [node.position.x, node.position.y, onConnectionStart, node.id]);
 
   // Determine the visual state of the node
-  const getNodeClassName = () => {
+  const getNodeClassName = useCallback(() => {
     let className = "absolute cursor-move storyline-node select-none group";
     
     if (isConnectionSource) {
@@ -148,9 +177,9 @@ const StorylineNode = React.memo(({
     }
     
     return className;
-  };
+  }, [isConnectionSource, isSelected]);
 
-  const getCardClassName = () => {
+  const getCardClassName = useCallback(() => {
     let className = "w-28 hover:shadow-lg transition-all duration-200 select-none";
     
     if (isSelected) {
@@ -158,7 +187,7 @@ const StorylineNode = React.memo(({
     }
     
     return className;
-  };
+  }, [isSelected]);
 
   return (
     <div
