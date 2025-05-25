@@ -22,33 +22,65 @@ interface Project {
 const GlobalDashboard = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      fetchProjects();
+    // Wait for authentication to complete
+    if (authLoading) {
+      return;
     }
-  }, [user]);
+
+    // If no user after auth loading completes, redirect to auth
+    if (!user) {
+      console.log('No user found, redirecting to auth page');
+      navigate('/auth', { replace: true });
+      return;
+    }
+
+    // User is authenticated, fetch projects
+    fetchProjects();
+  }, [user, authLoading, navigate]);
 
   const fetchProjects = async () => {
+    if (!user) {
+      console.log('No user available for fetching projects');
+      setIsLoading(false);
+      return;
+    }
+
     try {
+      console.log('Fetching projects for user:', user.id);
+      setError(null);
+      
       const { data, error } = await supabase
         .from('projects')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('updated_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching projects:', error);
+        throw error;
+      }
+      
+      console.log('Projects fetched successfully:', data?.length || 0);
       setProjects(data || []);
     } catch (error) {
-      console.error('Error fetching projects:', error);
+      console.error('Error in fetchProjects:', error);
+      setError('Failed to load projects. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const createNewProject = async () => {
+    if (!user) {
+      console.log('No user available for creating project');
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('projects')
@@ -56,7 +88,7 @@ const GlobalDashboard = () => {
           title: 'New Project',
           description: 'A new writing project',
           content: '',
-          user_id: user?.id
+          user_id: user.id
         }])
         .select()
         .single();
@@ -67,6 +99,7 @@ const GlobalDashboard = () => {
       }
     } catch (error) {
       console.error('Error creating project:', error);
+      setError('Failed to create project. Please try again.');
     }
   };
 
@@ -78,10 +111,32 @@ const GlobalDashboard = () => {
     );
   };
 
-  if (isLoading) {
+  const retryFetch = () => {
+    setIsLoading(true);
+    setError(null);
+    fetchProjects();
+  };
+
+  // Show loading while auth is loading or while fetching projects
+  if (authLoading || (isLoading && user)) {
     return <LoadingState />;
   }
 
+  // Show error state with retry option
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={retryFetch} variant="outline">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // If we reach here, user is authenticated and projects are loaded
   return (
     <div className="min-h-screen bg-slate-50">
       <DashboardHeader />
