@@ -1,22 +1,19 @@
 
 import React from 'react';
-import { CONNECTION_CIRCLE_OFFSET } from '../constants/nodeConstants';
 
 interface ConnectionCirclesProps {
   onCircleClick: (e: React.MouseEvent, position: 'top' | 'right' | 'bottom' | 'left') => void;
 }
 
 const ConnectionCircles = React.memo(({ onCircleClick }: ConnectionCirclesProps) => {
-  const circleClassName = "absolute w-3 h-3 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-blue-600 border border-white shadow-sm";
-
   return (
     <>
       {/* Top Circle */}
       <div
-        className={circleClassName}
+        className="absolute w-3 h-3 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-blue-600 border border-white shadow-sm"
         style={{
           left: '50%',
-          top: `-${CONNECTION_CIRCLE_OFFSET}px`,
+          top: '-6px',
           transform: 'translateX(-50%)'
         }}
         onMouseDown={(e) => onCircleClick(e, 'top')}
@@ -25,9 +22,9 @@ const ConnectionCircles = React.memo(({ onCircleClick }: ConnectionCirclesProps)
 
       {/* Right Circle */}
       <div
-        className={circleClassName}
+        className="absolute w-3 h-3 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-blue-600 border border-white shadow-sm"
         style={{
-          right: `-${CONNECTION_CIRCLE_OFFSET}px`,
+          right: '-6px',
           top: '50%',
           transform: 'translateY(-50%)'
         }}
@@ -37,10 +34,10 @@ const ConnectionCircles = React.memo(({ onCircleClick }: ConnectionCirclesProps)
 
       {/* Bottom Circle */}
       <div
-        className={circleClassName}
+        className="absolute w-3 h-3 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-blue-600 border border-white shadow-sm"
         style={{
           left: '50%',
-          bottom: `-${CONNECTION_CIRCLE_OFFSET}px`,
+          bottom: '-6px',
           transform: 'translateX(-50%)'
         }}
         onMouseDown={(e) => onCircleClick(e, 'bottom')}
@@ -49,9 +46,9 @@ const ConnectionCircles = React.memo(({ onCircleClick }: ConnectionCirclesProps)
 
       {/* Left Circle */}
       <div
-        className={circleClassName}
+        className="absolute w-3 h-3 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-blue-600 border border-white shadow-sm"
         style={{
-          left: `-${CONNECTION_CIRCLE_OFFSET}px`,
+          left: '-6px',
           top: '50%',
           transform: 'translateY(-50%)'
         }}
