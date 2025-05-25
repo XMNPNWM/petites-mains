@@ -29,11 +29,14 @@ interface StorylineContextMenuProps {
 
 const NODE_TYPES = [
   { value: 'scene', label: 'Scene' },
-  { value: 'character', label: 'Character' },
-  { value: 'location', label: 'Location' },
-  { value: 'plot_point', label: 'Plot Point' },
-  { value: 'conflict', label: 'Conflict' },
-  { value: 'resolution', label: 'Resolution' }
+  { value: 'character', label: 'Characters' },
+  { value: 'location', label: 'Locations' },
+  { value: 'lore', label: 'Lore' },
+  { value: 'event', label: 'Events' },
+  { value: 'organization', label: 'Organizations' },
+  { value: 'religion', label: 'Religion' },
+  { value: 'politics', label: 'Politics' },
+  { value: 'artifact', label: 'Artifacts' }
 ];
 
 const StorylineContextMenu = ({

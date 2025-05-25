@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit3, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,15 +18,28 @@ interface WorldbuildingPanelProps {
   projectId: string;
 }
 
+const CATEGORIES = [
+  { value: 'scene', label: 'Scene' },
+  { value: 'character', label: 'Characters' },
+  { value: 'location', label: 'Locations' },
+  { value: 'lore', label: 'Lore' },
+  { value: 'event', label: 'Events' },
+  { value: 'organization', label: 'Organizations' },
+  { value: 'religion', label: 'Religion' },
+  { value: 'politics', label: 'Politics' },
+  { value: 'artifact', label: 'Artifacts' }
+];
+
 const WorldbuildingPanel = ({ projectId }: WorldbuildingPanelProps) => {
   const [elements, setElements] = useState<WorldElement[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingElement, setEditingElement] = useState<WorldElement | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
 
   const [formData, setFormData] = useState({
     name: '',
-    type: 'character',
+    type: 'scene',
     description: ''
   });
 
@@ -68,7 +81,7 @@ const WorldbuildingPanel = ({ projectId }: WorldbuildingPanelProps) => {
         if (error) throw error;
       }
       
-      setFormData({ name: '', type: 'character', description: '' });
+      setFormData({ name: '', type: 'scene', description: '' });
       setShowForm(false);
       setEditingElement(null);
       fetchElements();
@@ -101,10 +114,26 @@ const WorldbuildingPanel = ({ projectId }: WorldbuildingPanelProps) => {
     }
   };
 
+  const toggleCategory = (categoryType: string) => {
+    const newCollapsed = new Set(collapsedCategories);
+    if (newCollapsed.has(categoryType)) {
+      newCollapsed.delete(categoryType);
+    } else {
+      newCollapsed.add(categoryType);
+    }
+    setCollapsedCategories(newCollapsed);
+  };
+
   const filteredElements = elements.filter(element =>
     element.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     element.type.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Group elements by category
+  const groupedElements = CATEGORIES.reduce((acc, category) => {
+    acc[category.value] = filteredElements.filter(element => element.type === category.value);
+    return acc;
+  }, {} as Record<string, WorldElement[]>);
 
   return (
     <div className="h-full bg-white border-r border-slate-200 flex flex-col">
@@ -131,41 +160,76 @@ const WorldbuildingPanel = ({ projectId }: WorldbuildingPanelProps) => {
         </div>
       </div>
 
-      {/* Elements List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {filteredElements.map((element) => (
-          <Card key={element.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-3">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="font-medium text-slate-900 text-sm">{element.name}</h3>
-                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded mt-1 inline-block">
-                    {element.type}
+      {/* Categories and Elements */}
+      <div className="flex-1 overflow-y-auto">
+        {CATEGORIES.map((category) => {
+          const categoryElements = groupedElements[category.value];
+          const isCollapsed = collapsedCategories.has(category.value);
+          
+          if (categoryElements.length === 0 && searchTerm) return null;
+
+          return (
+            <div key={category.value} className="border-b border-slate-100">
+              {/* Category Header */}
+              <div 
+                className="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-50"
+                onClick={() => toggleCategory(category.value)}
+              >
+                <div className="flex items-center space-x-2">
+                  {isCollapsed ? (
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  )}
+                  <h3 className="font-medium text-slate-700 text-sm">{category.label}</h3>
+                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">
+                    {categoryElements.length}
                   </span>
-                  <p className="text-xs text-slate-600 mt-2 line-clamp-2">{element.description}</p>
-                </div>
-                <div className="flex items-center space-x-1 ml-2">
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="h-6 w-6"
-                    onClick={() => handleEdit(element)}
-                  >
-                    <Edit3 className="w-3 h-3" />
-                  </Button>
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="h-6 w-6"
-                    onClick={() => handleDelete(element.id)}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        ))}
+
+              {/* Category Elements */}
+              {!isCollapsed && (
+                <div className="px-3 pb-3 space-y-2">
+                  {categoryElements.length === 0 ? (
+                    <p className="text-xs text-slate-500 italic pl-6">No {category.label.toLowerCase()} yet</p>
+                  ) : (
+                    categoryElements.map((element) => (
+                      <Card key={element.id} className="hover:shadow-md transition-shadow ml-6">
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-slate-900 text-sm">{element.name}</h4>
+                              <p className="text-xs text-slate-600 mt-2 line-clamp-2">{element.description}</p>
+                            </div>
+                            <div className="flex items-center space-x-1 ml-2">
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                className="h-6 w-6"
+                                onClick={() => handleEdit(element)}
+                              >
+                                <Edit3 className="w-3 h-3" />
+                              </Button>
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                className="h-6 w-6"
+                                onClick={() => handleDelete(element.id)}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Create/Edit Form */}
@@ -186,17 +250,17 @@ const WorldbuildingPanel = ({ projectId }: WorldbuildingPanelProps) => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
               <select
                 value={formData.type}
                 onChange={(e) => setFormData({...formData, type: e.target.value})}
                 className="w-full px-3 py-2 border border-slate-300 rounded-md"
               >
-                <option value="character">Character</option>
-                <option value="location">Location</option>
-                <option value="object">Object</option>
-                <option value="concept">Concept</option>
-                <option value="organization">Organization</option>
+                {CATEGORIES.map((category) => (
+                  <option key={category.value} value={category.value}>
+                    {category.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -217,7 +281,7 @@ const WorldbuildingPanel = ({ projectId }: WorldbuildingPanelProps) => {
                 onClick={() => {
                   setShowForm(false);
                   setEditingElement(null);
-                  setFormData({ name: '', type: 'character', description: '' });
+                  setFormData({ name: '', type: 'scene', description: '' });
                 }}
               >
                 Cancel
