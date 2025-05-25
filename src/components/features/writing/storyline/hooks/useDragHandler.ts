@@ -24,6 +24,8 @@ export const useDragHandler = ({
 }: UseDragHandlerProps) => {
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
   const hasDragged = useRef(false);
+  const isDragging = useRef(false);
+  const mouseIsDown = useRef(false);
 
   const screenToWorld = useCallback(
     createScreenToWorldTransform(pan, zoom),
@@ -34,11 +36,13 @@ export const useDragHandler = ({
     e.preventDefault();
     e.stopPropagation();
 
-    console.log(`[Drag] Starting drag for node ${nodeId}`, { nodePosition, zoom, pan });
+    console.log(`[Drag] Mouse down on node ${nodeId}`, { nodePosition, zoom, pan });
 
     // Store initial mouse position for drag threshold
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     hasDragged.current = false;
+    isDragging.current = false;
+    mouseIsDown.current = true;
 
     // Get the canvas container using the data attribute
     const canvas = e.currentTarget.closest('[data-storyline-canvas]') as HTMLElement;
@@ -63,15 +67,20 @@ export const useDragHandler = ({
     console.log('[Drag] Drag offset:', dragOffset);
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (!dragStartPos.current) return;
+      // Only continue if mouse button is still down
+      if (!mouseIsDown.current || !dragStartPos.current) {
+        console.log('[Drag] Mouse move but button not down, stopping');
+        return;
+      }
       
       // Check if we've moved enough to start dragging
       const deltaX = Math.abs(moveEvent.clientX - dragStartPos.current.x);
       const deltaY = Math.abs(moveEvent.clientY - dragStartPos.current.y);
       
       if (deltaX > DRAG_THRESHOLD || deltaY > DRAG_THRESHOLD) {
-        if (!hasDragged.current) {
+        if (!isDragging.current) {
           // First time crossing threshold - start dragging
+          isDragging.current = true;
           hasDragged.current = true;
           setDraggedNode(nodeId);
           // Clear selection when starting to drag
@@ -99,25 +108,33 @@ export const useDragHandler = ({
     };
 
     const handleMouseUp = () => {
+      console.log(`[Drag] Mouse up for node ${nodeId}`, { hasDragged: hasDragged.current, isDragging: isDragging.current });
+      
+      // Immediately stop mouse tracking
+      mouseIsDown.current = false;
+      isDragging.current = false;
+      
+      // Remove event listeners immediately
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      
       // If we didn't drag, this was a click - select the node
       if (!hasDragged.current) {
         console.log(`[Drag] Click detected on node ${nodeId}, selecting`);
         setSelectedNode(nodeId);
       } else {
         // If we dragged, clear both dragged and selected states to properly "drop" the node
-        console.log(`[Drag] Drag completed for node ${nodeId}, clearing both drag and selection states`);
+        console.log(`[Drag] Drag completed for node ${nodeId}, dropping node and clearing states`);
         setDraggedNode(null);
         setSelectedNode(null);
       }
       
-      // Clean up
+      // Clean up refs
       dragStartPos.current = null;
       hasDragged.current = false;
-      
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
     };
 
+    // Add event listeners
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   }, [nodeId, nodePosition, screenToWorld, setDraggedNode, setSelectedNode, onDrag, zoom, pan]);
