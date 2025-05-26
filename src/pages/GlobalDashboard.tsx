@@ -27,31 +27,35 @@ const GlobalDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('[DASHBOARD] Auth loading:', authLoading, 'User:', user ? 'exists' : 'null');
+    
     // Wait for authentication to complete
     if (authLoading) {
+      console.log('[DASHBOARD] Auth still loading, waiting...');
       return;
     }
 
     // If no user after auth loading completes, redirect to auth
     if (!user) {
-      console.log('No user found, redirecting to auth page');
+      console.log('[DASHBOARD] No user found, redirecting to auth page');
       navigate('/auth', { replace: true });
       return;
     }
 
     // User is authenticated, fetch projects
+    console.log('[DASHBOARD] User authenticated, fetching projects');
     fetchProjects();
   }, [user, authLoading, navigate]);
 
   const fetchProjects = async () => {
     if (!user) {
-      console.log('No user available for fetching projects');
+      console.log('[DASHBOARD] No user available for fetching projects');
       setIsLoading(false);
       return;
     }
 
     try {
-      console.log('Fetching projects for user:', user.id);
+      console.log('[DASHBOARD] Fetching projects for user:', user.id);
       setError(null);
       
       const { data, error } = await supabase
@@ -61,14 +65,14 @@ const GlobalDashboard = () => {
         .order('updated_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching projects:', error);
+        console.error('[DASHBOARD] Error fetching projects:', error);
         throw error;
       }
       
-      console.log('Projects fetched successfully:', data?.length || 0);
+      console.log('[DASHBOARD] Projects fetched successfully:', data?.length || 0);
       setProjects(data || []);
     } catch (error) {
-      console.error('Error in fetchProjects:', error);
+      console.error('[DASHBOARD] Error in fetchProjects:', error);
       setError('Failed to load projects. Please try again.');
     } finally {
       setIsLoading(false);
@@ -77,11 +81,12 @@ const GlobalDashboard = () => {
 
   const createNewProject = async () => {
     if (!user) {
-      console.log('No user available for creating project');
+      console.log('[DASHBOARD] No user available for creating project');
       return;
     }
 
     try {
+      console.log('[DASHBOARD] Creating new project for user:', user.id);
       const { data, error } = await supabase
         .from('projects')
         .insert([{
@@ -95,15 +100,17 @@ const GlobalDashboard = () => {
 
       if (error) throw error;
       if (data) {
+        console.log('[DASHBOARD] Project created successfully:', data.id);
         navigate(`/project/${data.id}`);
       }
     } catch (error) {
-      console.error('Error creating project:', error);
+      console.error('[DASHBOARD] Error creating project:', error);
       setError('Failed to create project. Please try again.');
     }
   };
 
   const handleProjectUpdate = (updatedProject: Project) => {
+    console.log('[DASHBOARD] Updating project:', updatedProject.id);
     setProjects(prev => 
       prev.map(project => 
         project.id === updatedProject.id ? updatedProject : project
@@ -112,18 +119,26 @@ const GlobalDashboard = () => {
   };
 
   const retryFetch = () => {
+    console.log('[DASHBOARD] Retrying project fetch');
     setIsLoading(true);
     setError(null);
     fetchProjects();
   };
 
   // Show loading while auth is loading or while fetching projects
-  if (authLoading || (isLoading && user)) {
+  if (authLoading) {
+    console.log('[DASHBOARD] Showing auth loading state');
+    return <LoadingState />;
+  }
+
+  if (isLoading && user) {
+    console.log('[DASHBOARD] Showing projects loading state');
     return <LoadingState />;
   }
 
   // Show error state with retry option
   if (error) {
+    console.log('[DASHBOARD] Showing error state:', error);
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
@@ -137,6 +152,7 @@ const GlobalDashboard = () => {
   }
 
   // If we reach here, user is authenticated and projects are loaded
+  console.log('[DASHBOARD] Rendering dashboard with', projects.length, 'projects');
   return (
     <div className="min-h-screen bg-slate-50">
       <DashboardHeader />

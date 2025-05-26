@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -18,25 +18,40 @@ interface UsageData {
 }
 
 export const useSubscription = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
   const [usageData, setUsageData] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const checkSubscription = async () => {
+  const checkSubscription = useCallback(async () => {
     if (!user) return;
+    
+    console.log('[SUBSCRIPTION] Checking subscription for user:', user.id);
     
     try {
       const { data, error } = await supabase.functions.invoke('check-subscription');
       if (error) throw error;
+      
+      console.log('[SUBSCRIPTION] Subscription data received:', data);
       setSubscriptionData(data);
+      setError(null);
     } catch (error) {
-      console.error('Error checking subscription:', error);
+      console.error('[SUBSCRIPTION] Error checking subscription:', error);
+      setError('Failed to load subscription data');
+      // Set fallback data to prevent blocking
+      setSubscriptionData({
+        subscribed: false,
+        subscription_tier: 'plume',
+        subscription_end: null
+      });
     }
-  };
+  }, [user]);
 
-  const fetchUsageData = async () => {
+  const fetchUsageData = useCallback(async () => {
     if (!user) return;
+    
+    console.log('[SUBSCRIPTION] Fetching usage data for user:', user.id);
     
     try {
       const { data, error } = await supabase
@@ -46,29 +61,60 @@ export const useSubscription = () => {
         .single();
       
       if (error && error.code !== 'PGRST116') throw error;
-      setUsageData(data || {
+      
+      const usageResult = data || {
+        current_projects: 0,
+        total_word_count: 0,
+        worldbuilding_elements_count: 0,
+        ai_credits_used: 0,
+        ai_credits_limit: 0
+      };
+      
+      console.log('[SUBSCRIPTION] Usage data received:', usageResult);
+      setUsageData(usageResult);
+    } catch (error) {
+      console.error('[SUBSCRIPTION] Error fetching usage data:', error);
+      // Set fallback data to prevent blocking
+      setUsageData({
         current_projects: 0,
         total_word_count: 0,
         worldbuilding_elements_count: 0,
         ai_credits_used: 0,
         ai_credits_limit: 0
       });
-    } catch (error) {
-      console.error('Error fetching usage data:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (user) {
-      Promise.all([checkSubscription(), fetchUsageData()]).finally(() => {
-        setLoading(false);
-      });
-    } else {
-      setLoading(false);
     }
   }, [user]);
 
-  const canCreateProject = () => {
+  useEffect(() => {
+    if (authLoading) {
+      console.log('[SUBSCRIPTION] Auth still loading, waiting...');
+      return;
+    }
+
+    if (!user) {
+      console.log('[SUBSCRIPTION] No user, setting loading to false');
+      setLoading(false);
+      setSubscriptionData(null);
+      setUsageData(null);
+      return;
+    }
+
+    console.log('[SUBSCRIPTION] User authenticated, fetching subscription and usage data');
+    
+    const fetchData = async () => {
+      try {
+        await Promise.all([checkSubscription(), fetchUsageData()]);
+      } catch (error) {
+        console.error('[SUBSCRIPTION] Failed to fetch data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user, authLoading, checkSubscription, fetchUsageData]);
+
+  const canCreateProject = useCallback(() => {
     if (!subscriptionData || !usageData) return false;
     
     const tier = subscriptionData.subscription_tier || 'plume';
@@ -84,9 +130,9 @@ export const useSubscription = () => {
       default:
         return false;
     }
-  };
+  }, [subscriptionData, usageData]);
 
-  const canAddWorldbuildingElement = () => {
+  const canAddWorldbuildingElement = useCallback(() => {
     if (!subscriptionData || !usageData) return false;
     
     const tier = subscriptionData.subscription_tier || 'plume';
@@ -101,9 +147,9 @@ export const useSubscription = () => {
       default:
         return false;
     }
-  };
+  }, [subscriptionData, usageData]);
 
-  const canWriteMoreWords = (currentWordCount: number) => {
+  const canWriteMoreWords = useCallback((currentWordCount: number) => {
     if (!subscriptionData) return false;
     
     const tier = subscriptionData.subscription_tier || 'plume';
@@ -118,9 +164,9 @@ export const useSubscription = () => {
       default:
         return false;
     }
-  };
+  }, [subscriptionData]);
 
-  const hasAICredits = () => {
+  const hasAICredits = useCallback(() => {
     if (!subscriptionData || !usageData) return false;
     
     const tier = subscriptionData.subscription_tier || 'plume';
@@ -132,12 +178,13 @@ export const useSubscription = () => {
       default:
         return false;
     }
-  };
+  }, [subscriptionData, usageData]);
 
   return {
     subscriptionData,
     usageData,
     loading,
+    error,
     checkSubscription,
     fetchUsageData,
     canCreateProject,

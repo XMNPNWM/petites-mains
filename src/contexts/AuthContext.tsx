@@ -27,42 +27,49 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const checkSubscriptionStatus = async (user: User) => {
-    try {
-      await supabase.functions.invoke('check-subscription');
-    } catch (error) {
-      console.error('Error checking subscription status:', error);
-    }
-  };
-
   useEffect(() => {
+    let mounted = true;
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return;
+        
+        console.log('[AUTH] Auth state changed:', event, session ? 'Session exists' : 'No session');
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-        
-        // Check subscription status when user logs in
-        if (session?.user && event === 'SIGNED_IN') {
-          await checkSubscriptionStatus(session.user);
-        }
       }
     );
 
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-      
-      // Check subscription status for existing session
-      if (session?.user) {
-        await checkSubscriptionStatus(session.user);
+    // Get initial session with timeout
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('[AUTH] Error getting initial session:', error);
+        }
+        
+        if (!mounted) return;
+        
+        console.log('[AUTH] Initial session loaded:', session ? 'Session exists' : 'No session');
+        setSession(session);
+        setUser(session?.user ?? null);
+      } catch (error) {
+        console.error('[AUTH] Failed to get initial session:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    getInitialSession();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
