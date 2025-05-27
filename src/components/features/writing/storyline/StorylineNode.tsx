@@ -55,12 +55,6 @@ const StorylineNode = React.memo(({
     setSelectedNode
   });
 
-  const handleNodeClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    console.log(`[StorylineNode] Node ${node.id} clicked directly`);
-    setSelectedNode(node.id);
-  };
-
   return (
     <NodeVisualState
       isConnectionSource={isConnectionSource}
@@ -69,7 +63,6 @@ const StorylineNode = React.memo(({
       position={node.position}
       onMouseDown={handleNodeMouseDown}
       onMouseUp={handleNodeMouseUp}
-      onClick={handleNodeClick}
     >
       <NodeCard
         node={node}
@@ -79,16 +72,6 @@ const StorylineNode = React.memo(({
       />
 
       <ConnectionCircles onCircleClick={handleConnectionCircleClick} />
-      
-      {/* Enhanced hover area for better selection */}
-      <div
-        className="absolute inset-0 hover:bg-blue-50 hover:bg-opacity-20 transition-colors rounded-lg"
-        style={{
-          zIndex: 10,
-          cursor: isDragged ? 'grabbing' : 'grab'
-        }}
-        onClick={handleNodeClick}
-      />
     </NodeVisualState>
   );
 });
