@@ -96,16 +96,29 @@ const ConnectionsLayer = React.memo(({
 
       {/* Connection Preview */}
       {connectionCreationState.isCreating && connectionCreationState.previewConnection && (
-        <line
-          x1={connectionCreationState.previewConnection.start.x}
-          y1={connectionCreationState.previewConnection.start.y}
-          x2={connectionCreationState.previewConnection.end.x}
-          y2={connectionCreationState.previewConnection.end.y}
-          stroke="rgba(59, 130, 246, 0.8)"
-          strokeWidth={2 / zoom}
-          strokeDasharray={`${3 / zoom},${3 / zoom}`}
-          className="pointer-events-none"
-        />
+        <g>
+          {/* Invisible hit-box for preview connection */}
+          <line
+            x1={connectionCreationState.previewConnection.start.x}
+            y1={connectionCreationState.previewConnection.start.y}
+            x2={connectionCreationState.previewConnection.end.x}
+            y2={connectionCreationState.previewConnection.end.y}
+            stroke="transparent"
+            strokeWidth={Math.max(12 / zoom, 3)}
+            className="pointer-events-auto cursor-pointer"
+          />
+          {/* Visible preview connection line */}
+          <line
+            x1={connectionCreationState.previewConnection.start.x}
+            y1={connectionCreationState.previewConnection.start.y}
+            x2={connectionCreationState.previewConnection.end.x}
+            y2={connectionCreationState.previewConnection.end.y}
+            stroke="rgba(59, 130, 246, 0.8)"
+            strokeWidth={2 / zoom}
+            strokeDasharray={`${3 / zoom},${3 / zoom}`}
+            className="pointer-events-none"
+          />
+        </g>
       )}
     </svg>
   );
