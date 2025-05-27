@@ -51,8 +51,23 @@ const ConnectionsLayer = React.memo(({
         const midX = (sourceX + targetX) / 2;
         const midY = (sourceY + targetY) / 2;
         
+        // Calculate hit-box width that scales with zoom but maintains minimum size
+        const hitBoxWidth = Math.max(12 / zoom, 3);
+        
         return (
           <g key={connection.id}>
+            {/* Invisible hit-box line - much thicker for easier clicking */}
+            <line
+              x1={sourceX}
+              y1={sourceY}
+              x2={targetX}
+              y2={targetY}
+              stroke="transparent"
+              strokeWidth={hitBoxWidth}
+              className="pointer-events-auto cursor-pointer"
+              onClick={(e) => onConnectionClick(e, connection.id)}
+            />
+            {/* Visible connection line */}
             <line
               x1={sourceX}
               y1={sourceY}
@@ -61,8 +76,7 @@ const ConnectionsLayer = React.memo(({
               stroke="rgba(148, 163, 184, 0.6)"
               strokeWidth={2 / zoom}
               strokeDasharray={`${5 / zoom},${5 / zoom}`}
-              className="pointer-events-auto cursor-pointer hover:stroke-slate-500"
-              onClick={(e) => onConnectionClick(e, connection.id)}
+              className="pointer-events-none hover:stroke-slate-500"
             />
             {connection.label && (
               <text
