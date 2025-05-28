@@ -2,13 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Check, X } from 'lucide-react';
+import { Check, X, Trash2 } from 'lucide-react';
 
 interface ConnectionLabelFormProps {
   connectionId: string;
   currentLabel: string;
   position: { x: number; y: number };
   onSave: (connectionId: string, label: string) => void;
+  onDelete: (connectionId: string) => void;
   onCancel: () => void;
 }
 
@@ -17,6 +18,7 @@ const ConnectionLabelForm = ({
   currentLabel,
   position,
   onSave,
+  onDelete,
   onCancel
 }: ConnectionLabelFormProps) => {
   const [label, setLabel] = useState(currentLabel);
@@ -29,6 +31,10 @@ const ConnectionLabelForm = ({
     onSave(connectionId, label.trim());
   };
 
+  const handleDelete = () => {
+    onDelete(connectionId);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSave();
@@ -36,6 +42,11 @@ const ConnectionLabelForm = ({
       onCancel();
     }
   };
+
+  // Don't show form for preview connections
+  if (connectionId === 'preview-connection') {
+    return null;
+  }
 
   return (
     <div
@@ -60,16 +71,27 @@ const ConnectionLabelForm = ({
           variant="ghost"
           onClick={handleSave}
           className="h-8 w-8 p-0"
+          title="Save label"
         >
           <Check className="w-3 h-3 text-green-600" />
         </Button>
         <Button
           size="sm"
           variant="ghost"
+          onClick={handleDelete}
+          className="h-8 w-8 p-0"
+          title="Delete connection"
+        >
+          <Trash2 className="w-3 h-3 text-red-600" />
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
           onClick={onCancel}
           className="h-8 w-8 p-0"
+          title="Cancel"
         >
-          <X className="w-3 h-3 text-red-600" />
+          <X className="w-3 h-3 text-slate-600" />
         </Button>
       </div>
     </div>

@@ -403,6 +403,25 @@ export const useStorylineActions = (
     });
   }, []);
 
+  // Connection deletion
+  const deleteConnection = useCallback(async (connectionId: string) => {
+    try {
+      console.log('Deleting connection:', connectionId);
+      
+      const { error } = await supabase
+        .from('storyline_connections')
+        .delete()
+        .eq('id', connectionId);
+
+      if (error) throw error;
+      
+      console.log('Connection deleted successfully:', connectionId);
+      onDataChange();
+    } catch (error) {
+      console.error('Error deleting connection:', error);
+    }
+  }, [onDataChange]);
+
   return {
     editingNode,
     showNodeForm,
@@ -425,6 +444,7 @@ export const useStorylineActions = (
     startConnectionCreation,
     updateConnectionPreview,
     finishConnectionCreation,
-    cancelConnectionCreation
+    cancelConnectionCreation,
+    deleteConnection
   };
 };

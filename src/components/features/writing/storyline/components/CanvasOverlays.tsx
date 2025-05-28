@@ -1,23 +1,28 @@
 
 import React from 'react';
 import ConnectionLabelForm from '../ConnectionLabelForm';
-import { StorylineConnection, ConnectionLabelState } from '../types';
+import { ConnectionLabelState, StorylineConnection } from '../types';
+
+interface ConnectionCreationState {
+  isCreating: boolean;
+  sourceNodeId: string | null;
+  previewConnection: { start: { x: number; y: number }; end: { x: number; y: number } } | null;
+}
 
 interface CanvasOverlaysProps {
   connectionLabelState: ConnectionLabelState;
-  connectionCreationState: {
-    isCreating: boolean;
-  };
+  connectionCreationState: ConnectionCreationState;
   connections: StorylineConnection[];
   onConnectionLabelSave: (connectionId: string, label: string) => void;
+  onConnectionLabelDelete: (connectionId: string) => void;
   onConnectionLabelCancel: () => void;
 }
 
 const CanvasOverlays = React.memo(({
   connectionLabelState,
-  connectionCreationState,
   connections,
   onConnectionLabelSave,
+  onConnectionLabelDelete,
   onConnectionLabelCancel
 }: CanvasOverlaysProps) => {
   return (
@@ -26,19 +31,14 @@ const CanvasOverlays = React.memo(({
       {connectionLabelState.isEditing && connectionLabelState.connectionId && connectionLabelState.position && (
         <ConnectionLabelForm
           connectionId={connectionLabelState.connectionId}
-          currentLabel={connections.find(c => c.id === connectionLabelState.connectionId)?.label || ''}
+          currentLabel={
+            connections.find(c => c.id === connectionLabelState.connectionId)?.label || ''
+          }
           position={connectionLabelState.position}
           onSave={onConnectionLabelSave}
+          onDelete={onConnectionLabelDelete}
           onCancel={onConnectionLabelCancel}
         />
-      )}
-
-      {/* Connection Creation Instructions */}
-      {connectionCreationState.isCreating && (
-        <div className="absolute top-4 left-4 bg-blue-100 border border-blue-300 rounded-lg p-3 z-20">
-          <p className="text-sm text-blue-800 font-medium">Creating Connection</p>
-          <p className="text-xs text-blue-600">Click on a target node or connection circle to connect, or click elsewhere to cancel</p>
-        </div>
       )}
     </>
   );

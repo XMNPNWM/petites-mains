@@ -35,6 +35,7 @@ interface StorylineCanvasProps {
   onCreateFromWorldbuilding: (element: WorldbuildingElement, position: { x: number; y: number }) => void;
   onConnectionLabelEdit: (connectionId: string, position: { x: number; y: number }) => void;
   onConnectionLabelSave: (connectionId: string, label: string) => void;
+  onConnectionLabelDelete: (connectionId: string) => void;
   onConnectionLabelCancel: () => void;
   onConnectionStart: (sourceNodeId: string, sourcePosition: { x: number; y: number }) => void;
   onConnectionPreviewUpdate: (mousePosition: { x: number; y: number }) => void;
@@ -65,6 +66,7 @@ const StorylineCanvas = React.memo(({
   onCreateFromWorldbuilding,
   onConnectionLabelEdit,
   onConnectionLabelSave,
+  onConnectionLabelDelete,
   onConnectionLabelCancel,
   onConnectionStart,
   onConnectionPreviewUpdate,
@@ -156,6 +158,7 @@ const StorylineCanvas = React.memo(({
         connectionCreationState={connectionCreationState}
         connections={connections}
         onConnectionLabelSave={onConnectionLabelSave}
+        onConnectionLabelDelete={onConnectionLabelDelete}
         onConnectionLabelCancel={onConnectionLabelCancel}
       />
     </CanvasBackground>

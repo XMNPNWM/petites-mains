@@ -73,7 +73,8 @@ const StorylinePanel = ({ projectId, chapterId, onDataChange }: StorylinePanelPr
     startConnectionCreation,
     updateConnectionPreview,
     finishConnectionCreation,
-    cancelConnectionCreation
+    cancelConnectionCreation,
+    deleteConnection
   } = useStorylineActions(projectId, nodes, zoom, pan, handleDataChange);
 
   // Update pan when data pan changes
@@ -83,6 +84,11 @@ const StorylinePanel = ({ projectId, chapterId, onDataChange }: StorylinePanelPr
 
   const handleConnectionLabelSave = async (connectionId: string, label: string) => {
     await updateConnectionLabel(connectionId, label);
+    cancelEditingConnectionLabel();
+  };
+
+  const handleConnectionDelete = async (connectionId: string) => {
+    await deleteConnection(connectionId);
     cancelEditingConnectionLabel();
   };
 
@@ -119,6 +125,7 @@ const StorylinePanel = ({ projectId, chapterId, onDataChange }: StorylinePanelPr
           onCreateFromWorldbuilding={createNodeFromWorldbuilding}
           onConnectionLabelEdit={startEditingConnectionLabel}
           onConnectionLabelSave={handleConnectionLabelSave}
+          onConnectionLabelDelete={handleConnectionDelete}
           onConnectionLabelCancel={cancelEditingConnectionLabel}
           onConnectionStart={startConnectionCreation}
           onConnectionPreviewUpdate={updateConnectionPreview}

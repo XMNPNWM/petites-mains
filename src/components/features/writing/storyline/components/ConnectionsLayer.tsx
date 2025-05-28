@@ -23,6 +23,17 @@ const ConnectionsLayer = React.memo(({
   connectionCreationState,
   onConnectionClick
 }: ConnectionsLayerProps) => {
+  const handleConnectionClick = (e: React.MouseEvent, connectionId: string) => {
+    // Don't handle clicks on preview connections
+    if (connectionId === 'preview-connection') {
+      console.log('Ignoring click on preview connection');
+      return;
+    }
+    
+    console.log('Connection clicked:', connectionId);
+    onConnectionClick(e, connectionId);
+  };
+
   return (
     <svg 
       className="absolute inset-0 w-full h-full pointer-events-none" 
@@ -32,7 +43,7 @@ const ConnectionsLayer = React.memo(({
         position: 'absolute',
         top: 0,
         left: 0,
-        zIndex: 1
+        zIndex: 3
       }}
       viewBox={`${-pan.x / zoom} ${-pan.y / zoom} ${window.innerWidth / zoom} ${window.innerHeight / zoom}`}
       preserveAspectRatio="xMidYMid meet"
@@ -52,7 +63,7 @@ const ConnectionsLayer = React.memo(({
         const midY = (sourceY + targetY) / 2;
         
         // Calculate hit-box width that scales with zoom but maintains minimum size
-        const hitBoxWidth = Math.max(12 / zoom, 3);
+        const hitBoxWidth = Math.max(20 / zoom, 6);
         
         return (
           <g key={connection.id}>
@@ -65,7 +76,7 @@ const ConnectionsLayer = React.memo(({
               stroke="transparent"
               strokeWidth={hitBoxWidth}
               className="pointer-events-auto cursor-pointer"
-              onClick={(e) => onConnectionClick(e, connection.id)}
+              onClick={(e) => handleConnectionClick(e, connection.id)}
             />
             {/* Visible connection line */}
             <line
@@ -85,7 +96,7 @@ const ConnectionsLayer = React.memo(({
                 textAnchor="middle"
                 fontSize={12 / zoom}
                 className="fill-slate-600 pointer-events-auto cursor-pointer"
-                onClick={(e) => onConnectionClick(e, connection.id)}
+                onClick={(e) => handleConnectionClick(e, connection.id)}
               >
                 {connection.label}
               </text>
@@ -97,18 +108,7 @@ const ConnectionsLayer = React.memo(({
       {/* Connection Preview */}
       {connectionCreationState.isCreating && connectionCreationState.previewConnection && (
         <g>
-          {/* Invisible hit-box for preview connection */}
-          <line
-            x1={connectionCreationState.previewConnection.start.x}
-            y1={connectionCreationState.previewConnection.start.y}
-            x2={connectionCreationState.previewConnection.end.x}
-            y2={connectionCreationState.previewConnection.end.y}
-            stroke="transparent"
-            strokeWidth={Math.max(12 / zoom, 3)}
-            className="pointer-events-auto cursor-pointer"
-            onClick={(e) => onConnectionClick(e, 'preview-connection')}
-          />
-          {/* Visible preview connection line */}
+          {/* Visible preview connection line - no click handler for preview */}
           <line
             x1={connectionCreationState.previewConnection.start.x}
             y1={connectionCreationState.previewConnection.start.y}
