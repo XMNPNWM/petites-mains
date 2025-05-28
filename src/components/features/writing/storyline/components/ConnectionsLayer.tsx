@@ -106,6 +106,7 @@ const ConnectionsLayer = React.memo(({
             stroke="transparent"
             strokeWidth={Math.max(12 / zoom, 3)}
             className="pointer-events-auto cursor-pointer"
+            onClick={(e) => onConnectionClick(e, 'preview-connection')}
           />
           {/* Visible preview connection line */}
           <line
