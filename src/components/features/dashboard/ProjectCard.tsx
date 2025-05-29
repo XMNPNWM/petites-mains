@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
@@ -23,8 +22,42 @@ interface ProjectCardProps {
 
 const ProjectCard = ({ project, onProjectUpdate }: ProjectCardProps) => {
   const navigate = useNavigate();
+  const [lastChapterContent, setLastChapterContent] = useState<string>('');
+  const [isLoadingContent, setIsLoadingContent] = useState(true);
+
+  useEffect(() => {
+    fetchLastChapterContent();
+  }, [project.id]);
+
+  const fetchLastChapterContent = async () => {
+    try {
+      setIsLoadingContent(true);
+      
+      const { data, error } = await supabase
+        .from('chapters')
+        .select('content')
+        .eq('project_id', project.id)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching latest chapter:', error);
+        setLastChapterContent('');
+        return;
+      }
+
+      setLastChapterContent(data?.content || '');
+    } catch (error) {
+      console.error('Error in fetchLastChapterContent:', error);
+      setLastChapterContent('');
+    } finally {
+      setIsLoadingContent(false);
+    }
+  };
 
   const getLastContent = (content: string) => {
+    if (isLoadingContent) return 'Loading...';
     if (!content) return 'No content written yet...';
     
     const cleanText = getTextPreview(content, 150);
@@ -102,7 +135,7 @@ const ProjectCard = ({ project, onProjectUpdate }: ProjectCardProps) => {
         <div className="bg-slate-50 rounded-lg p-3">
           <p className="text-xs text-slate-500 mb-1">Last written:</p>
           <p className="text-sm text-slate-700 italic line-clamp-2">
-            "{getLastContent(project.content)}"
+            "{getLastContent(lastChapterContent)}"
           </p>
         </div>
       </CardContent>
