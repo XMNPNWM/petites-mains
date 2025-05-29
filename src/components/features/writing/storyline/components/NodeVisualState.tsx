@@ -23,6 +23,7 @@ const NodeVisualState = React.memo(({
   const getNodeClassName = () => {
     let className = "absolute cursor-move storyline-node select-none group";
     
+    // Connection source gets priority over selection
     if (isConnectionSource) {
       className += " ring-2 ring-blue-400";
     } else if (isSelected) {

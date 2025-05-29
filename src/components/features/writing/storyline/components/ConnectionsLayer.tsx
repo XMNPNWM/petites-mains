@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { StorylineNode, StorylineConnection } from '../types';
-import { NODE_DIMENSIONS } from '../constants/nodeConstants';
+import { NODE_DIMENSIONS, getNodeTypeRgb, createGradientId } from '../constants/nodeConstants';
 
 interface ConnectionsLayerProps {
   nodes: StorylineNode[];
@@ -34,6 +34,29 @@ const ConnectionsLayer = React.memo(({
     onConnectionClick(e, connectionId);
   };
 
+  // Generate all possible gradient definitions
+  const generateGradientDefinitions = () => {
+    const gradients: JSX.Element[] = [];
+    const nodeTypes = ['scene', 'character', 'location', 'lore', 'event', 'organization', 'religion', 'politics', 'artifact'];
+    
+    nodeTypes.forEach(sourceType => {
+      nodeTypes.forEach(targetType => {
+        const sourceRgb = getNodeTypeRgb(sourceType);
+        const targetRgb = getNodeTypeRgb(targetType);
+        const gradientId = createGradientId(sourceType, targetType);
+        
+        gradients.push(
+          <linearGradient key={gradientId} id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style={{ stopColor: `rgb(${sourceRgb})`, stopOpacity: 0.15 }} />
+            <stop offset="100%" style={{ stopColor: `rgb(${targetRgb})`, stopOpacity: 0.15 }} />
+          </linearGradient>
+        );
+      });
+    });
+    
+    return gradients;
+  };
+
   return (
     <svg 
       className="absolute inset-0 w-full h-full pointer-events-none" 
@@ -48,6 +71,10 @@ const ConnectionsLayer = React.memo(({
       viewBox={`${-pan.x / zoom} ${-pan.y / zoom} ${window.innerWidth / zoom} ${window.innerHeight / zoom}`}
       preserveAspectRatio="xMidYMid meet"
     >
+      <defs>
+        {generateGradientDefinitions()}
+      </defs>
+
       {/* Connections */}
       {connections.map((connection) => {
         const sourceNode = nodes.find(n => n.id === connection.source_id);
@@ -65,6 +92,9 @@ const ConnectionsLayer = React.memo(({
         // Calculate hit-box width that scales with zoom but maintains minimum size
         const hitBoxWidth = Math.max(20 / zoom, 6);
         
+        // Get gradient ID for this connection
+        const gradientId = createGradientId(sourceNode.node_type, targetNode.node_type);
+        
         return (
           <g key={connection.id}>
             {/* Invisible hit-box line - much thicker for easier clicking */}
@@ -78,16 +108,16 @@ const ConnectionsLayer = React.memo(({
               className="pointer-events-auto cursor-pointer"
               onClick={(e) => handleConnectionClick(e, connection.id)}
             />
-            {/* Visible connection line */}
+            {/* Visible connection line with gradient */}
             <line
               x1={sourceX}
               y1={sourceY}
               x2={targetX}
               y2={targetY}
-              stroke="rgba(148, 163, 184, 0.6)"
+              stroke={`url(#${gradientId})`}
               strokeWidth={2 / zoom}
               strokeDasharray={`${5 / zoom},${5 / zoom}`}
-              className="pointer-events-none hover:stroke-slate-500"
+              className="pointer-events-none"
             />
             {connection.label && (
               <text

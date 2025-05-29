@@ -2,6 +2,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { StorylineNode } from '../types';
+import { getNodeTypeColor } from '../constants/nodeConstants';
 import NodeActionButtons from './NodeActionButtons';
 
 interface NodeCardProps {
@@ -12,8 +13,10 @@ interface NodeCardProps {
 }
 
 const NodeCard = React.memo(({ node, isSelected, onEdit, onDelete }: NodeCardProps) => {
+  const nodeColor = getNodeTypeColor(node.node_type);
+  
   const getCardClassName = () => {
-    let className = "w-28 hover:shadow-lg transition-all duration-200 select-none";
+    let className = `w-28 hover:shadow-lg transition-all duration-200 select-none ${nodeColor.border} border-2`;
     
     if (isSelected) {
       className += " shadow-lg border-purple-300";
