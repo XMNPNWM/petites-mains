@@ -17,6 +17,8 @@ interface WorldbuildingElement {
   name: string;
   type: string;
   description?: string;
+  storyline_node_id?: string;
+  created_from_storyline?: boolean;
 }
 
 interface StorylineContextMenuProps {
@@ -48,10 +50,16 @@ const StorylineContextMenu = ({
 }: StorylineContextMenuProps) => {
   const [contextPosition, setContextPosition] = React.useState<{ x: number; y: number } | null>(null);
 
-  // Filter out location-type elements to remove duplicate "Locations" sublist
-  const filteredWorldbuildingElements = worldbuildingElements.filter(
-    element => element.type !== 'location'
-  );
+  // Filter worldbuilding elements to only show properly synchronized ones
+  // For locations, only show those that are linked to storyline nodes
+  const filteredWorldbuildingElements = worldbuildingElements.filter(element => {
+    if (element.type === 'location') {
+      // Only show location elements that are properly synchronized with storyline nodes
+      return element.storyline_node_id && element.created_from_storyline;
+    }
+    // For other types, show all elements
+    return true;
+  });
 
   // Group filtered worldbuilding elements by type
   const groupedElements = filteredWorldbuildingElements.reduce((acc, element) => {
