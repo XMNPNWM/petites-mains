@@ -38,6 +38,12 @@ const WritingSpaceLayout = ({
     setWorldbuildingRefreshTrigger(prev => prev + 1);
   }, []);
 
+  // Callback to handle editing from worldbuilding panel
+  const handleEditFromStoryline = useCallback((nodeId: string) => {
+    console.log('Edit from storyline requested for node:', nodeId);
+    // This will be handled by the StorylinePanel to open the node editor
+  }, []);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     // Prevent text selection during drag
     e.preventDefault();
@@ -91,6 +97,7 @@ const WritingSpaceLayout = ({
             <WorldbuildingPanel 
               projectId={projectId} 
               refreshTrigger={worldbuildingRefreshTrigger}
+              onEditFromStoryline={handleEditFromStoryline}
             />
           </ResizablePanel>
           
@@ -148,6 +155,7 @@ const WritingSpaceLayout = ({
             projectId={projectId}
             chapterId={currentChapter?.id}
             onDataChange={handleStorylineDataChange}
+            onEditNode={handleEditFromStoryline}
           />
         </div>
       </div>

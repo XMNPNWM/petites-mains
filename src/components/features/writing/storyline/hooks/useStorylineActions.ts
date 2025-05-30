@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StorylineNode, NodeFormData, DeleteDialogState, ConnectionLabelState, WorldbuildingElement } from '../types';
@@ -10,11 +11,11 @@ interface ConnectionCreationState {
 
 // Map storyline node types to worldbuilding categories
 const NODE_TYPE_MAPPING: Record<string, string> = {
-  'plotPoint': 'event',
+  'scene': 'scene',
   'character': 'character',
   'location': 'location',
-  'scene': 'scene',
   'lore': 'lore',
+  'event': 'event',
   'organization': 'organization',
   'religion': 'religion',
   'politics': 'politics',
@@ -91,7 +92,8 @@ export const useStorylineActions = (
     try {
       console.log(`${isUpdate ? 'Updating' : 'Creating'} worldbuilding element for node:`, node.title);
       
-      const worldbuildingType = NODE_TYPE_MAPPING[node.node_type] || 'event';
+      // Use the correct mapping for worldbuilding type
+      const worldbuildingType = NODE_TYPE_MAPPING[node.node_type] || node.node_type;
       
       if (isUpdate) {
         // Update existing worldbuilding element
@@ -144,7 +146,7 @@ export const useStorylineActions = (
 
         if (error) throw error;
         
-        // Update corresponding worldbuilding element
+        // Update corresponding worldbuilding element with proper type synchronization
         await createOrUpdateWorldbuildingElement({
           ...editingNode,
           title: nodeForm.title,
@@ -152,7 +154,7 @@ export const useStorylineActions = (
           node_type: nodeForm.node_type
         }, true);
         
-        console.log('Updated storyline node and worldbuilding element:', nodeForm.title);
+        console.log('Updated storyline node and synchronized worldbuilding element:', nodeForm.title);
       } else {
         // Create new node
         const { data, error } = await supabase

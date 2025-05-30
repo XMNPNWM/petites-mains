@@ -66,7 +66,7 @@ const ConnectionsLayer = React.memo(({
         position: 'absolute',
         top: 0,
         left: 0,
-        zIndex: 3
+        zIndex: 1 // Lower z-index to stay under nodes
       }}
       viewBox={`${-pan.x / zoom} ${-pan.y / zoom} ${window.innerWidth / zoom} ${window.innerHeight / zoom}`}
       preserveAspectRatio="xMidYMid meet"
@@ -90,14 +90,15 @@ const ConnectionsLayer = React.memo(({
         const midY = (sourceY + targetY) / 2;
         
         // Calculate hit-box width that scales with zoom but maintains minimum size
-        const hitBoxWidth = Math.max(20 / zoom, 6);
+        // Reduced hit-box width to avoid interfering with nodes
+        const hitBoxWidth = Math.max(15 / zoom, 4);
         
         // Get gradient ID for this connection
         const gradientId = createGradientId(sourceNode.node_type, targetNode.node_type);
         
         return (
           <g key={connection.id}>
-            {/* Invisible hit-box line - much thicker for easier clicking */}
+            {/* Invisible hit-box line - smaller to avoid node interference */}
             <line
               x1={sourceX}
               y1={sourceY}

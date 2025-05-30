@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit3, Trash2, ChevronDown, ChevronRight, Link } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +18,7 @@ interface WorldElement {
 interface WorldbuildingPanelProps {
   projectId: string;
   refreshTrigger?: number;
+  onEditFromStoryline?: (nodeId: string) => void;
 }
 
 const CATEGORIES = [
@@ -33,7 +33,7 @@ const CATEGORIES = [
   { value: 'artifact', label: 'Artifacts' }
 ];
 
-const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelProps) => {
+const WorldbuildingPanel = ({ projectId, refreshTrigger, onEditFromStoryline }: WorldbuildingPanelProps) => {
   const [elements, setElements] = useState<WorldElement[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingElement, setEditingElement] = useState<WorldElement | null>(null);
@@ -109,7 +109,13 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
   };
 
   const handleEdit = (element: WorldElement) => {
-    // Prevent editing elements that are linked to storyline nodes
+    // If element is linked to storyline and we have a callback, use storyline editing
+    if (element.storyline_node_id && onEditFromStoryline) {
+      onEditFromStoryline(element.storyline_node_id);
+      return;
+    }
+
+    // Prevent editing elements that are linked to storyline nodes when no callback is provided
     if (element.storyline_node_id) {
       alert('This element is linked to a storyline node. Edit it from the storyline map to sync changes.');
       return;
@@ -250,7 +256,6 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
                                 variant="ghost" 
                                 className="h-6 w-6"
                                 onClick={() => handleEdit(element)}
-                                disabled={!!element.storyline_node_id}
                                 title={element.storyline_node_id ? 'Edit from storyline map' : 'Edit element'}
                               >
                                 <Edit3 className="w-3 h-3" />

@@ -41,7 +41,7 @@ const NodesLayer = React.memo(({
         transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
         transformOrigin: '0 0',
         userSelect: 'none',
-        zIndex: 2
+        zIndex: 10 // Higher z-index to ensure nodes are above connections
       }}
     >
       {nodes.map((node) => (

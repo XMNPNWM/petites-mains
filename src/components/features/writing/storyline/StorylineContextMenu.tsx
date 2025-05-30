@@ -79,6 +79,12 @@ const StorylineContextMenu = ({
     onContextMenuTrigger(position);
   };
 
+  // Get proper display name for worldbuilding categories
+  const getCategoryDisplayName = (type: string) => {
+    const nodeType = NODE_TYPES.find(nt => nt.value === type);
+    return nodeType ? nodeType.label : type.charAt(0).toUpperCase() + type.slice(1);
+  };
+
   return (
     <ContextMenu 
       onOpenChange={(open) => {
@@ -123,7 +129,7 @@ const StorylineContextMenu = ({
                 {Object.entries(groupedElements).map(([type, elements]) => (
                   <ContextMenuSub key={type}>
                     <ContextMenuSubTrigger>
-                      {type.charAt(0).toUpperCase() + type.slice(1)}s
+                      {getCategoryDisplayName(type)}
                     </ContextMenuSubTrigger>
                     <ContextMenuSubContent>
                       {elements.map((element) => (
