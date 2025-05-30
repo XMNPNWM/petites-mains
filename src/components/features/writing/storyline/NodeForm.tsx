@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { StorylineNode, NodeFormData } from './types';
+import { NODE_TYPES } from './constants/nodeConstants';
 
 interface NodeFormProps {
   isVisible: boolean;
@@ -42,11 +43,11 @@ const NodeForm = ({ isVisible, editingNode, formData, onFormChange, onSubmit, on
                 onChange={(e) => onFormChange('node_type', e.target.value)}
                 className="w-full px-2 py-1 border border-slate-300 rounded-md text-sm h-8"
               >
-                <option value="scene">Scene</option>
-                <option value="character">Character</option>
-                <option value="plot">Plot Point</option>
-                <option value="conflict">Conflict</option>
-                <option value="resolution">Resolution</option>
+                {NODE_TYPES.map((nodeType) => (
+                  <option key={nodeType.value} value={nodeType.value}>
+                    {nodeType.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
