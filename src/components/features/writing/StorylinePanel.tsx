@@ -12,10 +12,9 @@ interface StorylinePanelProps {
   projectId: string;
   chapterId?: string;
   onDataChange?: () => void;
-  onEditNode?: (nodeId: string) => void;
 }
 
-const StorylinePanel = ({ projectId, chapterId, onDataChange, onEditNode }: StorylinePanelProps) => {
+const StorylinePanel = ({ projectId, chapterId, onDataChange }: StorylinePanelProps) => {
   const {
     nodes,
     connections,
@@ -83,16 +82,6 @@ const StorylinePanel = ({ projectId, chapterId, onDataChange, onEditNode }: Stor
     setPan(dataPan);
   }, [dataPan, setPan]);
 
-  // Handle edit from worldbuilding callback
-  const handleEditFromWorldbuilding = React.useCallback((nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (node) {
-      handleNodeEdit(node);
-    } else if (onEditNode) {
-      onEditNode(nodeId);
-    }
-  }, [nodes, handleNodeEdit, onEditNode]);
-
   const handleConnectionLabelSave = async (connectionId: string, label: string) => {
     await updateConnectionLabel(connectionId, label);
     cancelEditingConnectionLabel();
@@ -144,7 +133,6 @@ const StorylinePanel = ({ projectId, chapterId, onDataChange, onEditNode }: Stor
           onConnectionCancel={cancelConnectionCreation}
           setDraggedNode={setDraggedNode}
           setSelectedNode={setSelectedNode}
-          onEditFromStoryline={handleEditFromWorldbuilding}
         />
       </div>
 
