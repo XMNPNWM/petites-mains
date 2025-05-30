@@ -48,8 +48,13 @@ const StorylineContextMenu = ({
 }: StorylineContextMenuProps) => {
   const [contextPosition, setContextPosition] = React.useState<{ x: number; y: number } | null>(null);
 
-  // Group worldbuilding elements by type
-  const groupedElements = worldbuildingElements.reduce((acc, element) => {
+  // Filter out location-type elements to remove duplicate "Locations" sublist
+  const filteredWorldbuildingElements = worldbuildingElements.filter(
+    element => element.type !== 'location'
+  );
+
+  // Group filtered worldbuilding elements by type
+  const groupedElements = filteredWorldbuildingElements.reduce((acc, element) => {
     if (!acc[element.type]) {
       acc[element.type] = [];
     }
