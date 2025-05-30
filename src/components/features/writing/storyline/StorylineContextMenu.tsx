@@ -48,16 +48,14 @@ const StorylineContextMenu = ({
 }: StorylineContextMenuProps) => {
   const [contextPosition, setContextPosition] = React.useState<{ x: number; y: number } | null>(null);
 
-  // Group worldbuilding elements by type, excluding location type
-  const groupedElements = worldbuildingElements
-    .filter(element => element.type !== 'location') // Filter out location elements
-    .reduce((acc, element) => {
-      if (!acc[element.type]) {
-        acc[element.type] = [];
-      }
-      acc[element.type].push(element);
-      return acc;
-    }, {} as Record<string, WorldbuildingElement[]>);
+  // Group worldbuilding elements by type
+  const groupedElements = worldbuildingElements.reduce((acc, element) => {
+    if (!acc[element.type]) {
+      acc[element.type] = [];
+    }
+    acc[element.type].push(element);
+    return acc;
+  }, {} as Record<string, WorldbuildingElement[]>);
 
   const handleCreateNode = (nodeType: string) => {
     if (contextPosition) {
