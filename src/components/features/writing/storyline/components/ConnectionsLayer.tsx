@@ -23,6 +23,8 @@ const ConnectionsLayer = React.memo(({
   connectionCreationState,
   onConnectionClick
 }: ConnectionsLayerProps) => {
+  const [hoveredConnection, setHoveredConnection] = React.useState<string | null>(null);
+
   const handleConnectionClick = (e: React.MouseEvent, connectionId: string) => {
     // Don't handle clicks on preview connections
     if (connectionId === 'preview-connection') {
@@ -32,6 +34,14 @@ const ConnectionsLayer = React.memo(({
     
     console.log('Connection clicked:', connectionId);
     onConnectionClick(e, connectionId);
+  };
+
+  const handleConnectionMouseEnter = (connectionId: string) => {
+    setHoveredConnection(connectionId);
+  };
+
+  const handleConnectionMouseLeave = () => {
+    setHoveredConnection(null);
   };
 
   // Generate all possible gradient definitions
@@ -79,7 +89,11 @@ const ConnectionsLayer = React.memo(({
       {connections.map((connection) => {
         const sourceNode = nodes.find(n => n.id === connection.source_id);
         const targetNode = nodes.find(n => n.id === connection.target_id);
-        if (!sourceNode || !targetNode) return null;
+        
+        if (!sourceNode || !targetNode) {
+          console.log(`Connection ${connection.id} references missing node(s). Source: ${connection.source_id}, Target: ${connection.target_id}`);
+          return null;
+        }
         
         const sourceX = sourceNode.position.x + NODE_DIMENSIONS.WIDTH / 2;
         const sourceY = sourceNode.position.y + NODE_DIMENSIONS.HEIGHT / 2;
@@ -90,7 +104,8 @@ const ConnectionsLayer = React.memo(({
         const midY = (sourceY + targetY) / 2;
         
         // Improved hit-box width that scales better with zoom
-        const hitBoxWidth = Math.max(25 / zoom, 10); // Increased from 15/4 to 25/10
+        const hitBoxWidth = Math.max(25 / zoom, 10);
+        const isHovered = hoveredConnection === connection.id;
         
         // Get gradient ID for this connection
         const gradientId = createGradientId(sourceNode.node_type, targetNode.node_type);
@@ -105,8 +120,10 @@ const ConnectionsLayer = React.memo(({
               y2={targetY}
               stroke="transparent"
               strokeWidth={hitBoxWidth}
-              className="pointer-events-auto cursor-pointer hover:stroke-blue-300 hover:stroke-opacity-20"
+              className="pointer-events-auto cursor-pointer"
               onClick={(e) => handleConnectionClick(e, connection.id)}
+              onMouseEnter={() => handleConnectionMouseEnter(connection.id)}
+              onMouseLeave={handleConnectionMouseLeave}
             />
             {/* Visible connection line with gradient */}
             <line
@@ -119,14 +136,30 @@ const ConnectionsLayer = React.memo(({
               strokeDasharray={`${5 / zoom},${5 / zoom}`}
               className="pointer-events-none"
             />
+            {/* Hover effect - thin blue line overlay */}
+            {isHovered && (
+              <line
+                x1={sourceX}
+                y1={sourceY}
+                x2={targetX}
+                y2={targetY}
+                stroke="rgb(59, 130, 246)"
+                strokeWidth={3 / zoom}
+                className="pointer-events-none"
+              />
+            )}
             {connection.label && (
               <text
                 x={midX}
                 y={midY}
                 textAnchor="middle"
                 fontSize={12 / zoom}
-                className="fill-slate-600 pointer-events-auto cursor-pointer hover:fill-blue-600"
+                className={`pointer-events-auto cursor-pointer transition-colors ${
+                  isHovered ? 'fill-blue-600' : 'fill-slate-600'
+                }`}
                 onClick={(e) => handleConnectionClick(e, connection.id)}
+                onMouseEnter={() => handleConnectionMouseEnter(connection.id)}
+                onMouseLeave={handleConnectionMouseLeave}
               >
                 {connection.label}
               </text>

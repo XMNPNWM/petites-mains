@@ -11,6 +11,34 @@ export const useStorylineData = (projectId: string) => {
   const [worldbuildingElements, setWorldbuildingElements] = useState<WorldbuildingElement[]>([]);
   const [pan, setPan] = useState({ x: 0, y: 0 });
 
+  const cleanupOrphanedConnections = async (nodeIds: string[], allConnections: StorylineConnection[]) => {
+    // Find connections that reference non-existent nodes
+    const orphanedConnections = allConnections.filter(conn => 
+      !nodeIds.includes(conn.source_id) || !nodeIds.includes(conn.target_id)
+    );
+
+    if (orphanedConnections.length > 0) {
+      console.log(`Found ${orphanedConnections.length} orphaned connections, cleaning up...`);
+      
+      const orphanedIds = orphanedConnections.map(conn => conn.id);
+      
+      try {
+        const { error } = await supabase
+          .from('storyline_connections')
+          .delete()
+          .in('id', orphanedIds);
+
+        if (error) {
+          console.error('Error cleaning up orphaned connections:', error);
+        } else {
+          console.log('Successfully cleaned up orphaned connections');
+        }
+      } catch (error) {
+        console.error('Error during cleanup:', error);
+      }
+    }
+  };
+
   const fetchStorylineData = async () => {
     try {
       // Fetch nodes
@@ -47,7 +75,19 @@ export const useStorylineData = (projectId: string) => {
         .eq('project_id', projectId);
 
       if (connectionsError) throw connectionsError;
-      setConnections(connectionsData || []);
+      
+      const allConnections = connectionsData || [];
+      const nodeIds = transformedNodes.map(node => node.id);
+      
+      // Clean up orphaned connections
+      await cleanupOrphanedConnections(nodeIds, allConnections);
+      
+      // Filter out orphaned connections for immediate display
+      const validConnections = allConnections.filter(conn => 
+        nodeIds.includes(conn.source_id) && nodeIds.includes(conn.target_id)
+      );
+      
+      setConnections(validConnections);
 
       // Fetch worldbuilding elements with synchronization fields
       const { data: worldbuildingData, error: worldbuildingError } = await supabase
