@@ -3,7 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
 import TextEditorPanel from './TextEditorPanel';
-import EnhancedChapterOrganizerPanel from './EnhancedChapterOrganizerPanel';
+import ChapterOrganizerPanel from './ChapterOrganizerPanel';
 import StorylinePanel from './StorylinePanel';
 
 interface Chapter {
@@ -20,15 +20,13 @@ interface WritingSpaceLayoutProps {
   currentChapter: Chapter | null;
   onChapterSelect: (chapter: Chapter) => void;
   onContentChange: (content: string) => void;
-  onChaptersChange?: (chapters: Chapter[]) => void;
 }
 
 const WritingSpaceLayout = ({ 
   projectId, 
   currentChapter, 
   onChapterSelect, 
-  onContentChange,
-  onChaptersChange
+  onContentChange 
 }: WritingSpaceLayoutProps) => {
   const [overlayHeight, setOverlayHeight] = useState(30); // Default 30% of screen height
   const [isDragging, setIsDragging] = useState(false);
@@ -108,13 +106,12 @@ const WritingSpaceLayout = ({
           
           <ResizableHandle withHandle />
           
-          {/* Enhanced Chapter Organizer Panel */}
+          {/* Chapter Organizer Panel */}
           <ResizablePanel defaultSize={25} minSize={20} className="overflow-hidden">
-            <EnhancedChapterOrganizerPanel 
+            <ChapterOrganizerPanel 
               projectId={projectId}
               currentChapter={currentChapter}
               onChapterSelect={onChapterSelect}
-              onChaptersChange={onChaptersChange}
             />
           </ResizablePanel>
         </ResizablePanelGroup>
