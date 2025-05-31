@@ -25,7 +25,6 @@ export const useWritingSpace = () => {
   const { toast } = useToast();
   const [project, setProject] = useState<Project | null>(null);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
-  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -33,7 +32,6 @@ export const useWritingSpace = () => {
   useEffect(() => {
     if (projectId) {
       fetchProject();
-      fetchChapters();
       if (chapterId) {
         fetchChapter(chapterId);
       }
@@ -74,21 +72,6 @@ export const useWritingSpace = () => {
       setProject(data);
     } catch (error) {
       console.error('Error fetching project:', error);
-    }
-  };
-
-  const fetchChapters = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('chapters')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('order_index');
-
-      if (error) throw error;
-      setChapters(data || []);
-    } catch (error) {
-      console.error('Error fetching chapters:', error);
     }
   };
 
@@ -184,7 +167,6 @@ export const useWritingSpace = () => {
     projectId,
     project,
     currentChapter,
-    chapters,
     isSaving,
     lastSaved,
     handleChapterSelect,
