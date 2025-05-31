@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ArrowLeft, Save, Download } from 'lucide-react';
+import { ArrowLeft, Save, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface Project {
@@ -20,11 +20,34 @@ interface Chapter {
 interface WritingSpaceHeaderProps {
   project: Project;
   currentChapter: Chapter | null;
+  isSaving: boolean;
+  lastSaved: Date | null;
   onBackClick: () => void;
   onSave: () => void;
 }
 
-const WritingSpaceHeader = ({ project, currentChapter, onBackClick, onSave }: WritingSpaceHeaderProps) => {
+const formatLastSaved = (date: Date) => {
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const minutes = Math.floor(diff / 60000);
+  
+  if (minutes < 1) {
+    return 'just now';
+  } else if (minutes < 60) {
+    return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  } else {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+};
+
+const WritingSpaceHeader = ({ 
+  project, 
+  currentChapter, 
+  isSaving, 
+  lastSaved, 
+  onBackClick, 
+  onSave 
+}: WritingSpaceHeaderProps) => {
   return (
     <div className="bg-white border-b border-slate-200 px-6 py-4">
       <div className="flex items-center justify-between">
@@ -35,9 +58,19 @@ const WritingSpaceHeader = ({ project, currentChapter, onBackClick, onSave }: Wr
           </Button>
           <div>
             <h1 className="text-xl font-bold text-slate-900">{project.title}</h1>
-            {currentChapter && (
-              <p className="text-sm text-slate-600">{currentChapter.title}</p>
-            )}
+            <div className="flex items-center space-x-3">
+              {currentChapter && (
+                <p className="text-sm text-slate-600">{currentChapter.title}</p>
+              )}
+              {lastSaved && (
+                <>
+                  <span className="text-slate-300">•</span>
+                  <p className="text-xs text-slate-500">
+                    Last saved {formatLastSaved(lastSaved)}
+                  </p>
+                </>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center space-x-2">
@@ -45,9 +78,18 @@ const WritingSpaceHeader = ({ project, currentChapter, onBackClick, onSave }: Wr
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
-          <Button onClick={onSave} size="sm" className="bg-gradient-to-r from-purple-600 to-blue-600">
-            <Save className="w-4 h-4 mr-2" />
-            Save
+          <Button 
+            onClick={onSave} 
+            size="sm" 
+            className="bg-gradient-to-r from-purple-600 to-blue-600"
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            {isSaving ? 'Saving...' : 'Save'}
           </Button>
         </div>
       </div>
