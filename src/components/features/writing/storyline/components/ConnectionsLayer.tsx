@@ -91,7 +91,7 @@ const ConnectionsLayer = React.memo(({
         const targetNode = nodes.find(n => n.id === connection.target_id);
         
         if (!sourceNode || !targetNode) {
-          console.log(`Connection ${connection.id} references missing node(s). Source: ${connection.source_id}, Target: ${connection.target_id}`);
+          console.warn(`Connection ${connection.id} references missing node(s). Source: ${connection.source_id} (${sourceNode ? 'found' : 'missing'}), Target: ${connection.target_id} (${targetNode ? 'found' : 'missing'})`);
           return null;
         }
         
@@ -103,8 +103,8 @@ const ConnectionsLayer = React.memo(({
         const midX = (sourceX + targetX) / 2;
         const midY = (sourceY + targetY) / 2;
         
-        // Improved hit-box width that scales better with zoom
-        const hitBoxWidth = Math.max(25 / zoom, 10);
+        // Enhanced hit-box width that scales better with zoom
+        const hitBoxWidth = Math.max(20 / zoom, 8);
         const isHovered = hoveredConnection === connection.id;
         
         // Get gradient ID for this connection
@@ -112,7 +112,7 @@ const ConnectionsLayer = React.memo(({
         
         return (
           <g key={connection.id}>
-            {/* Invisible hit-box line - larger for better usability */}
+            {/* Invisible hit-box line - optimized for better click detection */}
             <line
               x1={sourceX}
               y1={sourceY}
@@ -120,6 +120,7 @@ const ConnectionsLayer = React.memo(({
               y2={targetY}
               stroke="transparent"
               strokeWidth={hitBoxWidth}
+              strokeLinecap="round"
               className="pointer-events-auto cursor-pointer"
               onClick={(e) => handleConnectionClick(e, connection.id)}
               onMouseEnter={() => handleConnectionMouseEnter(connection.id)}
@@ -136,7 +137,7 @@ const ConnectionsLayer = React.memo(({
               strokeDasharray={`${5 / zoom},${5 / zoom}`}
               className="pointer-events-none"
             />
-            {/* Hover effect - thin blue line overlay */}
+            {/* Hover effect - subtle blue line overlay */}
             {isHovered && (
               <line
                 x1={sourceX}
@@ -144,7 +145,7 @@ const ConnectionsLayer = React.memo(({
                 x2={targetX}
                 y2={targetY}
                 stroke="rgb(59, 130, 246)"
-                strokeWidth={3 / zoom}
+                strokeWidth={2.5 / zoom}
                 className="pointer-events-none"
               />
             )}

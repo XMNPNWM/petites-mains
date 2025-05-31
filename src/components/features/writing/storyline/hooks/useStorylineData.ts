@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StorylineNode, StorylineConnection, WorldbuildingElement } from '../types';
@@ -10,6 +9,57 @@ export const useStorylineData = (projectId: string) => {
   const [connections, setConnections] = useState<StorylineConnection[]>([]);
   const [worldbuildingElements, setWorldbuildingElements] = useState<WorldbuildingElement[]>([]);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+
+  const cleanupDuplicateConnections = async (allConnections: StorylineConnection[]) => {
+    // Find duplicate connections (same source and target)
+    const connectionMap = new Map<string, StorylineConnection[]>();
+    
+    allConnections.forEach(conn => {
+      const key = `${conn.source_id}-${conn.target_id}`;
+      const reverseKey = `${conn.target_id}-${conn.source_id}`;
+      
+      if (!connectionMap.has(key)) {
+        connectionMap.set(key, []);
+      }
+      connectionMap.get(key)!.push(conn);
+      
+      // Also check for reverse connections
+      if (connectionMap.has(reverseKey)) {
+        connectionMap.get(reverseKey)!.push(conn);
+      }
+    });
+
+    const duplicatesToDelete: string[] = [];
+    
+    connectionMap.forEach((connections, key) => {
+      if (connections.length > 1) {
+        console.log(`Found ${connections.length} duplicate connections for ${key}`);
+        // Keep the first one, mark others for deletion
+        for (let i = 1; i < connections.length; i++) {
+          duplicatesToDelete.push(connections[i].id);
+        }
+      }
+    });
+
+    if (duplicatesToDelete.length > 0) {
+      console.log(`Deleting ${duplicatesToDelete.length} duplicate connections...`);
+      
+      try {
+        const { error } = await supabase
+          .from('storyline_connections')
+          .delete()
+          .in('id', duplicatesToDelete);
+
+        if (error) {
+          console.error('Error cleaning up duplicate connections:', error);
+        } else {
+          console.log('Successfully cleaned up duplicate connections');
+        }
+      } catch (error) {
+        console.error('Error during duplicate cleanup:', error);
+      }
+    }
+  };
 
   const cleanupOrphanedConnections = async (nodeIds: string[], allConnections: StorylineConnection[]) => {
     // Find connections that reference non-existent nodes
@@ -79,14 +129,30 @@ export const useStorylineData = (projectId: string) => {
       const allConnections = connectionsData || [];
       const nodeIds = transformedNodes.map(node => node.id);
       
-      // Clean up orphaned connections
+      // Clean up duplicate connections first
+      await cleanupDuplicateConnections(allConnections);
+      
+      // Then clean up orphaned connections
       await cleanupOrphanedConnections(nodeIds, allConnections);
       
-      // Filter out orphaned connections for immediate display
-      const validConnections = allConnections.filter(conn => 
-        nodeIds.includes(conn.source_id) && nodeIds.includes(conn.target_id)
-      );
+      // Fetch fresh connections after cleanup
+      const { data: cleanConnectionsData, error: cleanConnectionsError } = await supabase
+        .from('storyline_connections')
+        .select('*')
+        .eq('project_id', projectId);
+
+      if (cleanConnectionsError) throw cleanConnectionsError;
       
+      // Filter out any remaining invalid connections for immediate display
+      const validConnections = (cleanConnectionsData || []).filter(conn => {
+        const hasValidNodes = nodeIds.includes(conn.source_id) && nodeIds.includes(conn.target_id);
+        if (!hasValidNodes) {
+          console.warn(`Connection ${conn.id} still references missing nodes after cleanup`);
+        }
+        return hasValidNodes;
+      });
+      
+      console.log(`Loaded ${validConnections.length} valid connections`);
       setConnections(validConnections);
 
       // Fetch worldbuilding elements with synchronization fields

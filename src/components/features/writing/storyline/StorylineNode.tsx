@@ -3,7 +3,6 @@ import React from 'react';
 import { StorylineNode as StorylineNodeType } from './types';
 import NodeCard from './components/NodeCard';
 import NodeVisualState from './components/NodeVisualState';
-import NodeActionButtons from './components/NodeActionButtons';
 import ConnectionCircles from './components/ConnectionCircles';
 import { useNodeConnectionHandlers } from './components/NodeConnectionHandlers';
 
