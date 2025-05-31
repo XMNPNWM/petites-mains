@@ -1,0 +1,143 @@
+
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+
+interface Project {
+  id: string;
+  title: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+  last_active_chapter_id?: string;
+}
+
+interface Chapter {
+  id: string;
+  title: string;
+  word_count: number;
+  status: string;
+  order_index: number;
+}
+
+export const useProjectDashboard = (projectId: string | undefined) => {
+  const navigate = useNavigate();
+  const [project, setProject] = useState<Project | null>(null);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [currentPanel, setCurrentPanel] = useState(0);
+  const [totalWorldElements, setTotalWorldElements] = useState(0);
+  const [totalCharacters, setTotalCharacters] = useState(0);
+
+  const panels = [
+    { id: 'storyline', title: 'Storyline', icon: 'BookOpen' },
+    { id: 'worldbuilding', title: 'World Elements', icon: 'Globe' },
+    { id: 'chapters', title: 'Chapters', icon: 'Edit3' },
+    { id: 'analytics', title: 'Analytics', icon: 'BarChart3' }
+  ];
+
+  const fetchProjectData = async () => {
+    if (!projectId) return;
+
+    try {
+      // Fetch project
+      const { data: projectData, error: projectError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', projectId)
+        .single();
+
+      if (projectError) throw projectError;
+      setProject(projectData);
+
+      // Fetch chapters
+      const { data: chaptersData, error: chaptersError } = await supabase
+        .from('chapters')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('order_index');
+
+      if (chaptersError) throw chaptersError;
+      setChapters(chaptersData || []);
+
+      // Fetch worldbuilding elements count
+      const { data: worldData, error: worldError } = await supabase
+        .from('worldbuilding_elements')
+        .select('id')
+        .eq('project_id', projectId);
+
+      if (worldError) throw worldError;
+      setTotalWorldElements((worldData || []).length);
+
+      // Fetch characters count
+      const { data: charactersData, error: charactersError } = await supabase
+        .from('characters')
+        .select('id')
+        .eq('project_id', projectId);
+
+      if (charactersError) throw charactersError;
+      setTotalCharacters((charactersData || []).length);
+
+    } catch (error) {
+      console.error('Error fetching project data:', error);
+    }
+  };
+
+  const updateProjectDescription = async (newDescription: string) => {
+    if (!project) return;
+
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ description: newDescription })
+        .eq('id', project.id);
+
+      if (error) throw error;
+      
+      setProject(prev => prev ? { ...prev, description: newDescription } : null);
+    } catch (error) {
+      console.error('Error updating project description:', error);
+      throw error;
+    }
+  };
+
+  const goToWritingSpace = (chapterId?: string) => {
+    const route = chapterId 
+      ? `/project/${projectId}/write/${chapterId}`
+      : `/project/${projectId}/write`;
+    navigate(route);
+  };
+
+  const handleWriteButtonClick = () => {
+    if (project?.last_active_chapter_id) {
+      goToWritingSpace(project.last_active_chapter_id);
+    } else {
+      goToWritingSpace();
+    }
+  };
+
+  const getWriteButtonText = () => {
+    if (project?.last_active_chapter_id) {
+      return 'Continue Writing';
+    }
+    return chapters.length > 0 ? 'Start Writing' : 'Create First Chapter';
+  };
+
+  useEffect(() => {
+    fetchProjectData();
+  }, [projectId]);
+
+  return {
+    project,
+    chapters,
+    currentPanel,
+    setCurrentPanel,
+    totalWorldElements,
+    totalCharacters,
+    panels,
+    updateProjectDescription,
+    goToWritingSpace,
+    handleWriteButtonClick,
+    getWriteButtonText,
+    navigate
+  };
+};
