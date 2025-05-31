@@ -57,8 +57,8 @@ const ConnectionsLayer = React.memo(({
         
         gradients.push(
           <linearGradient key={gradientId} id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" style={{ stopColor: `rgb(${sourceRgb})`, stopOpacity: 0.25 }} />
-            <stop offset="100%" style={{ stopColor: `rgb(${targetRgb})`, stopOpacity: 0.25 }} />
+            <stop offset="0%" style={{ stopColor: `rgb(${sourceRgb})`, stopOpacity: 0.35 }} />
+            <stop offset="100%" style={{ stopColor: `rgb(${targetRgb})`, stopOpacity: 0.35 }} />
           </linearGradient>
         );
       });

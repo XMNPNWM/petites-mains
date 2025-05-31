@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StorylineNode, StorylineConnection, WorldbuildingElement } from '../types';
 import { calculateViewportCenter } from '../utils/viewportUtils';
@@ -9,6 +9,7 @@ export const useStorylineData = (projectId: string) => {
   const [connections, setConnections] = useState<StorylineConnection[]>([]);
   const [worldbuildingElements, setWorldbuildingElements] = useState<WorldbuildingElement[]>([]);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const isInitialLoad = useRef(true);
 
   const cleanupDuplicateConnections = async (allConnections: StorylineConnection[]) => {
     // Find duplicate connections (same source and target)
@@ -112,10 +113,11 @@ export const useStorylineData = (projectId: string) => {
       
       setNodes(transformedNodes);
 
-      // Center viewport on nodes if they exist
-      if (transformedNodes.length > 0) {
+      // Only center viewport on initial load when there are nodes and no existing pan position
+      if (isInitialLoad.current && transformedNodes.length > 0) {
         const centerPosition = calculateViewportCenter(transformedNodes);
         setPan(centerPosition);
+        isInitialLoad.current = false;
       }
 
       // Fetch connections
