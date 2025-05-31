@@ -127,7 +127,7 @@ const ExportDialog = ({ isOpen, onClose, chapters, currentChapter, projectTitle 
               <Checkbox 
                 id="metadata" 
                 checked={includeMetadata}
-                onCheckedChange={setIncludeMetadata}
+                onCheckedChange={(checked) => setIncludeMetadata(checked === true)}
               />
               <Label htmlFor="metadata">Include metadata (word count, status, etc.)</Label>
             </div>
