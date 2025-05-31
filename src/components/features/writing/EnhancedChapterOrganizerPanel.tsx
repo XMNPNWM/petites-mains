@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import {
@@ -62,7 +61,13 @@ const SortableChapterCard = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: chapter.id });
+  } = useSortable({ 
+    id: chapter.id,
+    data: {
+      type: 'chapter',
+      chapter
+    }
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
