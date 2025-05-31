@@ -1,11 +1,13 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, Save, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import ExportDialog from './ExportDialog';
 
 interface Project {
   id: string;
   title: string;
+  description?: string;
 }
 
 interface Chapter {
@@ -22,6 +24,7 @@ interface WritingSpaceHeaderProps {
   currentChapter: Chapter | null;
   isSaving: boolean;
   lastSaved: Date | null;
+  chapters?: Chapter[];
   onBackClick: () => void;
   onSave: () => void;
 }
@@ -44,56 +47,72 @@ const WritingSpaceHeader = ({
   project, 
   currentChapter, 
   isSaving, 
-  lastSaved, 
+  lastSaved,
+  chapters = [],
   onBackClick, 
   onSave 
 }: WritingSpaceHeaderProps) => {
+  const [showExportDialog, setShowExportDialog] = useState(false);
+
   return (
-    <div className="bg-white border-b border-slate-200 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={onBackClick}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Project
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">{project.title}</h1>
-            <div className="flex items-center space-x-3">
-              {currentChapter && (
-                <p className="text-sm text-slate-600">{currentChapter.title}</p>
-              )}
-              {lastSaved && (
-                <>
-                  <span className="text-slate-300">•</span>
-                  <p className="text-xs text-slate-500">
-                    Last saved {formatLastSaved(lastSaved)}
-                  </p>
-                </>
-              )}
+    <>
+      <div className="bg-white border-b border-slate-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" onClick={onBackClick}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Project
+            </Button>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">{project.title}</h1>
+              <div className="flex items-center space-x-3">
+                {currentChapter && (
+                  <p className="text-sm text-slate-600">{currentChapter.title}</p>
+                )}
+                {lastSaved && (
+                  <>
+                    <span className="text-slate-300">•</span>
+                    <p className="text-xs text-slate-500">
+                      Last saved {formatLastSaved(lastSaved)}
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-          <Button 
-            onClick={onSave} 
-            size="sm" 
-            className="bg-gradient-to-r from-purple-600 to-blue-600"
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            {isSaving ? 'Saving...' : 'Save'}
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowExportDialog(true)}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+            <Button 
+              onClick={onSave} 
+              size="sm" 
+              className="bg-gradient-to-r from-purple-600 to-blue-600"
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              {isSaving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+
+      <ExportDialog
+        open={showExportDialog}
+        onOpenChange={setShowExportDialog}
+        project={project}
+        chapters={chapters}
+      />
+    </>
   );
 };
 
