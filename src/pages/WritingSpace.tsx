@@ -9,6 +9,7 @@ const WritingSpace = () => {
     projectId,
     project,
     currentChapter,
+    chapters,
     isSaving,
     lastSaved,
     handleChapterSelect,
@@ -33,6 +34,7 @@ const WritingSpace = () => {
       <WritingSpaceHeader
         project={project}
         currentChapter={currentChapter}
+        chapters={chapters}
         isSaving={isSaving}
         lastSaved={lastSaved}
         onBackClick={handleBackClick}
