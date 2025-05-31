@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   ContextMenu,
@@ -17,6 +16,8 @@ interface WorldbuildingElement {
   name: string;
   type: string;
   description?: string;
+  storyline_node_id?: string | null;
+  created_from_storyline?: boolean;
 }
 
 interface StorylineContextMenuProps {
@@ -48,8 +49,13 @@ const StorylineContextMenu = ({
 }: StorylineContextMenuProps) => {
   const [contextPosition, setContextPosition] = React.useState<{ x: number; y: number } | null>(null);
 
-  // Group worldbuilding elements by type
-  const groupedElements = worldbuildingElements.reduce((acc, element) => {
+  // Filter to only include properly synchronized worldbuilding elements
+  const synchronizedElements = worldbuildingElements.filter(element => 
+    element.created_from_storyline === true && element.storyline_node_id !== null
+  );
+
+  // Group synchronized worldbuilding elements by type
+  const groupedElements = synchronizedElements.reduce((acc, element) => {
     if (!acc[element.type]) {
       acc[element.type] = [];
     }

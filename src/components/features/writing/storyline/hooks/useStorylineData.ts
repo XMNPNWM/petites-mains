@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StorylineNode, StorylineConnection, WorldbuildingElement } from '../types';
@@ -48,10 +47,10 @@ export const useStorylineData = (projectId: string) => {
       if (connectionsError) throw connectionsError;
       setConnections(connectionsData || []);
 
-      // Fetch worldbuilding elements
+      // Fetch worldbuilding elements with synchronization fields
       const { data: worldbuildingData, error: worldbuildingError } = await supabase
         .from('worldbuilding_elements')
-        .select('id, name, type, description')
+        .select('id, name, type, description, storyline_node_id, created_from_storyline')
         .eq('project_id', projectId);
 
       if (worldbuildingError) throw worldbuildingError;
