@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import InlineEditableText from '@/components/ui/inline-editable-text';
 import ReadOnlyStorylineViewer from '@/components/features/dashboard/ReadOnlyStorylineViewer';
+import UnifiedWorldbuildingPanel from '@/components/features/dashboard/UnifiedWorldbuildingPanel';
 
 interface Project {
   id: string;
@@ -25,33 +26,18 @@ interface Chapter {
   order_index: number;
 }
 
-interface Character {
-  id: string;
-  name: string;
-  role: string;
-  description: string;
-}
-
-interface WorldElement {
-  id: string;
-  name: string;
-  type: string;
-  description: string;
-}
-
 const ProjectDashboard = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
-  const [characters, setCharacters] = useState<Character[]>([]);
-  const [worldElements, setWorldElements] = useState<WorldElement[]>([]);
   const [currentPanel, setCurrentPanel] = useState(0);
+  const [totalWorldElements, setTotalWorldElements] = useState(0);
+  const [totalCharacters, setTotalCharacters] = useState(0);
 
   const panels = [
     { id: 'storyline', title: 'Storyline', icon: BookOpen },
-    { id: 'characters', title: 'Characters', icon: Users },
-    { id: 'worldbuilding', title: 'Worldbuilding', icon: Globe },
+    { id: 'worldbuilding', title: 'World Elements', icon: Globe },
     { id: 'chapters', title: 'Chapters', icon: Edit3 },
     { id: 'analytics', title: 'Analytics', icon: BarChart3 }
   ];
@@ -84,23 +70,23 @@ const ProjectDashboard = () => {
       if (chaptersError) throw chaptersError;
       setChapters(chaptersData || []);
 
-      // Fetch characters
-      const { data: charactersData, error: charactersError } = await supabase
-        .from('characters')
-        .select('*')
-        .eq('project_id', projectId);
-
-      if (charactersError) throw charactersError;
-      setCharacters(charactersData || []);
-
-      // Fetch worldbuilding elements
+      // Fetch worldbuilding elements count
       const { data: worldData, error: worldError } = await supabase
         .from('worldbuilding_elements')
-        .select('*')
+        .select('id')
         .eq('project_id', projectId);
 
       if (worldError) throw worldError;
-      setWorldElements(worldData || []);
+      setTotalWorldElements((worldData || []).length);
+
+      // Fetch characters count
+      const { data: charactersData, error: charactersError } = await supabase
+        .from('characters')
+        .select('id')
+        .eq('project_id', projectId);
+
+      if (charactersError) throw charactersError;
+      setTotalCharacters((charactersData || []).length);
 
     } catch (error) {
       console.error('Error fetching project data:', error);
@@ -155,49 +141,9 @@ const ProjectDashboard = () => {
     </div>
   );
 
-  const renderCharactersPanel = () => (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-slate-900">Characters</h3>
-      {characters.length === 0 ? (
-        <p className="text-slate-500 text-center py-8">No characters created yet</p>
-      ) : (
-        <div className="space-y-3">
-          {characters.map((character) => (
-            <Card key={character.id} className="p-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium text-slate-900">{character.name}</h4>
-                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                  {character.role}
-                </span>
-              </div>
-              <p className="text-sm text-slate-600 mt-2 line-clamp-2">{character.description}</p>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
   const renderWorldbuildingPanel = () => (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-slate-900">World Elements</h3>
-      {worldElements.length === 0 ? (
-        <p className="text-slate-500 text-center py-8">No world elements created yet</p>
-      ) : (
-        <div className="space-y-3">
-          {worldElements.map((element) => (
-            <Card key={element.id} className="p-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium text-slate-900">{element.name}</h4>
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                  {element.type}
-                </span>
-              </div>
-              <p className="text-sm text-slate-600 mt-2 line-clamp-2">{element.description}</p>
-            </Card>
-          ))}
-        </div>
-      )}
+    <div className="h-full overflow-y-auto">
+      <UnifiedWorldbuildingPanel projectId={projectId!} />
     </div>
   );
 
@@ -239,6 +185,7 @@ const ProjectDashboard = () => {
   const renderAnalyticsPanel = () => {
     const totalWords = chapters.reduce((sum, chapter) => sum + chapter.word_count, 0);
     const completedChapters = chapters.filter(c => c.status === 'published').length;
+    const totalElements = totalWorldElements + totalCharacters;
     
     return (
       <div className="space-y-4">
@@ -257,8 +204,8 @@ const ProjectDashboard = () => {
             <div className="text-sm text-slate-600">Completed</div>
           </Card>
           <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-amber-600">{characters.length}</div>
-            <div className="text-sm text-slate-600">Characters</div>
+            <div className="text-2xl font-bold text-amber-600">{totalElements}</div>
+            <div className="text-sm text-slate-600">World Elements</div>
           </Card>
         </div>
       </div>
@@ -268,10 +215,9 @@ const ProjectDashboard = () => {
   const renderCurrentPanel = () => {
     switch (currentPanel) {
       case 0: return renderStorylinePanel();
-      case 1: return renderCharactersPanel();
-      case 2: return renderWorldbuildingPanel();
-      case 3: return renderChaptersPanel();
-      case 4: return renderAnalyticsPanel();
+      case 1: return renderWorldbuildingPanel();
+      case 2: return renderChaptersPanel();
+      case 3: return renderAnalyticsPanel();
       default: return renderStorylinePanel();
     }
   };

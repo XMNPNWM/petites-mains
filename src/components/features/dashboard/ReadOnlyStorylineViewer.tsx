@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeNodeType, getNodeTypeDisplayName } from '../writing/storyline/utils/nodeTypeUtils';
+import { getNodeTypeColor } from '../writing/storyline/constants/nodeConstants';
 
 interface StorylineNode {
   id: string;
@@ -50,7 +52,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
 
-    // Center the nodes in the viewport (larger area for full screen)
+    // Center the nodes in the viewport
     const viewportCenterX = 600;
     const viewportCenterY = 400;
 
@@ -90,7 +92,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
           id: node.id,
           title: node.title,
           content: node.content || '',
-          node_type: normalizeNodeType(node.node_type), // Normalize node type
+          node_type: normalizeNodeType(node.node_type),
           position
         };
       });
@@ -127,7 +129,6 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
     setZoom(prev => Math.max(prev - 0.2, 0.5));
   };
 
-  // Add mouse wheel zoom support
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
@@ -159,18 +160,6 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
     } else {
       setPan({ x: 200, y: 200 });
       setZoom(1);
-    }
-  };
-
-  const getNodeTypeColor = (nodeType: string) => {
-    switch (nodeType) {
-      case 'scene': return 'from-blue-500 to-blue-600';
-      case 'character': return 'from-green-500 to-green-600';
-      case 'event': return 'from-purple-500 to-purple-600';
-      case 'location': return 'from-amber-500 to-amber-600';
-      case 'conflict': return 'from-red-500 to-red-600';
-      case 'resolution': return 'from-amber-500 to-amber-600';
-      default: return 'from-slate-500 to-slate-600';
     }
   };
 
@@ -223,7 +212,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
         </div>
       </div>
 
-      {/* Canvas with full height */}
+      {/* Canvas with enhanced grid */}
       <div 
         className="flex-1 relative overflow-hidden bg-slate-50 cursor-grab active:cursor-grabbing"
         onMouseDown={handleMouseDown}
@@ -239,64 +228,112 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
             transformOrigin: '0 0'
           }}
         >
-          {/* SVG for grid and connections */}
+          {/* Enhanced SVG with better grid pattern */}
           <svg 
             className="absolute inset-0 w-full h-full pointer-events-none" 
-            style={{ minWidth: '3000px', minHeight: '3000px' }}
+            style={{ minWidth: '4000px', minHeight: '4000px' }}
           >
-            {/* Grid Pattern */}
+            {/* Enhanced Grid Pattern */}
             <defs>
-              <pattern id="storyline-grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e2e8f0" strokeWidth="1"/>
+              <pattern id="storyline-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e2e8f0" strokeWidth="1"/>
+                <path d="M 20 0 L 20 40 M 0 20 L 40 20" fill="none" stroke="#f1f5f9" strokeWidth="0.5"/>
+              </pattern>
+              <pattern id="storyline-grid-major" width="200" height="200" patternUnits="userSpaceOnUse">
+                <rect width="200" height="200" fill="url(#storyline-grid)"/>
+                <path d="M 200 0 L 0 0 0 200" fill="none" stroke="#cbd5e1" strokeWidth="1.5"/>
               </pattern>
             </defs>
-            <rect width="100%" height="100%" fill="url(#storyline-grid)" />
+            <rect width="100%" height="100%" fill="url(#storyline-grid-major)" />
             
-            {/* Connections */}
+            {/* Enhanced Connections with gradients */}
             {connections.map((connection) => {
               const sourceNode = nodes.find(n => n.id === connection.source_id);
               const targetNode = nodes.find(n => n.id === connection.target_id);
               if (!sourceNode || !targetNode) return null;
               
+              const sourceColor = getNodeTypeColor(sourceNode.node_type);
+              const targetColor = getNodeTypeColor(targetNode.node_type);
+              
               return (
-                <line
-                  key={connection.id}
-                  x1={sourceNode.position.x + 60}
-                  y1={sourceNode.position.y + 30}
-                  x2={targetNode.position.x + 60}
-                  y2={targetNode.position.y + 30}
-                  stroke="rgba(148, 163, 184, 0.6)"
-                  strokeWidth="2"
-                  strokeDasharray="5,5"
-                />
+                <g key={connection.id}>
+                  <defs>
+                    <linearGradient id={`gradient-${connection.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" style={{ stopColor: `rgb(${sourceColor.rgb})`, stopOpacity: 0.4 }} />
+                      <stop offset="100%" style={{ stopColor: `rgb(${targetColor.rgb})`, stopOpacity: 0.4 }} />
+                    </linearGradient>
+                  </defs>
+                  <line
+                    x1={sourceNode.position.x + 70}
+                    y1={sourceNode.position.y + 40}
+                    x2={targetNode.position.x + 70}
+                    y2={targetNode.position.y + 40}
+                    stroke={`url(#gradient-${connection.id})`}
+                    strokeWidth="2"
+                    strokeDasharray="5,5"
+                  />
+                  {connection.label && (
+                    <text
+                      x={(sourceNode.position.x + targetNode.position.x + 140) / 2}
+                      y={(sourceNode.position.y + targetNode.position.y + 80) / 2}
+                      textAnchor="middle"
+                      fontSize="12"
+                      className="fill-slate-600"
+                    >
+                      {connection.label}
+                    </text>
+                  )}
+                </g>
               );
             })}
           </svg>
 
-          {/* Nodes */}
-          {nodes.map((node) => (
-            <div
-              key={node.id}
-              className="absolute pointer-events-none"
-              style={{
-                left: node.position.x,
-                top: node.position.y
-              }}
-            >
-              <Card className="w-28 shadow-md border border-slate-200">
-                <CardContent className="p-2">
-                  <div className="flex items-start justify-between mb-1">
-                    <h4 className="text-xs font-medium text-slate-900 line-clamp-2">
-                      {node.title}
-                    </h4>
-                  </div>
-                  <span className="text-xs bg-slate-100 text-slate-600 px-1 py-0.5 rounded">
-                    {getNodeTypeDisplayName(node.node_type)}
-                  </span>
-                </CardContent>
-              </Card>
-            </div>
-          ))}
+          {/* Enhanced Nodes with proper styling */}
+          {nodes.map((node) => {
+            const nodeTypeColor = getNodeTypeColor(node.node_type);
+            const displayName = getNodeTypeDisplayName(node.node_type);
+            
+            return (
+              <div
+                key={node.id}
+                className="absolute pointer-events-none"
+                style={{
+                  left: node.position.x,
+                  top: node.position.y
+                }}
+              >
+                <Card className={`w-36 h-32 shadow-md transition-all duration-200 border-2 ${nodeTypeColor.border}`}>
+                  <CardContent className="p-3 h-full flex flex-col">
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-slate-900 line-clamp-2 flex-1">
+                        {node.title}
+                      </h4>
+                    </div>
+                    
+                    <div className="flex-1 mb-2">
+                      {node.content && (
+                        <p className="text-xs text-slate-600 line-clamp-2">
+                          {node.content}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span 
+                        className="text-xs px-2 py-1 rounded"
+                        style={{ 
+                          backgroundColor: `rgba(${nodeTypeColor.rgb}, 0.1)`,
+                          color: `rgb(${nodeTypeColor.rgb})`
+                        }}
+                      >
+                        {displayName}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
