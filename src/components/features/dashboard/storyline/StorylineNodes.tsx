@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { getNodeTypeColor, getNodeTypeDisplayName } from '@/components/features/writing/storyline/utils/nodeTypeUtils';
+import { getNodeTypeColor } from '@/components/features/writing/storyline/constants/nodeConstants';
+import { getNodeTypeDisplayName } from '@/components/features/writing/storyline/utils/nodeTypeUtils';
 
 interface StorylineNode {
   id: string;
