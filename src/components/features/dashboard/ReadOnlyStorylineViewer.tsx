@@ -3,6 +3,7 @@ import { ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { normalizeNodeType, getNodeTypeDisplayName } from '../writing/storyline/utils/nodeTypeUtils';
 
 interface StorylineNode {
   id: string;
@@ -34,23 +35,6 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
   useEffect(() => {
     fetchStorylineData();
   }, [projectId]);
-
-  const normalizeNodeType = (nodeType: string): string => {
-    const typeMap: { [key: string]: string } = {
-      'plotPoint': 'plot',
-      'locations': 'location',
-      'plot': 'plot',
-      'scene': 'scene',
-      'character': 'character',
-      'conflict': 'conflict',
-      'resolution': 'resolution',
-      'location': 'location',
-      'organization': 'organization',
-      'artifact': 'artifact'
-    };
-    
-    return typeMap[nodeType] || nodeType;
-  };
 
   const calculateViewportCenter = (nodesList: StorylineNode[]) => {
     if (nodesList.length === 0) return { x: 400, y: 300 };
@@ -90,7 +74,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
       
       console.log('Raw nodes data:', nodesData);
       
-      // Transform the data and ensure valid positions
+      // Transform the data and normalize node types
       const transformedNodes: StorylineNode[] = (nodesData || []).map((node, index) => {
         let position = { x: 100 + index * 150, y: 100 + index * 100 };
         
@@ -106,7 +90,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
           id: node.id,
           title: node.title,
           content: node.content || '',
-          node_type: normalizeNodeType(node.node_type),
+          node_type: normalizeNodeType(node.node_type), // Normalize node type
           position
         };
       });
@@ -175,6 +159,18 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
     } else {
       setPan({ x: 200, y: 200 });
       setZoom(1);
+    }
+  };
+
+  const getNodeTypeColor = (nodeType: string) => {
+    switch (nodeType) {
+      case 'scene': return 'from-blue-500 to-blue-600';
+      case 'character': return 'from-green-500 to-green-600';
+      case 'event': return 'from-purple-500 to-purple-600';
+      case 'location': return 'from-amber-500 to-amber-600';
+      case 'conflict': return 'from-red-500 to-red-600';
+      case 'resolution': return 'from-amber-500 to-amber-600';
+      default: return 'from-slate-500 to-slate-600';
     }
   };
 
@@ -295,7 +291,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
                     </h4>
                   </div>
                   <span className="text-xs bg-slate-100 text-slate-600 px-1 py-0.5 rounded">
-                    {node.node_type}
+                    {getNodeTypeDisplayName(node.node_type)}
                   </span>
                 </CardContent>
               </Card>

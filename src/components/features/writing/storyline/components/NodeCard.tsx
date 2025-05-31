@@ -1,9 +1,10 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { StorylineNode } from '../types';
 import { getNodeTypeColor } from '../constants/nodeConstants';
-import NodeActionButtons from './NodeActionButtons';
+import { getNodeTypeDisplayName } from '../utils/nodeTypeUtils';
 
 interface NodeCardProps {
   node: StorylineNode;
@@ -13,34 +14,45 @@ interface NodeCardProps {
 }
 
 const NodeCard = React.memo(({ node, isSelected, onEdit, onDelete }: NodeCardProps) => {
-  const nodeColor = getNodeTypeColor(node.node_type);
-  
-  const getCardClassName = () => {
-    let className = `w-28 hover:shadow-lg transition-all duration-200 select-none ${nodeColor.border} border-2`;
-    
-    if (isSelected) {
-      className += " shadow-lg border-purple-300";
-    }
-    
-    return className;
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit(node);
   };
 
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete(node.id);
+  };
+
+  const displayName = getNodeTypeDisplayName(node.node_type);
+
   return (
-    <Card className={getCardClassName()}>
-      <CardContent className="p-2 select-none">
-        <div className="flex items-start justify-between mb-1">
-          <h4 className="text-xs font-medium text-slate-900 line-clamp-2 select-none">
+    <Card className={`w-40 h-32 cursor-pointer transition-all duration-200 hover:shadow-md ${
+      isSelected ? 'ring-2 ring-purple-400 ring-opacity-60' : ''
+    }`}>
+      <CardContent className="p-3 h-full flex flex-col">
+        <div className="flex items-start justify-between mb-2">
+          <h3 className="text-sm font-semibold text-slate-900 line-clamp-2 flex-1 pr-1">
             {node.title}
-          </h4>
-          <NodeActionButtons
-            node={node}
-            onEdit={onEdit}
-            onDelete={onDelete}
-          />
+          </h3>
         </div>
-        <span className="text-xs bg-slate-100 text-slate-600 px-1 py-0.5 rounded select-none">
-          {node.node_type}
-        </span>
+        
+        <div className="flex-1 mb-2">
+          {node.content && (
+            <p className="text-xs text-slate-600 line-clamp-2">
+              {node.content}
+            </p>
+          )}
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <Badge 
+            variant="secondary" 
+            className={`text-xs px-2 py-1 ${getNodeTypeColor(node.node_type)}`}
+          >
+            {displayName}
+          </Badge>
+        </div>
       </CardContent>
     </Card>
   );

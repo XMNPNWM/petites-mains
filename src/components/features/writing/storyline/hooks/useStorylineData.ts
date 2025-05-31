@@ -1,7 +1,9 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StorylineNode, StorylineConnection, WorldbuildingElement } from '../types';
 import { calculateViewportCenter } from '../utils/viewportUtils';
+import { normalizeNodeType } from '../utils/nodeTypeUtils';
 
 export const useStorylineData = (projectId: string) => {
   const [nodes, setNodes] = useState<StorylineNode[]>([]);
@@ -19,12 +21,12 @@ export const useStorylineData = (projectId: string) => {
 
       if (nodesError) throw nodesError;
       
-      // Transform the data to match our interface
+      // Transform the data to match our interface and normalize node types
       const transformedNodes: StorylineNode[] = (nodesData || []).map(node => ({
         id: node.id,
         title: node.title,
         content: node.content || '',
-        node_type: node.node_type,
+        node_type: normalizeNodeType(node.node_type), // Normalize the node type
         position: typeof node.position === 'object' && node.position !== null
           ? node.position as { x: number; y: number }
           : { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }

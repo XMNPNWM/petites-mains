@@ -89,16 +89,15 @@ const ConnectionsLayer = React.memo(({
         const midX = (sourceX + targetX) / 2;
         const midY = (sourceY + targetY) / 2;
         
-        // Calculate hit-box width that scales with zoom but maintains minimum size
-        // Reduced hit-box width to avoid interfering with nodes
-        const hitBoxWidth = Math.max(15 / zoom, 4);
+        // Improved hit-box width that scales better with zoom
+        const hitBoxWidth = Math.max(25 / zoom, 10); // Increased from 15/4 to 25/10
         
         // Get gradient ID for this connection
         const gradientId = createGradientId(sourceNode.node_type, targetNode.node_type);
         
         return (
           <g key={connection.id}>
-            {/* Invisible hit-box line - smaller to avoid node interference */}
+            {/* Invisible hit-box line - larger for better usability */}
             <line
               x1={sourceX}
               y1={sourceY}
@@ -106,7 +105,7 @@ const ConnectionsLayer = React.memo(({
               y2={targetY}
               stroke="transparent"
               strokeWidth={hitBoxWidth}
-              className="pointer-events-auto cursor-pointer"
+              className="pointer-events-auto cursor-pointer hover:stroke-blue-300 hover:stroke-opacity-20"
               onClick={(e) => handleConnectionClick(e, connection.id)}
             />
             {/* Visible connection line with gradient */}
@@ -126,7 +125,7 @@ const ConnectionsLayer = React.memo(({
                 y={midY}
                 textAnchor="middle"
                 fontSize={12 / zoom}
-                className="fill-slate-600 pointer-events-auto cursor-pointer"
+                className="fill-slate-600 pointer-events-auto cursor-pointer hover:fill-blue-600"
                 onClick={(e) => handleConnectionClick(e, connection.id)}
               >
                 {connection.label}
