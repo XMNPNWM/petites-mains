@@ -79,8 +79,10 @@ const ProjectDashboardPanels = ({
   );
 
   const renderAnalyticsPanel = () => {
-    const totalWords = chapters.reduce((sum, chapter) => sum + chapter.word_count, 0);
-    const completedChapters = chapters.filter(c => c.status === 'published').length;
+    // Calculate real analytics from actual project data
+    const totalWords = chapters.reduce((sum, chapter) => sum + (chapter.word_count || 0), 0);
+    const publishedChapters = chapters.filter(c => c.status === 'published').length;
+    const draftChapters = chapters.filter(c => c.status === 'draft').length;
     const totalElements = totalWorldElements + totalCharacters;
     
     return (
@@ -88,20 +90,28 @@ const ProjectDashboardPanels = ({
         <h3 className="text-lg font-semibold text-slate-900">Analytics</h3>
         <div className="grid grid-cols-2 gap-4">
           <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-purple-600">{totalWords}</div>
+            <div className="text-2xl font-bold text-purple-600">{totalWords.toLocaleString()}</div>
             <div className="text-sm text-slate-600">Total Words</div>
           </Card>
           <Card className="p-4 text-center">
             <div className="text-2xl font-bold text-blue-600">{chapters.length}</div>
-            <div className="text-sm text-slate-600">Chapters</div>
+            <div className="text-sm text-slate-600">Total Chapters</div>
           </Card>
           <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{completedChapters}</div>
-            <div className="text-sm text-slate-600">Completed</div>
+            <div className="text-2xl font-bold text-green-600">{publishedChapters}</div>
+            <div className="text-sm text-slate-600">Published</div>
           </Card>
           <Card className="p-4 text-center">
             <div className="text-2xl font-bold text-amber-600">{totalElements}</div>
             <div className="text-sm text-slate-600">World Elements</div>
+          </Card>
+          <Card className="p-4 text-center">
+            <div className="text-2xl font-bold text-slate-600">{draftChapters}</div>
+            <div className="text-sm text-slate-600">Drafts</div>
+          </Card>
+          <Card className="p-4 text-center">
+            <div className="text-2xl font-bold text-indigo-600">{Math.round(totalWords / Math.max(chapters.length, 1))}</div>
+            <div className="text-sm text-slate-600">Avg Words/Chapter</div>
           </Card>
         </div>
       </div>

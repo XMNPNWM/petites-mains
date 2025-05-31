@@ -57,27 +57,41 @@ const UnifiedWorldbuildingPanel = ({ projectId }: UnifiedWorldbuildingPanelProps
 
       if (charactersError) throw charactersError;
 
-      // Combine and normalize data
-      const combinedElements: WorldElement[] = [
-        ...(worldbuildingData || []).map(element => ({
-          id: element.id,
-          name: element.name,
-          type: element.type,
-          description: element.description || '',
-          storyline_node_id: element.storyline_node_id,
-          created_from_storyline: element.created_from_storyline,
-          source: 'worldbuilding' as const
-        })),
-        ...(charactersData || []).map(character => ({
-          id: character.id,
-          name: character.name,
-          type: 'character',
-          description: character.description || '',
-          storyline_node_id: null,
-          created_from_storyline: false,
-          source: 'characters' as const
-        }))
-      ];
+      // Convert worldbuilding elements
+      const worldbuildingElements: WorldElement[] = (worldbuildingData || []).map(element => ({
+        id: element.id,
+        name: element.name,
+        type: element.type,
+        description: element.description || '',
+        storyline_node_id: element.storyline_node_id,
+        created_from_storyline: element.created_from_storyline,
+        source: 'worldbuilding' as const
+      }));
+
+      // Convert characters to WorldElement format
+      const characterElements: WorldElement[] = (charactersData || []).map(character => ({
+        id: character.id,
+        name: character.name,
+        type: 'character',
+        description: character.description || '',
+        storyline_node_id: null,
+        created_from_storyline: false,
+        source: 'characters' as const
+      }));
+
+      // Remove duplicates: prioritize worldbuilding elements over characters table entries
+      const worldbuildingNames = new Set(
+        worldbuildingElements
+          .filter(el => el.type === 'character')
+          .map(el => el.name.toLowerCase())
+      );
+
+      const dedupedCharacters = characterElements.filter(
+        char => !worldbuildingNames.has(char.name.toLowerCase())
+      );
+
+      // Combine all elements
+      const combinedElements = [...worldbuildingElements, ...dedupedCharacters];
 
       setElements(combinedElements);
     } catch (error) {
@@ -192,11 +206,6 @@ const UnifiedWorldbuildingPanel = ({ projectId }: UnifiedWorldbuildingPanelProps
                                       {element.created_from_storyline ? 'Synced' : 'Linked'}
                                     </span>
                                   </div>
-                                )}
-                                {element.source === 'characters' && (
-                                  <span className="text-xs text-green-600 bg-green-50 px-1 py-0.5 rounded">
-                                    Character
-                                  </span>
                                 )}
                               </div>
                               {element.description && (

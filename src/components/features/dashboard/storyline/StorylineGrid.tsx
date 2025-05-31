@@ -5,7 +5,7 @@ const StorylineGrid = () => {
   return (
     <svg 
       className="absolute inset-0 w-full h-full pointer-events-none" 
-      style={{ minWidth: '4000px', minHeight: '4000px' }}
+      style={{ minWidth: '8000px', minHeight: '8000px' }}
     >
       <defs>
         <pattern id="storyline-grid" width="40" height="40" patternUnits="userSpaceOnUse">
