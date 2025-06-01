@@ -4,23 +4,23 @@ import { Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface FocusModeToggleProps {
-  isFocusMode: boolean;
+  areMinimized: boolean;
   onToggle: () => void;
 }
 
-const FocusModeToggle = ({ isFocusMode, onToggle }: FocusModeToggleProps) => {
+const FocusModeToggle = ({ areMinimized, onToggle }: FocusModeToggleProps) => {
   return (
     <Button
       variant="ghost"
       size="icon"
       onClick={onToggle}
       className="h-8 w-8 hover:bg-slate-100 transition-colors"
-      title={isFocusMode ? "Exit Focus Mode" : "Enter Focus Mode"}
+      title={areMinimized ? "Restore Panels" : "Minimize Panels"}
     >
-      {isFocusMode ? (
-        <Minimize2 className="h-4 w-4 text-slate-600" />
-      ) : (
+      {areMinimized ? (
         <Maximize2 className="h-4 w-4 text-slate-600" />
+      ) : (
+        <Minimize2 className="h-4 w-4 text-slate-600" />
       )}
     </Button>
   );

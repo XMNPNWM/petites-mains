@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
@@ -33,7 +32,6 @@ const WritingSpaceLayout = ({
   const [overlayHeight, setOverlayHeight] = useState(30); // Default 30% of screen height
   const [isDragging, setIsDragging] = useState(false);
   const [worldbuildingRefreshTrigger, setWorldbuildingRefreshTrigger] = useState(0);
-  const [isFocusMode, setIsFocusMode] = useState(false);
 
   // Refs for panel size control
   const worldbuildingPanelRef = useRef<any>(null);
@@ -45,25 +43,49 @@ const WritingSpaceLayout = ({
     setWorldbuildingRefreshTrigger(prev => prev + 1);
   }, []);
 
-  // Focus mode toggle handler
+  // Get current panel sizes
+  const getCurrentPanelSizes = useCallback(() => {
+    const worldbuildingSize = worldbuildingPanelRef.current?.getSize() || 25;
+    const chapterOrganizerSize = chapterOrganizerPanelRef.current?.getSize() || 25;
+    return {
+      worldbuilding: worldbuildingSize,
+      chapterOrganizer: chapterOrganizerSize,
+      storyline: overlayHeight
+    };
+  }, [overlayHeight]);
+
+  // Check if panels are minimized (threshold-based detection)
+  const areAllPanelsMinimized = useCallback(() => {
+    const sizes = getCurrentPanelSizes();
+    const sidePanelsMinimized = sizes.worldbuilding <= 5 && sizes.chapterOrganizer <= 5;
+    const storylineMinimized = sizes.storyline <= 10;
+    return sidePanelsMinimized && storylineMinimized;
+  }, [getCurrentPanelSizes]);
+
+  // Smart focus toggle handler
   const handleFocusToggle = useCallback(() => {
-    setIsFocusMode(prev => {
-      const newFocusMode = !prev;
-      
-      if (newFocusMode) {
-        // Entering focus mode - collapse side panels and storyline
-        if (worldbuildingPanelRef.current) {
-          worldbuildingPanelRef.current.resize(3); // ~24px equivalent in percentage
-        }
-        if (chapterOrganizerPanelRef.current) {
-          chapterOrganizerPanelRef.current.resize(3); // ~24px equivalent in percentage
-        }
-        setOverlayHeight(5); // Minimize storyline to ~5%
+    const panelsMinimized = areAllPanelsMinimized();
+    
+    if (panelsMinimized) {
+      // Restore panels to default sizes
+      if (worldbuildingPanelRef.current) {
+        worldbuildingPanelRef.current.resize(25);
       }
-      
-      return newFocusMode;
-    });
-  }, []);
+      if (chapterOrganizerPanelRef.current) {
+        chapterOrganizerPanelRef.current.resize(25);
+      }
+      setOverlayHeight(30);
+    } else {
+      // Minimize all panels
+      if (worldbuildingPanelRef.current) {
+        worldbuildingPanelRef.current.resize(3);
+      }
+      if (chapterOrganizerPanelRef.current) {
+        chapterOrganizerPanelRef.current.resize(3);
+      }
+      setOverlayHeight(5);
+    }
+  }, [areAllPanelsMinimized]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Prevent text selection during drag
@@ -134,7 +156,7 @@ const WritingSpaceLayout = ({
             <TextEditorPanel 
               chapter={currentChapter}
               onContentChange={onContentChange}
-              isFocusMode={isFocusMode}
+              areMinimized={areAllPanelsMinimized()}
               onFocusToggle={handleFocusToggle}
             />
           </ResizablePanel>

@@ -17,14 +17,14 @@ interface Chapter {
 interface TextEditorPanelProps {
   chapter: Chapter | null;
   onContentChange: (content: string) => void;
-  isFocusMode?: boolean;
+  areMinimized?: boolean;
   onFocusToggle?: () => void;
 }
 
 const TextEditorPanel = ({ 
   chapter, 
   onContentChange, 
-  isFocusMode = false, 
+  areMinimized = false, 
   onFocusToggle 
 }: TextEditorPanelProps) => {
   const cleanContent = chapter?.content ? stripHtmlTags(chapter.content) : '';
@@ -57,7 +57,7 @@ const TextEditorPanel = ({
               </div>
               {onFocusToggle && (
                 <FocusModeToggle 
-                  isFocusMode={isFocusMode} 
+                  areMinimized={areMinimized} 
                   onToggle={onFocusToggle} 
                 />
               )}
