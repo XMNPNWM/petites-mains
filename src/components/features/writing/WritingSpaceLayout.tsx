@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
 import TextEditorPanel from './TextEditorPanel';
@@ -33,11 +33,36 @@ const WritingSpaceLayout = ({
   const [overlayHeight, setOverlayHeight] = useState(30); // Default 30% of screen height
   const [isDragging, setIsDragging] = useState(false);
   const [worldbuildingRefreshTrigger, setWorldbuildingRefreshTrigger] = useState(0);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+
+  // Refs for panel size control
+  const worldbuildingPanelRef = useRef<any>(null);
+  const chapterOrganizerPanelRef = useRef<any>(null);
 
   // Callback to refresh worldbuilding panel when storyline changes
   const handleStorylineDataChange = useCallback(() => {
     console.log('Storyline data changed, refreshing worldbuilding panel...');
     setWorldbuildingRefreshTrigger(prev => prev + 1);
+  }, []);
+
+  // Focus mode toggle handler
+  const handleFocusToggle = useCallback(() => {
+    setIsFocusMode(prev => {
+      const newFocusMode = !prev;
+      
+      if (newFocusMode) {
+        // Entering focus mode - collapse side panels and storyline
+        if (worldbuildingPanelRef.current) {
+          worldbuildingPanelRef.current.resize(3); // ~24px equivalent in percentage
+        }
+        if (chapterOrganizerPanelRef.current) {
+          chapterOrganizerPanelRef.current.resize(3); // ~24px equivalent in percentage
+        }
+        setOverlayHeight(5); // Minimize storyline to ~5%
+      }
+      
+      return newFocusMode;
+    });
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -58,7 +83,7 @@ const WritingSpaceLayout = ({
       const windowHeight = window.innerHeight;
       const deltaY = startY - e.clientY;
       const deltaPercent = (deltaY / windowHeight) * 100;
-      const newHeight = Math.min(75, Math.max(10, startHeight + deltaPercent));
+      const newHeight = Math.min(75, Math.max(5, startHeight + deltaPercent));
       setOverlayHeight(newHeight);
     };
 
@@ -89,7 +114,13 @@ const WritingSpaceLayout = ({
       >
         <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* Worldbuilding Panel */}
-          <ResizablePanel defaultSize={25} minSize={20} className="overflow-hidden">
+          <ResizablePanel 
+            ref={worldbuildingPanelRef}
+            defaultSize={25} 
+            minSize={3}
+            maxSize={40}
+            className="overflow-hidden"
+          >
             <WorldbuildingPanel 
               projectId={projectId} 
               refreshTrigger={worldbuildingRefreshTrigger}
@@ -103,13 +134,21 @@ const WritingSpaceLayout = ({
             <TextEditorPanel 
               chapter={currentChapter}
               onContentChange={onContentChange}
+              isFocusMode={isFocusMode}
+              onFocusToggle={handleFocusToggle}
             />
           </ResizablePanel>
           
           <ResizableHandle withHandle />
           
           {/* Chapter Organizer Panel */}
-          <ResizablePanel defaultSize={25} minSize={20} className="overflow-hidden">
+          <ResizablePanel 
+            ref={chapterOrganizerPanelRef}
+            defaultSize={25} 
+            minSize={3}
+            maxSize={40}
+            className="overflow-hidden"
+          >
             <ChapterOrganizerPanel 
               projectId={projectId}
               currentChapter={currentChapter}
@@ -129,7 +168,7 @@ const WritingSpaceLayout = ({
         <div
           className={`h-6 bg-slate-100 border-b border-slate-200 flex items-center justify-center cursor-row-resize hover:bg-slate-200 transition-colors select-none ${
             isDragging ? 'bg-slate-200' : ''
-          }`}
+          } ${overlayHeight <= 10 ? 'bg-slate-300 hover:bg-slate-400' : ''}`}
           onMouseDown={handleMouseDown}
           style={{
             userSelect: 'none',
@@ -139,9 +178,9 @@ const WritingSpaceLayout = ({
           }}
         >
           <div className="flex space-x-1 pointer-events-none">
-            <div className="w-8 h-1 bg-slate-400 rounded-full"></div>
-            <div className="w-8 h-1 bg-slate-400 rounded-full"></div>
-            <div className="w-8 h-1 bg-slate-400 rounded-full"></div>
+            <div className={`w-8 h-1 rounded-full ${overlayHeight <= 10 ? 'bg-slate-600' : 'bg-slate-400'}`}></div>
+            <div className={`w-8 h-1 rounded-full ${overlayHeight <= 10 ? 'bg-slate-600' : 'bg-slate-400'}`}></div>
+            <div className={`w-8 h-1 rounded-full ${overlayHeight <= 10 ? 'bg-slate-600' : 'bg-slate-400'}`}></div>
           </div>
         </div>
 

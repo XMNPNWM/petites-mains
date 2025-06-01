@@ -3,6 +3,7 @@ import React from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { stripHtmlTags, getWordCount } from '@/lib/contentUtils';
+import FocusModeToggle from './FocusModeToggle';
 
 interface Chapter {
   id: string;
@@ -16,9 +17,16 @@ interface Chapter {
 interface TextEditorPanelProps {
   chapter: Chapter | null;
   onContentChange: (content: string) => void;
+  isFocusMode?: boolean;
+  onFocusToggle?: () => void;
 }
 
-const TextEditorPanel = ({ chapter, onContentChange }: TextEditorPanelProps) => {
+const TextEditorPanel = ({ 
+  chapter, 
+  onContentChange, 
+  isFocusMode = false, 
+  onFocusToggle 
+}: TextEditorPanelProps) => {
   const cleanContent = chapter?.content ? stripHtmlTags(chapter.content) : '';
   const wordCount = getWordCount(cleanContent);
 
@@ -33,16 +41,26 @@ const TextEditorPanel = ({ chapter, onContentChange }: TextEditorPanelProps) => 
         <>
           {/* Chapter Header */}
           <div className="mb-4 flex-shrink-0">
-            <h2 className="text-xl font-bold text-slate-900">{chapter.title}</h2>
-            <div className="flex items-center space-x-4 text-sm text-slate-600">
-              <span>{wordCount} words</span>
-              <span className={`px-2 py-1 rounded text-xs ${
-                chapter.status === 'published' ? 'bg-green-100 text-green-700' :
-                chapter.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-gray-100 text-gray-700'
-              }`}>
-                {chapter.status}
-              </span>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">{chapter.title}</h2>
+                <div className="flex items-center space-x-4 text-sm text-slate-600">
+                  <span>{wordCount} words</span>
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    chapter.status === 'published' ? 'bg-green-100 text-green-700' :
+                    chapter.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>
+                    {chapter.status}
+                  </span>
+                </div>
+              </div>
+              {onFocusToggle && (
+                <FocusModeToggle 
+                  isFocusMode={isFocusMode} 
+                  onToggle={onFocusToggle} 
+                />
+              )}
             </div>
           </div>
 
