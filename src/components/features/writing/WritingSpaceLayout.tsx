@@ -33,12 +33,17 @@ const WritingSpaceLayout = ({
   const [overlayHeight, setOverlayHeight] = useState(30); // Default 30% of screen height
   const [isDragging, setIsDragging] = useState(false);
   const [worldbuildingRefreshTrigger, setWorldbuildingRefreshTrigger] = useState(0);
+  const [isFocusMode, setIsFocusMode] = useState(false);
 
   // Callback to refresh worldbuilding panel when storyline changes
   const handleStorylineDataChange = useCallback(() => {
     console.log('Storyline data changed, refreshing worldbuilding panel...');
     setWorldbuildingRefreshTrigger(prev => prev + 1);
   }, []);
+
+  const handleFocusModeToggle = () => {
+    setIsFocusMode(prev => !prev);
+  };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Prevent text selection during drag
@@ -77,53 +82,68 @@ const WritingSpaceLayout = ({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  // Calculate the storyline height based on focus mode
+  const storylineHeight = isFocusMode ? 6 : overlayHeight;
+
   return (
     <div className="flex-1 relative overflow-hidden">
       {/* Main Horizontal Panels - Calculate height to account for overlay */}
       <div 
         className="absolute inset-0"
         style={{ 
-          height: `calc(100% - ${overlayHeight}%)`,
+          height: `calc(100% - ${storylineHeight}px)`,
           top: 0
         }}
       >
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Worldbuilding Panel */}
-          <ResizablePanel defaultSize={25} minSize={20} className="overflow-hidden">
-            <WorldbuildingPanel 
-              projectId={projectId} 
-              refreshTrigger={worldbuildingRefreshTrigger}
-            />
-          </ResizablePanel>
+          {/* Worldbuilding Panel - Hidden in focus mode */}
+          {!isFocusMode && (
+            <>
+              <ResizablePanel defaultSize={25} minSize={20} className="overflow-hidden">
+                <WorldbuildingPanel 
+                  projectId={projectId} 
+                  refreshTrigger={worldbuildingRefreshTrigger}
+                />
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+            </>
+          )}
           
-          <ResizableHandle withHandle />
-          
-          {/* Text Editor Panel */}
-          <ResizablePanel defaultSize={50} minSize={30} className="overflow-hidden">
+          {/* Text Editor Panel - Expanded in focus mode */}
+          <ResizablePanel 
+            defaultSize={isFocusMode ? 100 : 50} 
+            minSize={30} 
+            className="overflow-hidden"
+          >
             <TextEditorPanel 
               chapter={currentChapter}
               onContentChange={onContentChange}
+              isFocusMode={isFocusMode}
+              onFocusModeToggle={handleFocusModeToggle}
             />
           </ResizablePanel>
           
-          <ResizableHandle withHandle />
-          
-          {/* Chapter Organizer Panel */}
-          <ResizablePanel defaultSize={25} minSize={20} className="overflow-hidden">
-            <ChapterOrganizerPanel 
-              projectId={projectId}
-              currentChapter={currentChapter}
-              onChapterSelect={onChapterSelect}
-              onChaptersChange={onChaptersChange}
-            />
-          </ResizablePanel>
+          {/* Chapter Organizer Panel - Hidden in focus mode */}
+          {!isFocusMode && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={25} minSize={20} className="overflow-hidden">
+                <ChapterOrganizerPanel 
+                  projectId={projectId}
+                  currentChapter={currentChapter}
+                  onChapterSelect={onChapterSelect}
+                  onChaptersChange={onChaptersChange}
+                />
+              </ResizablePanel>
+            </>
+          )}
         </ResizablePanelGroup>
       </div>
 
-      {/* Storyline Overlay Panel */}
+      {/* Storyline Overlay Panel - Always visible but minimized in focus mode */}
       <div
-        className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-10 overflow-hidden"
-        style={{ height: `${overlayHeight}%` }}
+        className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 z-10 overflow-hidden"
+        style={{ height: `${storylineHeight}px` }}
       >
         {/* Drag Handle */}
         <div
@@ -145,14 +165,16 @@ const WritingSpaceLayout = ({
           </div>
         </div>
 
-        {/* Storyline Panel Content */}
-        <div className="h-[calc(100%-24px)] overflow-hidden">
-          <StorylinePanel 
-            projectId={projectId}
-            chapterId={currentChapter?.id}
-            onDataChange={handleStorylineDataChange}
-          />
-        </div>
+        {/* Storyline Panel Content - Hidden when in focus mode and height is minimal */}
+        {storylineHeight > 6 && (
+          <div className="h-[calc(100%-24px)] overflow-hidden">
+            <StorylinePanel 
+              projectId={projectId}
+              chapterId={currentChapter?.id}
+              onDataChange={handleStorylineDataChange}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
