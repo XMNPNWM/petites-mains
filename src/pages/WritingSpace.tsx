@@ -8,13 +8,15 @@ const WritingSpace = () => {
   const {
     projectId,
     project,
+    chapters,
     currentChapter,
     isSaving,
     lastSaved,
     handleChapterSelect,
     handleSave,
     handleContentChange,
-    handleBackClick
+    handleBackClick,
+    refreshChapters
   } = useWritingSpace();
 
   if (!project) {
@@ -33,6 +35,7 @@ const WritingSpace = () => {
       <WritingSpaceHeader
         project={project}
         currentChapter={currentChapter}
+        chapters={chapters}
         isSaving={isSaving}
         lastSaved={lastSaved}
         onBackClick={handleBackClick}
@@ -43,6 +46,7 @@ const WritingSpace = () => {
         currentChapter={currentChapter}
         onChapterSelect={handleChapterSelect}
         onContentChange={handleContentChange}
+        onChaptersChange={refreshChapters}
       />
     </div>
   );

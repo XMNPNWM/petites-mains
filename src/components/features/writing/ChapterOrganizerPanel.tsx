@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit3, Trash2, GripVertical } from 'lucide-react';
+import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import ChapterStatusSelector from './ChapterStatusSelector';
 
 interface Chapter {
   id: string;
@@ -19,12 +21,15 @@ interface ChapterOrganizerPanelProps {
   projectId: string;
   currentChapter: Chapter | null;
   onChapterSelect: (chapter: Chapter) => void;
+  onChaptersChange?: () => void;
 }
 
-const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect }: ChapterOrganizerPanelProps) => {
+const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onChaptersChange }: ChapterOrganizerPanelProps) => {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState('');
+  const [isReordering, setIsReordering] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchChapters();
@@ -40,6 +45,7 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect }: C
 
       if (error) throw error;
       setChapters(data || []);
+      onChaptersChange?.();
     } catch (error) {
       console.error('Error fetching chapters:', error);
     }
@@ -60,7 +66,7 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect }: C
           word_count: 0,
           order_index: nextOrderIndex,
           project_id: projectId,
-          status: 'draft'
+          status: 'outline'
         }])
         .select()
         .single();
@@ -76,6 +82,11 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect }: C
       }
     } catch (error) {
       console.error('Error creating chapter:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create chapter. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -88,8 +99,90 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect }: C
 
       if (error) throw error;
       fetchChapters();
+      toast({
+        title: "Chapter deleted",
+        description: "Chapter has been successfully deleted.",
+      });
     } catch (error) {
       console.error('Error deleting chapter:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete chapter. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const moveChapter = async (chapterId: string, direction: 'up' | 'down') => {
+    const currentIndex = chapters.findIndex(c => c.id === chapterId);
+    if (currentIndex === -1) return;
+    
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= chapters.length) return;
+
+    setIsReordering(chapterId);
+
+    try {
+      const currentChapter = chapters[currentIndex];
+      const targetChapter = chapters[targetIndex];
+
+      // Swap order_index values
+      const { error: error1 } = await supabase
+        .from('chapters')
+        .update({ order_index: targetChapter.order_index })
+        .eq('id', currentChapter.id);
+
+      const { error: error2 } = await supabase
+        .from('chapters')
+        .update({ order_index: currentChapter.order_index })
+        .eq('id', targetChapter.id);
+
+      if (error1 || error2) throw error1 || error2;
+
+      fetchChapters();
+      toast({
+        title: "Chapter moved",
+        description: `Chapter "${currentChapter.title}" moved ${direction}.`,
+      });
+    } catch (error) {
+      console.error('Error moving chapter:', error);
+      toast({
+        title: "Error",
+        description: "Failed to move chapter. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReordering(null);
+    }
+  };
+
+  const updateChapterStatus = async (chapterId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('chapters')
+        .update({ status: newStatus })
+        .eq('id', chapterId);
+
+      if (error) throw error;
+
+      // Update local state optimistically
+      setChapters(prev => prev.map(ch => 
+        ch.id === chapterId ? { ...ch, status: newStatus } : ch
+      ));
+
+      toast({
+        title: "Status updated",
+        description: "Chapter status has been updated.",
+      });
+    } catch (error) {
+      console.error('Error updating chapter status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update chapter status. Please try again.",
+        variant: "destructive",
+      });
+      // Revert optimistic update
+      fetchChapters();
     }
   };
 
@@ -139,7 +232,7 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect }: C
 
       {/* Chapters List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {chapters.map((chapter) => (
+        {chapters.map((chapter, index) => (
           <Card 
             key={chapter.id}
             className={`cursor-pointer transition-all hover:shadow-md ${
@@ -151,39 +244,62 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect }: C
           >
             <CardContent className="p-3">
               <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-2 flex-1">
-                  <GripVertical className="w-4 h-4 text-slate-400 mt-0.5" />
-                  <div className="flex-1">
-                    <h3 className="font-medium text-slate-900 text-sm line-clamp-1">
-                      {chapter.title}
-                    </h3>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <span className="text-xs text-slate-500">
-                        {chapter.word_count} words
-                      </span>
-                      <span className={`text-xs px-2 py-0.5 rounded ${
-                        chapter.status === 'published' ? 'bg-green-100 text-green-700' :
-                        chapter.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {chapter.status}
-                      </span>
-                    </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-slate-900 text-sm line-clamp-1 mb-2">
+                    {chapter.title}
+                  </h3>
+                  
+                  <div className="flex items-center justify-between mb-2">
+                    <ChapterStatusSelector
+                      status={chapter.status}
+                      onStatusChange={(newStatus) => updateChapterStatus(chapter.id, newStatus)}
+                    />
+                    <span className="text-xs text-slate-500">
+                      {chapter.word_count} words
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center space-x-1 ml-2">
+              </div>
+              
+              {/* Action buttons */}
+              <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center space-x-1">
                   <Button 
                     size="icon" 
                     variant="ghost" 
                     className="h-6 w-6"
                     onClick={(e) => {
                       e.stopPropagation();
-                      deleteChapter(chapter.id);
+                      moveChapter(chapter.id, 'up');
                     }}
+                    disabled={index === 0 || isReordering === chapter.id}
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <ChevronUp className="w-3 h-3" />
+                  </Button>
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="h-6 w-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveChapter(chapter.id, 'down');
+                    }}
+                    disabled={index === chapters.length - 1 || isReordering === chapter.id}
+                  >
+                    <ChevronDown className="w-3 h-3" />
                   </Button>
                 </div>
+                <Button 
+                  size="icon" 
+                  variant="ghost" 
+                  className="h-6 w-6"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteChapter(chapter.id);
+                  }}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
               </div>
             </CardContent>
           </Card>

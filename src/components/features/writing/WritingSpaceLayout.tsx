@@ -20,13 +20,15 @@ interface WritingSpaceLayoutProps {
   currentChapter: Chapter | null;
   onChapterSelect: (chapter: Chapter) => void;
   onContentChange: (content: string) => void;
+  onChaptersChange?: () => void;
 }
 
 const WritingSpaceLayout = ({ 
   projectId, 
   currentChapter, 
   onChapterSelect, 
-  onContentChange 
+  onContentChange,
+  onChaptersChange
 }: WritingSpaceLayoutProps) => {
   const [overlayHeight, setOverlayHeight] = useState(30); // Default 30% of screen height
   const [isDragging, setIsDragging] = useState(false);
@@ -112,6 +114,7 @@ const WritingSpaceLayout = ({
               projectId={projectId}
               currentChapter={currentChapter}
               onChapterSelect={onChapterSelect}
+              onChaptersChange={onChaptersChange}
             />
           </ResizablePanel>
         </ResizablePanelGroup>

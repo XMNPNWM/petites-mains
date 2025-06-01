@@ -1,7 +1,8 @@
 
 import React from 'react';
-import { ArrowLeft, Save, Download, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import ExportDialog from './ExportDialog';
 
 interface Project {
   id: string;
@@ -20,6 +21,7 @@ interface Chapter {
 interface WritingSpaceHeaderProps {
   project: Project;
   currentChapter: Chapter | null;
+  chapters: Chapter[];
   isSaving: boolean;
   lastSaved: Date | null;
   onBackClick: () => void;
@@ -42,7 +44,8 @@ const formatLastSaved = (date: Date) => {
 
 const WritingSpaceHeader = ({ 
   project, 
-  currentChapter, 
+  currentChapter,
+  chapters,
   isSaving, 
   lastSaved, 
   onBackClick, 
@@ -74,10 +77,11 @@ const WritingSpaceHeader = ({
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
+          <ExportDialog 
+            project={project} 
+            chapters={chapters}
+            currentChapter={currentChapter}
+          />
           <Button 
             onClick={onSave} 
             size="sm" 
