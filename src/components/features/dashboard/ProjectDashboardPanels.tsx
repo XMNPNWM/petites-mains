@@ -1,8 +1,12 @@
-
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import ReadOnlyStorylineViewer from './ReadOnlyStorylineViewer';
 import UnifiedWorldbuildingPanel from './UnifiedWorldbuildingPanel';
+import WritingTrendsChart from '../analytics/WritingTrendsChart';
+import WritingHeatmap from '../analytics/WritingHeatmap';
+import ContentBreakdownChart from '../analytics/ContentBreakdownChart';
+import ProjectInsights from '../analytics/ProjectInsights';
+import { useProjectAnalytics } from '@/hooks/useProjectAnalytics';
 
 interface Chapter {
   id: string;
@@ -10,6 +14,8 @@ interface Chapter {
   word_count: number;
   status: string;
   order_index: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface ProjectDashboardPanelsProps {
@@ -29,6 +35,15 @@ const ProjectDashboardPanels = ({
   totalCharacters,
   onChapterClick
 }: ProjectDashboardPanelsProps) => {
+  // Add default timestamps for chapters that don't have them (for backward compatibility)
+  const chaptersWithTimestamps = chapters.map(chapter => ({
+    ...chapter,
+    created_at: chapter.created_at || new Date().toISOString(),
+    updated_at: chapter.updated_at || new Date().toISOString()
+  }));
+
+  const analytics = useProjectAnalytics(chaptersWithTimestamps, totalWorldElements, totalCharacters);
+
   const renderStorylinePanel = () => (
     <div className="h-full">
       <ReadOnlyStorylineViewer 
@@ -79,40 +94,48 @@ const ProjectDashboardPanels = ({
   );
 
   const renderAnalyticsPanel = () => {
-    // Calculate real analytics from actual project data
     const totalWords = chapters.reduce((sum, chapter) => sum + (chapter.word_count || 0), 0);
-    const publishedChapters = chapters.filter(c => c.status === 'published').length;
-    const draftChapters = chapters.filter(c => c.status === 'draft').length;
-    const totalElements = totalWorldElements + totalCharacters;
     
     return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-slate-900">Analytics</h3>
-        <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-slate-900">Project Analytics</h3>
+          <div className="text-sm text-slate-500">
+            Celebrating your creative journey
+          </div>
+        </div>
+
+        {/* Overview metrics - keep existing simple cards for key stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="p-4 text-center">
             <div className="text-2xl font-bold text-purple-600">{totalWords.toLocaleString()}</div>
             <div className="text-sm text-slate-600">Total Words</div>
           </Card>
           <Card className="p-4 text-center">
             <div className="text-2xl font-bold text-blue-600">{chapters.length}</div>
-            <div className="text-sm text-slate-600">Total Chapters</div>
+            <div className="text-sm text-slate-600">Chapters</div>
           </Card>
           <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{publishedChapters}</div>
+            <div className="text-2xl font-bold text-green-600">{analytics.writingPatterns.publishedChapters}</div>
             <div className="text-sm text-slate-600">Published</div>
           </Card>
           <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-amber-600">{totalElements}</div>
+            <div className="text-2xl font-bold text-amber-600">{totalWorldElements + totalCharacters}</div>
             <div className="text-sm text-slate-600">World Elements</div>
           </Card>
-          <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-slate-600">{draftChapters}</div>
-            <div className="text-sm text-slate-600">Drafts</div>
-          </Card>
-          <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-indigo-600">{Math.round(totalWords / Math.max(chapters.length, 1))}</div>
-            <div className="text-sm text-slate-600">Avg Words/Chapter</div>
-          </Card>
+        </div>
+
+        {/* Enhanced analytics visualizations */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <WritingTrendsChart data={analytics.velocityData} />
+          <ContentBreakdownChart data={analytics.contentBreakdown} />
+        </div>
+
+        <WritingHeatmap data={analytics.heatmapData} />
+
+        <div>
+          <h4 className="text-md font-semibold text-slate-900 mb-4">Writing Insights</h4>
+          <ProjectInsights patterns={analytics.writingPatterns} />
         </div>
       </div>
     );

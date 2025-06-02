@@ -49,10 +49,10 @@ export const useProjectDashboard = (projectId: string | undefined) => {
       if (projectError) throw projectError;
       setProject(projectData);
 
-      // Fetch chapters
+      // Fetch chapters with timestamps for analytics
       const { data: chaptersData, error: chaptersError } = await supabase
         .from('chapters')
-        .select('*')
+        .select('*, created_at, updated_at')
         .eq('project_id', projectId)
         .order('order_index');
 
