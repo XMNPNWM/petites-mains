@@ -17,86 +17,99 @@ interface ConnectionCreationState {
 interface StorylineCanvasProps {
   nodes: StorylineNodeType[];
   connections: StorylineConnection[];
-  worldbuildingElements: WorldbuildingElement[];
+  worldbuildingElements?: WorldbuildingElement[];
   zoom: number;
   pan: { x: number; y: number };
-  draggedNode: string | null;
-  selectedNode: string | null;
-  connectionLabelState: ConnectionLabelState;
-  connectionCreationState: ConnectionCreationState;
-  onNodeEdit: (node: StorylineNodeType) => void;
-  onNodeDelete: (nodeId: string) => void;
-  onNodeDrag: (nodeId: string, newPosition: { x: number; y: number }) => void;
-  onCanvasMouseDown: (e: React.MouseEvent) => void;
-  onCanvasMouseMove: (e: React.MouseEvent) => void;
-  onCanvasMouseUp: () => void;
-  onWheel: (e: React.WheelEvent) => void;
-  onCreateNode: (nodeType: string, position: { x: number; y: number }) => void;
-  onCreateFromWorldbuilding: (element: WorldbuildingElement, position: { x: number; y: number }) => void;
-  onConnectionLabelEdit: (connectionId: string, position: { x: number; y: number }) => void;
-  onConnectionLabelSave: (connectionId: string, label: string) => void;
-  onConnectionLabelDelete: (connectionId: string) => void;
-  onConnectionLabelCancel: () => void;
-  onConnectionStart: (sourceNodeId: string, sourcePosition: { x: number; y: number }) => void;
-  onConnectionPreviewUpdate: (mousePosition: { x: number; y: number }) => void;
-  onConnectionFinish: (targetNodeId: string) => void;
-  onConnectionCancel: () => void;
-  setDraggedNode: (nodeId: string | null) => void;
-  setSelectedNode: (nodeId: string | null) => void;
+  draggedNode?: string | null;
+  selectedNode?: string | null;
+  connectionLabelState?: ConnectionLabelState;
+  connectionCreationState?: ConnectionCreationState;
+  readOnly?: boolean;
+  onNodeEdit?: (node: StorylineNodeType) => void;
+  onNodeDelete?: (nodeId: string) => void;
+  onNodeDrag?: (nodeId: string, newPosition: { x: number; y: number }) => void;
+  onCanvasMouseDown?: (e: React.MouseEvent) => void;
+  onCanvasMouseMove?: (e: React.MouseEvent) => void;
+  onCanvasMouseUp?: () => void;
+  onWheel?: (e: React.WheelEvent) => void;
+  onCreateNode?: (nodeType: string, position: { x: number; y: number }) => void;
+  onCreateFromWorldbuilding?: (element: WorldbuildingElement, position: { x: number; y: number }) => void;
+  onConnectionLabelEdit?: (connectionId: string, position: { x: number; y: number }) => void;
+  onConnectionLabelSave?: (connectionId: string, label: string) => void;
+  onConnectionLabelDelete?: (connectionId: string) => void;
+  onConnectionLabelCancel?: () => void;
+  onConnectionStart?: (sourceNodeId: string, sourcePosition: { x: number; y: number }) => void;
+  onConnectionPreviewUpdate?: (mousePosition: { x: number; y: number }) => void;
+  onConnectionFinish?: (targetNodeId: string) => void;
+  onConnectionCancel?: () => void;
+  setDraggedNode?: (nodeId: string | null) => void;
+  setSelectedNode?: (nodeId: string | null) => void;
+  // Read-only specific props
+  onMouseDown?: (e: React.MouseEvent) => void;
+  onMouseMove?: (e: React.MouseEvent) => void;
+  onMouseUp?: () => void;
 }
 
 const StorylineCanvas = React.memo(({
   nodes,
   connections,
-  worldbuildingElements,
+  worldbuildingElements = [],
   zoom,
   pan,
-  draggedNode,
-  selectedNode,
-  connectionLabelState,
-  connectionCreationState,
-  onNodeEdit,
-  onNodeDelete,
-  onNodeDrag,
+  draggedNode = null,
+  selectedNode = null,
+  connectionLabelState = { isEditing: false, connectionId: null, position: null },
+  connectionCreationState = { isCreating: false, sourceNodeId: null, previewConnection: null },
+  readOnly = false,
+  onNodeEdit = () => {},
+  onNodeDelete = () => {},
+  onNodeDrag = () => {},
   onCanvasMouseDown,
   onCanvasMouseMove,
   onCanvasMouseUp,
   onWheel,
-  onCreateNode,
-  onCreateFromWorldbuilding,
-  onConnectionLabelEdit,
-  onConnectionLabelSave,
-  onConnectionLabelDelete,
-  onConnectionLabelCancel,
-  onConnectionStart,
-  onConnectionPreviewUpdate,
-  onConnectionFinish,
-  onConnectionCancel,
-  setDraggedNode,
-  setSelectedNode
+  onCreateNode = () => {},
+  onCreateFromWorldbuilding = () => {},
+  onConnectionLabelEdit = () => {},
+  onConnectionLabelSave = () => {},
+  onConnectionLabelDelete = () => {},
+  onConnectionLabelCancel = () => {},
+  onConnectionStart = () => {},
+  onConnectionPreviewUpdate = () => {},
+  onConnectionFinish = () => {},
+  onConnectionCancel = () => {},
+  setDraggedNode = () => {},
+  setSelectedNode = () => {},
+  // Read-only specific handlers
+  onMouseDown,
+  onMouseMove,
+  onMouseUp
 }: StorylineCanvasProps) => {
   const { handleMouseDown, handleMouseMove, screenToWorld } = useCanvasInteractions({
     zoom,
     pan,
     connectionCreationState,
-    onCanvasMouseDown,
-    onCanvasMouseMove,
-    onCanvasMouseUp,
+    onCanvasMouseDown: onCanvasMouseDown || onMouseDown || (() => {}),
+    onCanvasMouseMove: onCanvasMouseMove || onMouseMove || (() => {}),
+    onCanvasMouseUp: onCanvasMouseUp || onMouseUp || (() => {}),
     onConnectionPreviewUpdate,
     onConnectionCancel
   });
 
   const handleCreateNode = useCallback((nodeType: string, position: { x: number; y: number }) => {
+    if (readOnly) return;
     const worldPos = screenToWorld(position.x, position.y);
     onCreateNode(nodeType, worldPos);
-  }, [onCreateNode, screenToWorld]);
+  }, [onCreateNode, screenToWorld, readOnly]);
 
   const handleCreateFromWorldbuilding = useCallback((element: WorldbuildingElement, position: { x: number; y: number }) => {
+    if (readOnly) return;
     const worldPos = screenToWorld(position.x, position.y);
     onCreateFromWorldbuilding(element, worldPos);
-  }, [onCreateFromWorldbuilding, screenToWorld]);
+  }, [onCreateFromWorldbuilding, screenToWorld, readOnly]);
 
   const handleConnectionClick = useCallback((e: React.MouseEvent, connectionId: string) => {
+    if (readOnly) return;
     e.stopPropagation();
     
     const canvas = e.currentTarget.closest('[data-storyline-canvas]') as HTMLElement;
@@ -110,7 +123,7 @@ const StorylineCanvas = React.memo(({
     };
     
     onConnectionLabelEdit(connectionId, screenPosition);
-  }, [onConnectionLabelEdit]);
+  }, [onConnectionLabelEdit, readOnly]);
 
   const handleContextMenuTrigger = useCallback((position: { x: number; y: number }) => {
     return position;
@@ -122,8 +135,8 @@ const StorylineCanvas = React.memo(({
       pan={pan}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
-      onMouseUp={onCanvasMouseUp}
-      onWheel={onWheel}
+      onMouseUp={onCanvasMouseUp || onMouseUp || (() => {})}
+      onWheel={onWheel || (() => {})}
     >
       {/* Connections Layer - positioned absolutely */}
       <ConnectionsLayer
@@ -143,26 +156,33 @@ const StorylineCanvas = React.memo(({
         draggedNode={draggedNode}
         selectedNode={selectedNode}
         connectionSourceNodeId={connectionCreationState.sourceNodeId}
-        onNodeEdit={onNodeEdit}
-        onNodeDelete={onNodeDelete}
-        onNodeDrag={onNodeDrag}
-        onConnectionStart={onConnectionStart}
-        onConnectionFinish={onConnectionFinish}
-        setDraggedNode={setDraggedNode}
-        setSelectedNode={setSelectedNode}
+        onNodeEdit={readOnly ? () => {} : onNodeEdit}
+        onNodeDelete={readOnly ? () => {} : onNodeDelete}
+        onNodeDrag={readOnly ? () => {} : onNodeDrag}
+        onConnectionStart={readOnly ? () => {} : onConnectionStart}
+        onConnectionFinish={readOnly ? () => {} : onConnectionFinish}
+        setDraggedNode={readOnly ? () => {} : setDraggedNode}
+        setSelectedNode={readOnly ? () => {} : setSelectedNode}
       />
 
-      {/* Overlays - positioned at canvas level */}
-      <CanvasOverlays
-        connectionLabelState={connectionLabelState}
-        connectionCreationState={connectionCreationState}
-        connections={connections}
-        onConnectionLabelSave={onConnectionLabelSave}
-        onConnectionLabelDelete={onConnectionLabelDelete}
-        onConnectionLabelCancel={onConnectionLabelCancel}
-      />
+      {/* Overlays - positioned at canvas level - only show in edit mode */}
+      {!readOnly && (
+        <CanvasOverlays
+          connectionLabelState={connectionLabelState}
+          connectionCreationState={connectionCreationState}
+          connections={connections}
+          onConnectionLabelSave={onConnectionLabelSave}
+          onConnectionLabelDelete={onConnectionLabelDelete}
+          onConnectionLabelCancel={onConnectionLabelCancel}
+        />
+      )}
     </CanvasBackground>
   );
+
+  // In read-only mode, skip context menu
+  if (readOnly) {
+    return canvasContent;
+  }
 
   return (
     <StorylineContextMenu

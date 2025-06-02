@@ -3,7 +3,7 @@ import React from 'react';
 import { useReadOnlyStorylineViewer } from '@/hooks/useReadOnlyStorylineViewer';
 import EmptyStorylineState from './storyline/EmptyStorylineState';
 import StorylineViewerHeader from './storyline/StorylineViewerHeader';
-import StorylineCanvas from './storyline/StorylineCanvas';
+import StorylineCanvas from '@/components/features/writing/storyline/StorylineCanvas';
 
 interface ReadOnlyStorylineViewerProps {
   projectId: string;
@@ -42,6 +42,7 @@ const ReadOnlyStorylineViewer = ({ projectId }: ReadOnlyStorylineViewerProps) =>
         connections={connections}
         zoom={zoom}
         pan={pan}
+        readOnly={true}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
