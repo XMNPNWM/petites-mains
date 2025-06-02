@@ -17,7 +17,7 @@ const StorylineGrid = () => {
           <path d="M 200 0 L 0 0 0 200" fill="none" stroke="#cbd5e1" strokeWidth="1.5"/>
         </pattern>
       </defs>
-      <rect width="100%" height="100%" fill="url(#storyline-grid-major)" />
+      <rect width="8000" height="8000" fill="url(#storyline-grid-major)" />
     </svg>
   );
 };
