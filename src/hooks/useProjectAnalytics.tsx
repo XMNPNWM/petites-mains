@@ -17,15 +17,19 @@ interface Chapter {
   updated_at: string;
 }
 
+interface WorldbuildingElementsByType {
+  [type: string]: number;
+}
+
 export const useProjectAnalytics = (
   chapters: Chapter[], 
   totalWorldElements: number, 
-  totalCharacters: number
+  worldElementsByType: WorldbuildingElementsByType
 ) => {
   const analytics = useMemo(() => {
     const velocityData = calculateWritingVelocity(chapters, 30);
     const heatmapData = generateHeatmapData(chapters, totalWorldElements);
-    const contentBreakdown = calculateContentBreakdown(chapters, totalWorldElements, totalCharacters);
+    const contentBreakdown = calculateContentBreakdown(chapters, worldElementsByType);
     const writingPatterns = analyzeWritingPatterns(chapters);
 
     return {
@@ -34,7 +38,7 @@ export const useProjectAnalytics = (
       contentBreakdown,
       writingPatterns
     };
-  }, [chapters, totalWorldElements, totalCharacters]);
+  }, [chapters, totalWorldElements, worldElementsByType]);
 
   return analytics;
 };

@@ -15,7 +15,7 @@ const ProjectDashboard = () => {
     currentPanel,
     setCurrentPanel,
     totalWorldElements,
-    totalCharacters,
+    worldElementsByType,
     panels,
     updateProjectDescription,
     goToWritingSpace,
@@ -52,7 +52,7 @@ const ProjectDashboard = () => {
               projectId={projectId!}
               chapters={chapters}
               totalWorldElements={totalWorldElements}
-              totalCharacters={totalCharacters}
+              worldElementsByType={worldElementsByType}
               onChapterClick={goToWritingSpace}
             />
           </div>

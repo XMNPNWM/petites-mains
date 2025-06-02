@@ -11,6 +11,10 @@ interface Chapter {
   updated_at: string;
 }
 
+interface WorldbuildingElementsByType {
+  [type: string]: number;
+}
+
 export interface WritingVelocityData {
   date: string;
   words: number;
@@ -75,26 +79,39 @@ export const generateHeatmapData = (chapters: Chapter[], worldElements: number):
   });
 };
 
-export const calculateContentBreakdown = (chapters: Chapter[], worldElements: number, characters: number): ContentBreakdown[] => {
+export const calculateContentBreakdown = (chapters: Chapter[], worldElementsByType: WorldbuildingElementsByType): ContentBreakdown[] => {
   const totalWords = chapters.reduce((sum, chapter) => sum + (chapter.word_count || 0), 0);
   
-  return [
+  const result: ContentBreakdown[] = [
     {
       name: 'Written Content',
       value: totalWords,
       color: '#8B5CF6'
-    },
-    {
-      name: 'World Elements',
-      value: worldElements,
-      color: '#06B6D4'
-    },
-    {
-      name: 'Characters',
-      value: characters,
-      color: '#10B981'
     }
   ];
+
+  // Define colors for different worldbuilding element types
+  const typeColors: { [key: string]: string } = {
+    'Characters': '#10B981',
+    'Locations': '#06B6D4',
+    'Organizations': '#F59E0B',
+    'Lore': '#EF4444',
+    'Items': '#8B5CF6',
+    'Events': '#EC4899',
+    'Cultures': '#84CC16',
+    'Magic Systems': '#6366F1'
+  };
+
+  // Add worldbuilding elements by type
+  Object.entries(worldElementsByType).forEach(([type, count], index) => {
+    result.push({
+      name: type,
+      value: count,
+      color: typeColors[type] || `hsl(${(index * 45) % 360}, 70%, 50%)`
+    });
+  });
+
+  return result;
 };
 
 export const analyzeWritingPatterns = (chapters: Chapter[]) => {

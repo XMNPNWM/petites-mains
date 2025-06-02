@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,13 +19,17 @@ interface Chapter {
   order_index: number;
 }
 
+interface WorldbuildingElementsByType {
+  [type: string]: number;
+}
+
 export const useProjectDashboard = (projectId: string | undefined) => {
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [currentPanel, setCurrentPanel] = useState(0);
   const [totalWorldElements, setTotalWorldElements] = useState(0);
-  const [totalCharacters, setTotalCharacters] = useState(0);
+  const [worldElementsByType, setWorldElementsByType] = useState<WorldbuildingElementsByType>({});
 
   const panels = [
     { id: 'storyline', title: 'Storyline', icon: 'BookOpen' },
@@ -59,23 +62,22 @@ export const useProjectDashboard = (projectId: string | undefined) => {
       if (chaptersError) throw chaptersError;
       setChapters(chaptersData || []);
 
-      // Fetch worldbuilding elements count
+      // Fetch worldbuilding elements with type breakdown
       const { data: worldData, error: worldError } = await supabase
         .from('worldbuilding_elements')
-        .select('id')
+        .select('type')
         .eq('project_id', projectId);
 
       if (worldError) throw worldError;
+      
+      // Group worldbuilding elements by type
+      const elementsByType = (worldData || []).reduce((acc, element) => {
+        acc[element.type] = (acc[element.type] || 0) + 1;
+        return acc;
+      }, {} as WorldbuildingElementsByType);
+
+      setWorldElementsByType(elementsByType);
       setTotalWorldElements((worldData || []).length);
-
-      // Fetch characters count
-      const { data: charactersData, error: charactersError } = await supabase
-        .from('characters')
-        .select('id')
-        .eq('project_id', projectId);
-
-      if (charactersError) throw charactersError;
-      setTotalCharacters((charactersData || []).length);
 
     } catch (error) {
       console.error('Error fetching project data:', error);
@@ -132,7 +134,7 @@ export const useProjectDashboard = (projectId: string | undefined) => {
     currentPanel,
     setCurrentPanel,
     totalWorldElements,
-    totalCharacters,
+    worldElementsByType,
     panels,
     updateProjectDescription,
     goToWritingSpace,

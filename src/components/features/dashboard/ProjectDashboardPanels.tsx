@@ -18,12 +18,16 @@ interface Chapter {
   updated_at?: string;
 }
 
+interface WorldbuildingElementsByType {
+  [type: string]: number;
+}
+
 interface ProjectDashboardPanelsProps {
   currentPanel: number;
   projectId: string;
   chapters: Chapter[];
   totalWorldElements: number;
-  totalCharacters: number;
+  worldElementsByType: WorldbuildingElementsByType;
   onChapterClick: (chapterId: string) => void;
 }
 
@@ -32,7 +36,7 @@ const ProjectDashboardPanels = ({
   projectId,
   chapters,
   totalWorldElements,
-  totalCharacters,
+  worldElementsByType,
   onChapterClick
 }: ProjectDashboardPanelsProps) => {
   // Add default timestamps for chapters that don't have them (for backward compatibility)
@@ -42,7 +46,7 @@ const ProjectDashboardPanels = ({
     updated_at: chapter.updated_at || new Date().toISOString()
   }));
 
-  const analytics = useProjectAnalytics(chaptersWithTimestamps, totalWorldElements, totalCharacters);
+  const analytics = useProjectAnalytics(chaptersWithTimestamps, totalWorldElements, worldElementsByType);
 
   const renderStorylinePanel = () => (
     <div className="h-full">
@@ -105,7 +109,7 @@ const ProjectDashboardPanels = ({
           </div>
         </div>
 
-        {/* Overview metrics - keep existing simple cards for key stats */}
+        {/* Overview metrics - removed characters count */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="p-4 text-center">
             <div className="text-2xl font-bold text-purple-600">{totalWords.toLocaleString()}</div>
@@ -120,7 +124,7 @@ const ProjectDashboardPanels = ({
             <div className="text-sm text-slate-600">Published</div>
           </Card>
           <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-amber-600">{totalWorldElements + totalCharacters}</div>
+            <div className="text-2xl font-bold text-amber-600">{totalWorldElements}</div>
             <div className="text-sm text-slate-600">World Elements</div>
           </Card>
         </div>
