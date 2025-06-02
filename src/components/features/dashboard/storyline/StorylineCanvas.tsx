@@ -60,7 +60,7 @@ const StorylineCanvas = ({
         
         <svg 
           className="absolute inset-0 w-full h-full pointer-events-none" 
-          style={{ minWidth: '4000px', minHeight: '4000px' }}
+          style={{ minWidth: '8000px', minHeight: '8000px' }}
         >
           <StorylineConnections connections={connections} nodes={nodes} />
         </svg>

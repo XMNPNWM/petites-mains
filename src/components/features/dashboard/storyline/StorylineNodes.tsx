@@ -18,7 +18,15 @@ interface StorylineNodesProps {
 
 const StorylineNodes = ({ nodes }: StorylineNodesProps) => {
   return (
-    <>
+    <div 
+      className="absolute pointer-events-none"
+      style={{ 
+        width: '8000px', 
+        height: '8000px',
+        minWidth: '8000px', 
+        minHeight: '8000px' 
+      }}
+    >
       {nodes.map((node) => {
         const nodeTypeColor = getNodeTypeColor(node.node_type);
         const displayName = getNodeTypeDisplayName(node.node_type);
@@ -64,7 +72,7 @@ const StorylineNodes = ({ nodes }: StorylineNodesProps) => {
           </div>
         );
       })}
-    </>
+    </div>
   );
 };
 
