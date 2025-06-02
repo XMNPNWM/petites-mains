@@ -51,14 +51,14 @@ const ContentBreakdownChart = ({ data }: ContentBreakdownChartProps) => {
         <h3 className="text-lg font-semibold text-slate-900">Project Composition</h3>
         <p className="text-sm text-slate-600">Breakdown of your creative work</p>
       </div>
-      <ChartContainer config={chartConfig} className="h-[250px]">
+      <ChartContainer config={chartConfig} className="h-[320px]">
         <PieChart>
           <Pie
             data={data}
             cx="50%"
-            cy="50%"
-            innerRadius={40}
-            outerRadius={80}
+            cy="45%"
+            innerRadius={50}
+            outerRadius={90}
             paddingAngle={5}
             dataKey="value"
           >

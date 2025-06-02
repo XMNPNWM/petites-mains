@@ -1,5 +1,5 @@
 
-import { format, subDays, eachDayOfInterval, parseISO } from 'date-fns';
+import { format, subDays, eachDayOfInterval, parseISO, isSameDay } from 'date-fns';
 
 interface Chapter {
   id: string;
@@ -40,17 +40,35 @@ export const calculateWritingVelocity = (chapters: Chapter[], days: number = 30)
   
   return dateInterval.map(date => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    const dayChapters = chapters.filter(chapter => {
+    
+    // Count new chapters created on this day
+    const newChapters = chapters.filter(chapter => {
       const chapterDate = format(parseISO(chapter.created_at), 'yyyy-MM-dd');
       return chapterDate === dateStr;
     });
     
-    const wordsWritten = dayChapters.reduce((sum, chapter) => sum + (chapter.word_count || 0), 0);
+    // Count chapters updated on this day (but not created)
+    const updatedChapters = chapters.filter(chapter => {
+      const updateDate = format(parseISO(chapter.updated_at), 'yyyy-MM-dd');
+      const createDate = format(parseISO(chapter.created_at), 'yyyy-MM-dd');
+      return updateDate === dateStr && createDate !== dateStr;
+    });
+    
+    // Calculate words from new chapters
+    const wordsFromNewChapters = newChapters.reduce((sum, chapter) => sum + (chapter.word_count || 0), 0);
+    
+    // For updated chapters, estimate word changes (simplified approach)
+    // In a real implementation, you'd track word count deltas over time
+    const wordsFromUpdates = updatedChapters.reduce((sum, chapter) => {
+      // Estimate that updates add approximately 10% of current word count per update
+      // This is a simplified approach since we don't have historical word count data
+      return sum + Math.floor((chapter.word_count || 0) * 0.1);
+    }, 0);
     
     return {
       date: dateStr,
-      words: wordsWritten,
-      chapters: dayChapters.length
+      words: wordsFromNewChapters + wordsFromUpdates,
+      chapters: newChapters.length
     };
   });
 };
