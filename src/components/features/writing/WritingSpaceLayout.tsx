@@ -1,9 +1,12 @@
+
 import React, { useState, useCallback, useRef } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
 import TextEditorPanel from './TextEditorPanel';
 import ChapterOrganizerPanel from './ChapterOrganizerPanel';
 import StorylinePanel from './StorylinePanel';
+import WritingContextMenu from './WritingContextMenu';
+import { PopupChatProvider, usePopupChats } from './PopupChatManager';
 
 interface Chapter {
   id: string;
@@ -22,28 +25,26 @@ interface WritingSpaceLayoutProps {
   onChaptersChange?: () => void;
 }
 
-const WritingSpaceLayout = ({ 
+const WritingSpaceLayoutContent = ({ 
   projectId, 
   currentChapter, 
   onChapterSelect, 
   onContentChange,
   onChaptersChange
 }: WritingSpaceLayoutProps) => {
-  const [overlayHeight, setOverlayHeight] = useState(30); // Default 30% of screen height
+  const [overlayHeight, setOverlayHeight] = useState(30);
   const [isDragging, setIsDragging] = useState(false);
   const [worldbuildingRefreshTrigger, setWorldbuildingRefreshTrigger] = useState(0);
+  const { openChat } = usePopupChats();
 
-  // Refs for panel size control
   const worldbuildingPanelRef = useRef<any>(null);
   const chapterOrganizerPanelRef = useRef<any>(null);
 
-  // Callback to refresh worldbuilding panel when storyline changes
   const handleStorylineDataChange = useCallback(() => {
     console.log('Storyline data changed, refreshing worldbuilding panel...');
     setWorldbuildingRefreshTrigger(prev => prev + 1);
   }, []);
 
-  // Get current panel sizes
   const getCurrentPanelSizes = useCallback(() => {
     const worldbuildingSize = worldbuildingPanelRef.current?.getSize() || 25;
     const chapterOrganizerSize = chapterOrganizerPanelRef.current?.getSize() || 25;
@@ -54,7 +55,6 @@ const WritingSpaceLayout = ({
     };
   }, [overlayHeight]);
 
-  // Check if panels are minimized (threshold-based detection)
   const areAllPanelsMinimized = useCallback(() => {
     const sizes = getCurrentPanelSizes();
     const sidePanelsMinimized = sizes.worldbuilding <= 5 && sizes.chapterOrganizer <= 5;
@@ -62,12 +62,10 @@ const WritingSpaceLayout = ({
     return sidePanelsMinimized && storylineMinimized;
   }, [getCurrentPanelSizes]);
 
-  // Smart focus toggle handler
   const handleFocusToggle = useCallback(() => {
     const panelsMinimized = areAllPanelsMinimized();
     
     if (panelsMinimized) {
-      // Restore panels to default sizes
       if (worldbuildingPanelRef.current) {
         worldbuildingPanelRef.current.resize(25);
       }
@@ -76,7 +74,6 @@ const WritingSpaceLayout = ({
       }
       setOverlayHeight(30);
     } else {
-      // Minimize all panels
       if (worldbuildingPanelRef.current) {
         worldbuildingPanelRef.current.resize(3);
       }
@@ -88,7 +85,6 @@ const WritingSpaceLayout = ({
   }, [areAllPanelsMinimized]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Prevent text selection during drag
     e.preventDefault();
     e.stopPropagation();
     
@@ -96,7 +92,6 @@ const WritingSpaceLayout = ({
     const startY = e.clientY;
     const startHeight = overlayHeight;
 
-    // Add no-select class to body to prevent text selection everywhere
     document.body.style.userSelect = 'none';
     document.body.style.webkitUserSelect = 'none';
 
@@ -111,11 +106,8 @@ const WritingSpaceLayout = ({
 
     const handleMouseUp = () => {
       setIsDragging(false);
-      
-      // Restore text selection
       document.body.style.userSelect = '';
       document.body.style.webkitUserSelect = '';
-      
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
@@ -124,9 +116,25 @@ const WritingSpaceLayout = ({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  // Context menu handlers
+  const handleComment = (position: { x: number; y: number }) => {
+    openChat('comment', position, projectId, currentChapter?.id);
+  };
+
+  const handleCoherence = (position: { x: number; y: number }) => {
+    openChat('coherence', position, projectId, currentChapter?.id);
+  };
+
+  const handleNextSteps = (position: { x: number; y: number }) => {
+    openChat('next-steps', position, projectId, currentChapter?.id);
+  };
+
+  const handleChat = (position: { x: number; y: number }) => {
+    openChat('chat', position, projectId, currentChapter?.id);
+  };
+
   return (
     <div className="flex-1 relative overflow-hidden">
-      {/* Main Horizontal Panels - Calculate height to account for overlay */}
       <div 
         className="absolute inset-0"
         style={{ 
@@ -135,7 +143,6 @@ const WritingSpaceLayout = ({
         }}
       >
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Worldbuilding Panel */}
           <ResizablePanel 
             ref={worldbuildingPanelRef}
             defaultSize={25} 
@@ -143,27 +150,39 @@ const WritingSpaceLayout = ({
             maxSize={40}
             className="overflow-hidden"
           >
-            <WorldbuildingPanel 
-              projectId={projectId} 
-              refreshTrigger={worldbuildingRefreshTrigger}
-            />
+            <WritingContextMenu
+              onComment={handleComment}
+              onCoherence={handleCoherence}
+              onNextSteps={handleNextSteps}
+              onChat={handleChat}
+            >
+              <WorldbuildingPanel 
+                projectId={projectId} 
+                refreshTrigger={worldbuildingRefreshTrigger}
+              />
+            </WritingContextMenu>
           </ResizablePanel>
           
           <ResizableHandle withHandle />
           
-          {/* Text Editor Panel */}
           <ResizablePanel defaultSize={50} minSize={30} className="overflow-hidden">
-            <TextEditorPanel 
-              chapter={currentChapter}
-              onContentChange={onContentChange}
-              areMinimized={areAllPanelsMinimized()}
-              onFocusToggle={handleFocusToggle}
-            />
+            <WritingContextMenu
+              onComment={handleComment}
+              onCoherence={handleCoherence}
+              onNextSteps={handleNextSteps}
+              onChat={handleChat}
+            >
+              <TextEditorPanel 
+                chapter={currentChapter}
+                onContentChange={onContentChange}
+                areMinimized={areAllPanelsMinimized()}
+                onFocusToggle={handleFocusToggle}
+              />
+            </WritingContextMenu>
           </ResizablePanel>
           
           <ResizableHandle withHandle />
           
-          {/* Chapter Organizer Panel */}
           <ResizablePanel 
             ref={chapterOrganizerPanelRef}
             defaultSize={25} 
@@ -171,22 +190,27 @@ const WritingSpaceLayout = ({
             maxSize={40}
             className="overflow-hidden"
           >
-            <ChapterOrganizerPanel 
-              projectId={projectId}
-              currentChapter={currentChapter}
-              onChapterSelect={onChapterSelect}
-              onChaptersChange={onChaptersChange}
-            />
+            <WritingContextMenu
+              onComment={handleComment}
+              onCoherence={handleCoherence}
+              onNextSteps={handleNextSteps}
+              onChat={handleChat}
+            >
+              <ChapterOrganizerPanel 
+                projectId={projectId}
+                currentChapter={currentChapter}
+                onChapterSelect={onChapterSelect}
+                onChaptersChange={onChaptersChange}
+              />
+            </WritingContextMenu>
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
 
-      {/* Storyline Overlay Panel */}
       <div
-        className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-10 overflow-hidden"
+        className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-50 overflow-hidden"
         style={{ height: `${overlayHeight}%` }}
       >
-        {/* Drag Handle */}
         <div
           className={`h-6 bg-slate-100 border-b border-slate-200 flex items-center justify-center cursor-row-resize hover:bg-slate-200 transition-colors select-none ${
             isDragging ? 'bg-slate-200' : ''
@@ -206,7 +230,6 @@ const WritingSpaceLayout = ({
           </div>
         </div>
 
-        {/* Storyline Panel Content */}
         <div className="h-[calc(100%-24px)] overflow-hidden">
           <StorylinePanel 
             projectId={projectId}
@@ -216,6 +239,14 @@ const WritingSpaceLayout = ({
         </div>
       </div>
     </div>
+  );
+};
+
+const WritingSpaceLayout = (props: WritingSpaceLayoutProps) => {
+  return (
+    <PopupChatProvider>
+      <WritingSpaceLayoutContent {...props} />
+    </PopupChatProvider>
   );
 };
 

@@ -3,6 +3,7 @@ import React from 'react';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ExportDialog from './ExportDialog';
+import ChronologicalTimeline from './ChronologicalTimeline';
 
 interface Project {
   id: string;
@@ -52,7 +53,7 @@ const WritingSpaceHeader = ({
   onSave 
 }: WritingSpaceHeaderProps) => {
   return (
-    <div className="bg-white border-b border-slate-200 px-6 py-4">
+    <div className="bg-white border-b border-slate-200 px-6 py-4 relative">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button variant="ghost" onClick={onBackClick}>
@@ -76,6 +77,10 @@ const WritingSpaceHeader = ({
             </div>
           </div>
         </div>
+        
+        {/* Chronological Timeline in the center */}
+        <ChronologicalTimeline projectId={project.id} />
+        
         <div className="flex items-center space-x-2">
           <ExportDialog 
             project={project} 
