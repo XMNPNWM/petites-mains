@@ -27,7 +27,7 @@ const WritingContextMenu = ({
   const [contextPosition, setContextPosition] = React.useState({ x: 0, y: 0 });
 
   const handleContextMenu = (event: React.MouseEvent) => {
-    event.preventDefault();
+    // Don't prevent default here - let the ContextMenu handle it
     setContextPosition({ x: event.clientX, y: event.clientY });
   };
 
@@ -35,28 +35,20 @@ const WritingContextMenu = ({
     return (window as any).selectedTextContext || null;
   };
 
-  const handleCommentClick = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleCommentClick = () => {
     const selectedText = getSelectedTextContext();
     onComment(contextPosition, selectedText);
   };
 
-  const handleCoherenceClick = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleCoherenceClick = () => {
     onCoherence(contextPosition);
   };
 
-  const handleNextStepsClick = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleNextStepsClick = () => {
     onNextSteps(contextPosition);
   };
 
-  const handleChatClick = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleChatClick = () => {
     onChat(contextPosition);
   };
 
@@ -64,14 +56,19 @@ const WritingContextMenu = ({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger onContextMenu={handleContextMenu}>
-        {children}
+      <ContextMenuTrigger 
+        className="h-full w-full"
+        onContextMenu={handleContextMenu}
+        asChild
+      >
+        <div className="h-full w-full">
+          {children}
+        </div>
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56 bg-white border border-slate-200 shadow-lg z-50">
+      <ContextMenuContent className="w-56 bg-white border border-slate-200 shadow-lg z-[9999]">
         <ContextMenuItem 
           onClick={handleCommentClick}
           className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer"
-          onSelect={(event) => event.preventDefault()}
         >
           <MessageSquare className="w-4 h-4 text-blue-600" />
           <div className="flex flex-col">
@@ -86,7 +83,6 @@ const WritingContextMenu = ({
         <ContextMenuItem 
           onClick={handleCoherenceClick}
           className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer"
-          onSelect={(event) => event.preventDefault()}
         >
           <Brain className="w-4 h-4 text-purple-600" />
           <span>AI/Coherence</span>
@@ -94,7 +90,6 @@ const WritingContextMenu = ({
         <ContextMenuItem 
           onClick={handleNextStepsClick}
           className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer"
-          onSelect={(event) => event.preventDefault()}
         >
           <ArrowRight className="w-4 h-4 text-green-600" />
           <span>AI/Next Steps</span>
@@ -102,7 +97,6 @@ const WritingContextMenu = ({
         <ContextMenuItem 
           onClick={handleChatClick}
           className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer"
-          onSelect={(event) => event.preventDefault()}
         >
           <MessageCircle className="w-4 h-4 text-orange-600" />
           <span>Chat</span>

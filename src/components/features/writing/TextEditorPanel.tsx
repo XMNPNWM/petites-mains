@@ -67,6 +67,13 @@ const TextEditorPanel = ({
     }
   }, [selectedText]);
 
+  // Handle context menu on textarea - allow it to bubble up
+  const handleTextareaContextMenu = (e: React.MouseEvent) => {
+    // Don't prevent default here - let it bubble up to WritingContextMenu
+    // Just ensure we capture the current selection
+    handleTextSelection();
+  };
+
   return (
     <div className="h-full bg-slate-50 p-6 flex flex-col overflow-hidden">
       {chapter ? (
@@ -110,6 +117,7 @@ const TextEditorPanel = ({
                 onChange={(e) => handleContentChange(e.target.value)}
                 onSelect={handleTextSelection}
                 onMouseUp={handleTextSelection}
+                onContextMenu={handleTextareaContextMenu}
                 placeholder="Start writing your story..."
                 className="flex-1 resize-none border-none focus-visible:ring-0 text-base leading-relaxed overflow-y-auto"
               />

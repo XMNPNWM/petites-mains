@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -186,6 +185,21 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
     }
   };
 
+  // Handle button clicks to prevent context menu propagation when needed
+  const handleButtonClick = (e: React.MouseEvent, action: () => void) => {
+    e.stopPropagation();
+    action();
+  };
+
+  // Handle card clicks for chapter selection
+  const handleChapterCardClick = (e: React.MouseEvent, chapter: Chapter) => {
+    // Allow context menu on non-interactive areas, but handle chapter selection on click
+    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('select')) {
+      return; // Don't select chapter if clicking on buttons or selects
+    }
+    onChapterSelect(chapter);
+  };
+
   return (
     <div className="h-full bg-white border-l border-slate-200 flex flex-col">
       {/* Header */}
@@ -194,7 +208,7 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
           <h2 className="font-semibold text-slate-900">Chapters</h2>
           <Button 
             size="sm" 
-            onClick={() => setShowForm(true)}
+            onClick={(e) => handleButtonClick(e, () => setShowForm(true))}
             className="bg-gradient-to-r from-purple-600 to-blue-600"
           >
             <Plus className="w-4 h-4" />
@@ -240,7 +254,7 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
                 ? 'ring-2 ring-purple-500 bg-purple-50' 
                 : ''
             }`}
-            onClick={() => onChapterSelect(chapter)}
+            onClick={(e) => handleChapterCardClick(e, chapter)}
           >
             <CardContent className="p-3">
               <div className="flex items-start justify-between">
@@ -268,10 +282,7 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
                     size="icon" 
                     variant="ghost" 
                     className="h-6 w-6"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveChapter(chapter.id, 'up');
-                    }}
+                    onClick={(e) => handleButtonClick(e, () => moveChapter(chapter.id, 'up'))}
                     disabled={index === 0 || isReordering === chapter.id}
                   >
                     <ChevronUp className="w-3 h-3" />
@@ -280,10 +291,7 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
                     size="icon" 
                     variant="ghost" 
                     className="h-6 w-6"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveChapter(chapter.id, 'down');
-                    }}
+                    onClick={(e) => handleButtonClick(e, () => moveChapter(chapter.id, 'down'))}
                     disabled={index === chapters.length - 1 || isReordering === chapter.id}
                   >
                     <ChevronDown className="w-3 h-3" />
@@ -293,10 +301,7 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
                   size="icon" 
                   variant="ghost" 
                   className="h-6 w-6"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteChapter(chapter.id);
-                  }}
+                  onClick={(e) => handleButtonClick(e, () => deleteChapter(chapter.id))}
                 >
                   <Trash2 className="w-3 h-3" />
                 </Button>

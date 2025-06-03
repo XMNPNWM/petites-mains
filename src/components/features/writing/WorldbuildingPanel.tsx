@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit3, Trash2, ChevronDown, ChevronRight, Link } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -167,6 +166,12 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
     return acc;
   }, {} as Record<string, WorldElement[]>);
 
+  // Handle button clicks to prevent context menu propagation when needed
+  const handleButtonClick = (e: React.MouseEvent, action: () => void) => {
+    e.stopPropagation();
+    action();
+  };
+
   return (
     <div className="h-full bg-white border-r border-slate-200 flex flex-col">
       {/* Header */}
@@ -175,7 +180,7 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
           <h2 className="font-semibold text-slate-900">Worldbuilding</h2>
           <Button 
             size="sm" 
-            onClick={() => setShowForm(true)}
+            onClick={(e) => handleButtonClick(e, () => setShowForm(true))}
             className="bg-gradient-to-r from-purple-600 to-blue-600"
           >
             <Plus className="w-4 h-4" />
@@ -249,7 +254,7 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
                                 size="icon" 
                                 variant="ghost" 
                                 className="h-6 w-6"
-                                onClick={() => handleEdit(element)}
+                                onClick={(e) => handleButtonClick(e, () => handleEdit(element))}
                                 title={element.storyline_node_id ? 'Edit from storyline map' : 'Edit element'}
                               >
                                 <Edit3 className="w-3 h-3" />
@@ -258,7 +263,7 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
                                 size="icon" 
                                 variant="ghost" 
                                 className="h-6 w-6"
-                                onClick={() => handleDelete(element.id)}
+                                onClick={(e) => handleButtonClick(e, () => handleDelete(element.id))}
                                 disabled={!!element.storyline_node_id}
                                 title={element.storyline_node_id ? 'Delete from storyline map' : 'Delete element'}
                               >
