@@ -132,6 +132,48 @@ export type Database = {
           },
         ]
       }
+      chat_sessions: {
+        Row: {
+          chapter_id: string | null
+          chat_type: string
+          created_at: string
+          id: string
+          is_minimized: boolean
+          messages: Json
+          position: Json
+          project_id: string
+          selected_text: string | null
+          text_position: number | null
+          updated_at: string
+        }
+        Insert: {
+          chapter_id?: string | null
+          chat_type: string
+          created_at?: string
+          id?: string
+          is_minimized?: boolean
+          messages?: Json
+          position: Json
+          project_id: string
+          selected_text?: string | null
+          text_position?: number | null
+          updated_at?: string
+        }
+        Update: {
+          chapter_id?: string | null
+          chat_type?: string
+          created_at?: string
+          id?: string
+          is_minimized?: boolean
+          messages?: Json
+          position?: Json
+          project_id?: string
+          selected_text?: string | null
+          text_position?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

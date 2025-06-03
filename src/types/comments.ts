@@ -1,12 +1,16 @@
 
-export interface TextComment {
+export interface ChatSession {
   id: string;
   project_id: string;
   chapter_id?: string;
-  selected_text: string;
-  comment_text: string;
+  chat_type: 'comment' | 'coherence' | 'next-steps' | 'chat';
+  position: { x: number; y: number };
+  messages: Array<{ role: 'user' | 'assistant'; content: string; timestamp: string }>;
+  selected_text?: string;
   text_position?: number;
-  created_at: Date;
+  is_minimized: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CommentPosition {

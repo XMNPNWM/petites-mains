@@ -4,8 +4,8 @@ import { X, Minus, MessageSquare, Brain, ArrowRight, MessageCircle, Send } from 
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/integrations/supabase/client';
 import { SelectedTextContext } from '@/types/comments';
+import { usePopupChats } from './PopupChatManager';
 
 export type ChatType = 'comment' | 'coherence' | 'next-steps' | 'chat';
 
@@ -19,6 +19,7 @@ interface PopupChatProps {
   projectId: string;
   chapterId?: string;
   selectedText?: SelectedTextContext;
+  initialMessages?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date }>;
 }
 
 const getChatIcon = (type: ChatType) => {
@@ -48,29 +49,26 @@ const PopupChat = ({
   isMinimized,
   projectId,
   chapterId,
-  selectedText
+  selectedText,
+  initialMessages = []
 }: PopupChatProps) => {
   const [position, setPosition] = useState(initialPosition);
   const [size, setSize] = useState({ width: 400, height: 500 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date }>>([]);
+  const [messages, setMessages] = useState(initialMessages);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
   const resizeRef = useRef({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 });
+  const { saveChatMessage } = usePopupChats();
 
-  // Initialize comment with selected text context
+  // Initialize messages from props
   useEffect(() => {
-    if (type === 'comment' && selectedText && messages.length === 0) {
-      const initialMessage = {
-        role: 'assistant' as const,
-        content: `You're commenting on: "${selectedText.text}"\n\nWhat would you like to note about this text?`,
-        timestamp: new Date()
-      };
-      setMessages([initialMessage]);
+    if (initialMessages.length > 0) {
+      setMessages(initialMessages);
     }
-  }, [type, selectedText, messages.length]);
+  }, [initialMessages]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isMinimized) return;
@@ -139,36 +137,10 @@ const PopupChat = ({
     };
   }, [isDragging, isResizing, size]);
 
-  const saveTextComment = async (commentText: string) => {
-    if (type !== 'comment' || !selectedText || !chapterId) return;
-
-    setIsSaving(true);
-    try {
-      const { error } = await supabase
-        .from('text_comments')
-        .insert({
-          project_id: projectId,
-          chapter_id: chapterId,
-          selected_text: selectedText.text,
-          comment_text: commentText,
-          text_position: selectedText.startOffset,
-          created_at: new Date().toISOString()
-        });
-
-      if (error) {
-        console.error('Error saving comment:', error);
-      } else {
-        console.log('Text comment saved successfully');
-      }
-    } catch (error) {
-      console.error('Error saving comment:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleSendMessage = async () => {
     if (!currentMessage.trim()) return;
+    
+    setIsSaving(true);
     
     const userMessage = {
       role: 'user' as const,
@@ -177,25 +149,24 @@ const PopupChat = ({
     };
     
     setMessages(prev => [...prev, userMessage]);
-    
-    // Save text comment if this is a comment type
-    if (type === 'comment' && selectedText) {
-      await saveTextComment(currentMessage);
-    }
+    await saveChatMessage(id, userMessage);
     
     setCurrentMessage('');
     
     // Simulate AI response for non-comment types
     if (type !== 'comment') {
-      setTimeout(() => {
+      setTimeout(async () => {
         const aiResponse = {
           role: 'assistant' as const,
           content: `I understand you're asking about: "${currentMessage}". This is a placeholder response for ${getChatTitle(type)}.`,
           timestamp: new Date()
         };
         setMessages(prev => [...prev, aiResponse]);
+        await saveChatMessage(id, aiResponse);
       }, 1000);
     }
+    
+    setIsSaving(false);
   };
 
   if (isMinimized) {

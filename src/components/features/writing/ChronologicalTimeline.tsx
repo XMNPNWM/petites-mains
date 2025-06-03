@@ -1,31 +1,57 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { usePopupChats } from './PopupChatManager';
 import { format, isSameDay, startOfDay } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { ChatSession } from '@/types/comments';
 
 interface ChronologicalTimelineProps {
   projectId: string;
 }
 
 const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
-  const { chats, openChat } = usePopupChats();
+  const { openChat, loadProjectChats } = usePopupChats();
   const [isHovered, setIsHovered] = useState(false);
+  const [timelineChats, setTimelineChats] = useState<ChatSession[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Group chats by date
-  const chatsByDate = chats
-    .filter(chat => chat.projectId === projectId)
-    .reduce((groups, chat) => {
-      const dateKey = format(startOfDay(chat.createdAt), 'yyyy-MM-dd');
-      if (!groups[dateKey]) {
-        groups[dateKey] = [];
+  // Load chats from database
+  useEffect(() => {
+    const fetchTimelineChats = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('chat_sessions')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('created_at', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching timeline chats:', error);
+          return;
+        }
+
+        setTimelineChats(data || []);
+      } catch (error) {
+        console.error('Error loading timeline chats:', error);
       }
-      groups[dateKey].push(chat);
-      return groups;
-    }, {} as Record<string, typeof chats>);
+    };
+
+    fetchTimelineChats();
+    loadProjectChats(projectId);
+  }, [projectId, loadProjectChats]);
+
+  // Group chats by date
+  const chatsByDate = timelineChats.reduce((groups, chat) => {
+    const dateKey = format(startOfDay(new Date(chat.created_at)), 'yyyy-MM-dd');
+    if (!groups[dateKey]) {
+      groups[dateKey] = [];
+    }
+    groups[dateKey].push(chat);
+    return groups;
+  }, {} as Record<string, ChatSession[]>);
 
   const dates = Object.keys(chatsByDate).sort();
 
@@ -41,9 +67,15 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     }
   };
 
-  const handleChatReopen = (chat: any) => {
+  const handleChatReopen = (chat: ChatSession) => {
     const position = { x: chat.position.x + 20, y: chat.position.y + 20 };
-    openChat(chat.type, position, chat.projectId, chat.chapterId);
+    const selectedText = chat.selected_text ? {
+      text: chat.selected_text,
+      startOffset: chat.text_position || 0,
+      endOffset: (chat.text_position || 0) + chat.selected_text.length
+    } : undefined;
+    
+    openChat(chat.chat_type, position, chat.project_id, chat.chapter_id, selectedText);
   };
 
   // Always show timeline, but with different states
@@ -89,12 +121,12 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
                           key={`${chat.id}-${index}`}
                           onClick={() => handleChatReopen(chat)}
                           className={`w-2 h-2 rounded-full transition-all hover:scale-125 ${
-                            chat.type === 'comment' ? 'bg-blue-500' :
-                            chat.type === 'coherence' ? 'bg-purple-500' :
-                            chat.type === 'next-steps' ? 'bg-green-500' :
+                            chat.chat_type === 'comment' ? 'bg-blue-500' :
+                            chat.chat_type === 'coherence' ? 'bg-purple-500' :
+                            chat.chat_type === 'next-steps' ? 'bg-green-500' :
                             'bg-orange-500'
                           }`}
-                          title={`${chat.type} - ${format(chat.createdAt, 'HH:mm')}`}
+                          title={`${chat.chat_type} - ${format(new Date(chat.created_at), 'HH:mm')}`}
                         />
                       ))}
                     </div>

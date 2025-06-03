@@ -1,5 +1,4 @@
-
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
 import TextEditorPanel from './TextEditorPanel';
@@ -36,10 +35,17 @@ const WritingSpaceLayout = ({
   const [overlayHeight, setOverlayHeight] = useState(30);
   const [isDragging, setIsDragging] = useState(false);
   const [worldbuildingRefreshTrigger, setWorldbuildingRefreshTrigger] = useState(0);
-  const { openChat } = usePopupChats();
+  const { openChat, loadProjectChats } = usePopupChats();
 
   const worldbuildingPanelRef = useRef<any>(null);
   const chapterOrganizerPanelRef = useRef<any>(null);
+
+  // Load project chats when component mounts or project changes
+  useEffect(() => {
+    if (projectId) {
+      loadProjectChats(projectId);
+    }
+  }, [projectId, loadProjectChats]);
 
   const handleStorylineDataChange = useCallback(() => {
     console.log('Storyline data changed, refreshing worldbuilding panel...');
