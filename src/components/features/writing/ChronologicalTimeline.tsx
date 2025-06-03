@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { usePopupChats } from './PopupChatManager';
 import { format, isSameDay, startOfDay } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { ChatSession } from '@/types/comments';
+import { ChatSession, DbChatSession, convertDbToChatSession } from '@/types/comments';
 
 interface ChronologicalTimelineProps {
   projectId: string;
@@ -33,7 +33,9 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
           return;
         }
 
-        setTimelineChats(data || []);
+        // Convert database sessions to ChatSession format
+        const convertedChats = (data as DbChatSession[]).map(convertDbToChatSession);
+        setTimelineChats(convertedChats);
       } catch (error) {
         console.error('Error loading timeline chats:', error);
       }

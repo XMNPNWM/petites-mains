@@ -1,23 +1,11 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import PopupChat, { ChatType } from './PopupChat';
-import { SelectedTextContext, ChatSession } from '@/types/comments';
+import { SelectedTextContext, LocalChatSession, DbChatSession, convertDbToLocal, convertLocalToDb } from '@/types/comments';
 import { supabase } from '@/integrations/supabase/client';
 
-interface ChatSessionLocal {
-  id: string;
-  type: ChatType;
-  position: { x: number; y: number };
-  isMinimized: boolean;
-  createdAt: Date;
-  projectId: string;
-  chapterId?: string;
-  selectedText?: SelectedTextContext;
-  messages?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date }>;
-}
-
 interface PopupChatContextType {
-  chats: ChatSessionLocal[];
+  chats: LocalChatSession[];
   openChat: (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => void;
   closeChat: (id: string) => void;
   minimizeChat: (id: string) => void;
@@ -40,7 +28,7 @@ interface PopupChatProviderProps {
 }
 
 export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
-  const [chats, setChats] = useState<ChatSessionLocal[]>([]);
+  const [chats, setChats] = useState<LocalChatSession[]>([]);
 
   const loadProjectChats = async (projectId: string) => {
     try {
@@ -56,44 +44,16 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       }
 
       // Convert database format to local format
-      const localChats: ChatSessionLocal[] = data.map((session: ChatSession) => ({
-        id: session.id,
-        type: session.chat_type,
-        position: session.position,
-        isMinimized: session.is_minimized,
-        createdAt: new Date(session.created_at),
-        projectId: session.project_id,
-        chapterId: session.chapter_id,
-        selectedText: session.selected_text ? {
-          text: session.selected_text,
-          startOffset: session.text_position || 0,
-          endOffset: (session.text_position || 0) + session.selected_text.length
-        } : undefined,
-        messages: session.messages.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp)
-        }))
-      }));
-
+      const localChats: LocalChatSession[] = (data as DbChatSession[]).map(convertDbToLocal);
       setChats(localChats);
     } catch (error) {
       console.error('Error loading project chats:', error);
     }
   };
 
-  const saveChatToDatabase = async (chat: ChatSessionLocal) => {
+  const saveChatToDatabase = async (chat: LocalChatSession) => {
     try {
-      const dbChat = {
-        id: chat.id,
-        project_id: chat.projectId,
-        chapter_id: chat.chapterId,
-        chat_type: chat.type,
-        position: chat.position,
-        messages: chat.messages || [],
-        selected_text: chat.selectedText?.text,
-        text_position: chat.selectedText?.startOffset,
-        is_minimized: chat.isMinimized
-      };
+      const dbChat = convertLocalToDb(chat);
 
       const { error } = await supabase
         .from('chat_sessions')
@@ -108,7 +68,7 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
   };
 
   const openChat = async (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => {
-    const newChat: ChatSessionLocal = {
+    const newChat: LocalChatSession = {
       id: `${type}-${Date.now()}`,
       type,
       position,
