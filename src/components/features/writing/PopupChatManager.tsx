@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import PopupChat, { ChatType } from './PopupChat';
+import { SelectedTextContext } from '@/types/comments';
 
 interface ChatSession {
   id: string;
@@ -10,11 +11,12 @@ interface ChatSession {
   createdAt: Date;
   projectId: string;
   chapterId?: string;
+  selectedText?: SelectedTextContext;
 }
 
 interface PopupChatContextType {
   chats: ChatSession[];
-  openChat: (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string) => void;
+  openChat: (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => void;
   closeChat: (id: string) => void;
   minimizeChat: (id: string) => void;
 }
@@ -36,7 +38,7 @@ interface PopupChatProviderProps {
 export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
   const [chats, setChats] = useState<ChatSession[]>([]);
 
-  const openChat = (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string) => {
+  const openChat = (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => {
     const newChat: ChatSession = {
       id: `${type}-${Date.now()}`,
       type,
@@ -44,7 +46,8 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       isMinimized: false,
       createdAt: new Date(),
       projectId,
-      chapterId
+      chapterId,
+      selectedText
     };
     
     setChats(prev => [...prev, newChat]);
@@ -75,6 +78,7 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
           isMinimized={chat.isMinimized}
           projectId={chat.projectId}
           chapterId={chat.chapterId}
+          selectedText={chat.selectedText}
         />
       ))}
     </PopupChatContext.Provider>

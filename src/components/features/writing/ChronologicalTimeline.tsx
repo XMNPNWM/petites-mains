@@ -46,19 +46,18 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     openChat(chat.type, position, chat.projectId, chat.chapterId);
   };
 
-  if (dates.length === 0) {
-    return null;
-  }
-
+  // Always show timeline, but with different states
   return (
     <div
       className={`flex items-center justify-center absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
-        isHovered ? 'opacity-100 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-2' : 'opacity-20'
+        isHovered || dates.length > 0 
+          ? 'opacity-100 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-2' 
+          : 'opacity-40'
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {isHovered && (
+      {(isHovered || dates.length > 0) && dates.length > 0 && (
         <>
           <Button
             size="sm"
@@ -69,7 +68,7 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
             <ChevronLeft className="w-3 h-3" />
           </Button>
           
-          <div className="flex items-center mx-2 max-w-md overflow-hidden">
+          <div className="flex items-center mx-2 max-w-lg overflow-hidden">
             <div
               ref={scrollRef}
               className="flex space-x-4 overflow-x-auto scrollbar-hide"
@@ -116,9 +115,20 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
         </>
       )}
       
-      {!isHovered && (
-        <div className="h-1 w-16 bg-slate-300 rounded-full"></div>
-      )}
+      {/* Always visible timeline indicator */}
+      <div className={`transition-all duration-300 ${
+        isHovered && dates.length === 0 
+          ? 'bg-white/90 backdrop-blur-sm rounded-lg px-3 py-1' 
+          : ''
+      }`}>
+        {isHovered && dates.length === 0 ? (
+          <span className="text-xs text-slate-600 whitespace-nowrap">
+            Timeline will appear here as you create comments
+          </span>
+        ) : !isHovered && dates.length === 0 ? (
+          <div className="h-1 w-40 bg-slate-300 rounded-full"></div>
+        ) : null}
+      </div>
     </div>
   );
 };

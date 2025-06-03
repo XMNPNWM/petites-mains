@@ -7,10 +7,11 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { MessageSquare, Brain, ArrowRight, MessageCircle } from 'lucide-react';
+import { SelectedTextContext } from '@/types/comments';
 
 interface WritingContextMenuProps {
   children: React.ReactNode;
-  onComment: (position: { x: number; y: number }) => void;
+  onComment: (position: { x: number; y: number }, selectedText?: SelectedTextContext) => void;
   onCoherence: (position: { x: number; y: number }) => void;
   onNextSteps: (position: { x: number; y: number }) => void;
   onChat: (position: { x: number; y: number }) => void;
@@ -29,18 +30,36 @@ const WritingContextMenu = ({
     setContextPosition({ x: event.clientX, y: event.clientY });
   };
 
+  const getSelectedTextContext = (): SelectedTextContext | null => {
+    return (window as any).selectedTextContext || null;
+  };
+
+  const handleCommentClick = () => {
+    const selectedText = getSelectedTextContext();
+    onComment(contextPosition, selectedText);
+  };
+
+  const selectedText = getSelectedTextContext();
+
   return (
     <ContextMenu>
       <ContextMenuTrigger onContextMenu={handleContextMenu}>
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-48 bg-white border border-slate-200 shadow-lg z-30">
+      <ContextMenuContent className="w-56 bg-white border border-slate-200 shadow-lg z-30">
         <ContextMenuItem 
-          onClick={() => onComment(contextPosition)}
+          onClick={handleCommentClick}
           className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer"
         >
           <MessageSquare className="w-4 h-4 text-blue-600" />
-          <span>Comment</span>
+          <div className="flex flex-col">
+            <span>Comment</span>
+            {selectedText && (
+              <span className="text-xs text-slate-500 truncate max-w-40">
+                on "{selectedText.text}"
+              </span>
+            )}
+          </div>
         </ContextMenuItem>
         <ContextMenuItem 
           onClick={() => onCoherence(contextPosition)}

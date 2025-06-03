@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
@@ -6,6 +7,7 @@ import ChapterOrganizerPanel from './ChapterOrganizerPanel';
 import StorylinePanel from './StorylinePanel';
 import WritingContextMenu from './WritingContextMenu';
 import { usePopupChats } from './PopupChatManager';
+import { SelectedTextContext } from '@/types/comments';
 
 interface Chapter {
   id: string;
@@ -116,8 +118,8 @@ const WritingSpaceLayout = ({
   };
 
   // Context menu handlers
-  const handleComment = (position: { x: number; y: number }) => {
-    openChat('comment', position, projectId, currentChapter?.id);
+  const handleComment = (position: { x: number; y: number }, selectedText?: SelectedTextContext) => {
+    openChat('comment', position, projectId, currentChapter?.id, selectedText);
   };
 
   const handleCoherence = (position: { x: number; y: number }) => {

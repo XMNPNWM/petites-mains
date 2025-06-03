@@ -4,6 +4,8 @@ import { X, Minus, MessageSquare, Brain, ArrowRight, MessageCircle, Send } from 
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { supabase } from '@/integrations/supabase/client';
+import { SelectedTextContext } from '@/types/comments';
 
 export type ChatType = 'comment' | 'coherence' | 'next-steps' | 'chat';
 
@@ -16,6 +18,7 @@ interface PopupChatProps {
   isMinimized: boolean;
   projectId: string;
   chapterId?: string;
+  selectedText?: SelectedTextContext;
 }
 
 const getChatIcon = (type: ChatType) => {
@@ -44,7 +47,8 @@ const PopupChat = ({
   onMinimize,
   isMinimized,
   projectId,
-  chapterId
+  chapterId,
+  selectedText
 }: PopupChatProps) => {
   const [position, setPosition] = useState(initialPosition);
   const [size, setSize] = useState({ width: 400, height: 500 });
@@ -52,8 +56,21 @@ const PopupChat = ({
   const [isResizing, setIsResizing] = useState(false);
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date }>>([]);
   const [currentMessage, setCurrentMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
   const resizeRef = useRef({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 });
+
+  // Initialize comment with selected text context
+  useEffect(() => {
+    if (type === 'comment' && selectedText && messages.length === 0) {
+      const initialMessage = {
+        role: 'assistant' as const,
+        content: `You're commenting on: "${selectedText.text}"\n\nWhat would you like to note about this text?`,
+        timestamp: new Date()
+      };
+      setMessages([initialMessage]);
+    }
+  }, [type, selectedText, messages.length]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isMinimized) return;
@@ -122,7 +139,35 @@ const PopupChat = ({
     };
   }, [isDragging, isResizing, size]);
 
-  const handleSendMessage = () => {
+  const saveTextComment = async (commentText: string) => {
+    if (type !== 'comment' || !selectedText || !chapterId) return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('text_comments')
+        .insert({
+          project_id: projectId,
+          chapter_id: chapterId,
+          selected_text: selectedText.text,
+          comment_text: commentText,
+          text_position: selectedText.startOffset,
+          created_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Error saving comment:', error);
+      } else {
+        console.log('Text comment saved successfully');
+      }
+    } catch (error) {
+      console.error('Error saving comment:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
     if (!currentMessage.trim()) return;
     
     const userMessage = {
@@ -132,17 +177,25 @@ const PopupChat = ({
     };
     
     setMessages(prev => [...prev, userMessage]);
+    
+    // Save text comment if this is a comment type
+    if (type === 'comment' && selectedText) {
+      await saveTextComment(currentMessage);
+    }
+    
     setCurrentMessage('');
     
-    // Simulate AI response (replace with actual AI integration later)
-    setTimeout(() => {
-      const aiResponse = {
-        role: 'assistant' as const,
-        content: `I understand you're asking about: "${currentMessage}". This is a placeholder response for ${getChatTitle(type)}.`,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiResponse]);
-    }, 1000);
+    // Simulate AI response for non-comment types
+    if (type !== 'comment') {
+      setTimeout(() => {
+        const aiResponse = {
+          role: 'assistant' as const,
+          content: `I understand you're asking about: "${currentMessage}". This is a placeholder response for ${getChatTitle(type)}.`,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, aiResponse]);
+      }, 1000);
+    }
   };
 
   if (isMinimized) {
@@ -153,7 +206,14 @@ const PopupChat = ({
         onClick={onMinimize}
       >
         {getChatIcon(type)}
-        <span className="text-sm font-medium">{getChatTitle(type)}</span>
+        <span className="text-sm font-medium">
+          {getChatTitle(type)}
+          {selectedText && type === 'comment' && (
+            <span className="text-xs text-slate-500 ml-1">
+              ("{selectedText.text}")
+            </span>
+          )}
+        </span>
       </div>
     );
   }
@@ -174,7 +234,14 @@ const PopupChat = ({
       >
         <div className="flex items-center gap-2">
           {getChatIcon(type)}
-          <h3 className="text-sm font-semibold">{getChatTitle(type)}</h3>
+          <div className="flex flex-col">
+            <h3 className="text-sm font-semibold">{getChatTitle(type)}</h3>
+            {selectedText && type === 'comment' && (
+              <span className="text-xs text-slate-500 truncate max-w-48">
+                on "{selectedText.text}"
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <Button size="sm" variant="ghost" onClick={onMinimize} className="h-6 w-6 p-0">
@@ -191,7 +258,10 @@ const PopupChat = ({
         <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
           {messages.length === 0 ? (
             <div className="text-center text-slate-500 text-sm mt-8">
-              Start a conversation about your {type === 'comment' ? 'chapter content' : 'story'}.
+              {type === 'comment' && selectedText 
+                ? `Write a comment about "${selectedText.text}"`
+                : `Start a conversation about your ${type === 'comment' ? 'chapter content' : 'story'}.`
+              }
             </div>
           ) : (
             messages.map((message, index) => (
@@ -218,7 +288,11 @@ const PopupChat = ({
           <Textarea
             value={currentMessage}
             onChange={(e) => setCurrentMessage(e.target.value)}
-            placeholder={`Ask about ${getChatTitle(type).toLowerCase()}...`}
+            placeholder={
+              type === 'comment' && selectedText 
+                ? `Comment on "${selectedText.text}"...`
+                : `Ask about ${getChatTitle(type).toLowerCase()}...`
+            }
             className="flex-1 min-h-0 resize-none"
             rows={2}
             onKeyDown={(e) => {
@@ -231,7 +305,7 @@ const PopupChat = ({
           <Button
             size="sm"
             onClick={handleSendMessage}
-            disabled={!currentMessage.trim()}
+            disabled={!currentMessage.trim() || isSaving}
             className="self-end"
           >
             <Send className="w-4 h-4" />
