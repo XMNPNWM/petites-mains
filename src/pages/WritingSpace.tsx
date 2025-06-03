@@ -3,6 +3,7 @@ import React from 'react';
 import { useWritingSpace } from '@/hooks/useWritingSpace';
 import WritingSpaceHeader from '@/components/features/writing/WritingSpaceHeader';
 import WritingSpaceLayout from '@/components/features/writing/WritingSpaceLayout';
+import { PopupChatProvider } from '@/components/features/writing/PopupChatManager';
 
 const WritingSpace = () => {
   const {
@@ -31,24 +32,26 @@ const WritingSpace = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
-      <WritingSpaceHeader
-        project={project}
-        currentChapter={currentChapter}
-        chapters={chapters}
-        isSaving={isSaving}
-        lastSaved={lastSaved}
-        onBackClick={handleBackClick}
-        onSave={handleSave}
-      />
-      <WritingSpaceLayout
-        projectId={projectId!}
-        currentChapter={currentChapter}
-        onChapterSelect={handleChapterSelect}
-        onContentChange={handleContentChange}
-        onChaptersChange={refreshChapters}
-      />
-    </div>
+    <PopupChatProvider>
+      <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
+        <WritingSpaceHeader
+          project={project}
+          currentChapter={currentChapter}
+          chapters={chapters}
+          isSaving={isSaving}
+          lastSaved={lastSaved}
+          onBackClick={handleBackClick}
+          onSave={handleSave}
+        />
+        <WritingSpaceLayout
+          projectId={projectId!}
+          currentChapter={currentChapter}
+          onChapterSelect={handleChapterSelect}
+          onContentChange={handleContentChange}
+          onChaptersChange={refreshChapters}
+        />
+      </div>
+    </PopupChatProvider>
   );
 };
 

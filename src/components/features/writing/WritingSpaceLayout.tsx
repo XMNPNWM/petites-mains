@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
@@ -6,7 +5,7 @@ import TextEditorPanel from './TextEditorPanel';
 import ChapterOrganizerPanel from './ChapterOrganizerPanel';
 import StorylinePanel from './StorylinePanel';
 import WritingContextMenu from './WritingContextMenu';
-import { PopupChatProvider, usePopupChats } from './PopupChatManager';
+import { usePopupChats } from './PopupChatManager';
 
 interface Chapter {
   id: string;
@@ -25,7 +24,7 @@ interface WritingSpaceLayoutProps {
   onChaptersChange?: () => void;
 }
 
-const WritingSpaceLayoutContent = ({ 
+const WritingSpaceLayout = ({ 
   projectId, 
   currentChapter, 
   onChapterSelect, 
@@ -239,14 +238,6 @@ const WritingSpaceLayoutContent = ({
         </div>
       </div>
     </div>
-  );
-};
-
-const WritingSpaceLayout = (props: WritingSpaceLayoutProps) => {
-  return (
-    <PopupChatProvider>
-      <WritingSpaceLayoutContent {...props} />
-    </PopupChatProvider>
   );
 };
 
