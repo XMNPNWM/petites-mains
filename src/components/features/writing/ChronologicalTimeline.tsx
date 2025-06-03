@@ -6,25 +6,40 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { usePopupChats } from './PopupChatManager';
 import { format, isSameDay, startOfDay } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { ChatSession, DbChatSession, convertDbToChatSession } from '@/types/comments';
+
+interface TimelineChat {
+  id: string;
+  project_id: string;
+  chapter_id?: string;
+  chat_type: 'comment' | 'coherence' | 'next-steps' | 'chat';
+  position: { x: number; y: number };
+  selected_text?: string;
+  text_position?: number;
+  created_at: string;
+}
 
 interface ChronologicalTimelineProps {
   projectId: string;
 }
 
 const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
-  const { openChat, loadProjectChats } = usePopupChats();
+  const { openChat, chats: liveChats } = usePopupChats();
   const [isHovered, setIsHovered] = useState(false);
-  const [timelineChats, setTimelineChats] = useState<ChatSession[]>([]);
+  const [timelineChats, setTimelineChats] = useState<TimelineChat[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load chats from database
   useEffect(() => {
     const fetchTimelineChats = async () => {
+      if (isLoading) return;
+      setIsLoading(true);
+
       try {
+        console.log('Fetching timeline chats for project:', projectId);
         const { data, error } = await supabase
           .from('chat_sessions')
-          .select('*')
+          .select('id, project_id, chapter_id, chat_type, position, selected_text, text_position, created_at')
           .eq('project_id', projectId)
           .order('created_at', { ascending: true });
 
@@ -33,17 +48,28 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
           return;
         }
 
-        // Convert database sessions to ChatSession format
-        const convertedChats = (data as DbChatSession[]).map(convertDbToChatSession);
-        setTimelineChats(convertedChats);
+        console.log('Timeline chats loaded:', data?.length || 0);
+        setTimelineChats(data as TimelineChat[] || []);
       } catch (error) {
         console.error('Error loading timeline chats:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchTimelineChats();
-    loadProjectChats(projectId);
-  }, [projectId, loadProjectChats]);
+  }, [projectId, isLoading]);
+
+  // Update timeline when live chats change
+  useEffect(() => {
+    if (liveChats.length > 0) {
+      console.log('Live chats updated, refreshing timeline');
+      // Trigger a refresh after a short delay to ensure database is updated
+      setTimeout(() => {
+        setIsLoading(false); // Reset loading state to allow refetch
+      }, 1000);
+    }
+  }, [liveChats.length]);
 
   // Group chats by date
   const chatsByDate = timelineChats.reduce((groups, chat) => {
@@ -53,7 +79,7 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     }
     groups[dateKey].push(chat);
     return groups;
-  }, {} as Record<string, ChatSession[]>);
+  }, {} as Record<string, TimelineChat[]>);
 
   const dates = Object.keys(chatsByDate).sort();
 
@@ -69,15 +95,23 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     }
   };
 
-  const handleChatReopen = (chat: ChatSession) => {
-    const position = { x: chat.position.x + 20, y: chat.position.y + 20 };
+  const handleChatReopen = (chat: TimelineChat) => {
+    console.log('Reopening chat from timeline:', chat.id);
+    
+    // Calculate safe position with better bounds checking
+    const safePosition = {
+      x: Math.max(50, Math.min(chat.position.x + 30, window.innerWidth - 450)),
+      y: Math.max(50, Math.min(chat.position.y + 30, window.innerHeight - 550))
+    };
+    
     const selectedText = chat.selected_text ? {
       text: chat.selected_text,
       startOffset: chat.text_position || 0,
       endOffset: (chat.text_position || 0) + chat.selected_text.length
     } : undefined;
     
-    openChat(chat.chat_type, position, chat.project_id, chat.chapter_id, selectedText);
+    console.log('Opening chat with position:', safePosition);
+    openChat(chat.chat_type, safePosition, chat.project_id, chat.chapter_id, selectedText);
   };
 
   // Always show timeline, but with different states
@@ -157,7 +191,7 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
       }`}>
         {isHovered && dates.length === 0 ? (
           <span className="text-xs text-slate-600 whitespace-nowrap">
-            Timeline will appear here as you create comments
+            {isLoading ? 'Loading timeline...' : 'Timeline will appear here as you create comments'}
           </span>
         ) : !isHovered && dates.length === 0 ? (
           <div className="h-1 w-40 bg-slate-300 rounded-full"></div>

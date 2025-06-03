@@ -65,13 +65,17 @@ const PopupChat = ({
 
   // Initialize messages from props
   useEffect(() => {
+    console.log('PopupChat initialized:', { id, type, initialMessages: initialMessages.length });
     if (initialMessages.length > 0) {
       setMessages(initialMessages);
     }
-  }, [initialMessages]);
+  }, [initialMessages, id, type]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isMinimized) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
     
     setIsDragging(true);
     dragRef.current = {
@@ -86,6 +90,8 @@ const PopupChat = ({
 
   const handleResizeMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
+    
     setIsResizing(true);
     resizeRef.current = {
       startX: e.clientX,
@@ -169,12 +175,26 @@ const PopupChat = ({
     setIsSaving(false);
   };
 
+  const handleClose = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Closing popup chat:', id);
+    onClose();
+  };
+
+  const handleMinimize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Minimizing popup chat:', id);
+    onMinimize();
+  };
+
   if (isMinimized) {
     return (
       <div
-        className="fixed bg-white border border-slate-200 rounded-lg shadow-lg p-2 flex items-center gap-2 cursor-pointer z-40"
+        className="fixed bg-white border border-slate-200 rounded-lg shadow-lg p-2 flex items-center gap-2 cursor-pointer z-[9999]"
         style={{ left: position.x, top: position.y }}
-        onClick={onMinimize}
+        onClick={handleMinimize}
       >
         {getChatIcon(type)}
         <span className="text-sm font-medium">
@@ -191,7 +211,7 @@ const PopupChat = ({
 
   return (
     <Card
-      className="fixed shadow-xl border border-slate-200 z-40"
+      className="fixed shadow-xl border border-slate-200 z-[9999]"
       style={{
         left: position.x,
         top: position.y,
@@ -215,10 +235,10 @@ const PopupChat = ({
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button size="sm" variant="ghost" onClick={onMinimize} className="h-6 w-6 p-0">
+          <Button size="sm" variant="ghost" onClick={handleMinimize} className="h-6 w-6 p-0">
             <Minus className="w-3 h-3" />
           </Button>
-          <Button size="sm" variant="ghost" onClick={onClose} className="h-6 w-6 p-0">
+          <Button size="sm" variant="ghost" onClick={handleClose} className="h-6 w-6 p-0">
             <X className="w-3 h-3" />
           </Button>
         </div>

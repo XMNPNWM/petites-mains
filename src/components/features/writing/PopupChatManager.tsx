@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
 import PopupChat, { ChatType } from './PopupChat';
 import { SelectedTextContext, LocalChatSession, DbChatSession, convertDbToLocal, convertLocalToDb } from '@/types/comments';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,9 +29,14 @@ interface PopupChatProviderProps {
 
 export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
   const [chats, setChats] = useState<LocalChatSession[]>([]);
+  const isLoadingRef = useRef(false);
 
   const loadProjectChats = async (projectId: string) => {
+    if (isLoadingRef.current) return;
+    isLoadingRef.current = true;
+
     try {
+      console.log('Loading chats for project:', projectId);
       const { data, error } = await supabase
         .from('chat_sessions')
         .select('*')
@@ -43,16 +48,20 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
         return;
       }
 
+      console.log('Loaded chats from database:', data?.length || 0);
       // Convert database format to local format
       const localChats: LocalChatSession[] = (data as DbChatSession[]).map(convertDbToLocal);
       setChats(localChats);
     } catch (error) {
       console.error('Error loading project chats:', error);
+    } finally {
+      isLoadingRef.current = false;
     }
   };
 
   const saveChatToDatabase = async (chat: LocalChatSession) => {
     try {
+      console.log('Saving chat to database:', chat.id);
       const dbChat = convertLocalToDb(chat);
 
       const { error } = await supabase
@@ -61,6 +70,8 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
 
       if (error) {
         console.error('Error saving chat:', error);
+      } else {
+        console.log('Chat saved successfully:', chat.id);
       }
     } catch (error) {
       console.error('Error saving chat to database:', error);
@@ -68,10 +79,18 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
   };
 
   const openChat = async (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => {
+    console.log('Opening chat:', { type, position, projectId, chapterId, selectedText });
+    
+    // Ensure position is within viewport bounds
+    const safePosition = {
+      x: Math.max(20, Math.min(position.x, window.innerWidth - 420)),
+      y: Math.max(20, Math.min(position.y, window.innerHeight - 520))
+    };
+
     const newChat: LocalChatSession = {
-      id: `${type}-${Date.now()}`,
+      id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type,
-      position,
+      position: safePosition,
       isMinimized: false,
       createdAt: new Date(),
       projectId,
@@ -89,24 +108,38 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       }];
     }
     
-    setChats(prev => [...prev, newChat]);
+    console.log('Adding new chat to state:', newChat.id);
+    setChats(prev => {
+      const updated = [...prev, newChat];
+      console.log('Updated chats count:', updated.length);
+      return updated;
+    });
+    
+    // Save to database
     await saveChatToDatabase(newChat);
   };
 
   const closeChat = async (id: string) => {
-    setChats(prev => prev.filter(chat => chat.id !== id));
+    console.log('Closing chat:', id);
+    setChats(prev => {
+      const filtered = prev.filter(chat => chat.id !== id);
+      console.log('Chats after close:', filtered.length);
+      return filtered;
+    });
     
     try {
       await supabase
         .from('chat_sessions')
         .delete()
         .eq('id', id);
+      console.log('Chat deleted from database:', id);
     } catch (error) {
       console.error('Error deleting chat:', error);
     }
   };
 
   const minimizeChat = async (id: string) => {
+    console.log('Minimizing chat:', id);
     setChats(prev => prev.map(chat => {
       if (chat.id === id) {
         const updatedChat = { ...chat, isMinimized: !chat.isMinimized };
@@ -118,6 +151,7 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
   };
 
   const saveChatMessage = async (chatId: string, message: { role: 'user' | 'assistant'; content: string; timestamp: Date }) => {
+    console.log('Saving message for chat:', chatId);
     setChats(prev => prev.map(chat => {
       if (chat.id === chatId) {
         const updatedMessages = [...(chat.messages || []), message];
