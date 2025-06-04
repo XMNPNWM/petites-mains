@@ -1,11 +1,10 @@
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
 import TextEditorPanel from './TextEditorPanel';
 import ChapterOrganizerPanel from './ChapterOrganizerPanel';
 import StorylinePanel from './StorylinePanel';
-import WritingContextMenu from './WritingContextMenu';
+import UnifiedContextMenu from './UnifiedContextMenu';
 import { usePopupChats } from './PopupChatManager';
 import { SelectedTextContext } from '@/types/comments';
 
@@ -36,21 +35,40 @@ const WritingSpaceLayout = ({
   const [overlayHeight, setOverlayHeight] = useState(30);
   const [isDragging, setIsDragging] = useState(false);
   const [worldbuildingRefreshTrigger, setWorldbuildingRefreshTrigger] = useState(0);
+  const [worldbuildingElements, setWorldbuildingElements] = useState([]);
   const { openChat, loadProjectChats } = usePopupChats();
 
   const worldbuildingPanelRef = useRef<any>(null);
   const chapterOrganizerPanelRef = useRef<any>(null);
+  const storylinePanelRef = useRef<any>(null);
 
   // Load project chats when component mounts or project changes
   useEffect(() => {
     if (projectId) {
       loadProjectChats(projectId);
+      fetchWorldbuildingElements();
     }
   }, [projectId, loadProjectChats]);
+
+  const fetchWorldbuildingElements = async () => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data, error } = await supabase
+        .from('worldbuilding_elements')
+        .select('*')
+        .eq('project_id', projectId);
+
+      if (error) throw error;
+      setWorldbuildingElements(data || []);
+    } catch (error) {
+      console.error('Error fetching worldbuilding elements:', error);
+    }
+  };
 
   const handleStorylineDataChange = useCallback(() => {
     console.log('Storyline data changed, refreshing worldbuilding panel...');
     setWorldbuildingRefreshTrigger(prev => prev + 1);
+    fetchWorldbuildingElements();
   }, []);
 
   const getCurrentPanelSizes = useCallback(() => {
@@ -166,68 +184,70 @@ const WritingSpaceLayout = ({
     openChat('chat', adjustedPosition, projectId, currentChapter?.id);
   };
 
+  // Storyline context menu handlers
+  const handleCreateNode = (nodeType: string, position: { x: number; y: number }) => {
+    if (storylinePanelRef.current) {
+      storylinePanelRef.current.createNodeAtPosition(nodeType, position);
+    }
+  };
+
+  const handleCreateFromWorldbuilding = (element: any, position: { x: number; y: number }) => {
+    if (storylinePanelRef.current) {
+      storylinePanelRef.current.createNodeFromWorldbuilding(element, position);
+    }
+  };
+
   return (
     <div className="flex-1 relative overflow-hidden">
-      <div 
-        className="absolute inset-0"
-        style={{ 
-          height: `calc(100% - ${overlayHeight}%)`,
-          top: 0
-        }}
+      <UnifiedContextMenu
+        worldbuildingElements={worldbuildingElements}
+        onComment={handleComment}
+        onCoherence={handleCoherence}
+        onNextSteps={handleNextSteps}
+        onChat={handleChat}
+        onCreateNode={handleCreateNode}
+        onCreateFromWorldbuilding={handleCreateFromWorldbuilding}
       >
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel 
-            ref={worldbuildingPanelRef}
-            defaultSize={25} 
-            minSize={3}
-            maxSize={40}
-            className="overflow-hidden"
-          >
-            <WritingContextMenu
-              onComment={handleComment}
-              onCoherence={handleCoherence}
-              onNextSteps={handleNextSteps}
-              onChat={handleChat}
+        <div 
+          className="absolute inset-0"
+          style={{ 
+            height: `calc(100% - ${overlayHeight}%)`,
+            top: 0
+          }}
+        >
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            <ResizablePanel 
+              ref={worldbuildingPanelRef}
+              defaultSize={25} 
+              minSize={3}
+              maxSize={40}
+              className="overflow-hidden"
             >
               <WorldbuildingPanel 
                 projectId={projectId} 
                 refreshTrigger={worldbuildingRefreshTrigger}
               />
-            </WritingContextMenu>
-          </ResizablePanel>
-          
-          <ResizableHandle withHandle />
-          
-          <ResizablePanel defaultSize={50} minSize={30} className="overflow-hidden">
-            <WritingContextMenu
-              onComment={handleComment}
-              onCoherence={handleCoherence}
-              onNextSteps={handleNextSteps}
-              onChat={handleChat}
-            >
+            </ResizablePanel>
+            
+            <ResizableHandle withHandle />
+            
+            <ResizablePanel defaultSize={50} minSize={30} className="overflow-hidden">
               <TextEditorPanel 
                 chapter={currentChapter}
                 onContentChange={onContentChange}
                 areMinimized={areAllPanelsMinimized()}
                 onFocusToggle={handleFocusToggle}
               />
-            </WritingContextMenu>
-          </ResizablePanel>
-          
-          <ResizableHandle withHandle />
-          
-          <ResizablePanel 
-            ref={chapterOrganizerPanelRef}
-            defaultSize={25} 
-            minSize={3}
-            maxSize={40}
-            className="overflow-hidden"
-          >
-            <WritingContextMenu
-              onComment={handleComment}
-              onCoherence={handleCoherence}
-              onNextSteps={handleNextSteps}
-              onChat={handleChat}
+            </ResizablePanel>
+            
+            <ResizableHandle withHandle />
+            
+            <ResizablePanel 
+              ref={chapterOrganizerPanelRef}
+              defaultSize={25} 
+              minSize={3}
+              maxSize={40}
+              className="overflow-hidden"
             >
               <ChapterOrganizerPanel 
                 projectId={projectId}
@@ -235,42 +255,44 @@ const WritingSpaceLayout = ({
                 onChapterSelect={onChapterSelect}
                 onChaptersChange={onChaptersChange}
               />
-            </WritingContextMenu>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
 
-      <div
-        className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-[300] overflow-hidden"
-        style={{ height: `${overlayHeight}%` }}
-      >
         <div
-          className={`h-6 bg-slate-100 border-b border-slate-200 flex items-center justify-center cursor-row-resize hover:bg-slate-200 transition-colors select-none ${
-            isDragging ? 'bg-slate-200' : ''
-          } ${overlayHeight <= 10 ? 'bg-slate-300 hover:bg-slate-400' : ''}`}
-          onMouseDown={handleMouseDown}
-          style={{
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-            MozUserSelect: 'none',
-            msUserSelect: 'none'
-          }}
+          className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-[300] overflow-hidden"
+          style={{ height: `${overlayHeight}%` }}
+          data-storyline-area
         >
-          <div className="flex space-x-1 pointer-events-none">
-            <div className={`w-8 h-1 rounded-full ${overlayHeight <= 10 ? 'bg-slate-600' : 'bg-slate-400'}`}></div>
-            <div className={`w-8 h-1 rounded-full ${overlayHeight <= 10 ? 'bg-slate-600' : 'bg-slate-400'}`}></div>
-            <div className={`w-8 h-1 rounded-full ${overlayHeight <= 10 ? 'bg-slate-600' : 'bg-slate-400'}`}></div>
+          <div
+            className={`h-6 bg-slate-100 border-b border-slate-200 flex items-center justify-center cursor-row-resize hover:bg-slate-200 transition-colors select-none ${
+              isDragging ? 'bg-slate-200' : ''
+            } ${overlayHeight <= 10 ? 'bg-slate-300 hover:bg-slate-400' : ''}`}
+            onMouseDown={handleMouseDown}
+            style={{
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              MozUserSelect: 'none',
+              msUserSelect: 'none'
+            }}
+          >
+            <div className="flex space-x-1 pointer-events-none">
+              <div className={`w-8 h-1 rounded-full ${overlayHeight <= 10 ? 'bg-slate-600' : 'bg-slate-400'}`}></div>
+              <div className={`w-8 h-1 rounded-full ${overlayHeight <= 10 ? 'bg-slate-600' : 'bg-slate-400'}`}></div>
+              <div className={`w-8 h-1 rounded-full ${overlayHeight <= 10 ? 'bg-slate-600' : 'bg-slate-400'}`}></div>
+            </div>
+          </div>
+
+          <div className="h-[calc(100%-24px)] overflow-hidden">
+            <StorylinePanel 
+              ref={storylinePanelRef}
+              projectId={projectId}
+              chapterId={currentChapter?.id}
+              onDataChange={handleStorylineDataChange}
+            />
           </div>
         </div>
-
-        <div className="h-[calc(100%-24px)] overflow-hidden">
-          <StorylinePanel 
-            projectId={projectId}
-            chapterId={currentChapter?.id}
-            onDataChange={handleStorylineDataChange}
-          />
-        </div>
-      </div>
+      </UnifiedContextMenu>
     </div>
   );
 };
