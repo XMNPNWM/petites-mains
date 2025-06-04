@@ -64,9 +64,20 @@ const UnifiedContextMenu = ({
     e.preventDefault();
     e.stopPropagation();
     
-    // Detect if right-click is in storyline area
+    // Improved area detection
     const target = e.target as HTMLElement;
-    const isInStoryline = target.closest('[data-storyline-area]') !== null;
+    const isInStorylineCanvas = target.closest('[data-storyline-canvas]') !== null;
+    const isInStorylineArea = target.closest('[data-storyline-area]') !== null;
+    const isInStoryline = isInStorylineCanvas || isInStorylineArea;
+    
+    console.log('Context menu triggered:', {
+      target: target.className,
+      isInStorylineCanvas,
+      isInStorylineArea,
+      isInStoryline,
+      targetElement: target
+    });
+    
     setIsStorylineArea(isInStoryline);
     
     const rect = e.currentTarget.getBoundingClientRect();
@@ -158,7 +169,7 @@ const UnifiedContextMenu = ({
   return (
     <ContextMenu 
       onOpenChange={(open) => {
-        console.log('Unified context menu open state changed:', open);
+        console.log('Unified context menu open state changed:', open, 'isStorylineArea:', isStorylineArea);
         if (!open) {
           setContextPosition(null);
           setIsStorylineArea(false);

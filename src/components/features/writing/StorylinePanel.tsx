@@ -82,6 +82,20 @@ const StorylinePanel = React.forwardRef<any, StorylinePanelProps>(({ projectId, 
     setPan(dataPan);
   }, [dataPan, setPan]);
 
+  // Add debug logging for rendering state
+  React.useEffect(() => {
+    console.log('StorylinePanel rendering state:', {
+      projectId,
+      chapterId,
+      nodesCount: nodes.length,
+      connectionsCount: connections.length,
+      zoom,
+      pan,
+      showNodeForm,
+      editingNode: editingNode?.id
+    });
+  }, [projectId, chapterId, nodes, connections, zoom, pan, showNodeForm, editingNode]);
+
   // Expose methods to parent component via ref
   React.useImperativeHandle(ref, () => ({
     createNodeAtPosition,

@@ -112,8 +112,21 @@ const StorylineCanvas = React.memo(({
     onConnectionLabelEdit(connectionId, screenPosition);
   }, [onConnectionLabelEdit, readOnly]);
 
+  // Add debug logging for rendering
+  console.log('StorylineCanvas rendering with:', {
+    nodesCount: nodes.length,
+    connectionsCount: connections.length,
+    zoom,
+    pan,
+    readOnly
+  });
+
   return (
-    <div data-storyline-canvas className="w-full h-full">
+    <div 
+      data-storyline-canvas 
+      data-storyline-area 
+      className="w-full h-full"
+    >
       <CanvasBackground
         zoom={zoom}
         pan={pan}

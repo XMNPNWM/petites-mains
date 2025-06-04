@@ -45,6 +45,7 @@ const WritingSpaceLayout = ({
   // Load project chats when component mounts or project changes
   useEffect(() => {
     if (projectId) {
+      console.log('WritingSpaceLayout: Loading project chats and worldbuilding for project:', projectId);
       loadProjectChats(projectId);
       fetchWorldbuildingElements();
     }
@@ -52,6 +53,7 @@ const WritingSpaceLayout = ({
 
   const fetchWorldbuildingElements = async () => {
     try {
+      console.log('Fetching worldbuilding elements for project:', projectId);
       const { supabase } = await import('@/integrations/supabase/client');
       const { data, error } = await supabase
         .from('worldbuilding_elements')
@@ -59,6 +61,7 @@ const WritingSpaceLayout = ({
         .eq('project_id', projectId);
 
       if (error) throw error;
+      console.log('Fetched worldbuilding elements:', data?.length || 0);
       setWorldbuildingElements(data || []);
     } catch (error) {
       console.error('Error fetching worldbuilding elements:', error);
@@ -144,6 +147,7 @@ const WritingSpaceLayout = ({
 
   // Context menu handlers with improved positioning
   const handleComment = (position: { x: number; y: number }, selectedText?: SelectedTextContext) => {
+    console.log('Comment handler called with position:', position);
     // Adjust position to account for storyline panel
     const storylinePanelHeight = window.innerHeight * (overlayHeight / 100);
     const adjustedPosition = {
@@ -155,6 +159,7 @@ const WritingSpaceLayout = ({
   };
 
   const handleCoherence = (position: { x: number; y: number }) => {
+    console.log('Coherence handler called with position:', position);
     const storylinePanelHeight = window.innerHeight * (overlayHeight / 100);
     const adjustedPosition = {
       x: position.x,
@@ -165,6 +170,7 @@ const WritingSpaceLayout = ({
   };
 
   const handleNextSteps = (position: { x: number; y: number }) => {
+    console.log('Next steps handler called with position:', position);
     const storylinePanelHeight = window.innerHeight * (overlayHeight / 100);
     const adjustedPosition = {
       x: position.x,
@@ -175,6 +181,7 @@ const WritingSpaceLayout = ({
   };
 
   const handleChat = (position: { x: number; y: number }) => {
+    console.log('Chat handler called with position:', position);
     const storylinePanelHeight = window.innerHeight * (overlayHeight / 100);
     const adjustedPosition = {
       x: position.x,
@@ -186,14 +193,20 @@ const WritingSpaceLayout = ({
 
   // Storyline context menu handlers
   const handleCreateNode = (nodeType: string, position: { x: number; y: number }) => {
+    console.log('Create node handler called:', nodeType, position);
     if (storylinePanelRef.current) {
       storylinePanelRef.current.createNodeAtPosition(nodeType, position);
+    } else {
+      console.error('StorylinePanel ref not available');
     }
   };
 
   const handleCreateFromWorldbuilding = (element: any, position: { x: number; y: number }) => {
+    console.log('Create from worldbuilding handler called:', element.name, position);
     if (storylinePanelRef.current) {
       storylinePanelRef.current.createNodeFromWorldbuilding(element, position);
+    } else {
+      console.error('StorylinePanel ref not available');
     }
   };
 
