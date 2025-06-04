@@ -33,13 +33,13 @@ export const useCanvasInteractions = ({
   );
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // Skip handling for right-click (context menu)
+    // Allow right-click to propagate for context menu
     if (e.button === 2) {
       return;
     }
     
-    // Cancel connection creation if clicking on empty canvas
-    if (connectionCreationState.isCreating) {
+    // Cancel connection creation if clicking on empty canvas with left-click
+    if (connectionCreationState.isCreating && e.button === 0) {
       onConnectionCancel();
       return;
     }

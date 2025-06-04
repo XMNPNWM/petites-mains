@@ -119,14 +119,14 @@ const StorylineContextMenu = ({
       </ContextMenuTrigger>
       <ContextMenuContent 
         className="w-56"
-        style={{ zIndex: 999999 }}
+        style={{ zIndex: 310 }}
       >
         <ContextMenuSub>
           <ContextMenuSubTrigger>
             <Plus className="w-4 h-4 mr-2" />
             Create New Node
           </ContextMenuSubTrigger>
-          <ContextMenuSubContent style={{ zIndex: 1000000 }}>
+          <ContextMenuSubContent style={{ zIndex: 320 }}>
             {NODE_TYPES.map((nodeType) => (
               <ContextMenuItem
                 key={nodeType.value}
@@ -147,13 +147,13 @@ const StorylineContextMenu = ({
                 <BookOpen className="w-4 h-4 mr-2" />
                 Add from Worldbuilding
               </ContextMenuSubTrigger>
-              <ContextMenuSubContent style={{ zIndex: 1000000 }}>
+              <ContextMenuSubContent style={{ zIndex: 320 }}>
                 {Object.entries(groupedElements).map(([type, elements]) => (
                   <ContextMenuSub key={type}>
                     <ContextMenuSubTrigger>
                       {getCategoryDisplayName(type)}
                     </ContextMenuSubTrigger>
-                    <ContextMenuSubContent style={{ zIndex: 1000001 }}>
+                    <ContextMenuSubContent style={{ zIndex: 330 }}>
                       {elements.map((element) => (
                         <ContextMenuItem
                           key={element.id}
