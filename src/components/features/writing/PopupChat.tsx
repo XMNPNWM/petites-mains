@@ -59,18 +59,9 @@ const PopupChat = ({
   const [messages, setMessages] = useState(initialMessages);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [isStable, setIsStable] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
   const resizeRef = useRef({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 });
   const { saveChatMessage } = usePopupChats();
-
-  // Stabilize popup after creation to prevent instant closing
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsStable(true);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Initialize messages from props
   useEffect(() => {
@@ -205,7 +196,6 @@ const PopupChat = ({
   };
 
   const handleClose = (e: React.MouseEvent) => {
-    if (!isStable) return;
     e.preventDefault();
     e.stopPropagation();
     console.log('Closing popup chat:', id);
@@ -213,7 +203,6 @@ const PopupChat = ({
   };
 
   const handleMinimize = (e: React.MouseEvent) => {
-    if (!isStable) return;
     e.preventDefault();
     e.stopPropagation();
     console.log('Minimizing popup chat:', id);
