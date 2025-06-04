@@ -9,6 +9,7 @@ export interface ChatSession {
   selected_text?: string;
   text_position?: number;
   is_minimized: boolean;
+  status: 'active' | 'closed';
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +36,7 @@ export interface DbChatSession {
   selected_text?: string;
   text_position?: number;
   is_minimized: boolean;
+  status?: string;
   created_at: string;
   updated_at: string;
 }
@@ -50,6 +52,7 @@ export interface LocalChatSession {
   chapterId?: string;
   selectedText?: SelectedTextContext;
   messages?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date }>;
+  status?: 'active' | 'closed';
 }
 
 // Utility functions for type conversion
@@ -70,7 +73,8 @@ export const convertDbToLocal = (dbSession: DbChatSession): LocalChatSession => 
     messages: (dbSession.messages as any[])?.map((msg: any) => ({
       ...msg,
       timestamp: new Date(msg.timestamp)
-    })) || []
+    })) || [],
+    status: (dbSession.status as 'active' | 'closed') || 'active'
   };
 };
 
@@ -87,7 +91,8 @@ export const convertLocalToDb = (localSession: LocalChatSession): any => {
     })),
     selected_text: localSession.selectedText?.text,
     text_position: localSession.selectedText?.startOffset,
-    is_minimized: localSession.isMinimized
+    is_minimized: localSession.isMinimized,
+    status: localSession.status || 'active'
   };
 };
 
@@ -105,6 +110,7 @@ export const convertDbToChatSession = (dbSession: DbChatSession): ChatSession =>
     selected_text: dbSession.selected_text,
     text_position: dbSession.text_position,
     is_minimized: dbSession.is_minimized,
+    status: (dbSession.status as 'active' | 'closed') || 'active',
     created_at: dbSession.created_at,
     updated_at: dbSession.updated_at
   };

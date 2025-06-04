@@ -15,6 +15,7 @@ interface TimelineChat {
   position: { x: number; y: number };
   selected_text?: string;
   text_position?: number;
+  status?: string;
   created_at: string;
 }
 
@@ -23,13 +24,13 @@ interface ChronologicalTimelineProps {
 }
 
 const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
-  const { openChat, chats: liveChats } = usePopupChats();
+  const { reopenChat, chats: liveChats } = usePopupChats();
   const [isHovered, setIsHovered] = useState(false);
   const [timelineChats, setTimelineChats] = useState<TimelineChat[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Load chats from database
+  // Load all chats (both active and closed) for timeline display
   useEffect(() => {
     const fetchTimelineChats = async () => {
       if (isLoading) return;
@@ -39,7 +40,7 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
         console.log('Fetching timeline chats for project:', projectId);
         const { data, error } = await supabase
           .from('chat_sessions')
-          .select('id, project_id, chapter_id, chat_type, position, selected_text, text_position, created_at')
+          .select('id, project_id, chapter_id, chat_type, position, selected_text, text_position, status, created_at')
           .eq('project_id', projectId)
           .order('created_at', { ascending: true });
 
@@ -95,23 +96,11 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     }
   };
 
-  const handleChatReopen = (chat: TimelineChat) => {
+  const handleChatReopen = async (chat: TimelineChat) => {
     console.log('Reopening chat from timeline:', chat.id);
     
-    // Calculate safe position with better bounds checking
-    const safePosition = {
-      x: Math.max(50, Math.min(chat.position.x + 30, window.innerWidth - 450)),
-      y: Math.max(50, Math.min(chat.position.y + 30, window.innerHeight - 550))
-    };
-    
-    const selectedText = chat.selected_text ? {
-      text: chat.selected_text,
-      startOffset: chat.text_position || 0,
-      endOffset: (chat.text_position || 0) + chat.selected_text.length
-    } : undefined;
-    
-    console.log('Opening chat with position:', safePosition);
-    openChat(chat.chat_type, safePosition, chat.project_id, chat.chapter_id, selectedText);
+    // Use the new reopenChat method that restores the existing chat
+    await reopenChat(chat.id);
   };
 
   // Always show timeline, but with different states
@@ -152,19 +141,22 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
                       {format(date, 'MMM dd')}
                     </div>
                     <div className="flex space-x-1">
-                      {dayChats.map((chat, index) => (
-                        <button
-                          key={`${chat.id}-${index}`}
-                          onClick={() => handleChatReopen(chat)}
-                          className={`w-2 h-2 rounded-full transition-all hover:scale-125 ${
-                            chat.chat_type === 'comment' ? 'bg-blue-500' :
-                            chat.chat_type === 'coherence' ? 'bg-purple-500' :
-                            chat.chat_type === 'next-steps' ? 'bg-green-500' :
-                            'bg-orange-500'
-                          }`}
-                          title={`${chat.chat_type} - ${format(new Date(chat.created_at), 'HH:mm')}`}
-                        />
-                      ))}
+                      {dayChats.map((chat, index) => {
+                        const isActive = chat.status === 'active';
+                        return (
+                          <button
+                            key={`${chat.id}-${index}`}
+                            onClick={() => handleChatReopen(chat)}
+                            className={`w-2 h-2 rounded-full transition-all hover:scale-125 ${
+                              chat.chat_type === 'comment' ? 'bg-blue-500' :
+                              chat.chat_type === 'coherence' ? 'bg-purple-500' :
+                              chat.chat_type === 'next-steps' ? 'bg-green-500' :
+                              'bg-orange-500'
+                            } ${isActive ? 'ring-2 ring-slate-300' : 'opacity-70'}`}
+                            title={`${chat.chat_type} - ${format(new Date(chat.created_at), 'HH:mm')} ${isActive ? '(active)' : '(closed)'}`}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 );

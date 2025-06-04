@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface PopupChatContextType {
   chats: LocalChatSession[];
   openChat: (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => void;
+  reopenChat: (existingChatId: string) => Promise<void>;
   closeChat: (id: string) => void;
   minimizeChat: (id: string) => void;
   saveChatMessage: (chatId: string, message: { role: 'user' | 'assistant'; content: string; timestamp: Date }) => Promise<void>;
@@ -41,6 +42,7 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
         .from('chat_sessions')
         .select('*')
         .eq('project_id', projectId)
+        .eq('status', 'active')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -48,8 +50,8 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
         return;
       }
 
-      console.log('Loaded chats from database:', data?.length || 0);
-      // Convert database format to local format
+      console.log('Loaded active chats from database:', data?.length || 0);
+      // Convert database format to local format and only show active chats
       const localChats: LocalChatSession[] = (data as DbChatSession[]).map(convertDbToLocal);
       setChats(localChats);
     } catch (error) {
@@ -96,7 +98,8 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       projectId,
       chapterId,
       selectedText,
-      messages: []
+      messages: [],
+      status: 'active'
     };
     
     // Add initial message for comment type
@@ -119,22 +122,75 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
     await saveChatToDatabase(newChat);
   };
 
+  const reopenChat = async (existingChatId: string) => {
+    try {
+      console.log('Reopening existing chat:', existingChatId);
+      
+      // Check if chat is already active
+      if (chats.find(chat => chat.id === existingChatId)) {
+        console.log('Chat is already active:', existingChatId);
+        return;
+      }
+
+      // Load the existing chat from database
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('id', existingChatId)
+        .single();
+
+      if (error) {
+        console.error('Error loading existing chat:', error);
+        return;
+      }
+
+      if (data) {
+        console.log('Loaded existing chat from database:', data);
+        const localChat = convertDbToLocal(data as DbChatSession);
+        localChat.status = 'active';
+
+        // Calculate new safe position (slightly offset from original)
+        const safePosition = {
+          x: Math.max(20, Math.min(localChat.position.x + 30, window.innerWidth - 420)),
+          y: Math.max(20, Math.min(localChat.position.y + 30, window.innerHeight - 520))
+        };
+        localChat.position = safePosition;
+
+        // Add to active chats
+        setChats(prev => [...prev, localChat]);
+
+        // Update status in database
+        await supabase
+          .from('chat_sessions')
+          .update({ status: 'active' })
+          .eq('id', existingChatId);
+
+        console.log('Chat reopened successfully:', existingChatId);
+      }
+    } catch (error) {
+      console.error('Error reopening chat:', error);
+    }
+  };
+
   const closeChat = async (id: string) => {
     console.log('Closing chat:', id);
+    
+    // Remove from active state
     setChats(prev => {
       const filtered = prev.filter(chat => chat.id !== id);
       console.log('Chats after close:', filtered.length);
       return filtered;
     });
     
+    // Mark as closed in database instead of deleting
     try {
       await supabase
         .from('chat_sessions')
-        .delete()
+        .update({ status: 'closed' })
         .eq('id', id);
-      console.log('Chat deleted from database:', id);
+      console.log('Chat marked as closed in database:', id);
     } catch (error) {
-      console.error('Error deleting chat:', error);
+      console.error('Error closing chat:', error);
     }
   };
 
@@ -167,14 +223,15 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
     <PopupChatContext.Provider value={{ 
       chats, 
       openChat, 
+      reopenChat,
       closeChat, 
       minimizeChat, 
       saveChatMessage,
       loadProjectChats 
     }}>
       {children}
-      {/* Render all popup chats */}
-      {chats.map(chat => (
+      {/* Render all active popup chats */}
+      {chats.filter(chat => chat.status === 'active').map(chat => (
         <PopupChat
           key={chat.id}
           id={chat.id}
