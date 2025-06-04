@@ -143,6 +143,7 @@ export type Database = {
           position: Json
           project_id: string
           selected_text: string | null
+          status: string | null
           text_position: number | null
           updated_at: string
         }
@@ -156,6 +157,7 @@ export type Database = {
           position: Json
           project_id: string
           selected_text?: string | null
+          status?: string | null
           text_position?: number | null
           updated_at?: string
         }
@@ -169,6 +171,7 @@ export type Database = {
           position?: Json
           project_id?: string
           selected_text?: string | null
+          status?: string | null
           text_position?: number | null
           updated_at?: string
         }

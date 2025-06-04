@@ -50,7 +50,13 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
         }
 
         console.log('Timeline chats loaded:', data?.length || 0);
-        setTimelineChats(data as TimelineChat[] || []);
+        if (data) {
+          setTimelineChats(data.map(chat => ({
+            ...chat,
+            chat_type: chat.chat_type as 'comment' | 'coherence' | 'next-steps' | 'chat',
+            position: chat.position as { x: number; y: number }
+          })));
+        }
       } catch (error) {
         console.error('Error loading timeline chats:', error);
       } finally {

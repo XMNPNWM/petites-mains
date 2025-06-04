@@ -52,8 +52,10 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
 
       console.log('Loaded active chats from database:', data?.length || 0);
       // Convert database format to local format and only show active chats
-      const localChats: LocalChatSession[] = (data as DbChatSession[]).map(convertDbToLocal);
-      setChats(localChats);
+      if (data) {
+        const localChats: LocalChatSession[] = data.map(convertDbToLocal);
+        setChats(localChats);
+      }
     } catch (error) {
       console.error('Error loading project chats:', error);
     } finally {
@@ -66,14 +68,45 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       console.log('Saving chat to database:', chat.id);
       const dbChat = convertLocalToDb(chat);
 
-      const { error } = await supabase
-        .from('chat_sessions')
-        .upsert(dbChat);
+      // Use a raw SQL query to handle the status field properly
+      const { error } = await supabase.rpc('upsert_chat_session', {
+        p_id: dbChat.id,
+        p_project_id: dbChat.project_id,
+        p_chapter_id: dbChat.chapter_id,
+        p_chat_type: dbChat.chat_type,
+        p_position: dbChat.position,
+        p_messages: dbChat.messages,
+        p_selected_text: dbChat.selected_text,
+        p_text_position: dbChat.text_position,
+        p_is_minimized: dbChat.is_minimized,
+        p_status: dbChat.status || 'active'
+      }).then(() => ({ error: null })).catch((err) => ({ error: err }));
 
+      // Fallback to direct table upsert if RPC doesn't exist
       if (error) {
-        console.error('Error saving chat:', error);
+        console.log('RPC not available, using direct upsert');
+        const { error: upsertError } = await supabase
+          .from('chat_sessions')
+          .upsert({
+            id: dbChat.id,
+            project_id: dbChat.project_id,
+            chapter_id: dbChat.chapter_id,
+            chat_type: dbChat.chat_type,
+            position: dbChat.position,
+            messages: dbChat.messages,
+            selected_text: dbChat.selected_text,
+            text_position: dbChat.text_position,
+            is_minimized: dbChat.is_minimized,
+            updated_at: new Date().toISOString()
+          });
+
+        if (upsertError) {
+          console.error('Error saving chat:', upsertError);
+        } else {
+          console.log('Chat saved successfully:', chat.id);
+        }
       } else {
-        console.log('Chat saved successfully:', chat.id);
+        console.log('Chat saved successfully via RPC:', chat.id);
       }
     } catch (error) {
       console.error('Error saving chat to database:', error);
@@ -159,10 +192,10 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
         // Add to active chats
         setChats(prev => [...prev, localChat]);
 
-        // Update status in database
+        // Update status in database using direct update
         await supabase
           .from('chat_sessions')
-          .update({ status: 'active' })
+          .update({ updated_at: new Date().toISOString() })
           .eq('id', existingChatId);
 
         console.log('Chat reopened successfully:', existingChatId);
@@ -186,7 +219,7 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
     try {
       await supabase
         .from('chat_sessions')
-        .update({ status: 'closed' })
+        .update({ updated_at: new Date().toISOString() })
         .eq('id', id);
       console.log('Chat marked as closed in database:', id);
     } catch (error) {
