@@ -30,7 +30,6 @@ interface PopupChatProviderProps {
 export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
   const [chats, setChats] = useState<LocalChatSession[]>([]);
   const isLoadingRef = useRef(false);
-  const chatCreationDebounceRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   const loadProjectChats = async (projectId: string) => {
     if (isLoadingRef.current) return;
@@ -82,59 +81,42 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
   const openChat = async (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => {
     console.log('Opening chat:', { type, position, projectId, chapterId, selectedText });
     
-    // Create debounce key to prevent rapid creation
-    const debounceKey = `${type}-${position.x}-${position.y}`;
+    // Ensure position is within viewport bounds
+    const safePosition = {
+      x: Math.max(20, Math.min(position.x, window.innerWidth - 420)),
+      y: Math.max(20, Math.min(position.y, window.innerHeight - 520))
+    };
+
+    const newChat: LocalChatSession = {
+      id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type,
+      position: safePosition,
+      isMinimized: false,
+      createdAt: new Date(),
+      projectId,
+      chapterId,
+      selectedText,
+      messages: []
+    };
     
-    // Clear existing timeout for this key if any
-    const existingTimeout = chatCreationDebounceRef.current.get(debounceKey);
-    if (existingTimeout) {
-      clearTimeout(existingTimeout);
+    // Add initial message for comment type
+    if (type === 'comment' && selectedText) {
+      newChat.messages = [{
+        role: 'assistant',
+        content: `You're commenting on: "${selectedText.text}"\n\nWhat would you like to note about this text?`,
+        timestamp: new Date()
+      }];
     }
     
-    // Set new timeout for debounced chat creation
-    const timeout = setTimeout(async () => {
-      // Ensure position is within viewport bounds
-      const safePosition = {
-        x: Math.max(20, Math.min(position.x, window.innerWidth - 420)),
-        y: Math.max(20, Math.min(position.y, window.innerHeight - 520))
-      };
-
-      const newChat: LocalChatSession = {
-        id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        type,
-        position: safePosition,
-        isMinimized: false,
-        createdAt: new Date(),
-        projectId,
-        chapterId,
-        selectedText,
-        messages: []
-      };
-      
-      // Add initial message for comment type
-      if (type === 'comment' && selectedText) {
-        newChat.messages = [{
-          role: 'assistant',
-          content: `You're commenting on: "${selectedText.text}"\n\nWhat would you like to note about this text?`,
-          timestamp: new Date()
-        }];
-      }
-      
-      console.log('Adding new chat to state:', newChat.id);
-      setChats(prev => {
-        const updated = [...prev, newChat];
-        console.log('Updated chats count:', updated.length);
-        return updated;
-      });
-      
-      // Save to database
-      await saveChatToDatabase(newChat);
-      
-      // Remove from debounce map
-      chatCreationDebounceRef.current.delete(debounceKey);
-    }, 100); // 100ms debounce
+    console.log('Adding new chat to state:', newChat.id);
+    setChats(prev => {
+      const updated = [...prev, newChat];
+      console.log('Updated chats count:', updated.length);
+      return updated;
+    });
     
-    chatCreationDebounceRef.current.set(debounceKey, timeout);
+    // Save to database
+    await saveChatToDatabase(newChat);
   };
 
   const closeChat = async (id: string) => {
@@ -180,14 +162,6 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       return chat;
     }));
   };
-
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      chatCreationDebounceRef.current.forEach(timeout => clearTimeout(timeout));
-      chatCreationDebounceRef.current.clear();
-    };
-  }, []);
 
   return (
     <PopupChatContext.Provider value={{ 

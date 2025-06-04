@@ -40,37 +40,28 @@ const WritingContextMenu = ({
     event.stopPropagation();
     console.log('Comment clicked, position:', contextPosition);
     const selectedText = getSelectedTextContext();
-    // Add small delay to allow context menu to close properly
-    setTimeout(() => {
-      onComment(contextPosition, selectedText);
-    }, 50);
+    onComment(contextPosition, selectedText);
   };
 
   const handleCoherenceClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
     console.log('Coherence clicked, position:', contextPosition);
-    setTimeout(() => {
-      onCoherence(contextPosition);
-    }, 50);
+    onCoherence(contextPosition);
   };
 
   const handleNextStepsClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
     console.log('Next steps clicked, position:', contextPosition);
-    setTimeout(() => {
-      onNextSteps(contextPosition);
-    }, 50);
+    onNextSteps(contextPosition);
   };
 
   const handleChatClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
     console.log('Chat clicked, position:', contextPosition);
-    setTimeout(() => {
-      onChat(contextPosition);
-    }, 50);
+    onChat(contextPosition);
   };
 
   const selectedText = getSelectedTextContext();
@@ -86,7 +77,7 @@ const WritingContextMenu = ({
           {children}
         </div>
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56 bg-white border border-slate-200 shadow-lg z-[100]">
+      <ContextMenuContent className="w-56 bg-white border border-slate-200 shadow-lg z-[10000]">
         <ContextMenuItem 
           onClick={handleCommentClick}
           className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer"
