@@ -50,12 +50,10 @@ const StorylineContextMenu = ({
 }: StorylineContextMenuProps) => {
   const [contextPosition, setContextPosition] = React.useState<{ x: number; y: number } | null>(null);
 
-  // Filter to only include properly synchronized worldbuilding elements
   const synchronizedElements = worldbuildingElements.filter(element => 
     element.created_from_storyline === true && element.storyline_node_id !== null
   );
 
-  // Group synchronized worldbuilding elements by type
   const groupedElements = synchronizedElements.reduce((acc, element) => {
     if (!acc[element.type]) {
       acc[element.type] = [];
@@ -79,7 +77,6 @@ const StorylineContextMenu = ({
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
-    // Prevent event bubbling to avoid conflicts
     e.preventDefault();
     e.stopPropagation();
     
@@ -89,12 +86,11 @@ const StorylineContextMenu = ({
       y: e.clientY - rect.top
     };
     
-    console.log('Context menu triggered at position:', position);
+    console.log('Storyline context menu triggered at position:', position);
     setContextPosition(position);
     onContextMenuTrigger(position);
   };
 
-  // Get proper display name for worldbuilding categories
   const getCategoryDisplayName = (type: string) => {
     const nodeType = NODE_TYPES.find(nt => nt.value === type);
     return nodeType ? nodeType.label : type.charAt(0).toUpperCase() + type.slice(1);
@@ -103,7 +99,7 @@ const StorylineContextMenu = ({
   return (
     <ContextMenu 
       onOpenChange={(open) => {
-        console.log('Context menu open state changed:', open);
+        console.log('Storyline context menu open state changed:', open);
         if (!open) {
           setContextPosition(null);
         }
@@ -123,14 +119,14 @@ const StorylineContextMenu = ({
       </ContextMenuTrigger>
       <ContextMenuContent 
         className="w-56"
-        style={{ zIndex: 9999 }}
+        style={{ zIndex: 999999 }}
       >
         <ContextMenuSub>
           <ContextMenuSubTrigger>
             <Plus className="w-4 h-4 mr-2" />
             Create New Node
           </ContextMenuSubTrigger>
-          <ContextMenuSubContent style={{ zIndex: 10000 }}>
+          <ContextMenuSubContent style={{ zIndex: 1000000 }}>
             {NODE_TYPES.map((nodeType) => (
               <ContextMenuItem
                 key={nodeType.value}
@@ -151,13 +147,13 @@ const StorylineContextMenu = ({
                 <BookOpen className="w-4 h-4 mr-2" />
                 Add from Worldbuilding
               </ContextMenuSubTrigger>
-              <ContextMenuSubContent style={{ zIndex: 10000 }}>
+              <ContextMenuSubContent style={{ zIndex: 1000000 }}>
                 {Object.entries(groupedElements).map(([type, elements]) => (
                   <ContextMenuSub key={type}>
                     <ContextMenuSubTrigger>
                       {getCategoryDisplayName(type)}
                     </ContextMenuSubTrigger>
-                    <ContextMenuSubContent style={{ zIndex: 10001 }}>
+                    <ContextMenuSubContent style={{ zIndex: 1000001 }}>
                       {elements.map((element) => (
                         <ContextMenuItem
                           key={element.id}
