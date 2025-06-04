@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Minus, MessageSquare, Brain, ArrowRight, MessageCircle, Send } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -62,6 +63,7 @@ const PopupChat = ({
   const resizeRef = useRef({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 });
   const { saveChatMessage } = usePopupChats();
 
+  // Initialize messages from props
   useEffect(() => {
     console.log('PopupChat initialized:', { id, type, initialMessages: initialMessages.length });
     if (initialMessages.length > 0) {
@@ -69,8 +71,9 @@ const PopupChat = ({
     }
   }, [initialMessages, id, type]);
 
+  // Bounds checking function to ensure popup stays within valid area
   const getBoundedPosition = (x: number, y: number) => {
-    const storylinePanelHeight = window.innerHeight * 0.3;
+    const storylinePanelHeight = window.innerHeight * 0.3; // Approximate storyline panel height
     const maxY = window.innerHeight - storylinePanelHeight - size.height - 20;
     
     return {
@@ -79,6 +82,7 @@ const PopupChat = ({
     };
   };
 
+  // Update position with bounds checking when size changes
   useEffect(() => {
     setPosition(prev => getBoundedPosition(prev.x, prev.y));
   }, [size]);
@@ -115,6 +119,7 @@ const PopupChat = ({
     document.body.style.userSelect = 'none';
   };
 
+  // Prevent click events from propagating through the popup
   const handlePopupClick = (e: React.MouseEvent) => {
     e.stopPropagation();
   };
@@ -174,27 +179,12 @@ const PopupChat = ({
     
     setCurrentMessage('');
     
-    // Generate appropriate AI response based on chat type
+    // Simulate AI response for non-comment types
     if (type !== 'comment') {
       setTimeout(async () => {
-        let aiContent = '';
-        switch (type) {
-          case 'coherence':
-            aiContent = `I'll analyze the coherence of your story. Based on "${currentMessage}", I can help you identify potential plot holes, character inconsistencies, or timeline issues. Would you like me to focus on any specific aspect?`;
-            break;
-          case 'next-steps':
-            aiContent = `Based on your query about "${currentMessage}", here are some next steps to consider: 1) Develop the character motivations further, 2) Explore the world-building implications, 3) Consider the emotional arc. What resonates most with your vision?`;
-            break;
-          case 'chat':
-            aiContent = `Thank you for sharing "${currentMessage}". As your writing assistant, I can help you brainstorm ideas, develop characters, or work through plot challenges. What aspect of your story would you like to explore further?`;
-            break;
-          default:
-            aiContent = `I understand you're asking about: "${currentMessage}". This is a response for ${getChatTitle(type)}.`;
-        }
-        
         const aiResponse = {
           role: 'assistant' as const,
-          content: aiContent,
+          content: `I understand you're asking about: "${currentMessage}". This is a placeholder response for ${getChatTitle(type)}.`,
           timestamp: new Date()
         };
         setMessages(prev => [...prev, aiResponse]);
@@ -222,7 +212,7 @@ const PopupChat = ({
   if (isMinimized) {
     return (
       <div
-        className="fixed bg-white border border-slate-200 rounded-lg shadow-lg p-2 flex items-center gap-2 cursor-pointer z-[150]"
+        className="fixed bg-white border border-slate-200 rounded-lg shadow-lg p-2 flex items-center gap-2 cursor-pointer z-[200]"
         style={{ left: position.x, top: position.y }}
         onClick={handleMinimize}
         onMouseDown={(e) => e.stopPropagation()}
@@ -242,7 +232,7 @@ const PopupChat = ({
 
   return (
     <Card
-      className="fixed shadow-xl border border-slate-200 z-[150]"
+      className="fixed shadow-xl border border-slate-200 z-[200]"
       style={{
         left: position.x,
         top: position.y,
@@ -278,6 +268,7 @@ const PopupChat = ({
       </CardHeader>
       
       <CardContent className="p-0 flex flex-col h-full" onClick={handlePopupClick}>
+        {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
           {messages.length === 0 ? (
             <div className="text-center text-slate-500 text-sm mt-8">
@@ -306,6 +297,7 @@ const PopupChat = ({
           )}
         </div>
         
+        {/* Input Area */}
         <div className="border-t p-3 flex gap-2">
           <Textarea
             value={currentMessage}
@@ -334,6 +326,7 @@ const PopupChat = ({
           </Button>
         </div>
         
+        {/* Resize Handle */}
         <div
           className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
           onMouseDown={handleResizeMouseDown}

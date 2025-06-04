@@ -27,15 +27,9 @@ interface PopupChatProviderProps {
   children: ReactNode;
 }
 
-// Generate a proper UUID v4
-const generateUUID = (): string => {
-  return crypto.randomUUID();
-};
-
 export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
   const [chats, setChats] = useState<LocalChatSession[]>([]);
   const isLoadingRef = useRef(false);
-  const savingChatsRef = useRef(new Set<string>());
 
   const loadProjectChats = async (projectId: string) => {
     if (isLoadingRef.current) return;
@@ -55,6 +49,8 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       }
 
       console.log('Loaded chats from database:', data?.length || 0);
+      // Only load closed chats (those saved to database), not active ones
+      // Active chats are managed in local state
     } catch (error) {
       console.error('Error loading project chats:', error);
     } finally {
@@ -62,89 +58,37 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
     }
   };
 
-  const checkForDuplicateChat = async (chat: LocalChatSession) => {
-    // Check for duplicate based on position, type, and selected text to prevent duplicates
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .select('id')
-      .eq('project_id', chat.projectId)
-      .eq('chat_type', chat.type)
-      .eq('position', JSON.stringify(chat.position));
-
-    if (error) {
-      console.error('Error checking for duplicates:', error);
-      return false;
-    }
-
-    // If it's a comment type, also check selected text
-    if (chat.type === 'comment' && chat.selectedText) {
-      const duplicateWithText = data?.find(() => true); // Simple check for now
-      return !!duplicateWithText;
-    }
-
-    return data && data.length > 0;
-  };
-
   const saveChatToDatabase = async (chat: LocalChatSession) => {
-    // Prevent duplicate saves
-    if (savingChatsRef.current.has(chat.id)) {
-      console.log('Chat already being saved, skipping:', chat.id);
-      return;
-    }
-
-    // Only save if chat has messages
-    if (!chat.messages || chat.messages.length === 0) {
-      console.log('Skipping save for chat without messages:', chat.id);
-      return;
-    }
-
-    // Check for duplicates
-    const isDuplicate = await checkForDuplicateChat(chat);
-    if (isDuplicate) {
-      console.log('Duplicate chat detected, skipping save:', chat.id);
-      return;
-    }
-
-    savingChatsRef.current.add(chat.id);
-
     try {
-      console.log('Saving chat to database:', chat.id, 'type:', chat.type);
+      console.log('Saving chat to database:', chat.id);
       const dbChat = convertLocalToDb(chat);
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('chat_sessions')
-        .upsert(dbChat, { onConflict: 'id' })
-        .select();
+        .upsert(dbChat);
 
       if (error) {
         console.error('Error saving chat:', error);
-        throw error;
       } else {
-        console.log('Chat saved successfully:', chat.id, 'type:', chat.type, data);
-        return data;
+        console.log('Chat saved successfully:', chat.id);
       }
     } catch (error) {
       console.error('Error saving chat to database:', error);
-      throw error;
-    } finally {
-      savingChatsRef.current.delete(chat.id);
     }
   };
 
   const openChat = async (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => {
     console.log('Opening chat:', { type, position, projectId, chapterId, selectedText });
     
-    // Ensure position is within viewport bounds and below storyline context menu z-index
-    const storylinePanelHeight = window.innerHeight * 0.3;
+    // Ensure position is within viewport bounds
+    const storylinePanelHeight = window.innerHeight * 0.3; // Approximate height
     const safePosition = {
       x: Math.max(20, Math.min(position.x, window.innerWidth - 420)),
       y: Math.max(20, Math.min(position.y, window.innerHeight - storylinePanelHeight - 520))
     };
 
-    const chatId = generateUUID();
-
     const newChat: LocalChatSession = {
-      id: chatId,
+      id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type,
       position: safePosition,
       isMinimized: false,
@@ -155,52 +99,34 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       messages: []
     };
     
-    // Add appropriate initial message based on chat type
+    // Add initial message for comment type
     if (type === 'comment' && selectedText) {
       newChat.messages = [{
         role: 'assistant',
         content: `You're commenting on: "${selectedText.text}"\n\nWhat would you like to note about this text?`,
         timestamp: new Date()
       }];
-    } else if (type === 'coherence') {
-      newChat.messages = [{
-        role: 'assistant',
-        content: `I'm here to help you check the coherence of your story. What aspect would you like me to analyze?`,
-        timestamp: new Date()
-      }];
-    } else if (type === 'next-steps') {
-      newChat.messages = [{
-        role: 'assistant',
-        content: `I'm here to help you plan your next steps. What part of your story would you like to develop?`,
-        timestamp: new Date()
-      }];
-    } else if (type === 'chat') {
-      newChat.messages = [{
-        role: 'assistant',
-        content: `Hello! I'm your writing assistant. How can I help you with your story today?`,
-        timestamp: new Date()
-      }];
     }
     
-    console.log('Adding new chat to state:', newChat.id, 'type:', newChat.type);
+    console.log('Adding new chat to state:', newChat.id);
     setChats(prev => {
       const updated = [...prev, newChat];
       console.log('Updated chats count:', updated.length);
       return updated;
     });
+    
+    // Note: We don't save to database immediately anymore
+    // Only save when chat is closed by user
   };
 
   const closeChat = async (id: string) => {
     console.log('Closing chat:', id);
     
+    // Find the chat to save it before removing
     const chatToClose = chats.find(chat => chat.id === id);
     if (chatToClose && chatToClose.messages && chatToClose.messages.length > 0) {
-      try {
-        await saveChatToDatabase(chatToClose);
-        console.log('Chat saved to database before closing:', id, 'type:', chatToClose.type);
-      } catch (error) {
-        console.error('Failed to save chat before closing:', error);
-      }
+      // Only save chats that have messages
+      await saveChatToDatabase(chatToClose);
     }
     
     setChats(prev => {
@@ -215,6 +141,7 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
     setChats(prev => prev.map(chat => {
       if (chat.id === id) {
         const updatedChat = { ...chat, isMinimized: !chat.isMinimized };
+        // Update in memory, but don't save to database until closed
         return updatedChat;
       }
       return chat;
@@ -227,6 +154,7 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       if (chat.id === chatId) {
         const updatedMessages = [...(chat.messages || []), message];
         const updatedChat = { ...chat, messages: updatedMessages };
+        // Update in memory, but don't save to database until closed
         return updatedChat;
       }
       return chat;
@@ -243,7 +171,7 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       loadProjectChats 
     }}>
       {children}
-      {/* Render all popup chats with adjusted z-index */}
+      {/* Render all popup chats */}
       {chats.map(chat => (
         <PopupChat
           key={chat.id}

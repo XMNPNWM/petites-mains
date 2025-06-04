@@ -1,5 +1,6 @@
 
 import React, { useCallback } from 'react';
+import StorylineContextMenu from './StorylineContextMenu';
 import CanvasBackground from './components/CanvasBackground';
 import ConnectionsLayer from './components/ConnectionsLayer';
 import NodesLayer from './components/NodesLayer';
@@ -95,6 +96,18 @@ const StorylineCanvas = React.memo(({
     onConnectionCancel
   });
 
+  const handleCreateNode = useCallback((nodeType: string, position: { x: number; y: number }) => {
+    if (readOnly) return;
+    const worldPos = screenToWorld(position.x, position.y);
+    onCreateNode(nodeType, worldPos);
+  }, [onCreateNode, screenToWorld, readOnly]);
+
+  const handleCreateFromWorldbuilding = useCallback((element: WorldbuildingElement, position: { x: number; y: number }) => {
+    if (readOnly) return;
+    const worldPos = screenToWorld(position.x, position.y);
+    onCreateFromWorldbuilding(element, worldPos);
+  }, [onCreateFromWorldbuilding, screenToWorld, readOnly]);
+
   const handleConnectionClick = useCallback((e: React.MouseEvent, connectionId: string) => {
     if (readOnly) return;
     e.stopPropagation();
@@ -112,69 +125,74 @@ const StorylineCanvas = React.memo(({
     onConnectionLabelEdit(connectionId, screenPosition);
   }, [onConnectionLabelEdit, readOnly]);
 
-  // Add debug logging for rendering
-  console.log('StorylineCanvas rendering with:', {
-    nodesCount: nodes.length,
-    connectionsCount: connections.length,
-    zoom,
-    pan,
-    readOnly
-  });
+  const handleContextMenuTrigger = useCallback((position: { x: number; y: number }) => {
+    return position;
+  }, []);
 
-  return (
-    <div 
-      data-storyline-canvas 
-      data-storyline-area 
-      className="w-full h-full"
+  const canvasContent = (
+    <CanvasBackground
+      zoom={zoom}
+      pan={pan}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={onCanvasMouseUp || onMouseUp || (() => {})}
+      onWheel={onWheel || (() => {})}
     >
-      <CanvasBackground
+      {/* Connections Layer - positioned absolutely */}
+      <ConnectionsLayer
+        nodes={nodes}
+        connections={connections}
         zoom={zoom}
         pan={pan}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={onCanvasMouseUp || onMouseUp || (() => {})}
-        onWheel={onWheel || (() => {})}
-      >
-        {/* Connections Layer - positioned absolutely */}
-        <ConnectionsLayer
-          nodes={nodes}
-          connections={connections}
-          zoom={zoom}
-          pan={pan}
+        connectionCreationState={connectionCreationState}
+        onConnectionClick={handleConnectionClick}
+      />
+
+      {/* Nodes Layer - directly positioned in world coordinates */}
+      <NodesLayer
+        nodes={nodes}
+        zoom={zoom}
+        pan={pan}
+        draggedNode={draggedNode}
+        selectedNode={selectedNode}
+        connectionSourceNodeId={connectionCreationState.sourceNodeId}
+        onNodeEdit={readOnly ? () => {} : onNodeEdit}
+        onNodeDelete={readOnly ? () => {} : onNodeDelete}
+        onNodeDrag={readOnly ? () => {} : onNodeDrag}
+        onConnectionStart={readOnly ? () => {} : onConnectionStart}
+        onConnectionFinish={readOnly ? () => {} : onConnectionFinish}
+        setDraggedNode={readOnly ? () => {} : setDraggedNode}
+        setSelectedNode={readOnly ? () => {} : setSelectedNode}
+      />
+
+      {/* Overlays - positioned at canvas level - only show in edit mode */}
+      {!readOnly && (
+        <CanvasOverlays
+          connectionLabelState={connectionLabelState}
           connectionCreationState={connectionCreationState}
-          onConnectionClick={handleConnectionClick}
+          connections={connections}
+          onConnectionLabelSave={onConnectionLabelSave}
+          onConnectionLabelDelete={onConnectionLabelDelete}
+          onConnectionLabelCancel={onConnectionLabelCancel}
         />
+      )}
+    </CanvasBackground>
+  );
 
-        {/* Nodes Layer - directly positioned in world coordinates */}
-        <NodesLayer
-          nodes={nodes}
-          zoom={zoom}
-          pan={pan}
-          draggedNode={draggedNode}
-          selectedNode={selectedNode}
-          connectionSourceNodeId={connectionCreationState.sourceNodeId}
-          onNodeEdit={readOnly ? () => {} : onNodeEdit}
-          onNodeDelete={readOnly ? () => {} : onNodeDelete}
-          onNodeDrag={readOnly ? () => {} : onNodeDrag}
-          onConnectionStart={readOnly ? () => {} : onConnectionStart}
-          onConnectionFinish={readOnly ? () => {} : onConnectionFinish}
-          setDraggedNode={readOnly ? () => {} : setDraggedNode}
-          setSelectedNode={readOnly ? () => {} : setSelectedNode}
-        />
+  // In read-only mode, skip context menu
+  if (readOnly) {
+    return canvasContent;
+  }
 
-        {/* Overlays - positioned at canvas level - only show in edit mode */}
-        {!readOnly && (
-          <CanvasOverlays
-            connectionLabelState={connectionLabelState}
-            connectionCreationState={connectionCreationState}
-            connections={connections}
-            onConnectionLabelSave={onConnectionLabelSave}
-            onConnectionLabelDelete={onConnectionLabelDelete}
-            onConnectionLabelCancel={onConnectionLabelCancel}
-          />
-        )}
-      </CanvasBackground>
-    </div>
+  return (
+    <StorylineContextMenu
+      worldbuildingElements={worldbuildingElements}
+      onCreateNode={handleCreateNode}
+      onCreateFromWorldbuilding={handleCreateFromWorldbuilding}
+      onContextMenuTrigger={handleContextMenuTrigger}
+    >
+      {canvasContent}
+    </StorylineContextMenu>
   );
 });
 

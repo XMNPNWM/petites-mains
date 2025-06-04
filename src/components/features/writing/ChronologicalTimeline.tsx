@@ -23,90 +23,16 @@ interface ChronologicalTimelineProps {
   projectId: string;
 }
 
-const convertToTimelineChat = (dbChat: any): TimelineChat | null => {
-  try {
-    if (!dbChat.id || !dbChat.project_id || !dbChat.chat_type || !dbChat.created_at) {
-      console.warn('Missing required fields in chat data:', dbChat);
-      return null;
-    }
-
-    let position: { x: number; y: number };
-    if (typeof dbChat.position === 'string') {
-      try {
-        position = JSON.parse(dbChat.position);
-      } catch {
-        console.warn('Failed to parse position string:', dbChat.position);
-        position = { x: 100, y: 100 };
-      }
-    } else if (dbChat.position && typeof dbChat.position === 'object') {
-      position = dbChat.position as { x: number; y: number };
-    } else {
-      position = { x: 100, y: 100 };
-    }
-
-    let messages: Array<{ role: 'user' | 'assistant'; content: string; timestamp: string }> = [];
-    if (typeof dbChat.messages === 'string') {
-      try {
-        messages = JSON.parse(dbChat.messages);
-      } catch {
-        console.warn('Failed to parse messages string:', dbChat.messages);
-      }
-    } else if (Array.isArray(dbChat.messages)) {
-      messages = dbChat.messages;
-    }
-
-    return {
-      id: dbChat.id,
-      project_id: dbChat.project_id,
-      chapter_id: dbChat.chapter_id || undefined,
-      chat_type: dbChat.chat_type as 'comment' | 'coherence' | 'next-steps' | 'chat',
-      position,
-      selected_text: dbChat.selected_text || undefined,
-      text_position: dbChat.text_position || undefined,
-      created_at: dbChat.created_at,
-      messages
-    };
-  } catch (error) {
-    console.error('Error converting chat data:', error, dbChat);
-    return null;
-  }
-};
-
 const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
   const { openChat, chats: liveChats } = usePopupChats();
   const [isHovered, setIsHovered] = useState(false);
   const [timelineChats, setTimelineChats] = useState<TimelineChat[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const lastFetchRef = useRef(0);
-  const fetchTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Improved deduplication function
-  const deduplicateChats = (chats: TimelineChat[]): TimelineChat[] => {
-    const seen = new Set<string>();
-    return chats.filter(chat => {
-      if (seen.has(chat.id)) {
-        console.log('Removing duplicate chat:', chat.id);
-        return false;
-      }
-      seen.add(chat.id);
-      return true;
-    });
-  };
-
+  // Load closed chats from database
   const fetchTimelineChats = async () => {
     if (isLoading) return;
-    
-    const now = Date.now();
-    if (now - lastFetchRef.current < 2000) { // Increased debounce time
-      if (fetchTimeoutRef.current) {
-        clearTimeout(fetchTimeoutRef.current);
-      }
-      fetchTimeoutRef.current = setTimeout(fetchTimelineChats, 2000);
-      return;
-    }
-    
-    lastFetchRef.current = now;
     setIsLoading(true);
 
     try {
@@ -122,17 +48,8 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
         return;
       }
 
-      console.log('Raw timeline data from database:', data?.length || 0);
-      
-      const validChats = (data || [])
-        .map(convertToTimelineChat)
-        .filter((chat): chat is TimelineChat => chat !== null);
-
-      // Apply deduplication
-      const uniqueChats = deduplicateChats(validChats);
-
-      console.log('Timeline chats loaded after deduplication:', uniqueChats.length);
-      setTimelineChats(uniqueChats);
+      console.log('Timeline chats loaded:', data?.length || 0);
+      setTimelineChats(data as TimelineChat[] || []);
     } catch (error) {
       console.error('Error loading timeline chats:', error);
     } finally {
@@ -140,49 +57,28 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     }
   };
 
+  // Load chats on mount and when project changes
   useEffect(() => {
     fetchTimelineChats();
-    return () => {
-      if (fetchTimeoutRef.current) {
-        clearTimeout(fetchTimeoutRef.current);
-      }
-    };
   }, [projectId]);
 
-  // Improved refresh logic with better detection
+  // Refresh timeline when chats are closed (we detect this by checking if there are fewer live chats)
   const prevLiveChatCount = useRef(liveChats.length);
-  const prevLiveChatIds = useRef(new Set(liveChats.map(chat => chat.id)));
-  
   useEffect(() => {
-    const currentChatIds = new Set(liveChats.map(chat => chat.id));
-    const wasClosedDetected = prevLiveChatCount.current > liveChats.length;
-    
-    // Check if any chat IDs were removed (indicating a chat was closed)
-    const chatWasClosed = Array.from(prevLiveChatIds.current).some(id => !currentChatIds.has(id));
-    
-    if (wasClosedDetected || chatWasClosed) {
-      if (fetchTimeoutRef.current) {
-        clearTimeout(fetchTimeoutRef.current);
-      }
-      fetchTimeoutRef.current = setTimeout(() => {
-        console.log('Chat closed detected, refreshing timeline...');
-        fetchTimelineChats();
-      }, 3000); // Increased delay to ensure database operations complete
+    if (liveChats.length < prevLiveChatCount.current) {
+      // A chat was closed, refresh the timeline
+      setTimeout(fetchTimelineChats, 1000); // Small delay to ensure database is updated
     }
-    
     prevLiveChatCount.current = liveChats.length;
-    prevLiveChatIds.current = currentChatIds;
-  }, [liveChats]);
+  }, [liveChats.length]);
 
-  // Group chats by date with additional deduplication at render level
+  // Group chats by date
   const chatsByDate = timelineChats.reduce((groups, chat) => {
     const dateKey = format(startOfDay(new Date(chat.created_at)), 'yyyy-MM-dd');
     if (!groups[dateKey]) {
       groups[dateKey] = [];
     }
-    if (!groups[dateKey].find(existingChat => existingChat.id === chat.id)) {
-      groups[dateKey].push(chat);
-    }
+    groups[dateKey].push(chat);
     return groups;
   }, {} as Record<string, TimelineChat[]>);
 
@@ -201,8 +97,9 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
   };
 
   const handleChatReopen = (chat: TimelineChat) => {
-    console.log('Reopening chat from timeline:', chat.id, 'type:', chat.chat_type);
+    console.log('Reopening chat from timeline:', chat.id);
     
+    // Calculate new position with offset to avoid overlap with existing chats
     const activeChatsCount = liveChats.length;
     const offsetX = activeChatsCount * 30;
     const offsetY = activeChatsCount * 30;
@@ -218,13 +115,14 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
       endOffset: (chat.text_position || 0) + chat.selected_text.length
     } : undefined;
     
-    console.log('Opening chat with position:', safePosition, 'type:', chat.chat_type);
+    console.log('Opening chat with position:', safePosition);
     openChat(chat.chat_type, safePosition, chat.project_id, chat.chapter_id, selectedText);
   };
 
+  // Always show timeline, but with different states
   return (
     <div
-      className={`flex items-center justify-center absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 z-[50] ${
+      className={`flex items-center justify-center absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
         isHovered || dates.length > 0 
           ? 'opacity-100 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-2' 
           : 'opacity-40'
@@ -259,9 +157,9 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
                       {format(date, 'MMM dd')}
                     </div>
                     <div className="flex space-x-1">
-                      {dayChats.map((chat) => (
+                      {dayChats.map((chat, index) => (
                         <button
-                          key={chat.id}
+                          key={`${chat.id}-${index}`}
                           onClick={() => handleChatReopen(chat)}
                           className={`w-2 h-2 rounded-full transition-all hover:scale-125 ${
                             chat.chat_type === 'comment' ? 'bg-blue-500' :
@@ -292,6 +190,7 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
         </>
       )}
       
+      {/* Always visible timeline indicator */}
       <div className={`transition-all duration-300 ${
         isHovered && dates.length === 0 
           ? 'bg-white/90 backdrop-blur-sm rounded-lg px-3 py-1' 

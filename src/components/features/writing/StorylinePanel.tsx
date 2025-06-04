@@ -14,7 +14,7 @@ interface StorylinePanelProps {
   onDataChange?: () => void;
 }
 
-const StorylinePanel = React.forwardRef<any, StorylinePanelProps>(({ projectId, chapterId, onDataChange }, ref) => {
+const StorylinePanel = ({ projectId, chapterId, onDataChange }: StorylinePanelProps) => {
   const {
     nodes,
     connections,
@@ -81,26 +81,6 @@ const StorylinePanel = React.forwardRef<any, StorylinePanelProps>(({ projectId, 
   React.useEffect(() => {
     setPan(dataPan);
   }, [dataPan, setPan]);
-
-  // Add debug logging for rendering state
-  React.useEffect(() => {
-    console.log('StorylinePanel rendering state:', {
-      projectId,
-      chapterId,
-      nodesCount: nodes.length,
-      connectionsCount: connections.length,
-      zoom,
-      pan,
-      showNodeForm,
-      editingNode: editingNode?.id
-    });
-  }, [projectId, chapterId, nodes, connections, zoom, pan, showNodeForm, editingNode]);
-
-  // Expose methods to parent component via ref
-  React.useImperativeHandle(ref, () => ({
-    createNodeAtPosition,
-    createNodeFromWorldbuilding
-  }));
 
   const handleConnectionLabelSave = async (connectionId: string, label: string) => {
     await updateConnectionLabel(connectionId, label);
@@ -173,8 +153,6 @@ const StorylinePanel = React.forwardRef<any, StorylinePanelProps>(({ projectId, 
       />
     </div>
   );
-});
-
-StorylinePanel.displayName = 'StorylinePanel';
+};
 
 export default StorylinePanel;

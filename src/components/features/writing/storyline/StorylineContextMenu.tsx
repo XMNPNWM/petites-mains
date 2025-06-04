@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   ContextMenu,
@@ -50,10 +49,12 @@ const StorylineContextMenu = ({
 }: StorylineContextMenuProps) => {
   const [contextPosition, setContextPosition] = React.useState<{ x: number; y: number } | null>(null);
 
+  // Filter to only include properly synchronized worldbuilding elements
   const synchronizedElements = worldbuildingElements.filter(element => 
     element.created_from_storyline === true && element.storyline_node_id !== null
   );
 
+  // Group synchronized worldbuilding elements by type
   const groupedElements = synchronizedElements.reduce((acc, element) => {
     if (!acc[element.type]) {
       acc[element.type] = [];
@@ -64,33 +65,27 @@ const StorylineContextMenu = ({
 
   const handleCreateNode = (nodeType: string) => {
     if (contextPosition) {
-      console.log('Creating node:', nodeType, 'at position:', contextPosition);
       onCreateNode(nodeType, contextPosition);
     }
   };
 
   const handleCreateFromWorldbuilding = (element: WorldbuildingElement) => {
     if (contextPosition) {
-      console.log('Creating node from worldbuilding:', element.name, 'at position:', contextPosition);
       onCreateFromWorldbuilding(element, contextPosition);
     }
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
     const rect = e.currentTarget.getBoundingClientRect();
     const position = {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top
     };
-    
-    console.log('Storyline context menu triggered at position:', position);
     setContextPosition(position);
     onContextMenuTrigger(position);
   };
 
+  // Get proper display name for worldbuilding categories
   const getCategoryDisplayName = (type: string) => {
     const nodeType = NODE_TYPES.find(nt => nt.value === type);
     return nodeType ? nodeType.label : type.charAt(0).toUpperCase() + type.slice(1);
@@ -99,7 +94,6 @@ const StorylineContextMenu = ({
   return (
     <ContextMenu 
       onOpenChange={(open) => {
-        console.log('Storyline context menu open state changed:', open);
         if (!open) {
           setContextPosition(null);
         }
@@ -108,30 +102,20 @@ const StorylineContextMenu = ({
       <ContextMenuTrigger 
         className="w-full h-full flex flex-col"
         onContextMenu={handleContextMenu}
-        asChild
       >
-        <div 
-          className="w-full h-full"
-          style={{ position: 'relative', zIndex: 1 }}
-        >
-          {children}
-        </div>
+        {children}
       </ContextMenuTrigger>
-      <ContextMenuContent 
-        className="w-56"
-        style={{ zIndex: 310 }}
-      >
+      <ContextMenuContent className="w-56">
         <ContextMenuSub>
           <ContextMenuSubTrigger>
             <Plus className="w-4 h-4 mr-2" />
             Create New Node
           </ContextMenuSubTrigger>
-          <ContextMenuSubContent style={{ zIndex: 320 }}>
+          <ContextMenuSubContent>
             {NODE_TYPES.map((nodeType) => (
               <ContextMenuItem
                 key={nodeType.value}
                 onClick={() => handleCreateNode(nodeType.value)}
-                onSelect={(e) => e.preventDefault()}
               >
                 {nodeType.label}
               </ContextMenuItem>
@@ -147,18 +131,17 @@ const StorylineContextMenu = ({
                 <BookOpen className="w-4 h-4 mr-2" />
                 Add from Worldbuilding
               </ContextMenuSubTrigger>
-              <ContextMenuSubContent style={{ zIndex: 320 }}>
+              <ContextMenuSubContent>
                 {Object.entries(groupedElements).map(([type, elements]) => (
                   <ContextMenuSub key={type}>
                     <ContextMenuSubTrigger>
                       {getCategoryDisplayName(type)}
                     </ContextMenuSubTrigger>
-                    <ContextMenuSubContent style={{ zIndex: 330 }}>
+                    <ContextMenuSubContent>
                       {elements.map((element) => (
                         <ContextMenuItem
                           key={element.id}
                           onClick={() => handleCreateFromWorldbuilding(element)}
-                          onSelect={(e) => e.preventDefault()}
                         >
                           {element.name}
                         </ContextMenuItem>
