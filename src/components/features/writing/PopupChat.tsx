@@ -59,9 +59,18 @@ const PopupChat = ({
   const [messages, setMessages] = useState(initialMessages);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isStable, setIsStable] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
   const resizeRef = useRef({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 });
   const { saveChatMessage } = usePopupChats();
+
+  // Stabilize popup after creation to prevent instant closing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsStable(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Initialize messages from props
   useEffect(() => {
@@ -70,6 +79,22 @@ const PopupChat = ({
       setMessages(initialMessages);
     }
   }, [initialMessages, id, type]);
+
+  // Bounds checking function to ensure popup stays within valid area
+  const getBoundedPosition = (x: number, y: number) => {
+    const storylinePanelHeight = window.innerHeight * 0.3; // Approximate storyline panel height
+    const maxY = window.innerHeight - storylinePanelHeight - size.height - 20;
+    
+    return {
+      x: Math.max(20, Math.min(window.innerWidth - size.width - 20, x)),
+      y: Math.max(20, Math.min(maxY, y))
+    };
+  };
+
+  // Update position with bounds checking when size changes
+  useEffect(() => {
+    setPosition(prev => getBoundedPosition(prev.x, prev.y));
+  }, [size]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isMinimized) return;
@@ -103,16 +128,20 @@ const PopupChat = ({
     document.body.style.userSelect = 'none';
   };
 
+  // Prevent click events from propagating through the popup
+  const handlePopupClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
         const deltaX = e.clientX - dragRef.current.startX;
         const deltaY = e.clientY - dragRef.current.startY;
         
-        setPosition({
-          x: Math.max(0, Math.min(window.innerWidth - size.width, dragRef.current.startPosX + deltaX)),
-          y: Math.max(0, Math.min(window.innerHeight - size.height, dragRef.current.startPosY + deltaY))
-        });
+        const newX = dragRef.current.startPosX + deltaX;
+        const newY = dragRef.current.startPosY + deltaY;
+        setPosition(getBoundedPosition(newX, newY));
       }
       
       if (isResizing) {
@@ -176,6 +205,7 @@ const PopupChat = ({
   };
 
   const handleClose = (e: React.MouseEvent) => {
+    if (!isStable) return;
     e.preventDefault();
     e.stopPropagation();
     console.log('Closing popup chat:', id);
@@ -183,6 +213,7 @@ const PopupChat = ({
   };
 
   const handleMinimize = (e: React.MouseEvent) => {
+    if (!isStable) return;
     e.preventDefault();
     e.stopPropagation();
     console.log('Minimizing popup chat:', id);
@@ -192,9 +223,10 @@ const PopupChat = ({
   if (isMinimized) {
     return (
       <div
-        className="fixed bg-white border border-slate-200 rounded-lg shadow-lg p-2 flex items-center gap-2 cursor-pointer z-[9999]"
+        className="fixed bg-white border border-slate-200 rounded-lg shadow-lg p-2 flex items-center gap-2 cursor-pointer z-[200]"
         style={{ left: position.x, top: position.y }}
         onClick={handleMinimize}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {getChatIcon(type)}
         <span className="text-sm font-medium">
@@ -211,13 +243,15 @@ const PopupChat = ({
 
   return (
     <Card
-      className="fixed shadow-xl border border-slate-200 z-[9999]"
+      className="fixed shadow-xl border border-slate-200 z-[200]"
       style={{
         left: position.x,
         top: position.y,
         width: size.width,
         height: size.height
       }}
+      onClick={handlePopupClick}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       <CardHeader
         className="flex flex-row items-center justify-between p-3 cursor-move bg-slate-50 border-b"
@@ -244,7 +278,7 @@ const PopupChat = ({
         </div>
       </CardHeader>
       
-      <CardContent className="p-0 flex flex-col h-full">
+      <CardContent className="p-0 flex flex-col h-full" onClick={handlePopupClick}>
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
           {messages.length === 0 ? (

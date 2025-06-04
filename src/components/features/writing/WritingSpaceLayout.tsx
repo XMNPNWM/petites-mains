@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
@@ -123,21 +124,46 @@ const WritingSpaceLayout = ({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  // Context menu handlers
+  // Context menu handlers with improved positioning
   const handleComment = (position: { x: number; y: number }, selectedText?: SelectedTextContext) => {
-    openChat('comment', position, projectId, currentChapter?.id, selectedText);
+    // Adjust position to account for storyline panel
+    const storylinePanelHeight = window.innerHeight * (overlayHeight / 100);
+    const adjustedPosition = {
+      x: position.x,
+      y: Math.min(position.y, window.innerHeight - storylinePanelHeight - 520) // Ensure popup fits above storyline
+    };
+    
+    openChat('comment', adjustedPosition, projectId, currentChapter?.id, selectedText);
   };
 
   const handleCoherence = (position: { x: number; y: number }) => {
-    openChat('coherence', position, projectId, currentChapter?.id);
+    const storylinePanelHeight = window.innerHeight * (overlayHeight / 100);
+    const adjustedPosition = {
+      x: position.x,
+      y: Math.min(position.y, window.innerHeight - storylinePanelHeight - 520)
+    };
+    
+    openChat('coherence', adjustedPosition, projectId, currentChapter?.id);
   };
 
   const handleNextSteps = (position: { x: number; y: number }) => {
-    openChat('next-steps', position, projectId, currentChapter?.id);
+    const storylinePanelHeight = window.innerHeight * (overlayHeight / 100);
+    const adjustedPosition = {
+      x: position.x,
+      y: Math.min(position.y, window.innerHeight - storylinePanelHeight - 520)
+    };
+    
+    openChat('next-steps', adjustedPosition, projectId, currentChapter?.id);
   };
 
   const handleChat = (position: { x: number; y: number }) => {
-    openChat('chat', position, projectId, currentChapter?.id);
+    const storylinePanelHeight = window.innerHeight * (overlayHeight / 100);
+    const adjustedPosition = {
+      x: position.x,
+      y: Math.min(position.y, window.innerHeight - storylinePanelHeight - 520)
+    };
+    
+    openChat('chat', adjustedPosition, projectId, currentChapter?.id);
   };
 
   return (
@@ -215,7 +241,7 @@ const WritingSpaceLayout = ({
       </div>
 
       <div
-        className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-50 overflow-hidden"
+        className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-[300] overflow-hidden"
         style={{ height: `${overlayHeight}%` }}
       >
         <div
