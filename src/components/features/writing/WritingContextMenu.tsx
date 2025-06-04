@@ -40,28 +40,37 @@ const WritingContextMenu = ({
     event.stopPropagation();
     console.log('Comment clicked, position:', contextPosition);
     const selectedText = getSelectedTextContext();
-    onComment(contextPosition, selectedText);
+    // Add small delay to allow context menu to close properly
+    setTimeout(() => {
+      onComment(contextPosition, selectedText);
+    }, 50);
   };
 
   const handleCoherenceClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
     console.log('Coherence clicked, position:', contextPosition);
-    onCoherence(contextPosition);
+    setTimeout(() => {
+      onCoherence(contextPosition);
+    }, 50);
   };
 
   const handleNextStepsClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
     console.log('Next steps clicked, position:', contextPosition);
-    onNextSteps(contextPosition);
+    setTimeout(() => {
+      onNextSteps(contextPosition);
+    }, 50);
   };
 
   const handleChatClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
     console.log('Chat clicked, position:', contextPosition);
-    onChat(contextPosition);
+    setTimeout(() => {
+      onChat(contextPosition);
+    }, 50);
   };
 
   const selectedText = getSelectedTextContext();

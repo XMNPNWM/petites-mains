@@ -16,7 +16,6 @@ interface TimelineChat {
   selected_text?: string;
   text_position?: number;
   created_at: string;
-  messages: Array<{ role: 'user' | 'assistant'; content: string; timestamp: string }>;
 }
 
 interface ChronologicalTimelineProps {
@@ -30,46 +29,46 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Load closed chats from database
-  const fetchTimelineChats = async () => {
-    if (isLoading) return;
-    setIsLoading(true);
+  // Load chats from database
+  useEffect(() => {
+    const fetchTimelineChats = async () => {
+      if (isLoading) return;
+      setIsLoading(true);
 
-    try {
-      console.log('Fetching timeline chats for project:', projectId);
-      const { data, error } = await supabase
-        .from('chat_sessions')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: true });
+      try {
+        console.log('Fetching timeline chats for project:', projectId);
+        const { data, error } = await supabase
+          .from('chat_sessions')
+          .select('id, project_id, chapter_id, chat_type, position, selected_text, text_position, created_at')
+          .eq('project_id', projectId)
+          .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching timeline chats:', error);
-        return;
+        if (error) {
+          console.error('Error fetching timeline chats:', error);
+          return;
+        }
+
+        console.log('Timeline chats loaded:', data?.length || 0);
+        setTimelineChats(data as TimelineChat[] || []);
+      } catch (error) {
+        console.error('Error loading timeline chats:', error);
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      console.log('Timeline chats loaded:', data?.length || 0);
-      setTimelineChats(data as TimelineChat[] || []);
-    } catch (error) {
-      console.error('Error loading timeline chats:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Load chats on mount and when project changes
-  useEffect(() => {
     fetchTimelineChats();
-  }, [projectId]);
+  }, [projectId, isLoading]);
 
-  // Refresh timeline when chats are closed (we detect this by checking if there are fewer live chats)
-  const prevLiveChatCount = useRef(liveChats.length);
+  // Update timeline when live chats change
   useEffect(() => {
-    if (liveChats.length < prevLiveChatCount.current) {
-      // A chat was closed, refresh the timeline
-      setTimeout(fetchTimelineChats, 1000); // Small delay to ensure database is updated
+    if (liveChats.length > 0) {
+      console.log('Live chats updated, refreshing timeline');
+      // Trigger a refresh after a short delay to ensure database is updated
+      setTimeout(() => {
+        setIsLoading(false); // Reset loading state to allow refetch
+      }, 1000);
     }
-    prevLiveChatCount.current = liveChats.length;
   }, [liveChats.length]);
 
   // Group chats by date
@@ -99,14 +98,10 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
   const handleChatReopen = (chat: TimelineChat) => {
     console.log('Reopening chat from timeline:', chat.id);
     
-    // Calculate new position with offset to avoid overlap with existing chats
-    const activeChatsCount = liveChats.length;
-    const offsetX = activeChatsCount * 30;
-    const offsetY = activeChatsCount * 30;
-    
+    // Calculate safe position with better bounds checking
     const safePosition = {
-      x: Math.max(50, Math.min(chat.position.x + offsetX, window.innerWidth - 450)),
-      y: Math.max(50, Math.min(chat.position.y + offsetY, window.innerHeight - 550))
+      x: Math.max(50, Math.min(chat.position.x + 30, window.innerWidth - 450)),
+      y: Math.max(50, Math.min(chat.position.y + 30, window.innerHeight - 550))
     };
     
     const selectedText = chat.selected_text ? {
@@ -167,9 +162,7 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
                             chat.chat_type === 'next-steps' ? 'bg-green-500' :
                             'bg-orange-500'
                           }`}
-                          title={`${chat.chat_type} - ${format(new Date(chat.created_at), 'HH:mm')}${
-                            chat.messages && chat.messages.length > 0 ? ` (${chat.messages.length} messages)` : ''
-                          }`}
+                          title={`${chat.chat_type} - ${format(new Date(chat.created_at), 'HH:mm')}`}
                         />
                       ))}
                     </div>
