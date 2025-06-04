@@ -82,10 +82,25 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
   const [timelineChats, setTimelineChats] = useState<TimelineChat[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastFetchRef = useRef(0);
+  const fetchTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Load closed chats from database
+  // Load closed chats from database with deduplication
   const fetchTimelineChats = async () => {
+    // Prevent multiple simultaneous requests
     if (isLoading) return;
+    
+    // Debounce rapid successive calls
+    const now = Date.now();
+    if (now - lastFetchRef.current < 1000) {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+      fetchTimeoutRef.current = setTimeout(fetchTimelineChats, 1000);
+      return;
+    }
+    
+    lastFetchRef.current = now;
     setIsLoading(true);
 
     try {
@@ -108,8 +123,16 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
         .map(convertToTimelineChat)
         .filter((chat): chat is TimelineChat => chat !== null);
 
-      console.log('Timeline chats loaded:', validChats.length);
-      setTimelineChats(validChats);
+      // Deduplicate chats by ID
+      const uniqueChats = validChats.reduce((acc, chat) => {
+        if (!acc.find(existingChat => existingChat.id === chat.id)) {
+          acc.push(chat);
+        }
+        return acc;
+      }, [] as TimelineChat[]);
+
+      console.log('Timeline chats loaded after deduplication:', uniqueChats.length);
+      setTimelineChats(uniqueChats);
     } catch (error) {
       console.error('Error loading timeline chats:', error);
     } finally {
@@ -120,25 +143,39 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
   // Load chats on mount and when project changes
   useEffect(() => {
     fetchTimelineChats();
+    return () => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+    };
   }, [projectId]);
 
   // Refresh timeline when chats are closed (we detect this by checking if there are fewer live chats)
   const prevLiveChatCount = useRef(liveChats.length);
   useEffect(() => {
     if (liveChats.length < prevLiveChatCount.current) {
-      // A chat was closed, refresh the timeline after a small delay
-      setTimeout(fetchTimelineChats, 2000); // Increased delay to ensure database is updated
+      // A chat was closed, refresh the timeline after a delay
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+      fetchTimeoutRef.current = setTimeout(() => {
+        console.log('Chat closed, refreshing timeline...');
+        fetchTimelineChats();
+      }, 2000);
     }
     prevLiveChatCount.current = liveChats.length;
   }, [liveChats.length]);
 
-  // Group chats by date
+  // Group chats by date with deduplication at render level
   const chatsByDate = timelineChats.reduce((groups, chat) => {
     const dateKey = format(startOfDay(new Date(chat.created_at)), 'yyyy-MM-dd');
     if (!groups[dateKey]) {
       groups[dateKey] = [];
     }
-    groups[dateKey].push(chat);
+    // Additional check to prevent duplication at render level
+    if (!groups[dateKey].find(existingChat => existingChat.id === chat.id)) {
+      groups[dateKey].push(chat);
+    }
     return groups;
   }, {} as Record<string, TimelineChat[]>);
 
@@ -217,9 +254,9 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
                       {format(date, 'MMM dd')}
                     </div>
                     <div className="flex space-x-1">
-                      {dayChats.map((chat, index) => (
+                      {dayChats.map((chat) => (
                         <button
-                          key={`${chat.id}-${index}`}
+                          key={chat.id}
                           onClick={() => handleChatReopen(chat)}
                           className={`w-2 h-2 rounded-full transition-all hover:scale-125 ${
                             chat.chat_type === 'comment' ? 'bg-blue-500' :

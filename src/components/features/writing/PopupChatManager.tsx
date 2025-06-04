@@ -29,16 +29,13 @@ interface PopupChatProviderProps {
 
 // Generate a proper UUID v4
 const generateUUID = (): string => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c == 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+  return crypto.randomUUID();
 };
 
 export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
   const [chats, setChats] = useState<LocalChatSession[]>([]);
   const isLoadingRef = useRef(false);
+  const savingChatsRef = useRef(new Set<string>());
 
   const loadProjectChats = async (projectId: string) => {
     if (isLoadingRef.current) return;
@@ -68,13 +65,21 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
   };
 
   const saveChatToDatabase = async (chat: LocalChatSession) => {
+    // Prevent duplicate saves
+    if (savingChatsRef.current.has(chat.id)) {
+      console.log('Chat already being saved, skipping:', chat.id);
+      return;
+    }
+
+    savingChatsRef.current.add(chat.id);
+
     try {
       console.log('Saving chat to database:', chat.id);
       const dbChat = convertLocalToDb(chat);
 
       const { data, error } = await supabase
         .from('chat_sessions')
-        .upsert(dbChat)
+        .upsert(dbChat, { onConflict: 'id' })
         .select();
 
       if (error) {
@@ -87,6 +92,8 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
     } catch (error) {
       console.error('Error saving chat to database:', error);
       throw error;
+    } finally {
+      savingChatsRef.current.delete(chat.id);
     }
   };
 
