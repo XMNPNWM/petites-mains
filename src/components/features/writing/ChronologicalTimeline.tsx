@@ -23,6 +23,59 @@ interface ChronologicalTimelineProps {
   projectId: string;
 }
 
+// Type guard to safely convert database data to TimelineChat
+const convertToTimelineChat = (dbChat: any): TimelineChat | null => {
+  try {
+    // Validate required fields
+    if (!dbChat.id || !dbChat.project_id || !dbChat.chat_type || !dbChat.created_at) {
+      console.warn('Missing required fields in chat data:', dbChat);
+      return null;
+    }
+
+    // Parse position - handle both object and string formats
+    let position: { x: number; y: number };
+    if (typeof dbChat.position === 'string') {
+      try {
+        position = JSON.parse(dbChat.position);
+      } catch {
+        console.warn('Failed to parse position string:', dbChat.position);
+        position = { x: 100, y: 100 }; // Default position
+      }
+    } else if (dbChat.position && typeof dbChat.position === 'object') {
+      position = dbChat.position as { x: number; y: number };
+    } else {
+      position = { x: 100, y: 100 }; // Default position
+    }
+
+    // Parse messages - handle both array and string formats
+    let messages: Array<{ role: 'user' | 'assistant'; content: string; timestamp: string }> = [];
+    if (typeof dbChat.messages === 'string') {
+      try {
+        messages = JSON.parse(dbChat.messages);
+      } catch {
+        console.warn('Failed to parse messages string:', dbChat.messages);
+      }
+    } else if (Array.isArray(dbChat.messages)) {
+      messages = dbChat.messages;
+    }
+
+    return {
+      id: dbChat.id,
+      project_id: dbChat.project_id,
+      chapter_id: dbChat.chapter_id || undefined,
+      chat_type: dbChat.chat_type as 'comment' | 'coherence' | 'next-steps' | 'chat',
+      position,
+      selected_text: dbChat.selected_text || undefined,
+      text_position: dbChat.text_position || undefined,
+      created_at: dbChat.created_at,
+      messages
+    };
+  } catch (error) {
+    console.error('Error converting chat data:', error, dbChat);
+    return null;
+  }
+};
+
 const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
   const { openChat, chats: liveChats } = usePopupChats();
   const [isHovered, setIsHovered] = useState(false);
@@ -48,8 +101,15 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
         return;
       }
 
-      console.log('Timeline chats loaded:', data?.length || 0);
-      setTimelineChats(data as TimelineChat[] || []);
+      console.log('Raw timeline data from database:', data);
+      
+      // Convert and filter valid chats
+      const validChats = (data || [])
+        .map(convertToTimelineChat)
+        .filter((chat): chat is TimelineChat => chat !== null);
+
+      console.log('Timeline chats loaded:', validChats.length);
+      setTimelineChats(validChats);
     } catch (error) {
       console.error('Error loading timeline chats:', error);
     } finally {
@@ -66,8 +126,8 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
   const prevLiveChatCount = useRef(liveChats.length);
   useEffect(() => {
     if (liveChats.length < prevLiveChatCount.current) {
-      // A chat was closed, refresh the timeline
-      setTimeout(fetchTimelineChats, 1000); // Small delay to ensure database is updated
+      // A chat was closed, refresh the timeline after a small delay
+      setTimeout(fetchTimelineChats, 2000); // Increased delay to ensure database is updated
     }
     prevLiveChatCount.current = liveChats.length;
   }, [liveChats.length]);

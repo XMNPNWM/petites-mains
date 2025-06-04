@@ -27,6 +27,15 @@ interface PopupChatProviderProps {
   children: ReactNode;
 }
 
+// Generate a proper UUID v4
+const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
   const [chats, setChats] = useState<LocalChatSession[]>([]);
   const isLoadingRef = useRef(false);
@@ -63,17 +72,21 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       console.log('Saving chat to database:', chat.id);
       const dbChat = convertLocalToDb(chat);
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('chat_sessions')
-        .upsert(dbChat);
+        .upsert(dbChat)
+        .select();
 
       if (error) {
         console.error('Error saving chat:', error);
+        throw error;
       } else {
-        console.log('Chat saved successfully:', chat.id);
+        console.log('Chat saved successfully:', chat.id, data);
+        return data;
       }
     } catch (error) {
       console.error('Error saving chat to database:', error);
+      throw error;
     }
   };
 
@@ -87,8 +100,11 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       y: Math.max(20, Math.min(position.y, window.innerHeight - storylinePanelHeight - 520))
     };
 
+    // Generate a proper UUID for the chat
+    const chatId = generateUUID();
+
     const newChat: LocalChatSession = {
-      id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: chatId,
       type,
       position: safePosition,
       isMinimized: false,
@@ -114,9 +130,6 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       console.log('Updated chats count:', updated.length);
       return updated;
     });
-    
-    // Note: We don't save to database immediately anymore
-    // Only save when chat is closed by user
   };
 
   const closeChat = async (id: string) => {
@@ -125,8 +138,14 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
     // Find the chat to save it before removing
     const chatToClose = chats.find(chat => chat.id === id);
     if (chatToClose && chatToClose.messages && chatToClose.messages.length > 0) {
-      // Only save chats that have messages
-      await saveChatToDatabase(chatToClose);
+      try {
+        // Only save chats that have messages
+        await saveChatToDatabase(chatToClose);
+        console.log('Chat saved to database before closing:', id);
+      } catch (error) {
+        console.error('Failed to save chat before closing:', error);
+        // Continue with closing even if save failed
+      }
     }
     
     setChats(prev => {
