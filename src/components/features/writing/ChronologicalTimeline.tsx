@@ -4,8 +4,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { usePopupChats } from './PopupChatManager';
-import { format, isSameDay, startOfDay } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
+import { format, startOfDay } from 'date-fns';
+import { useChatDatabase } from '@/hooks/useChatDatabase';
 
 interface TimelineChat {
   id: string;
@@ -25,6 +25,7 @@ interface ChronologicalTimelineProps {
 
 const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
   const { reopenChat, chats: liveChats } = usePopupChats();
+  const { loadTimelineChats } = useChatDatabase();
   const [isHovered, setIsHovered] = useState(false);
   const [timelineChats, setTimelineChats] = useState<TimelineChat[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -37,26 +38,8 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
       setIsLoading(true);
 
       try {
-        console.log('Fetching timeline chats for project:', projectId);
-        const { data, error } = await supabase
-          .from('chat_sessions')
-          .select('id, project_id, chapter_id, chat_type, position, selected_text, text_position, status, created_at')
-          .eq('project_id', projectId)
-          .order('created_at', { ascending: true });
-
-        if (error) {
-          console.error('Error fetching timeline chats:', error);
-          return;
-        }
-
-        console.log('Timeline chats loaded:', data?.length || 0);
-        if (data) {
-          setTimelineChats(data.map(chat => ({
-            ...chat,
-            chat_type: chat.chat_type as 'comment' | 'coherence' | 'next-steps' | 'chat',
-            position: chat.position as { x: number; y: number }
-          })));
-        }
+        const data = await loadTimelineChats(projectId);
+        setTimelineChats(data);
       } catch (error) {
         console.error('Error loading timeline chats:', error);
       } finally {
@@ -65,7 +48,7 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     };
 
     fetchTimelineChats();
-  }, [projectId, isLoading]);
+  }, [projectId, loadTimelineChats, isLoading]);
 
   // Update timeline when live chats change
   useEffect(() => {
@@ -104,8 +87,6 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
 
   const handleChatReopen = async (chat: TimelineChat) => {
     console.log('Reopening chat from timeline:', chat.id);
-    
-    // Use the new reopenChat method that restores the existing chat
     await reopenChat(chat.id);
   };
 
