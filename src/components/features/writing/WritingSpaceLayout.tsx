@@ -1,12 +1,13 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
 import TextEditorPanel from './TextEditorPanel';
 import ChapterOrganizerPanel from './ChapterOrganizerPanel';
 import StorylinePanel from './StorylinePanel';
-import WritingContextMenu from './WritingContextMenu';
-import { usePopupChats } from './PopupChatManager';
-import { SelectedTextContext } from '@/types/comments';
+import SimpleRightClickMenu from './simple/SimpleRightClickMenu';
+import { SimplePopupProvider, useSimplePopups } from './simple/SimplePopupManager';
+import { ChatType } from './simple/SimpleChatPopup';
 
 interface Chapter {
   id: string;
@@ -25,7 +26,7 @@ interface WritingSpaceLayoutProps {
   onChaptersChange?: () => void;
 }
 
-const WritingSpaceLayout = ({ 
+const WritingSpaceLayoutContent = ({ 
   projectId, 
   currentChapter, 
   onChapterSelect, 
@@ -35,17 +36,10 @@ const WritingSpaceLayout = ({
   const [overlayHeight, setOverlayHeight] = useState(30);
   const [isDragging, setIsDragging] = useState(false);
   const [worldbuildingRefreshTrigger, setWorldbuildingRefreshTrigger] = useState(0);
-  const { openChat, loadProjectChats } = usePopupChats();
+  const { createPopup } = useSimplePopups();
 
   const worldbuildingPanelRef = useRef<any>(null);
   const chapterOrganizerPanelRef = useRef<any>(null);
-
-  // Load project chats when component mounts or project changes
-  useEffect(() => {
-    if (projectId) {
-      loadProjectChats(projectId);
-    }
-  }, [projectId, loadProjectChats]);
 
   const handleStorylineDataChange = useCallback(() => {
     console.log('Storyline data changed, refreshing worldbuilding panel...');
@@ -123,21 +117,9 @@ const WritingSpaceLayout = ({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  // Context menu handlers
-  const handleComment = (position: { x: number; y: number }, selectedText?: SelectedTextContext) => {
-    openChat('comment', position, projectId, currentChapter?.id, selectedText);
-  };
-
-  const handleCoherence = (position: { x: number; y: number }) => {
-    openChat('coherence', position, projectId, currentChapter?.id);
-  };
-
-  const handleNextSteps = (position: { x: number; y: number }) => {
-    openChat('next-steps', position, projectId, currentChapter?.id);
-  };
-
-  const handleChat = (position: { x: number; y: number }) => {
-    openChat('chat', position, projectId, currentChapter?.id);
+  // Simple right-click menu handler
+  const handleMenuClick = (type: ChatType, position: { x: number; y: number }, selectedText?: string) => {
+    createPopup(type, position, projectId, currentChapter?.id, selectedText);
   };
 
   return (
@@ -157,35 +139,25 @@ const WritingSpaceLayout = ({
             maxSize={40}
             className="overflow-hidden"
           >
-            <WritingContextMenu
-              onComment={handleComment}
-              onCoherence={handleCoherence}
-              onNextSteps={handleNextSteps}
-              onChat={handleChat}
-            >
+            <SimpleRightClickMenu onMenuClick={handleMenuClick}>
               <WorldbuildingPanel 
                 projectId={projectId} 
                 refreshTrigger={worldbuildingRefreshTrigger}
               />
-            </WritingContextMenu>
+            </SimpleRightClickMenu>
           </ResizablePanel>
           
           <ResizableHandle withHandle />
           
           <ResizablePanel defaultSize={50} minSize={30} className="overflow-hidden">
-            <WritingContextMenu
-              onComment={handleComment}
-              onCoherence={handleCoherence}
-              onNextSteps={handleNextSteps}
-              onChat={handleChat}
-            >
+            <SimpleRightClickMenu onMenuClick={handleMenuClick}>
               <TextEditorPanel 
                 chapter={currentChapter}
                 onContentChange={onContentChange}
                 areMinimized={areAllPanelsMinimized()}
                 onFocusToggle={handleFocusToggle}
               />
-            </WritingContextMenu>
+            </SimpleRightClickMenu>
           </ResizablePanel>
           
           <ResizableHandle withHandle />
@@ -197,25 +169,20 @@ const WritingSpaceLayout = ({
             maxSize={40}
             className="overflow-hidden"
           >
-            <WritingContextMenu
-              onComment={handleComment}
-              onCoherence={handleCoherence}
-              onNextSteps={handleNextSteps}
-              onChat={handleChat}
-            >
+            <SimpleRightClickMenu onMenuClick={handleMenuClick}>
               <ChapterOrganizerPanel 
                 projectId={projectId}
                 currentChapter={currentChapter}
                 onChapterSelect={onChapterSelect}
                 onChaptersChange={onChaptersChange}
               />
-            </WritingContextMenu>
+            </SimpleRightClickMenu>
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
 
       <div
-        className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-50 overflow-hidden"
+        className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-[1000] overflow-hidden"
         style={{ height: `${overlayHeight}%` }}
       >
         <div
@@ -246,6 +213,14 @@ const WritingSpaceLayout = ({
         </div>
       </div>
     </div>
+  );
+};
+
+const WritingSpaceLayout = (props: WritingSpaceLayoutProps) => {
+  return (
+    <SimplePopupProvider>
+      <WritingSpaceLayoutContent {...props} />
+    </SimplePopupProvider>
   );
 };
 

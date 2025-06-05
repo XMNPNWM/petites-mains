@@ -1,10 +1,9 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { stripHtmlTags, getWordCount } from '@/lib/contentUtils';
 import FocusModeToggle from './FocusModeToggle';
-import { SelectedTextContext } from '@/types/comments';
 
 interface Chapter {
   id: string;
@@ -28,7 +27,6 @@ const TextEditorPanel = ({
   areMinimized = false, 
   onFocusToggle 
 }: TextEditorPanelProps) => {
-  const [selectedText, setSelectedText] = useState<SelectedTextContext | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const cleanContent = chapter?.content ? stripHtmlTags(chapter.content) : '';
@@ -36,42 +34,6 @@ const TextEditorPanel = ({
 
   const handleContentChange = (newContent: string) => {
     onContentChange(newContent);
-  };
-
-  const handleTextSelection = () => {
-    if (!textareaRef.current) return;
-    
-    const textarea = textareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    
-    if (start !== end) {
-      const selectedText = textarea.value.substring(start, end);
-      setSelectedText({
-        text: selectedText.trim(),
-        startOffset: start,
-        endOffset: end
-      });
-    } else {
-      setSelectedText(null);
-    }
-  };
-
-  // Store selected text in a way that can be accessed by context menu
-  React.useEffect(() => {
-    if (selectedText) {
-      // Store in a global way that WritingContextMenu can access
-      (window as any).selectedTextContext = selectedText;
-    } else {
-      (window as any).selectedTextContext = null;
-    }
-  }, [selectedText]);
-
-  // Handle context menu on textarea - allow it to bubble up
-  const handleTextareaContextMenu = (e: React.MouseEvent) => {
-    // Don't prevent default here - let it bubble up to WritingContextMenu
-    // Just ensure we capture the current selection
-    handleTextSelection();
   };
 
   return (
@@ -92,11 +54,6 @@ const TextEditorPanel = ({
                   }`}>
                     {chapter.status}
                   </span>
-                  {selectedText && (
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                      Selected: "{selectedText.text}"
-                    </span>
-                  )}
                 </div>
               </div>
               {onFocusToggle && (
@@ -115,9 +72,6 @@ const TextEditorPanel = ({
                 ref={textareaRef}
                 value={cleanContent}
                 onChange={(e) => handleContentChange(e.target.value)}
-                onSelect={handleTextSelection}
-                onMouseUp={handleTextSelection}
-                onContextMenu={handleTextareaContextMenu}
                 placeholder="Start writing your story..."
                 className="flex-1 resize-none border-none focus-visible:ring-0 text-base leading-relaxed overflow-y-auto"
               />
