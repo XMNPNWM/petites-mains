@@ -1,8 +1,10 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
 import PopupChat, { ChatType } from './PopupChat';
-import { SelectedTextContext, LocalChatSession, DbChatSession, convertDbToLocal, convertLocalToDb } from '@/types/comments';
-import { supabase } from '@/integrations/supabase/client';
+import { SelectedTextContext, LocalChatSession } from '@/types/comments';
+import { useChatDatabase } from '@/hooks/useChatDatabase';
+import { useChatState } from '@/hooks/useChatState';
+import { useToast } from '@/hooks/use-toast';
 
 interface PopupChatContextType {
   chats: LocalChatSession[];
@@ -29,68 +31,38 @@ interface PopupChatProviderProps {
 }
 
 export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
-  const [chats, setChats] = useState<LocalChatSession[]>([]);
-  const isLoadingRef = useRef(false);
+  const { 
+    chats, 
+    addChat, 
+    removeChat, 
+    updateChat, 
+    setAllChats,
+    isLoadingRef 
+  } = useChatState();
+  
+  const { 
+    saveChat, 
+    loadProjectChats: loadChatsFromDb, 
+    updateChatStatus, 
+    loadChatById 
+  } = useChatDatabase();
+  
+  const { toast } = useToast();
 
   const loadProjectChats = async (projectId: string) => {
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
 
     try {
-      console.log('Loading chats for project:', projectId);
-      const { data, error } = await supabase
-        .from('chat_sessions')
-        .select('*')
-        .eq('project_id', projectId)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error loading chats:', error);
-        return;
-      }
-
-      console.log('Loaded active chats from database:', data?.length || 0);
-      if (data) {
-        const localChats: LocalChatSession[] = data.map(convertDbToLocal);
-        setChats(localChats);
-      }
+      console.log('Loading active chats for project:', projectId);
+      const activeChats = await loadChatsFromDb(projectId, 'active');
+      console.log('Loaded active chats from database:', activeChats.length);
+      setAllChats(activeChats);
     } catch (error) {
       console.error('Error loading project chats:', error);
+      // Don't show error toast for initial load failures
     } finally {
       isLoadingRef.current = false;
-    }
-  };
-
-  const saveChatToDatabase = async (chat: LocalChatSession) => {
-    try {
-      console.log('Saving chat to database:', chat.id);
-      const dbChat = convertLocalToDb(chat);
-
-      // Use direct upsert with proper status handling
-      const { error } = await supabase
-        .from('chat_sessions')
-        .upsert({
-          id: dbChat.id,
-          project_id: dbChat.project_id,
-          chapter_id: dbChat.chapter_id,
-          chat_type: dbChat.chat_type,
-          position: dbChat.position,
-          messages: dbChat.messages,
-          selected_text: dbChat.selected_text,
-          text_position: dbChat.text_position,
-          is_minimized: dbChat.is_minimized,
-          status: dbChat.status || 'active',
-          updated_at: new Date().toISOString()
-        });
-
-      if (error) {
-        console.error('Error saving chat:', error);
-      } else {
-        console.log('Chat saved successfully:', chat.id);
-      }
-    } catch (error) {
-      console.error('Error saving chat to database:', error);
     }
   };
 
@@ -125,15 +97,18 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       }];
     }
     
+    // ALWAYS add chat to state first - this ensures it appears immediately
     console.log('Adding new chat to state:', newChat.id);
-    setChats(prev => {
-      const updated = [...prev, newChat];
-      console.log('Updated chats count:', updated.length);
-      return updated;
-    });
+    addChat(newChat);
     
-    // Save to database
-    await saveChatToDatabase(newChat);
+    // Save to database in background - don't await or let failures affect UI
+    try {
+      await saveChat(newChat);
+      console.log('Chat saved to database successfully:', newChat.id);
+    } catch (error) {
+      console.error('Failed to save chat to database (chat will retry later):', error);
+      // Chat stays visible in UI even if database save fails
+    }
   };
 
   const reopenChat = async (existingChatId: string) => {
@@ -141,102 +116,109 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       console.log('Reopening existing chat:', existingChatId);
       
       // Check if chat is already active
-      if (chats.find(chat => chat.id === existingChatId)) {
+      const existingChat = chats.find(chat => chat.id === existingChatId);
+      if (existingChat) {
         console.log('Chat is already active:', existingChatId);
         return;
       }
 
       // Load the existing chat from database
-      const { data, error } = await supabase
-        .from('chat_sessions')
-        .select('*')
-        .eq('id', existingChatId)
-        .single();
-
-      if (error) {
-        console.error('Error loading existing chat:', error);
+      const dbChat = await loadChatById(existingChatId);
+      if (!dbChat) {
+        console.error('Chat not found in database:', existingChatId);
+        toast({
+          title: "Error",
+          description: "Chat not found",
+          variant: "destructive"
+        });
         return;
       }
 
-      if (data) {
-        console.log('Loaded existing chat from database:', data);
-        const localChat = convertDbToLocal(data as DbChatSession);
-        localChat.status = 'active';
+      console.log('Loaded existing chat from database:', dbChat);
+      
+      // Calculate new safe position (slightly offset from original)
+      const safePosition = {
+        x: Math.max(20, Math.min(dbChat.position.x + 30, window.innerWidth - 420)),
+        y: Math.max(20, Math.min(dbChat.position.y + 30, window.innerHeight - 520))
+      };
+      
+      const reopenedChat = {
+        ...dbChat,
+        position: safePosition,
+        status: 'active' as const
+      };
 
-        // Calculate new safe position (slightly offset from original)
-        const safePosition = {
-          x: Math.max(20, Math.min(localChat.position.x + 30, window.innerWidth - 420)),
-          y: Math.max(20, Math.min(localChat.position.y + 30, window.innerHeight - 520))
-        };
-        localChat.position = safePosition;
+      // Add to active chats immediately
+      addChat(reopenedChat);
 
-        // Add to active chats
-        setChats(prev => [...prev, localChat]);
-
-        // Update status in database
-        await supabase
-          .from('chat_sessions')
-          .update({ 
-            status: 'active',
-            updated_at: new Date().toISOString() 
-          })
-          .eq('id', existingChatId);
-
-        console.log('Chat reopened successfully:', existingChatId);
+      // Update status in database in background
+      try {
+        await updateChatStatus(existingChatId, 'active');
+        console.log('Chat status updated to active:', existingChatId);
+      } catch (error) {
+        console.error('Failed to update chat status (chat still reopened):', error);
       }
     } catch (error) {
       console.error('Error reopening chat:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reopen chat",
+        variant: "destructive"
+      });
     }
   };
 
   const closeChat = async (id: string) => {
     console.log('Closing chat:', id);
     
-    // Remove from active state
-    setChats(prev => {
-      const filtered = prev.filter(chat => chat.id !== id);
-      console.log('Chats after close:', filtered.length);
-      return filtered;
-    });
+    // Remove from active state immediately
+    removeChat(id);
     
-    // Mark as closed in database
+    // Mark as closed in database in background
     try {
-      await supabase
-        .from('chat_sessions')
-        .update({ 
-          status: 'closed',
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', id);
+      await updateChatStatus(id, 'closed');
       console.log('Chat marked as closed in database:', id);
     } catch (error) {
-      console.error('Error closing chat:', error);
+      console.error('Failed to update chat status to closed:', error);
+      // Chat is still removed from UI
     }
   };
 
   const minimizeChat = async (id: string) => {
     console.log('Minimizing chat:', id);
-    setChats(prev => prev.map(chat => {
-      if (chat.id === id) {
-        const updatedChat = { ...chat, isMinimized: !chat.isMinimized };
-        saveChatToDatabase(updatedChat);
-        return updatedChat;
-      }
-      return chat;
-    }));
+    const chat = chats.find(c => c.id === id);
+    if (!chat) return;
+
+    const updatedChat = { ...chat, isMinimized: !chat.isMinimized };
+    updateChat(id, { isMinimized: updatedChat.isMinimized });
+    
+    // Save to database in background
+    try {
+      await saveChat(updatedChat);
+    } catch (error) {
+      console.error('Failed to save minimize state:', error);
+      // UI change still persists
+    }
   };
 
   const saveChatMessage = async (chatId: string, message: { role: 'user' | 'assistant'; content: string; timestamp: Date }) => {
     console.log('Saving message for chat:', chatId);
-    setChats(prev => prev.map(chat => {
-      if (chat.id === chatId) {
-        const updatedMessages = [...(chat.messages || []), message];
-        const updatedChat = { ...chat, messages: updatedMessages };
-        saveChatToDatabase(updatedChat);
-        return updatedChat;
-      }
-      return chat;
-    }));
+    const chat = chats.find(c => c.id === chatId);
+    if (!chat) return;
+
+    const updatedMessages = [...(chat.messages || []), message];
+    const updatedChat = { ...chat, messages: updatedMessages };
+    
+    // Update state immediately
+    updateChat(chatId, { messages: updatedMessages });
+    
+    // Save to database in background
+    try {
+      await saveChat(updatedChat);
+    } catch (error) {
+      console.error('Failed to save message to database:', error);
+      // Message still appears in UI
+    }
   };
 
   return (

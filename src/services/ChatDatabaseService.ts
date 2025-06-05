@@ -8,20 +8,27 @@ export class ChatDatabaseService {
       console.log('Saving chat to database:', chat.id);
       const dbChat = convertLocalToDb(chat);
 
+      // Ensure all required fields are present and properly typed
+      const chatData = {
+        id: dbChat.id,
+        project_id: dbChat.project_id,
+        chapter_id: dbChat.chapter_id || null,
+        chat_type: dbChat.chat_type,
+        position: JSON.stringify(dbChat.position), // Ensure JSON string
+        messages: JSON.stringify(dbChat.messages || []), // Ensure JSON string
+        selected_text: dbChat.selected_text || null,
+        text_position: dbChat.text_position || null,
+        is_minimized: Boolean(dbChat.is_minimized),
+        status: dbChat.status || 'active',
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('Saving chat data:', chatData);
+
       const { error } = await supabase
         .from('chat_sessions')
-        .upsert({
-          id: dbChat.id,
-          project_id: dbChat.project_id,
-          chapter_id: dbChat.chapter_id,
-          chat_type: dbChat.chat_type,
-          position: dbChat.position,
-          messages: dbChat.messages,
-          selected_text: dbChat.selected_text,
-          text_position: dbChat.text_position,
-          is_minimized: dbChat.is_minimized,
-          status: dbChat.status || 'active',
-          updated_at: new Date().toISOString()
+        .upsert(chatData, {
+          onConflict: 'id'
         });
 
       if (error) {
@@ -57,7 +64,15 @@ export class ChatDatabaseService {
       }
 
       console.log('Loaded chats from database:', data?.length || 0);
-      return data ? data.map(convertDbToLocal) : [];
+      return data ? data.map((item) => {
+        // Parse JSON fields safely
+        const dbSession: DbChatSession = {
+          ...item,
+          position: typeof item.position === 'string' ? JSON.parse(item.position) : item.position,
+          messages: typeof item.messages === 'string' ? JSON.parse(item.messages) : item.messages
+        };
+        return convertDbToLocal(dbSession);
+      }) : [];
     } catch (error) {
       console.error('Error in loadProjectChats:', error);
       throw error;
@@ -92,14 +107,26 @@ export class ChatDatabaseService {
         .from('chat_sessions')
         .select('*')
         .eq('id', chatId)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no data
 
       if (error) {
         console.error('Error loading chat by ID:', error);
         throw error;
       }
 
-      return data ? convertDbToLocal(data as DbChatSession) : null;
+      if (!data) {
+        console.log('No chat found with ID:', chatId);
+        return null;
+      }
+
+      // Parse JSON fields safely
+      const dbSession: DbChatSession = {
+        ...data,
+        position: typeof data.position === 'string' ? JSON.parse(data.position) : data.position,
+        messages: typeof data.messages === 'string' ? JSON.parse(data.messages) : data.messages
+      };
+
+      return convertDbToLocal(dbSession);
     } catch (error) {
       console.error('Error in loadChatById:', error);
       throw error;
@@ -124,7 +151,7 @@ export class ChatDatabaseService {
       return data ? data.map(chat => ({
         ...chat,
         chat_type: chat.chat_type as 'comment' | 'coherence' | 'next-steps' | 'chat',
-        position: chat.position as { x: number; y: number }
+        position: typeof chat.position === 'string' ? JSON.parse(chat.position) : chat.position
       })) : [];
     } catch (error) {
       console.error('Error in loadTimelineChats:', error);
