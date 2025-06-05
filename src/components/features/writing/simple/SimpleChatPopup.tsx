@@ -1,9 +1,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Minus, MessageSquare, Brain, ArrowRight, MessageCircle, Send } from 'lucide-react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { X, Minus, MessageSquare, Brain, ArrowRight, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export type ChatType = 'comment' | 'coherence' | 'next-steps' | 'chat';
 
@@ -21,25 +22,22 @@ interface SimpleChatPopupProps {
   onClose: () => void;
   onMinimize: () => void;
   onMessage: (message: Message) => void;
-  isMinimized: boolean;
+  isMinimized?: boolean;
   messages: Message[];
 }
 
-const getChatIcon = (type: ChatType) => {
+const getChatTypeInfo = (type: ChatType) => {
   switch (type) {
-    case 'comment': return <MessageSquare className="w-4 h-4 text-blue-600" />;
-    case 'coherence': return <Brain className="w-4 h-4 text-purple-600" />;
-    case 'next-steps': return <ArrowRight className="w-4 h-4 text-green-600" />;
-    case 'chat': return <MessageCircle className="w-4 h-4 text-orange-600" />;
-  }
-};
-
-const getChatTitle = (type: ChatType) => {
-  switch (type) {
-    case 'comment': return 'Comment';
-    case 'coherence': return 'AI Coherence Check';
-    case 'next-steps': return 'AI Next Steps';
-    case 'chat': return 'Chat Assistant';
+    case 'comment':
+      return { icon: MessageSquare, title: 'Comment', color: 'blue' };
+    case 'coherence':
+      return { icon: Brain, title: 'AI/Coherence', color: 'purple' };
+    case 'next-steps':
+      return { icon: ArrowRight, title: 'AI/Next Steps', color: 'green' };
+    case 'chat':
+      return { icon: MessageCircle, title: 'Chat', color: 'orange' };
+    default:
+      return { icon: MessageCircle, title: 'Chat', color: 'gray' };
   }
 };
 
@@ -51,79 +49,48 @@ const SimpleChatPopup = ({
   onClose,
   onMinimize,
   onMessage,
-  isMinimized,
+  isMinimized = false,
   messages
 }: SimpleChatPopupProps) => {
-  const [currentPosition, setCurrentPosition] = useState(position);
-  const [size, setSize] = useState({ width: 400, height: 500 });
+  const [input, setInput] = useState('');
   const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-  const [currentMessage, setCurrentMessage] = useState('');
-  const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
-  const resizeRef = useRef({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [currentPosition, setCurrentPosition] = useState(position);
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  const { icon: Icon, title, color } = getChatTypeInfo(type);
+
+  useEffect(() => {
+    setCurrentPosition(position);
+  }, [position]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (isMinimized) return;
-    
-    e.preventDefault();
-    e.stopPropagation();
-    
-    setIsDragging(true);
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      startPosX: currentPosition.x,
-      startPosY: currentPosition.y
-    };
-    
-    document.body.style.userSelect = 'none';
-  };
-
-  const handleResizeMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    
-    setIsResizing(true);
-    resizeRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      startWidth: size.width,
-      startHeight: size.height
-    };
-    
-    document.body.style.userSelect = 'none';
+    if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.drag-handle')) {
+      setIsDragging(true);
+      const rect = popupRef.current?.getBoundingClientRect();
+      if (rect) {
+        setDragOffset({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        });
+      }
+    }
   };
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
-        const deltaX = e.clientX - dragRef.current.startX;
-        const deltaY = e.clientY - dragRef.current.startY;
-        
-        setCurrentPosition({
-          x: Math.max(0, Math.min(window.innerWidth - size.width, dragRef.current.startPosX + deltaX)),
-          y: Math.max(0, Math.min(window.innerHeight - size.height, dragRef.current.startPosY + deltaY))
-        });
-      }
-      
-      if (isResizing) {
-        const deltaX = e.clientX - resizeRef.current.startX;
-        const deltaY = e.clientY - resizeRef.current.startY;
-        
-        setSize({
-          width: Math.max(300, resizeRef.current.startWidth + deltaX),
-          height: Math.max(200, resizeRef.current.startHeight + deltaY)
-        });
+        const newX = Math.max(0, Math.min(e.clientX - dragOffset.x, window.innerWidth - 400));
+        const newY = Math.max(0, Math.min(e.clientY - dragOffset.y, window.innerHeight - 500));
+        setCurrentPosition({ x: newX, y: newY });
       }
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
-      setIsResizing(false);
-      document.body.style.userSelect = '';
     };
 
-    if (isDragging || isResizing) {
+    if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     }
@@ -132,156 +99,116 @@ const SimpleChatPopup = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, isResizing, size]);
+  }, [isDragging, dragOffset]);
 
-  const handleSendMessage = () => {
-    if (!currentMessage.trim()) return;
-    
-    const userMessage: Message = {
-      role: 'user',
-      content: currentMessage,
-      timestamp: new Date()
-    };
-    
-    onMessage(userMessage);
-    setCurrentMessage('');
-    
-    // Simulate AI response for non-comment types
-    if (type !== 'comment') {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim()) {
+      onMessage({
+        role: 'user',
+        content: input.trim(),
+        timestamp: new Date()
+      });
+      setInput('');
+      
+      // Simple auto-response for demo
       setTimeout(() => {
-        const aiResponse: Message = {
+        onMessage({
           role: 'assistant',
-          content: `I understand you're asking about: "${currentMessage}". This is a placeholder response for ${getChatTitle(type)}.`,
+          content: `Thanks for your ${type}! I'll help you with that.`,
           timestamp: new Date()
-        };
-        onMessage(aiResponse);
+        });
       }, 1000);
     }
   };
 
-  if (isMinimized) {
-    return (
-      <div
-        className="fixed bg-white border border-slate-200 rounded-lg shadow-lg p-2 flex items-center gap-2 cursor-pointer z-[500]"
-        style={{ left: currentPosition.x, top: currentPosition.y }}
-        onClick={onMinimize}
-      >
-        {getChatIcon(type)}
-        <span className="text-sm font-medium">
-          {getChatTitle(type)}
-          {selectedText && type === 'comment' && (
-            <span className="text-xs text-slate-500 ml-1">
-              ("{selectedText}")
-            </span>
-          )}
-        </span>
-      </div>
-    );
-  }
-
   return (
-    <Card
-      className="fixed shadow-xl border border-slate-200 z-[500]"
+    <div
+      ref={popupRef}
+      className="fixed pointer-events-auto z-[500]"
       style={{
         left: currentPosition.x,
         top: currentPosition.y,
-        width: size.width,
-        height: size.height
+        width: isMinimized ? '200px' : '400px',
+        height: isMinimized ? 'auto' : '500px'
       }}
     >
-      <CardHeader
-        className="flex flex-row items-center justify-between p-3 cursor-move bg-slate-50 border-b"
-        onMouseDown={handleMouseDown}
-      >
-        <div className="flex items-center gap-2">
-          {getChatIcon(type)}
-          <div className="flex flex-col">
-            <h3 className="text-sm font-semibold">{getChatTitle(type)}</h3>
-            {selectedText && type === 'comment' && (
-              <span className="text-xs text-slate-500 truncate max-w-48">
-                on "{selectedText}"
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button size="sm" variant="ghost" onClick={onMinimize} className="h-6 w-6 p-0">
-            <Minus className="w-3 h-3" />
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onClose} className="h-6 w-6 p-0">
-            <X className="w-3 h-3" />
-          </Button>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="p-0 flex flex-col h-full">
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
-          {messages.length === 0 ? (
-            <div className="text-center text-slate-500 text-sm mt-8">
-              {type === 'comment' && selectedText 
-                ? `Write a comment about "${selectedText}"`
-                : `Start a conversation about your ${type === 'comment' ? 'chapter content' : 'story'}.`
-              }
-            </div>
-          ) : (
-            messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[80%] p-2 rounded-lg text-sm ${
-                    message.role === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-slate-100 text-slate-900'
-                  }`}
-                >
-                  {message.content}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-        
-        {/* Input Area */}
-        <div className="border-t p-3 flex gap-2">
-          <Textarea
-            value={currentMessage}
-            onChange={(e) => setCurrentMessage(e.target.value)}
-            placeholder={
-              type === 'comment' && selectedText 
-                ? `Comment on "${selectedText}"...`
-                : `Ask about ${getChatTitle(type).toLowerCase()}...`
-            }
-            className="flex-1 min-h-0 resize-none"
-            rows={2}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-          />
-          <Button
-            size="sm"
-            onClick={handleSendMessage}
-            disabled={!currentMessage.trim()}
-            className="self-end"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
-        
-        {/* Resize Handle */}
-        <div
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
-          onMouseDown={handleResizeMouseDown}
+      <Card className="h-full shadow-xl border-2 bg-white">
+        <CardHeader 
+          className={`p-3 bg-${color}-50 border-b drag-handle cursor-move`}
+          onMouseDown={handleMouseDown}
         >
-          <div className="absolute bottom-1 right-1 w-2 h-2 bg-slate-400 rotate-45"></div>
-        </div>
-      </CardContent>
-    </Card>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Icon className={`w-4 h-4 text-${color}-600`} />
+              <span className="font-medium text-sm">{title}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onMinimize}
+                className="h-6 w-6 p-0"
+              >
+                <Minus className="w-3 h-3" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onClose}
+                className="h-6 w-6 p-0"
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+          </div>
+          {selectedText && !isMinimized && (
+            <div className="text-xs text-slate-600 mt-1 p-2 bg-slate-100 rounded">
+              "{selectedText.length > 100 ? selectedText.substring(0, 100) + '...' : selectedText}"
+            </div>
+          )}
+        </CardHeader>
+        
+        {!isMinimized && (
+          <CardContent className="p-0 h-[calc(100%-80px)] flex flex-col">
+            <ScrollArea className="flex-1 p-3">
+              <div className="space-y-3">
+                {messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`p-2 rounded-lg max-w-[90%] ${
+                      message.role === 'user'
+                        ? 'bg-blue-100 text-blue-900 ml-auto'
+                        : 'bg-slate-100 text-slate-900'
+                    }`}
+                  >
+                    <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+                    <div className="text-xs opacity-60 mt-1">
+                      {message.timestamp.toLocaleTimeString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+            
+            <form onSubmit={handleSubmit} className="p-3 border-t">
+              <div className="flex gap-2">
+                <Textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={`Type your ${type}...`}
+                  className="resize-none h-10"
+                  rows={1}
+                />
+                <Button type="submit" size="sm" disabled={!input.trim()}>
+                  Send
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        )}
+      </Card>
+    </div>
   );
 };
 

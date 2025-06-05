@@ -93,7 +93,7 @@ const StorylinePanel = ({ projectId, chapterId, onDataChange }: StorylinePanelPr
   };
 
   return (
-    <div className="h-full bg-white flex flex-col overflow-hidden">
+    <div className="h-full bg-white flex flex-col overflow-hidden relative z-[1000]">
       <div className="flex-shrink-0">
         <StorylineControls
           zoom={zoom}

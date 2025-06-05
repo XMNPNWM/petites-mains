@@ -22,6 +22,7 @@ interface PopupData {
 interface SimplePopupContextType {
   popups: PopupData[];
   createPopup: (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string) => void;
+  reopenPopup: (id: string, type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string) => void;
   closePopup: (id: string) => void;
   minimizePopup: (id: string) => void;
   addMessage: (id: string, message: Message) => void;
@@ -71,6 +72,42 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     // Save to timeline in background (fire and forget)
     setTimeout(() => {
       saveToTimeline(newPopup);
+    }, 0);
+  };
+
+  const reopenPopup = async (id: string, type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string) => {
+    // Check if popup is already open
+    const existingPopup = popups.find(popup => popup.id === id);
+    if (existingPopup) {
+      // Just bring it to front by minimizing/unminimizing
+      setPopups(prev => prev.map(popup => 
+        popup.id === id ? { ...popup, isMinimized: false } : popup
+      ));
+      return;
+    }
+
+    // Create a new popup with the same ID (for timeline consistency)
+    const safePosition = {
+      x: Math.max(20, Math.min(position.x, window.innerWidth - 420)),
+      y: Math.max(20, Math.min(position.y, window.innerHeight - 520))
+    };
+
+    const reopenedPopup: PopupData = {
+      id,
+      type,
+      position: safePosition,
+      selectedText,
+      isMinimized: false,
+      messages: [], // Start with empty messages for reopened popups
+      projectId,
+      chapterId
+    };
+
+    setPopups(prev => [...prev, reopenedPopup]);
+
+    // Update timeline status in background
+    setTimeout(() => {
+      updateTimelineStatus(id, 'active');
     }, 0);
   };
 
@@ -133,6 +170,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     <SimplePopupContext.Provider value={{ 
       popups, 
       createPopup, 
+      reopenPopup,
       closePopup, 
       minimizePopup, 
       addMessage 

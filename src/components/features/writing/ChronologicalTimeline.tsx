@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { usePopupChats } from './PopupChatManager';
+import { useSimplePopups } from './simple/SimplePopupManager';
 import { format, startOfDay } from 'date-fns';
 import { useChatDatabase } from '@/hooks/useChatDatabase';
 
@@ -24,7 +24,7 @@ interface ChronologicalTimelineProps {
 }
 
 const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
-  const { reopenChat, chats: liveChats } = usePopupChats();
+  const { reopenPopup, popups: livePopups } = useSimplePopups();
   const { loadTimelineChats } = useChatDatabase();
   const [isHovered, setIsHovered] = useState(false);
   const [timelineChats, setTimelineChats] = useState<TimelineChat[]>([]);
@@ -50,16 +50,16 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     fetchTimelineChats();
   }, [projectId, loadTimelineChats, isLoading]);
 
-  // Update timeline when live chats change
+  // Update timeline when live popups change
   useEffect(() => {
-    if (liveChats.length > 0) {
-      console.log('Live chats updated, refreshing timeline');
+    if (livePopups.length > 0) {
+      console.log('Live popups updated, refreshing timeline');
       // Trigger a refresh after a short delay to ensure database is updated
       setTimeout(() => {
         setIsLoading(false); // Reset loading state to allow refetch
       }, 1000);
     }
-  }, [liveChats.length]);
+  }, [livePopups.length]);
 
   // Group chats by date
   const chatsByDate = timelineChats.reduce((groups, chat) => {
@@ -87,7 +87,7 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
 
   const handleChatReopen = async (chat: TimelineChat) => {
     console.log('Reopening chat from timeline:', chat.id);
-    await reopenChat(chat.id);
+    await reopenPopup(chat.id, chat.chat_type, chat.position, projectId, chat.chapter_id, chat.selected_text);
   };
 
   // Always show timeline, but with different states
