@@ -6,7 +6,7 @@ import TextEditorPanel from './TextEditorPanel';
 import ChapterOrganizerPanel from './ChapterOrganizerPanel';
 import StorylinePanel from './StorylinePanel';
 import SimpleRightClickMenu from './simple/SimpleRightClickMenu';
-import { SimplePopupProvider, useSimplePopups } from './simple/SimplePopupManager';
+import { useSimplePopups } from './simple/SimplePopupManager';
 import { ChatType } from './simple/SimpleChatPopup';
 
 interface Chapter {
@@ -26,7 +26,7 @@ interface WritingSpaceLayoutProps {
   onChaptersChange?: () => void;
 }
 
-const WritingSpaceLayoutContent = ({ 
+const WritingSpaceLayout = ({ 
   projectId, 
   currentChapter, 
   onChapterSelect, 
@@ -213,14 +213,6 @@ const WritingSpaceLayoutContent = ({
         </div>
       </div>
     </div>
-  );
-};
-
-const WritingSpaceLayout = (props: WritingSpaceLayoutProps) => {
-  return (
-    <SimplePopupProvider>
-      <WritingSpaceLayoutContent {...props} />
-    </SimplePopupProvider>
   );
 };
 
