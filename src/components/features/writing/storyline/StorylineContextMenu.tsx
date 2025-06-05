@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   ContextMenu,
@@ -105,13 +106,13 @@ const StorylineContextMenu = ({
       >
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56">
+      <ContextMenuContent className="w-56 z-[1100]">
         <ContextMenuSub>
           <ContextMenuSubTrigger>
             <Plus className="w-4 h-4 mr-2" />
             Create New Node
           </ContextMenuSubTrigger>
-          <ContextMenuSubContent>
+          <ContextMenuSubContent className="z-[1100]">
             {NODE_TYPES.map((nodeType) => (
               <ContextMenuItem
                 key={nodeType.value}
@@ -131,13 +132,13 @@ const StorylineContextMenu = ({
                 <BookOpen className="w-4 h-4 mr-2" />
                 Add from Worldbuilding
               </ContextMenuSubTrigger>
-              <ContextMenuSubContent>
+              <ContextMenuSubContent className="z-[1100]">
                 {Object.entries(groupedElements).map(([type, elements]) => (
                   <ContextMenuSub key={type}>
                     <ContextMenuSubTrigger>
                       {getCategoryDisplayName(type)}
                     </ContextMenuSubTrigger>
-                    <ContextMenuSubContent>
+                    <ContextMenuSubContent className="z-[1100]">
                       {elements.map((element) => (
                         <ContextMenuItem
                           key={element.id}
