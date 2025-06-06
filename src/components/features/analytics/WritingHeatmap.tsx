@@ -25,7 +25,7 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
   const startDate = new Date(now.getFullYear(), 0, 1); // Start of current year
   const endDate = now;
   
-  // Get all weeks in the year
+  // Get all weeks in the year, starting from Sunday
   const weeks = eachWeekOfInterval({ start: startDate, end: endDate }, { weekStartsOn: 0 });
   
   // Create a map for quick data lookup
@@ -33,18 +33,6 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
     acc[day.date] = day;
     return acc;
   }, {} as Record<string, HeatmapData>);
-
-  // Generate month labels
-  const monthLabels = [];
-  for (let month = 0; month < 12; month++) {
-    const monthDate = new Date(now.getFullYear(), month, 1);
-    if (monthDate <= now) {
-      monthLabels.push({
-        name: format(monthDate, 'MMM'),
-        position: month
-      });
-    }
-  }
 
   const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -56,11 +44,11 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
       </div>
       
       <div className="overflow-x-auto">
-        <div className="flex items-start gap-3 min-w-[800px]">
+        <div className="flex items-start gap-2 min-w-[800px]">
           {/* Day labels */}
-          <div className="flex flex-col gap-1 pt-6">
+          <div className="flex flex-col gap-[2px] pt-5">
             {dayLabels.map((day, index) => (
-              <div key={day} className="h-3 text-xs text-slate-500 flex items-center w-8">
+              <div key={day} className="h-[11px] text-[10px] text-slate-500 flex items-center w-6">
                 {index % 2 === 1 ? day : ''}
               </div>
             ))}
@@ -69,13 +57,14 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
           {/* Main heatmap container */}
           <div className="flex-1">
             {/* Month labels */}
-            <div className="flex mb-2 h-4">
+            <div className="flex mb-1 h-4">
               {weeks.map((weekStart, weekIndex) => {
                 const weekMonth = weekStart.getMonth();
                 const isFirstWeekOfMonth = weekIndex === 0 || weeks[weekIndex - 1]?.getMonth() !== weekMonth;
+                const weekWidth = 11; // Match the cell width
                 
                 return (
-                  <div key={weekIndex} className="flex-1 text-xs text-slate-500 text-left min-w-[11px]">
+                  <div key={weekIndex} className="text-[10px] text-slate-500 text-left" style={{ width: `${weekWidth}px` }}>
                     {isFirstWeekOfMonth && weekMonth < 12 ? format(weekStart, 'MMM') : ''}
                   </div>
                 );
@@ -83,7 +72,7 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
             </div>
             
             {/* Heatmap grid */}
-            <div className="flex gap-1">
+            <div className="flex gap-[2px]">
               {weeks.map((weekStart, weekIndex) => {
                 const weekDays = eachDayOfInterval({
                   start: weekStart,
@@ -91,7 +80,7 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
                 });
 
                 return (
-                  <div key={weekIndex} className="flex flex-col gap-1">
+                  <div key={weekIndex} className="flex flex-col gap-[2px]">
                     {weekDays.map((day, dayIndex) => {
                       const dateStr = format(day, 'yyyy-MM-dd');
                       const dayData = dataMap[dateStr];
@@ -100,7 +89,7 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
                       return (
                         <div
                           key={dayIndex}
-                          className="w-3 h-3 rounded-sm border border-slate-200 cursor-pointer hover:ring-1 hover:ring-purple-300"
+                          className="w-[11px] h-[11px] rounded-sm border border-slate-200 cursor-pointer hover:ring-1 hover:ring-purple-300"
                           style={{
                             backgroundColor: isInFuture 
                               ? '#f8fafc' 

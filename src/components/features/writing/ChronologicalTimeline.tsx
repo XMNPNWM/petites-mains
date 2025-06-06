@@ -28,38 +28,37 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
   const { loadTimelineChats } = useChatDatabase();
   const [isHovered, setIsHovered] = useState(false);
   const [timelineChats, setTimelineChats] = useState<TimelineChat[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Load all chats (both active and closed) for timeline display
+  // Load timeline chats once
   useEffect(() => {
-    const fetchTimelineChats = async () => {
-      if (isLoading) return;
-      setIsLoading(true);
+    if (hasLoaded) return;
 
+    const fetchTimelineChats = async () => {
       try {
+        console.log('Loading timeline chats for project:', projectId);
         const data = await loadTimelineChats(projectId);
         setTimelineChats(data);
+        setHasLoaded(true);
+        console.log('Timeline chats loaded:', data.length);
       } catch (error) {
         console.error('Error loading timeline chats:', error);
-      } finally {
-        setIsLoading(false);
+        setHasLoaded(true); // Prevent infinite loading on error
       }
     };
 
     fetchTimelineChats();
-  }, [projectId, loadTimelineChats, isLoading]);
+  }, [projectId, loadTimelineChats, hasLoaded]);
 
-  // Update timeline when live popups change
+  // Update timeline when live popups change (without reloading everything)
   useEffect(() => {
-    if (livePopups.length > 0) {
-      console.log('Live popups updated, refreshing timeline');
-      // Trigger a refresh after a short delay to ensure database is updated
-      setTimeout(() => {
-        setIsLoading(false); // Reset loading state to allow refetch
-      }, 1000);
+    if (livePopups.length > 0 && hasLoaded) {
+      console.log('Live popups updated, will refresh timeline in next load');
+      // Mark for refresh on next component mount or manual refresh
+      setHasLoaded(false);
     }
-  }, [livePopups.length]);
+  }, [livePopups.length, hasLoaded]);
 
   // Group chats by date
   const chatsByDate = timelineChats.reduce((groups, chat) => {
@@ -170,7 +169,7 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
       }`}>
         {isHovered && dates.length === 0 ? (
           <span className="text-xs text-slate-600 whitespace-nowrap">
-            {isLoading ? 'Loading timeline...' : 'Timeline will appear here as you create comments'}
+            {!hasLoaded ? 'Loading timeline...' : 'Timeline will appear here as you create comments'}
           </span>
         ) : !isHovered && dates.length === 0 ? (
           <div className="h-1 w-40 bg-slate-300 rounded-full"></div>

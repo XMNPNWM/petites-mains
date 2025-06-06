@@ -1,5 +1,5 @@
 
-import { format, subDays, eachDayOfInterval, parseISO, isSameDay } from 'date-fns';
+import { format, subDays, eachDayOfInterval, parseISO, isSameDay, getHours } from 'date-fns';
 
 interface Chapter {
   id: string;
@@ -19,6 +19,7 @@ export interface WritingVelocityData {
   date: string;
   words: number;
   chapters: number;
+  cumulativeWords: number;
 }
 
 export interface HeatmapData {
@@ -37,6 +38,8 @@ export const calculateWritingVelocity = (chapters: Chapter[], days: number = 30)
   const endDate = new Date();
   const startDate = subDays(endDate, days - 1);
   const dateInterval = eachDayOfInterval({ start: startDate, end: endDate });
+  
+  let cumulativeWords = 0;
   
   return dateInterval.map(date => {
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -58,17 +61,19 @@ export const calculateWritingVelocity = (chapters: Chapter[], days: number = 30)
     const wordsFromNewChapters = newChapters.reduce((sum, chapter) => sum + (chapter.word_count || 0), 0);
     
     // For updated chapters, estimate word changes (simplified approach)
-    // In a real implementation, you'd track word count deltas over time
     const wordsFromUpdates = updatedChapters.reduce((sum, chapter) => {
       // Estimate that updates add approximately 10% of current word count per update
-      // This is a simplified approach since we don't have historical word count data
       return sum + Math.floor((chapter.word_count || 0) * 0.1);
     }, 0);
     
+    const dailyWords = wordsFromNewChapters + wordsFromUpdates;
+    cumulativeWords += dailyWords;
+    
     return {
       date: dateStr,
-      words: wordsFromNewChapters + wordsFromUpdates,
-      chapters: newChapters.length
+      words: dailyWords,
+      chapters: newChapters.length,
+      cumulativeWords
     };
   });
 };
@@ -98,15 +103,7 @@ export const generateHeatmapData = (chapters: Chapter[], worldElements: number):
 };
 
 export const calculateContentBreakdown = (chapters: Chapter[], worldElementsByType: WorldbuildingElementsByType): ContentBreakdown[] => {
-  const totalWords = chapters.reduce((sum, chapter) => sum + (chapter.word_count || 0), 0);
-  
-  const result: ContentBreakdown[] = [
-    {
-      name: 'Written Content',
-      value: totalWords,
-      color: '#8B5CF6'
-    }
-  ];
+  const result: ContentBreakdown[] = [];
 
   // Define colors for different worldbuilding element types
   const typeColors: { [key: string]: string } = {
@@ -120,13 +117,15 @@ export const calculateContentBreakdown = (chapters: Chapter[], worldElementsByTy
     'Magic Systems': '#6366F1'
   };
 
-  // Add worldbuilding elements by type
+  // Add worldbuilding elements by type only
   Object.entries(worldElementsByType).forEach(([type, count], index) => {
-    result.push({
-      name: type,
-      value: count,
-      color: typeColors[type] || `hsl(${(index * 45) % 360}, 70%, 50%)`
-    });
+    if (count > 0) {
+      result.push({
+        name: type,
+        value: count,
+        color: typeColors[type] || `hsl(${(index * 45) % 360}, 70%, 50%)`
+      });
+    }
   });
 
   return result;
@@ -139,7 +138,7 @@ export const analyzeWritingPatterns = (chapters: Chapter[]) => {
   const publishedChapters = chapters.filter(c => c.status === 'published').length;
   const draftChapters = chapters.filter(c => c.status === 'draft').length;
   
-  // Calculate most productive day (simplified)
+  // Calculate most productive day
   const dayActivity = chapters.reduce((acc, chapter) => {
     const dayOfWeek = format(parseISO(chapter.created_at), 'EEEE');
     acc[dayOfWeek] = (acc[dayOfWeek] || 0) + 1;
@@ -148,12 +147,31 @@ export const analyzeWritingPatterns = (chapters: Chapter[]) => {
   
   const mostProductiveDay = Object.entries(dayActivity).sort(([,a], [,b]) => b - a)[0]?.[0] || 'Monday';
   
+  // Calculate most productive hour
+  const hourActivity = chapters.reduce((acc, chapter) => {
+    const hour = getHours(parseISO(chapter.created_at));
+    acc[hour] = (acc[hour] || 0) + 1;
+    return acc;
+  }, {} as Record<number, number>);
+  
+  const mostProductiveHour = Object.entries(hourActivity)
+    .sort(([,a], [,b]) => b - a)[0]?.[0] || '9';
+  
+  const mostProductiveHourFormatted = `${mostProductiveHour}:00`;
+  
+  // Calculate writing sessions (number of distinct days with activity)
+  const writingDays = new Set(chapters.map(chapter => 
+    format(parseISO(chapter.created_at), 'yyyy-MM-dd')
+  ));
+  
   return {
     totalWords,
     avgWordsPerChapter,
     publishedChapters,
     draftChapters,
     mostProductiveDay,
-    totalChapters: chapters.length
+    mostProductiveHour: mostProductiveHourFormatted,
+    totalChapters: chapters.length,
+    writingSessions: writingDays.size
   };
 };

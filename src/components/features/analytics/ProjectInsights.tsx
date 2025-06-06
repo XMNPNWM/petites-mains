@@ -10,7 +10,9 @@ interface ProjectInsightsProps {
     publishedChapters: number;
     draftChapters: number;
     mostProductiveDay: string;
+    mostProductiveHour: string;
     totalChapters: number;
+    writingSessions: number;
   };
 }
 
@@ -25,8 +27,8 @@ const ProjectInsights = ({ patterns }: ProjectInsightsProps) => {
     },
     {
       icon: Calendar,
-      title: 'Most Productive Day',
-      value: patterns.mostProductiveDay,
+      title: 'Most Productive Time',
+      value: `${patterns.mostProductiveDay} at ${patterns.mostProductiveHour}`,
       description: 'When creativity flows best',
       color: 'text-blue-600'
     },
@@ -39,9 +41,9 @@ const ProjectInsights = ({ patterns }: ProjectInsightsProps) => {
     },
     {
       icon: Clock,
-      title: 'Writing Sessions',
-      value: patterns.totalChapters.toString(),
-      description: 'Total creative sessions',
+      title: 'Active Writing Days',
+      value: patterns.writingSessions.toString(),
+      description: 'Days with writing activity',
       color: 'text-amber-600'
     }
   ];
