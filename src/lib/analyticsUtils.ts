@@ -1,5 +1,5 @@
 
-import { format, subDays, eachDayOfInterval, parseISO, isSameDay, getHours } from 'date-fns';
+import { format, subDays, eachDayOfInterval, parseISO, isSameDay, getHours, differenceInMinutes } from 'date-fns';
 
 interface Chapter {
   id: string;
@@ -57,13 +57,20 @@ export const calculateWritingVelocity = (chapters: Chapter[], days: number = 30)
       return updateDate === dateStr && createDate !== dateStr;
     });
     
-    // Calculate words from new chapters
+    // Enhanced word calculation for new chapters
     const wordsFromNewChapters = newChapters.reduce((sum, chapter) => sum + (chapter.word_count || 0), 0);
     
-    // For updated chapters, estimate word changes (simplified approach)
+    // Improved estimation for updated chapters based on word count and time patterns
     const wordsFromUpdates = updatedChapters.reduce((sum, chapter) => {
-      // Estimate that updates add approximately 10% of current word count per update
-      return sum + Math.floor((chapter.word_count || 0) * 0.1);
+      const wordCount = chapter.word_count || 0;
+      const daysSinceCreation = Math.max(1, differenceInMinutes(parseISO(chapter.updated_at), parseISO(chapter.created_at)) / (24 * 60));
+      
+      // More realistic estimation: larger chapters likely had more incremental updates
+      const estimatedDailyWords = wordCount < 500 ? wordCount * 0.15 : 
+                                 wordCount < 1500 ? wordCount * 0.12 : 
+                                 wordCount * 0.08;
+      
+      return sum + Math.floor(estimatedDailyWords / Math.max(1, daysSinceCreation));
     }, 0);
     
     const dailyWords = wordsFromNewChapters + wordsFromUpdates;
@@ -164,6 +171,31 @@ export const analyzeWritingPatterns = (chapters: Chapter[]) => {
     format(parseISO(chapter.created_at), 'yyyy-MM-dd')
   ));
   
+  // Calculate estimated writing intensity based on available data
+  const calculateWritingIntensity = () => {
+    if (chapters.length === 0) return { words: 0, minutes: 0 };
+    
+    // Find the chapter with highest word count to estimate peak performance
+    const maxWordChapter = chapters.reduce((max, chapter) => 
+      (chapter.word_count || 0) > (max.word_count || 0) ? chapter : max
+    );
+    
+    const maxWords = maxWordChapter.word_count || 0;
+    
+    // Estimate continuous writing time based on word count patterns
+    // Assume average writing speed and factor in chapter complexity
+    const estimatedMinutes = maxWords < 500 ? Math.max(15, maxWords / 40) : // 40 words/min for shorter pieces
+                            maxWords < 1500 ? Math.max(30, maxWords / 35) : // 35 words/min for medium pieces  
+                            Math.max(60, maxWords / 30); // 30 words/min for longer pieces
+    
+    return {
+      words: Math.floor(maxWords * 0.6), // Estimate continuous portion (60% of total)
+      minutes: Math.floor(estimatedMinutes * 0.6)
+    };
+  };
+  
+  const writingIntensity = calculateWritingIntensity();
+  
   return {
     totalWords,
     avgWordsPerChapter,
@@ -172,6 +204,7 @@ export const analyzeWritingPatterns = (chapters: Chapter[]) => {
     mostProductiveDay,
     mostProductiveHour: mostProductiveHourFormatted,
     totalChapters: chapters.length,
-    writingSessions: writingDays.size
+    writingSessions: writingDays.size,
+    writingIntensity
   };
 };

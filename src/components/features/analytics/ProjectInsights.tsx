@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card } from '@/components/ui/card';
-import { Calendar, TrendingUp, Target, Clock } from 'lucide-react';
+import { Calendar, TrendingUp, Zap, Clock } from 'lucide-react';
 
 interface ProjectInsightsProps {
   patterns: {
@@ -13,6 +13,10 @@ interface ProjectInsightsProps {
     mostProductiveHour: string;
     totalChapters: number;
     writingSessions: number;
+    writingIntensity: {
+      words: number;
+      minutes: number;
+    };
   };
 }
 
@@ -33,11 +37,13 @@ const ProjectInsights = ({ patterns }: ProjectInsightsProps) => {
       color: 'text-blue-600'
     },
     {
-      icon: Target,
-      title: 'Completion Rate',
-      value: patterns.totalChapters > 0 ? `${Math.round((patterns.publishedChapters / patterns.totalChapters) * 100)}%` : '0%',
-      description: 'Chapters published vs drafted',
-      color: 'text-green-600'
+      icon: Zap,
+      title: 'Writing Intensity Record',
+      value: patterns.writingIntensity.words > 0 
+        ? `${patterns.writingIntensity.words} words/${patterns.writingIntensity.minutes} min`
+        : 'No data yet',
+      description: 'Estimated peak continuous writing',
+      color: 'text-orange-600'
     },
     {
       icon: Clock,
