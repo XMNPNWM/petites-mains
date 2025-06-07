@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import SimpleChatPopup, { ChatType } from './SimpleChatPopup';
+import { ChatDatabaseService } from '@/services/ChatDatabaseService';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -86,29 +87,63 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       return;
     }
 
-    // Create a new popup with the same ID (for timeline consistency)
-    const safePosition = {
-      x: Math.max(20, Math.min(position.x, window.innerWidth - 420)),
-      y: Math.max(20, Math.min(position.y, window.innerHeight - 520))
-    };
+    try {
+      // Try to load existing chat from database
+      const dbChat = await ChatDatabaseService.loadChatById(id);
+      
+      if (dbChat) {
+        // Convert database chat to popup format
+        const safePosition = {
+          x: Math.max(20, Math.min(position.x, window.innerWidth - 420)),
+          y: Math.max(20, Math.min(position.y, window.innerHeight - 520))
+        };
 
-    const reopenedPopup: PopupData = {
-      id,
-      type,
-      position: safePosition,
-      selectedText,
-      isMinimized: false,
-      messages: [], // Start with empty messages for reopened popups
-      projectId,
-      chapterId
-    };
+        const reopenedPopup: PopupData = {
+          id,
+          type: dbChat.type as ChatType,
+          position: safePosition,
+          selectedText: dbChat.selectedText?.text || selectedText,
+          isMinimized: false,
+          messages: (dbChat.messages || []).map(msg => ({
+            role: msg.role,
+            content: msg.content,
+            timestamp: new Date(msg.timestamp)
+          })),
+          projectId,
+          chapterId: dbChat.chapterId
+        };
 
-    setPopups(prev => [...prev, reopenedPopup]);
+        setPopups(prev => [...prev, reopenedPopup]);
 
-    // Update timeline status in background
-    setTimeout(() => {
-      updateTimelineStatus(id, 'active');
-    }, 0);
+        // Update timeline status in background
+        setTimeout(() => {
+          updateTimelineStatus(id, 'active');
+        }, 0);
+      } else {
+        // Create a new popup if not found in database
+        const safePosition = {
+          x: Math.max(20, Math.min(position.x, window.innerWidth - 420)),
+          y: Math.max(20, Math.min(position.y, window.innerHeight - 520))
+        };
+
+        const newPopup: PopupData = {
+          id,
+          type,
+          position: safePosition,
+          selectedText,
+          isMinimized: false,
+          messages: [],
+          projectId,
+          chapterId
+        };
+
+        setPopups(prev => [...prev, newPopup]);
+      }
+    } catch (error) {
+      console.error('Error reopening popup from timeline:', error);
+      // Fallback: create new popup
+      createPopup(type, position, projectId, chapterId, selectedText);
+    }
   };
 
   const closePopup = (id: string) => {
@@ -140,9 +175,29 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
   // Background timeline storage functions (fire and forget)
   const saveToTimeline = async (popup: PopupData) => {
     try {
-      // This will be a simple background save - no error handling needed in UI
       console.log('Saving popup to timeline:', popup.id);
-      // Implementation will be added later to integrate with existing database
+      
+      const chatSession = {
+        id: popup.id,
+        projectId: popup.projectId,
+        chapterId: popup.chapterId,
+        type: popup.type,
+        position: popup.position,
+        selectedText: popup.selectedText ? {
+          text: popup.selectedText,
+          position: 0
+        } : undefined,
+        messages: popup.messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp
+        })),
+        isMinimized: popup.isMinimized,
+        createdAt: new Date(),
+        status: 'active' as const
+      };
+
+      await ChatDatabaseService.saveChatSession(chatSession);
     } catch (error) {
       console.log('Timeline save failed (non-blocking):', error);
     }
@@ -151,7 +206,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
   const updateTimelineStatus = async (id: string, status: string) => {
     try {
       console.log('Updating timeline status:', id, status);
-      // Implementation will be added later
+      await ChatDatabaseService.updateChatStatus(id, status as 'active' | 'closed');
     } catch (error) {
       console.log('Timeline status update failed (non-blocking):', error);
     }
@@ -160,7 +215,23 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
   const saveMessageToTimeline = async (id: string, message: Message) => {
     try {
       console.log('Saving message to timeline:', id);
-      // Implementation will be added later
+      
+      // Load existing chat and update with new message
+      const existingChat = await ChatDatabaseService.loadChatById(id);
+      if (existingChat) {
+        const updatedMessages = [...(existingChat.messages || []), {
+          role: message.role,
+          content: message.content,
+          timestamp: message.timestamp
+        }];
+        
+        const updatedChat = {
+          ...existingChat,
+          messages: updatedMessages
+        };
+        
+        await ChatDatabaseService.saveChatSession(updatedChat);
+      }
     } catch (error) {
       console.log('Timeline message save failed (non-blocking):', error);
     }

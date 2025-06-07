@@ -1,4 +1,3 @@
-
 import { format, subDays, eachDayOfInterval, parseISO, isSameDay, getHours, differenceInMinutes } from 'date-fns';
 
 interface Chapter {
@@ -39,48 +38,57 @@ export const calculateWritingVelocity = (chapters: Chapter[], days: number = 30)
   const startDate = subDays(endDate, days - 1);
   const dateInterval = eachDayOfInterval({ start: startDate, end: endDate });
   
-  let cumulativeWords = 0;
+  // Calculate total words at the end of each day
+  const dailyTotals: Record<string, number> = {};
+  
+  // Initialize with 0 for all days
+  dateInterval.forEach(date => {
+    dailyTotals[format(date, 'yyyy-MM-dd')] = 0;
+  });
+  
+  // Calculate cumulative word count for each day
+  chapters.forEach(chapter => {
+    const chapterDate = format(parseISO(chapter.created_at), 'yyyy-MM-dd');
+    const chapterUpdatedDate = format(parseISO(chapter.updated_at), 'yyyy-MM-dd');
+    
+    // Add word count to the day the chapter was created or last updated
+    const relevantDate = chapterUpdatedDate >= chapterDate ? chapterUpdatedDate : chapterDate;
+    
+    if (dailyTotals.hasOwnProperty(relevantDate)) {
+      dailyTotals[relevantDate] += chapter.word_count || 0;
+    }
+  });
+  
+  // Convert to cumulative and calculate daily differences
+  let previousCumulative = 0;
   
   return dateInterval.map(date => {
     const dateStr = format(date, 'yyyy-MM-dd');
     
     // Count new chapters created on this day
-    const newChapters = chapters.filter(chapter => {
+    const newChaptersCount = chapters.filter(chapter => {
       const chapterDate = format(parseISO(chapter.created_at), 'yyyy-MM-dd');
       return chapterDate === dateStr;
-    });
+    }).length;
     
-    // Count chapters updated on this day (but not created)
-    const updatedChapters = chapters.filter(chapter => {
-      const updateDate = format(parseISO(chapter.updated_at), 'yyyy-MM-dd');
-      const createDate = format(parseISO(chapter.created_at), 'yyyy-MM-dd');
-      return updateDate === dateStr && createDate !== dateStr;
-    });
+    // Calculate current day's total words from all chapters up to this date
+    const currentDayTotal = chapters
+      .filter(chapter => {
+        const chapterDate = format(parseISO(chapter.updated_at), 'yyyy-MM-dd');
+        return chapterDate <= dateStr;
+      })
+      .reduce((sum, chapter) => sum + (chapter.word_count || 0), 0);
     
-    // Enhanced word calculation for new chapters
-    const wordsFromNewChapters = newChapters.reduce((sum, chapter) => sum + (chapter.word_count || 0), 0);
+    // Daily words written = difference from previous day
+    const dailyWords = currentDayTotal - previousCumulative;
     
-    // Improved estimation for updated chapters based on word count and time patterns
-    const wordsFromUpdates = updatedChapters.reduce((sum, chapter) => {
-      const wordCount = chapter.word_count || 0;
-      const daysSinceCreation = Math.max(1, differenceInMinutes(parseISO(chapter.updated_at), parseISO(chapter.created_at)) / (24 * 60));
-      
-      // More realistic estimation: larger chapters likely had more incremental updates
-      const estimatedDailyWords = wordCount < 500 ? wordCount * 0.15 : 
-                                 wordCount < 1500 ? wordCount * 0.12 : 
-                                 wordCount * 0.08;
-      
-      return sum + Math.floor(estimatedDailyWords / Math.max(1, daysSinceCreation));
-    }, 0);
-    
-    const dailyWords = wordsFromNewChapters + wordsFromUpdates;
-    cumulativeWords += dailyWords;
+    previousCumulative = currentDayTotal;
     
     return {
       date: dateStr,
-      words: dailyWords,
-      chapters: newChapters.length,
-      cumulativeWords
+      words: Math.max(0, dailyWords), // Ensure no negative values
+      chapters: newChaptersCount,
+      cumulativeWords: currentDayTotal
     };
   });
 };

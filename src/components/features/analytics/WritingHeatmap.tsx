@@ -43,12 +43,12 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
         <p className="text-sm text-slate-600">Your writing patterns over the past year</p>
       </div>
       
-      <div className="w-full overflow-x-auto">
-        <div className="flex items-start gap-3 min-w-[800px]">
+      <div className="w-full">
+        <div className="flex items-start gap-3">
           {/* Day labels */}
-          <div className="flex flex-col gap-[2px] pt-5 flex-shrink-0">
+          <div className="flex flex-col gap-[2px] pt-5 flex-shrink-0 w-8">
             {dayLabels.map((day, index) => (
-              <div key={day} className="h-[11px] text-[10px] text-slate-500 flex items-center w-7">
+              <div key={day} className="h-[11px] text-[10px] text-slate-500 flex items-center">
                 {index % 2 === 1 ? day : ''}
               </div>
             ))}
@@ -56,7 +56,7 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
           
           {/* Main heatmap container */}
           <div className="flex-1 min-w-0">
-            {/* Month labels */}
+            {/* Month labels with perfect alignment */}
             <div className="flex mb-1 h-4">
               {weeks.map((weekStart, weekIndex) => {
                 const weekMonth = weekStart.getMonth();
@@ -66,8 +66,7 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
                 return (
                   <div 
                     key={weekIndex} 
-                    className="text-[10px] text-slate-500 flex-shrink-0 text-left px-[1px]"
-                    style={{ width: '13px' }}
+                    className="text-[10px] text-slate-500 flex-1 text-left"
                   >
                     {isFirstWeekOfMonth && weekMonth < 12 ? format(weekStart, 'MMM') : ''}
                   </div>
@@ -75,7 +74,7 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
               })}
             </div>
             
-            {/* Heatmap grid */}
+            {/* Heatmap grid with perfect distribution */}
             <div className="flex gap-[2px]">
               {weeks.map((weekStart, weekIndex) => {
                 const weekDays = eachDayOfInterval({
@@ -84,7 +83,7 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
                 });
 
                 return (
-                  <div key={weekIndex} className="flex flex-col gap-[2px] flex-shrink-0">
+                  <div key={weekIndex} className="flex flex-col gap-[2px] flex-1">
                     {weekDays.map((day, dayIndex) => {
                       const dateStr = format(day, 'yyyy-MM-dd');
                       const dayData = dataMap[dateStr];
@@ -93,7 +92,7 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
                       return (
                         <div
                           key={dayIndex}
-                          className="w-[11px] h-[11px] rounded-sm border border-slate-200 cursor-pointer hover:ring-1 hover:ring-purple-300"
+                          className="aspect-square rounded-sm border border-slate-200 cursor-pointer hover:ring-1 hover:ring-purple-300"
                           style={{
                             backgroundColor: isInFuture 
                               ? '#f8fafc' 
