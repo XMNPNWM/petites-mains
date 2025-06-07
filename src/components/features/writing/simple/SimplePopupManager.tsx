@@ -185,7 +185,8 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
         position: popup.position,
         selectedText: popup.selectedText ? {
           text: popup.selectedText,
-          position: 0
+          startOffset: 0,
+          endOffset: popup.selectedText.length
         } : undefined,
         messages: popup.messages.map(msg => ({
           role: msg.role,

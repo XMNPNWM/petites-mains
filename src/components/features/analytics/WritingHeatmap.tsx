@@ -45,10 +45,10 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
       
       <div className="w-full">
         <div className="flex items-start gap-3">
-          {/* Day labels */}
+          {/* Day labels with proper spacing to align with boxes */}
           <div className="flex flex-col gap-[2px] pt-5 flex-shrink-0 w-8">
             {dayLabels.map((day, index) => (
-              <div key={day} className="h-[11px] text-[10px] text-slate-500 flex items-center">
+              <div key={day} className="h-[11px] text-[10px] text-slate-500 flex items-center justify-start leading-none">
                 {index % 2 === 1 ? day : ''}
               </div>
             ))}
@@ -66,7 +66,7 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
                 return (
                   <div 
                     key={weekIndex} 
-                    className="text-[10px] text-slate-500 flex-1 text-left"
+                    className="text-[10px] text-slate-500 flex-1 text-left leading-none"
                   >
                     {isFirstWeekOfMonth && weekMonth < 12 ? format(weekStart, 'MMM') : ''}
                   </div>
@@ -74,7 +74,7 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
               })}
             </div>
             
-            {/* Heatmap grid with perfect distribution */}
+            {/* Heatmap grid with perfect distribution and alignment */}
             <div className="flex gap-[2px]">
               {weeks.map((weekStart, weekIndex) => {
                 const weekDays = eachDayOfInterval({
@@ -92,7 +92,7 @@ const WritingHeatmap = ({ data }: WritingHeatmapProps) => {
                       return (
                         <div
                           key={dayIndex}
-                          className="aspect-square rounded-sm border border-slate-200 cursor-pointer hover:ring-1 hover:ring-purple-300"
+                          className="w-full h-[11px] rounded-sm border border-slate-200 cursor-pointer hover:ring-1 hover:ring-purple-300"
                           style={{
                             backgroundColor: isInFuture 
                               ? '#f8fafc' 
