@@ -29,7 +29,7 @@ const WritingTrendsChart = ({ data }: WritingTrendsChartProps) => {
         <h3 className="text-lg font-semibold text-slate-900">Writing Velocity</h3>
         <p className="text-sm text-slate-600">Cumulative words written over the last 30 days</p>
       </div>
-      <ChartContainer config={chartConfig} className="h-[200px]">
+      <ChartContainer config={chartConfig} className="h-[300px]">
         <LineChart data={formattedData}>
           <XAxis 
             dataKey="displayDate" 
