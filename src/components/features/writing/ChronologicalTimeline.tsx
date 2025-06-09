@@ -150,15 +150,6 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
                 minHeight: '16px'
               }}
             >
-              {/* Continuous timeline line background */}
-              <div 
-                className="absolute h-1 bg-slate-300 rounded-full" 
-                style={{ 
-                  width: `${Math.max(200, sortedChats.length * 10)}px`,
-                  zIndex: 0
-                }} 
-              />
-              
               {/* Timeline blocks */}
               <div className="flex relative z-10 gap-0">
                 {sortedChats.map((chat, index) => {
@@ -198,7 +189,7 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
         </>
       )}
       
-      {/* Always visible timeline indicator */}
+      {/* Always visible timeline indicator when no data */}
       <div className={`transition-all duration-300 ${
         isHovered && !hasTimelineData 
           ? 'bg-white/90 backdrop-blur-sm rounded-lg px-4 py-2' 
