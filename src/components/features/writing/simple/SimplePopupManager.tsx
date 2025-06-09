@@ -27,6 +27,7 @@ interface SimplePopupContextType {
   closePopup: (id: string) => void;
   minimizePopup: (id: string) => void;
   addMessage: (id: string, message: Message) => void;
+  timelineVersion: number;
 }
 
 const SimplePopupContext = createContext<SimplePopupContextType | undefined>(undefined);
@@ -45,6 +46,24 @@ interface SimplePopupProviderProps {
 
 export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
   const [popups, setPopups] = useState<PopupData[]>([]);
+  const [timelineVersion, setTimelineVersion] = useState(0);
+
+  // Generate proper UUID
+  const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    // Fallback for environments without crypto.randomUUID
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
+
+  const triggerTimelineRefresh = () => {
+    setTimelineVersion(prev => prev + 1);
+  };
 
   const createPopup = (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string) => {
     // Ensure position is within viewport bounds
@@ -54,7 +73,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     };
 
     const newPopup: PopupData = {
-      id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: generateUUID(), // Use proper UUID
       type,
       position: safePosition,
       selectedText,
@@ -70,9 +89,14 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
 
     setPopups(prev => [...prev, newPopup]);
 
-    // Save to timeline in background (fire and forget)
-    setTimeout(() => {
-      saveToTimeline(newPopup);
+    // Save to timeline in background and trigger refresh
+    setTimeout(async () => {
+      try {
+        await saveToTimeline(newPopup);
+        triggerTimelineRefresh();
+      } catch (error) {
+        console.log('Timeline save failed (non-blocking):', error);
+      }
     }, 0);
   };
 
@@ -116,8 +140,13 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
         setPopups(prev => [...prev, reopenedPopup]);
 
         // Update timeline status in background
-        setTimeout(() => {
-          updateTimelineStatus(id, 'active');
+        setTimeout(async () => {
+          try {
+            await updateTimelineStatus(id, 'active');
+            triggerTimelineRefresh();
+          } catch (error) {
+            console.log('Timeline status update failed (non-blocking):', error);
+          }
         }, 0);
       } else {
         // Create a new popup if not found in database
@@ -149,9 +178,16 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
   const closePopup = (id: string) => {
     setPopups(prev => prev.filter(popup => popup.id !== id));
     
-    // Update timeline status in background
-    setTimeout(() => {
-      updateTimelineStatus(id, 'closed');
+    // Update timeline status in background and trigger refresh
+    setTimeout(async () => {
+      try {
+        await updateTimelineStatus(id, 'closed');
+        triggerTimelineRefresh();
+      } catch (error) {
+        console.log('Timeline status update failed (non-blocking):', error);
+        // Still trigger refresh even if update failed
+        triggerTimelineRefresh();
+      }
     }, 0);
   };
 
@@ -167,8 +203,12 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     ));
 
     // Save message to timeline in background
-    setTimeout(() => {
-      saveMessageToTimeline(id, message);
+    setTimeout(async () => {
+      try {
+        await saveMessageToTimeline(id, message);
+      } catch (error) {
+        console.log('Timeline message save failed (non-blocking):', error);
+      }
     }, 0);
   };
 
@@ -199,8 +239,10 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       };
 
       await ChatDatabaseService.saveChatSession(chatSession);
+      console.log('Successfully saved to timeline:', popup.id);
     } catch (error) {
-      console.log('Timeline save failed (non-blocking):', error);
+      console.error('Timeline save failed:', error);
+      throw error; // Re-throw so calling code can handle
     }
   };
 
@@ -208,8 +250,10 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     try {
       console.log('Updating timeline status:', id, status);
       await ChatDatabaseService.updateChatStatus(id, status as 'active' | 'closed');
+      console.log('Successfully updated timeline status:', id, status);
     } catch (error) {
-      console.log('Timeline status update failed (non-blocking):', error);
+      console.error('Timeline status update failed:', error);
+      throw error; // Re-throw so calling code can handle
     }
   };
 
@@ -245,7 +289,8 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       reopenPopup,
       closePopup, 
       minimizePopup, 
-      addMessage 
+      addMessage,
+      timelineVersion
     }}>
       {children}
       {/* Render all active popups */}

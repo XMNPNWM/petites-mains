@@ -23,40 +23,45 @@ interface ChronologicalTimelineProps {
 }
 
 const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
-  const { reopenPopup, popups: livePopups } = useSimplePopups();
+  const { reopenPopup, popups: livePopups, timelineVersion } = useSimplePopups();
   const { loadTimelineChats } = useChatDatabase();
   const [isHovered, setIsHovered] = useState(false);
   const [timelineChats, setTimelineChats] = useState<TimelineChat[]>([]);
-  const [hasLoaded, setHasLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Load timeline chats once
-  useEffect(() => {
-    if (hasLoaded) return;
-
-    const fetchTimelineChats = async () => {
-      try {
-        console.log('Loading timeline chats for project:', projectId);
-        const data = await loadTimelineChats(projectId);
-        setTimelineChats(data);
-        setHasLoaded(true);
-        console.log('Timeline chats loaded:', data.length);
-      } catch (error) {
-        console.error('Error loading timeline chats:', error);
-        setHasLoaded(true);
-      }
-    };
-
-    fetchTimelineChats();
-  }, [projectId, loadTimelineChats, hasLoaded]);
-
-  // Update timeline when live popups change
-  useEffect(() => {
-    if (livePopups.length > 0 && hasLoaded) {
-      console.log('Live popups updated, will refresh timeline in next load');
-      setHasLoaded(false);
+  // Force reload timeline data
+  const reloadTimelineData = async () => {
+    if (isLoading) return;
+    
+    setIsLoading(true);
+    try {
+      console.log('Reloading timeline chats for project:', projectId);
+      const data = await loadTimelineChats(projectId);
+      setTimelineChats(data);
+      console.log('Timeline chats reloaded:', data.length);
+    } catch (error) {
+      console.error('Error reloading timeline chats:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [livePopups.length, hasLoaded]);
+  };
+
+  // Load timeline chats on mount
+  useEffect(() => {
+    reloadTimelineData();
+  }, [projectId]);
+
+  // Reload when timeline version changes (when popups are created/closed)
+  useEffect(() => {
+    if (timelineVersion > 0) {
+      console.log('Timeline version changed, reloading data...');
+      // Add small delay to ensure database operations complete
+      setTimeout(() => {
+        reloadTimelineData();
+      }, 500);
+    }
+  }, [timelineVersion]);
 
   // Sort chats chronologically
   const sortedChats = timelineChats.sort((a, b) => 
@@ -112,17 +117,19 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     }
   }, []);
 
+  const hasTimelineData = sortedChats.length > 0;
+
   return (
     <div
       className={`flex items-center justify-center absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
-        isHovered || sortedChats.length > 0 
+        isHovered || hasTimelineData 
           ? 'opacity-100 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-2' 
           : 'opacity-40'
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {(isHovered || sortedChats.length > 0) && sortedChats.length > 0 && (
+      {(isHovered || hasTimelineData) && hasTimelineData && (
         <>
           <Button
             size="sm"
@@ -144,43 +151,32 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
               }}
             >
               {/* Continuous timeline line background */}
-              <div className="absolute h-1 bg-slate-300 rounded-full" 
-                   style={{ 
-                     width: `${sortedChats.length * 12}px`,
-                     zIndex: 0
-                   }} 
+              <div 
+                className="absolute h-1 bg-slate-300 rounded-full" 
+                style={{ 
+                  width: `${Math.max(200, sortedChats.length * 10)}px`,
+                  zIndex: 0
+                }} 
               />
               
               {/* Timeline blocks */}
-              <div className="flex relative z-10">
+              <div className="flex relative z-10 gap-0">
                 {sortedChats.map((chat, index) => {
-                  const isActive = chat.status === 'active';
-                  const nextChat = sortedChats[index + 1];
-                  const timeDiff = nextChat ? 
-                    (new Date(nextChat.created_at).getTime() - new Date(chat.created_at).getTime()) / (1000 * 60) : 0;
-                  
-                  // Adjust block width based on time gap (min 8px, max 16px)
-                  const blockWidth = Math.min(16, Math.max(8, timeDiff > 60 ? 14 : 10));
+                  const isActive = livePopups.some(popup => popup.id === chat.id);
                   
                   return (
-                    <React.Fragment key={chat.id}>
-                      <button
-                        onClick={() => handleChatReopen(chat)}
-                        className={`flex-shrink-0 h-3 rounded-sm transition-all duration-200 hover:scale-110 hover:z-20 relative ${getBlockColor(chat.chat_type, isActive)}`}
-                        style={{ width: `${blockWidth}px` }}
-                        title={`${chat.chat_type} - ${format(new Date(chat.created_at), 'MMM dd, HH:mm')} ${isActive ? '(active)' : '(closed)'}`}
-                      />
-                      {/* Connection line between blocks */}
-                      {index < sortedChats.length - 1 && (
-                        <div className="h-0.5 bg-slate-300 flex-shrink-0" style={{ width: '2px' }} />
-                      )}
-                    </React.Fragment>
+                    <button
+                      key={chat.id}
+                      onClick={() => handleChatReopen(chat)}
+                      className={`flex-shrink-0 h-3 w-2 transition-all duration-200 hover:scale-110 hover:z-20 relative border-r border-white/30 first:rounded-l-sm last:rounded-r-sm ${getBlockColor(chat.chat_type, isActive)}`}
+                      title={`${chat.chat_type} - ${format(new Date(chat.created_at), 'MMM dd, HH:mm')} ${isActive ? '(active)' : '(closed)'}`}
+                    />
                   );
                 })}
               </div>
               
-              {/* Time markers for major gaps */}
-              {sortedChats.length > 0 && (
+              {/* Time markers for timeline start and end */}
+              {hasTimelineData && (
                 <div className="absolute top-4 left-0 right-0 flex justify-between text-xs text-slate-500 pointer-events-none">
                   <span>{format(new Date(sortedChats[0].created_at), 'MMM dd')}</span>
                   {sortedChats.length > 1 && (
@@ -204,15 +200,15 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
       
       {/* Always visible timeline indicator */}
       <div className={`transition-all duration-300 ${
-        isHovered && sortedChats.length === 0 
+        isHovered && !hasTimelineData 
           ? 'bg-white/90 backdrop-blur-sm rounded-lg px-4 py-2' 
           : ''
       }`}>
-        {isHovered && sortedChats.length === 0 ? (
+        {isHovered && !hasTimelineData ? (
           <span className="text-xs text-slate-600 whitespace-nowrap">
-            {!hasLoaded ? 'Loading timeline...' : 'Timeline will appear here as you create comments'}
+            {isLoading ? 'Loading timeline...' : 'Timeline will appear here as you create comments'}
           </span>
-        ) : !isHovered && sortedChats.length === 0 ? (
+        ) : !isHovered && !hasTimelineData ? (
           <div className="h-1 w-48 bg-slate-300 rounded-full"></div>
         ) : null}
       </div>
