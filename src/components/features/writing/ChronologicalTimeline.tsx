@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -122,14 +121,14 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
   return (
     <div
       className={`flex items-center justify-center absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
-        isHovered || hasTimelineData 
+        isHovered 
           ? 'opacity-100 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-2' 
           : 'opacity-40'
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {(isHovered || hasTimelineData) && hasTimelineData && (
+      {isHovered && hasTimelineData && (
         <>
           <Button
             size="sm"
@@ -140,7 +139,7 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
             <ChevronLeft className="w-4 h-4" />
           </Button>
           
-          <div className="flex items-center mx-3 max-w-2xl overflow-hidden">
+          <div className="flex items-center mx-3 max-w-6xl overflow-hidden">
             <div
               ref={scrollRef}
               className="flex items-center overflow-x-auto scrollbar-hide cursor-grab active:cursor-grabbing"
