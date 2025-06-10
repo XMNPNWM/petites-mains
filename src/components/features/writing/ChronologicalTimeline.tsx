@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -120,87 +121,93 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
 
   return (
     <div
-      className={`flex items-center justify-center absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
-        isHovered 
-          ? 'opacity-100 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-2' 
-          : 'opacity-40'
-      }`}
+      className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {isHovered && hasTimelineData && (
-        <>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={scrollLeft}
-            className="h-8 w-8 p-0 flex-shrink-0 hover:bg-slate-100"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          
-          <div className="flex items-center mx-3 max-w-6xl overflow-hidden">
-            <div
-              ref={scrollRef}
-              className="flex items-center overflow-x-auto scrollbar-hide cursor-grab active:cursor-grabbing"
-              style={{ 
-                scrollbarWidth: 'none', 
-                msOverflowStyle: 'none',
-                minHeight: '16px'
-              }}
-            >
-              {/* Timeline blocks */}
-              <div className="flex relative z-10 gap-0">
-                {sortedChats.map((chat, index) => {
-                  const isActive = livePopups.some(popup => popup.id === chat.id);
-                  
-                  return (
-                    <button
-                      key={chat.id}
-                      onClick={() => handleChatReopen(chat)}
-                      className={`flex-shrink-0 h-3 w-2 transition-all duration-200 hover:scale-110 hover:z-20 relative border-r border-white/30 first:rounded-l-sm last:rounded-r-sm ${getBlockColor(chat.chat_type, isActive)}`}
-                      title={`${chat.chat_type} - ${format(new Date(chat.created_at), 'MMM dd, HH:mm')} ${isActive ? '(active)' : '(closed)'}`}
-                    />
-                  );
-                })}
-              </div>
-              
-              {/* Time markers for timeline start and end */}
-              {hasTimelineData && (
-                <div className="absolute top-4 left-0 right-0 flex justify-between text-xs text-slate-500 pointer-events-none">
-                  <span>{format(new Date(sortedChats[0].created_at), 'MMM dd')}</span>
-                  {sortedChats.length > 1 && (
-                    <span>{format(new Date(sortedChats[sortedChats.length - 1].created_at), 'MMM dd')}</span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={scrollRight}
-            className="h-8 w-8 p-0 flex-shrink-0 hover:bg-slate-100"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </>
-      )}
-      
-      {/* Always visible timeline indicator when no data */}
-      <div className={`transition-all duration-300 ${
-        isHovered && !hasTimelineData 
-          ? 'bg-white/90 backdrop-blur-sm rounded-lg px-4 py-2' 
-          : ''
+      {/* Always visible subtle indicator */}
+      <div className={`flex items-center justify-center transition-all duration-300 ${
+        isHovered 
+          ? 'opacity-0' 
+          : 'opacity-40'
       }`}>
-        {isHovered && !hasTimelineData ? (
-          <span className="text-xs text-slate-600 whitespace-nowrap">
-            {isLoading ? 'Loading timeline...' : 'Timeline will appear here as you create comments'}
-          </span>
-        ) : !isHovered && !hasTimelineData ? (
-          <div className="h-1 w-48 bg-slate-300 rounded-full"></div>
-        ) : null}
+        <div className="h-1 w-48 bg-slate-300 rounded-full"></div>
+      </div>
+
+      {/* Full timeline that appears on hover */}
+      <div className={`flex items-center justify-center transition-all duration-300 absolute inset-0 ${
+        isHovered 
+          ? 'opacity-100 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-2' 
+          : 'opacity-0 pointer-events-none'
+      }`}>
+        {isHovered && hasTimelineData && (
+          <>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={scrollLeft}
+              className="h-8 w-8 p-0 flex-shrink-0 hover:bg-slate-100"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            
+            <div className="flex items-center mx-3 max-w-6xl overflow-hidden">
+              <div
+                ref={scrollRef}
+                className="flex items-center overflow-x-auto scrollbar-hide cursor-grab active:cursor-grabbing"
+                style={{ 
+                  scrollbarWidth: 'none', 
+                  msOverflowStyle: 'none',
+                  minHeight: '16px'
+                }}
+              >
+                {/* Timeline blocks */}
+                <div className="flex relative z-10 gap-0">
+                  {sortedChats.map((chat, index) => {
+                    const isActive = livePopups.some(popup => popup.id === chat.id);
+                    
+                    return (
+                      <button
+                        key={chat.id}
+                        onClick={() => handleChatReopen(chat)}
+                        className={`flex-shrink-0 h-3 w-2 transition-all duration-200 hover:scale-110 hover:z-20 relative border-r border-white/30 first:rounded-l-sm last:rounded-r-sm ${getBlockColor(chat.chat_type, isActive)}`}
+                        title={`${chat.chat_type} - ${format(new Date(chat.created_at), 'MMM dd, HH:mm')} ${isActive ? '(active)' : '(closed)'}`}
+                      />
+                    );
+                  })}
+                </div>
+                
+                {/* Time markers for timeline start and end */}
+                {hasTimelineData && (
+                  <div className="absolute top-4 left-0 right-0 flex justify-between text-xs text-slate-500 pointer-events-none">
+                    <span>{format(new Date(sortedChats[0].created_at), 'MMM dd')}</span>
+                    {sortedChats.length > 1 && (
+                      <span>{format(new Date(sortedChats[sortedChats.length - 1].created_at), 'MMM dd')}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={scrollRight}
+              className="h-8 w-8 p-0 flex-shrink-0 hover:bg-slate-100"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </>
+        )}
+        
+        {/* Message when no data and hovered */}
+        {isHovered && !hasTimelineData && (
+          <div className="px-4 py-2">
+            <span className="text-xs text-slate-600 whitespace-nowrap">
+              {isLoading ? 'Loading timeline...' : 'Timeline will appear here as you create comments'}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
