@@ -14,10 +14,11 @@ export class ChatDatabaseService {
         project_id: dbChat.project_id,
         chapter_id: dbChat.chapter_id || null,
         chat_type: dbChat.chat_type,
-        position: JSON.stringify(dbChat.position), // Ensure JSON string
-        messages: JSON.stringify(dbChat.messages || []), // Ensure JSON string
+        position: JSON.stringify(dbChat.position),
+        messages: JSON.stringify(dbChat.messages || []),
         selected_text: dbChat.selected_text || null,
         text_position: dbChat.text_position || null,
+        line_number: dbChat.line_number || null, // Add line number support
         is_minimized: Boolean(dbChat.is_minimized),
         status: dbChat.status || 'active',
         updated_at: new Date().toISOString()
@@ -50,7 +51,8 @@ export class ChatDatabaseService {
       let query = supabase
         .from('chat_sessions')
         .select('*')
-        .eq('project_id', projectId);
+        .eq('project_id', projectId)
+        .in('chat_type', ['comment', 'chat']); // Only load comment and chat types
 
       if (status) {
         query = query.eq('status', status);
@@ -65,7 +67,6 @@ export class ChatDatabaseService {
 
       console.log('Loaded chats from database:', data?.length || 0);
       return data ? data.map((item) => {
-        // Parse JSON fields safely
         const dbSession: DbChatSession = {
           ...item,
           position: typeof item.position === 'string' ? JSON.parse(item.position) : item.position,
@@ -107,7 +108,7 @@ export class ChatDatabaseService {
         .from('chat_sessions')
         .select('*')
         .eq('id', chatId)
-        .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no data
+        .maybeSingle();
 
       if (error) {
         console.error('Error loading chat by ID:', error);
@@ -119,7 +120,6 @@ export class ChatDatabaseService {
         return null;
       }
 
-      // Parse JSON fields safely
       const dbSession: DbChatSession = {
         ...data,
         position: typeof data.position === 'string' ? JSON.parse(data.position) : data.position,
@@ -138,8 +138,9 @@ export class ChatDatabaseService {
       console.log('Fetching timeline chats for project:', projectId);
       const { data, error } = await supabase
         .from('chat_sessions')
-        .select('id, project_id, chapter_id, chat_type, position, selected_text, text_position, status, created_at')
+        .select('id, project_id, chapter_id, chat_type, position, selected_text, text_position, line_number, status, created_at')
         .eq('project_id', projectId)
+        .in('chat_type', ['comment', 'chat']) // Only load comment and chat types
         .order('created_at', { ascending: true });
 
       if (error) {
@@ -150,7 +151,7 @@ export class ChatDatabaseService {
       console.log('Timeline chats loaded:', data?.length || 0);
       return data ? data.map(chat => ({
         ...chat,
-        chat_type: chat.chat_type as 'comment' | 'coherence' | 'next-steps' | 'chat',
+        chat_type: chat.chat_type as 'comment' | 'chat',
         position: typeof chat.position === 'string' ? JSON.parse(chat.position) : chat.position
       })) : [];
     } catch (error) {

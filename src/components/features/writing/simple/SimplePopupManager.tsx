@@ -1,7 +1,10 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import SimpleChatPopup, { ChatType } from './SimpleChatPopup';
+import SimpleChatPopup from './SimpleChatPopup';
+import SimpleCommentBox from './SimpleCommentBox';
 import { ChatDatabaseService } from '@/services/ChatDatabaseService';
+
+export type ChatType = 'comment' | 'chat';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -14,19 +17,23 @@ interface PopupData {
   type: ChatType;
   position: { x: number; y: number };
   selectedText?: string;
+  lineNumber?: number;
   isMinimized: boolean;
   messages: Message[];
   projectId: string;
   chapterId?: string;
+  comment?: string; // For comment type
 }
 
 interface SimplePopupContextType {
   popups: PopupData[];
-  createPopup: (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string) => void;
+  createPopup: (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string, lineNumber?: number) => void;
   reopenPopup: (id: string, type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string) => void;
   closePopup: (id: string) => void;
   minimizePopup: (id: string) => void;
   addMessage: (id: string, message: Message) => void;
+  saveComment: (id: string, comment: string) => void;
+  goToLine: (chapterId: string, lineNumber: number) => void;
   timelineVersion: number;
 }
 
@@ -53,7 +60,6 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
       return crypto.randomUUID();
     }
-    // Fallback for environments without crypto.randomUUID
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
       const r = Math.random() * 16 | 0;
       const v = c == 'x' ? r : (r & 0x3 | 0x8);
@@ -65,7 +71,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     setTimelineVersion(prev => prev + 1);
   };
 
-  const createPopup = (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string) => {
+  const createPopup = (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string, lineNumber?: number) => {
     // Ensure position is within viewport bounds
     const safePosition = {
       x: Math.max(20, Math.min(position.x, window.innerWidth - 420)),
@@ -73,18 +79,16 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     };
 
     const newPopup: PopupData = {
-      id: generateUUID(), // Use proper UUID
+      id: generateUUID(),
       type,
       position: safePosition,
       selectedText,
+      lineNumber,
       isMinimized: false,
-      messages: type === 'comment' && selectedText ? [{
-        role: 'assistant',
-        content: `You're commenting on: "${selectedText}"\n\nWhat would you like to note about this text?`,
-        timestamp: new Date()
-      }] : [],
+      messages: [],
       projectId,
-      chapterId
+      chapterId,
+      comment: type === 'comment' ? '' : undefined
     };
 
     setPopups(prev => [...prev, newPopup]);
@@ -104,7 +108,6 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     // Check if popup is already open
     const existingPopup = popups.find(popup => popup.id === id);
     if (existingPopup) {
-      // Just bring it to front by minimizing/unminimizing
       setPopups(prev => prev.map(popup => 
         popup.id === id ? { ...popup, isMinimized: false } : popup
       ));
@@ -116,7 +119,6 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       const dbChat = await ChatDatabaseService.loadChatById(id);
       
       if (dbChat) {
-        // Convert database chat to popup format
         const safePosition = {
           x: Math.max(20, Math.min(position.x, window.innerWidth - 420)),
           y: Math.max(20, Math.min(position.y, window.innerHeight - 520))
@@ -127,6 +129,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
           type: dbChat.type as ChatType,
           position: safePosition,
           selectedText: dbChat.selectedText?.text || selectedText,
+          lineNumber: dbChat.lineNumber,
           isMinimized: false,
           messages: (dbChat.messages || []).map(msg => ({
             role: msg.role,
@@ -134,7 +137,10 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
             timestamp: new Date(msg.timestamp)
           })),
           projectId,
-          chapterId: dbChat.chapterId
+          chapterId: dbChat.chapterId,
+          comment: dbChat.type === 'comment' && dbChat.messages && dbChat.messages.length > 0 
+            ? dbChat.messages[0].content 
+            : undefined
         };
 
         setPopups(prev => [...prev, reopenedPopup]);
@@ -150,27 +156,10 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
         }, 0);
       } else {
         // Create a new popup if not found in database
-        const safePosition = {
-          x: Math.max(20, Math.min(position.x, window.innerWidth - 420)),
-          y: Math.max(20, Math.min(position.y, window.innerHeight - 520))
-        };
-
-        const newPopup: PopupData = {
-          id,
-          type,
-          position: safePosition,
-          selectedText,
-          isMinimized: false,
-          messages: [],
-          projectId,
-          chapterId
-        };
-
-        setPopups(prev => [...prev, newPopup]);
+        createPopup(type, position, projectId, chapterId, selectedText);
       }
     } catch (error) {
       console.error('Error reopening popup from timeline:', error);
-      // Fallback: create new popup
       createPopup(type, position, projectId, chapterId, selectedText);
     }
   };
@@ -185,7 +174,6 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
         triggerTimelineRefresh();
       } catch (error) {
         console.log('Timeline status update failed (non-blocking):', error);
-        // Still trigger refresh even if update failed
         triggerTimelineRefresh();
       }
     }, 0);
@@ -212,6 +200,41 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     }, 0);
   };
 
+  const saveComment = (id: string, comment: string) => {
+    setPopups(prev => prev.map(popup => 
+      popup.id === id ? { ...popup, comment } : popup
+    ));
+
+    // Save comment as a message to database
+    const message: Message = {
+      role: 'user',
+      content: comment,
+      timestamp: new Date()
+    };
+
+    // Update popup with message
+    setPopups(prev => prev.map(popup => 
+      popup.id === id ? { ...popup, messages: [message] } : popup
+    ));
+
+    // Save to timeline in background
+    setTimeout(async () => {
+      try {
+        await saveMessageToTimeline(id, message);
+        triggerTimelineRefresh();
+      } catch (error) {
+        console.log('Timeline comment save failed (non-blocking):', error);
+      }
+    }, 0);
+  };
+
+  const goToLine = (chapterId: string, lineNumber: number) => {
+    // Implement navigation to specific line in chapter
+    // This could be enhanced to scroll to the specific line
+    console.log(`Navigate to chapter ${chapterId}, line ${lineNumber}`);
+    // Add navigation logic here if needed
+  };
+
   // Background timeline storage functions (fire and forget)
   const saveToTimeline = async (popup: PopupData) => {
     try {
@@ -226,8 +249,10 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
         selectedText: popup.selectedText ? {
           text: popup.selectedText,
           startOffset: 0,
-          endOffset: popup.selectedText.length
+          endOffset: popup.selectedText.length,
+          lineNumber: popup.lineNumber
         } : undefined,
+        lineNumber: popup.lineNumber,
         messages: popup.messages.map(msg => ({
           role: msg.role,
           content: msg.content,
@@ -242,7 +267,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       console.log('Successfully saved to timeline:', popup.id);
     } catch (error) {
       console.error('Timeline save failed:', error);
-      throw error; // Re-throw so calling code can handle
+      throw error;
     }
   };
 
@@ -253,7 +278,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       console.log('Successfully updated timeline status:', id, status);
     } catch (error) {
       console.error('Timeline status update failed:', error);
-      throw error; // Re-throw so calling code can handle
+      throw error;
     }
   };
 
@@ -261,7 +286,6 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     try {
       console.log('Saving message to timeline:', id);
       
-      // Load existing chat and update with new message
       const existingChat = await ChatDatabaseService.loadChatById(id);
       if (existingChat) {
         const updatedMessages = [...(existingChat.messages || []), {
@@ -290,23 +314,42 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       closePopup, 
       minimizePopup, 
       addMessage,
+      saveComment,
+      goToLine,
       timelineVersion
     }}>
       {children}
       {/* Render all active popups */}
       {popups.map(popup => (
-        <SimpleChatPopup
-          key={popup.id}
-          id={popup.id}
-          type={popup.type}
-          position={popup.position}
-          selectedText={popup.selectedText}
-          onClose={() => closePopup(popup.id)}
-          onMinimize={() => minimizePopup(popup.id)}
-          onMessage={(message) => addMessage(popup.id, message)}
-          isMinimized={popup.isMinimized}
-          messages={popup.messages}
-        />
+        popup.type === 'comment' ? (
+          <SimpleCommentBox
+            key={popup.id}
+            id={popup.id}
+            position={popup.position}
+            selectedText={popup.selectedText}
+            lineNumber={popup.lineNumber}
+            chapterId={popup.chapterId}
+            onClose={() => closePopup(popup.id)}
+            onMinimize={() => minimizePopup(popup.id)}
+            onSave={(comment) => saveComment(popup.id, comment)}
+            onGoToLine={goToLine}
+            isMinimized={popup.isMinimized}
+            initialComment={popup.comment}
+          />
+        ) : (
+          <SimpleChatPopup
+            key={popup.id}
+            id={popup.id}
+            type={popup.type}
+            position={popup.position}
+            selectedText={popup.selectedText}
+            onClose={() => closePopup(popup.id)}
+            onMinimize={() => minimizePopup(popup.id)}
+            onMessage={(message) => addMessage(popup.id, message)}
+            isMinimized={popup.isMinimized}
+            messages={popup.messages}
+          />
+        )
       ))}
     </SimplePopupContext.Provider>
   );

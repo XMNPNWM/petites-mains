@@ -4,6 +4,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { stripHtmlTags, getWordCount } from '@/lib/contentUtils';
 import FocusModeToggle from './FocusModeToggle';
+import SimpleRightClickMenu from './simple/SimpleRightClickMenu';
+import { useSimplePopups } from './simple/SimplePopupManager';
 
 interface Chapter {
   id: string;
@@ -28,12 +30,20 @@ const TextEditorPanel = ({
   onFocusToggle 
 }: TextEditorPanelProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { createPopup } = useSimplePopups();
   
   const cleanContent = chapter?.content ? stripHtmlTags(chapter.content) : '';
   const wordCount = getWordCount(cleanContent);
 
   const handleContentChange = (newContent: string) => {
     onContentChange(newContent);
+  };
+
+  const handleRightClickMenu = (type: 'comment' | 'chat', position: { x: number; y: number }, selectedText?: string, lineNumber?: number) => {
+    if (chapter) {
+      console.log('Creating popup:', { type, position, selectedText, lineNumber, chapterId: chapter.id });
+      createPopup(type, position, chapter.project_id, chapter.id, selectedText, lineNumber);
+    }
   };
 
   return (
@@ -65,16 +75,18 @@ const TextEditorPanel = ({
             </div>
           </div>
 
-          {/* Editor */}
+          {/* Editor with Right-Click Menu */}
           <Card className="flex-1 flex flex-col overflow-hidden">
             <CardContent className="p-6 flex-1 flex flex-col overflow-hidden">
-              <Textarea
-                ref={textareaRef}
-                value={cleanContent}
-                onChange={(e) => handleContentChange(e.target.value)}
-                placeholder="Start writing your story..."
-                className="flex-1 resize-none border-none focus-visible:ring-0 text-base leading-relaxed overflow-y-auto"
-              />
+              <SimpleRightClickMenu onMenuClick={handleRightClickMenu}>
+                <Textarea
+                  ref={textareaRef}
+                  value={cleanContent}
+                  onChange={(e) => handleContentChange(e.target.value)}
+                  placeholder="Start writing your story..."
+                  className="flex-1 resize-none border-none focus-visible:ring-0 text-base leading-relaxed overflow-y-auto"
+                />
+              </SimpleRightClickMenu>
             </CardContent>
           </Card>
         </>

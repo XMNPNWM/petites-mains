@@ -6,11 +6,11 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { MessageSquare, Brain, ArrowRight, MessageCircle } from 'lucide-react';
+import { MessageSquare, MessageCircle } from 'lucide-react';
 
 interface SimpleRightClickMenuProps {
   children: React.ReactNode;
-  onMenuClick: (type: 'comment' | 'coherence' | 'next-steps' | 'chat', position: { x: number; y: number }, selectedText?: string) => void;
+  onMenuClick: (type: 'comment' | 'chat', position: { x: number; y: number }, selectedText?: string, lineNumber?: number) => void;
 }
 
 const SimpleRightClickMenu = ({
@@ -29,9 +29,22 @@ const SimpleRightClickMenu = ({
     return selectedText && selectedText.length > 0 ? selectedText : undefined;
   };
 
-  const handleMenuItemClick = (type: 'comment' | 'coherence' | 'next-steps' | 'chat') => {
+  const getCurrentLineNumber = (): number => {
+    // Simple line number calculation based on cursor position
+    // This is a basic implementation - could be enhanced for more precision
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const textBefore = range.startContainer.textContent?.substring(0, range.startOffset) || '';
+      return textBefore.split('\n').length;
+    }
+    return 1;
+  };
+
+  const handleMenuItemClick = (type: 'comment' | 'chat') => {
     const selectedText = getSelectedText();
-    onMenuClick(type, contextPosition, selectedText);
+    const lineNumber = getCurrentLineNumber();
+    onMenuClick(type, contextPosition, selectedText, lineNumber);
   };
 
   return (
@@ -52,20 +65,6 @@ const SimpleRightClickMenu = ({
         >
           <MessageSquare className="w-4 h-4 text-blue-600" />
           <span>Comment</span>
-        </ContextMenuItem>
-        <ContextMenuItem 
-          onClick={() => handleMenuItemClick('coherence')}
-          className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer"
-        >
-          <Brain className="w-4 h-4 text-purple-600" />
-          <span>AI/Coherence</span>
-        </ContextMenuItem>
-        <ContextMenuItem 
-          onClick={() => handleMenuItemClick('next-steps')}
-          className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer"
-        >
-          <ArrowRight className="w-4 h-4 text-green-600" />
-          <span>AI/Next Steps</span>
         </ContextMenuItem>
         <ContextMenuItem 
           onClick={() => handleMenuItemClick('chat')}

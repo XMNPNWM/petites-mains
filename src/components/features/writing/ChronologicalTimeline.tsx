@@ -1,7 +1,5 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSimplePopups } from './simple/SimplePopupManager';
 import { format } from 'date-fns';
 import { useChatDatabase } from '@/hooks/useChatDatabase';
@@ -10,10 +8,11 @@ interface TimelineChat {
   id: string;
   project_id: string;
   chapter_id?: string;
-  chat_type: 'comment' | 'coherence' | 'next-steps' | 'chat';
+  chat_type: 'comment' | 'chat';
   position: { x: number; y: number };
   selected_text?: string;
   text_position?: number;
+  line_number?: number;
   status?: string;
   created_at: string;
 }
@@ -38,8 +37,12 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     try {
       console.log('Reloading timeline chats for project:', projectId);
       const data = await loadTimelineChats(projectId);
-      setTimelineChats(data);
-      console.log('Timeline chats reloaded:', data.length);
+      // Filter out legacy types that shouldn't exist anymore
+      const filteredData = data.filter(chat => 
+        chat.chat_type === 'comment' || chat.chat_type === 'chat'
+      );
+      setTimelineChats(filteredData);
+      console.log('Timeline chats reloaded:', filteredData.length);
     } catch (error) {
       console.error('Error reloading timeline chats:', error);
     } finally {
@@ -56,7 +59,6 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
   useEffect(() => {
     if (timelineVersion > 0) {
       console.log('Timeline version changed, reloading data...');
-      // Add small delay to ensure database operations complete
       setTimeout(() => {
         reloadTimelineData();
       }, 500);
@@ -68,29 +70,15 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
-  const scrollLeft = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: -200, behavior: 'smooth' });
-    }
-  };
-
-  const scrollRight = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: 200, behavior: 'smooth' });
-    }
-  };
-
   const handleChatReopen = async (chat: TimelineChat) => {
     console.log('Reopening chat from timeline:', chat.id);
     await reopenPopup(chat.id, chat.chat_type, chat.position, projectId, chat.chapter_id, chat.selected_text);
   };
 
-  // Get block color based on chat type
+  // Get block color based on chat type (only comment and chat now)
   const getBlockColor = (type: string, isActive: boolean) => {
     const baseColors = {
       comment: 'bg-blue-500',
-      coherence: 'bg-purple-500',
-      'next-steps': 'bg-green-500',
       chat: 'bg-orange-500'
     };
     
@@ -98,23 +86,59 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     return isActive ? `${color} ring-2 ring-white shadow-lg` : `${color} opacity-70`;
   };
 
-  // Enable horizontal mouse wheel scrolling
+  // Enable horizontal mouse wheel scrolling and dragging
   useEffect(() => {
+    const scrollElement = scrollRef.current;
+    if (!scrollElement) return;
+
+    let isMouseDown = false;
+    let startX = 0;
+    let scrollLeft = 0;
+
     const handleWheel = (e: WheelEvent) => {
-      if (scrollRef.current && Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
+      if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
         e.preventDefault();
-        scrollRef.current.scrollBy({
+        scrollElement.scrollBy({
           left: e.deltaY,
           behavior: 'auto'
         });
       }
     };
 
-    const scrollElement = scrollRef.current;
-    if (scrollElement) {
-      scrollElement.addEventListener('wheel', handleWheel, { passive: false });
-      return () => scrollElement.removeEventListener('wheel', handleWheel);
-    }
+    const handleMouseDown = (e: MouseEvent) => {
+      if ((e.target as HTMLElement).closest('button')) return;
+      isMouseDown = true;
+      startX = e.pageX - scrollElement.offsetLeft;
+      scrollLeft = scrollElement.scrollLeft;
+      scrollElement.style.cursor = 'grabbing';
+    };
+
+    const handleMouseUp = () => {
+      isMouseDown = false;
+      scrollElement.style.cursor = 'grab';
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isMouseDown) return;
+      e.preventDefault();
+      const x = e.pageX - scrollElement.offsetLeft;
+      const walk = (x - startX) * 2;
+      scrollElement.scrollLeft = scrollLeft - walk;
+    };
+
+    scrollElement.addEventListener('wheel', handleWheel, { passive: false });
+    scrollElement.addEventListener('mousedown', handleMouseDown);
+    scrollElement.addEventListener('mouseup', handleMouseUp);
+    scrollElement.addEventListener('mousemove', handleMouseMove);
+    scrollElement.addEventListener('mouseleave', handleMouseUp);
+
+    return () => {
+      scrollElement.removeEventListener('wheel', handleWheel);
+      scrollElement.removeEventListener('mousedown', handleMouseDown);
+      scrollElement.removeEventListener('mouseup', handleMouseUp);
+      scrollElement.removeEventListener('mousemove', handleMouseMove);
+      scrollElement.removeEventListener('mouseleave', handleMouseUp);
+    };
   }, []);
 
   const hasTimelineData = sortedChats.length > 0;
@@ -141,70 +165,50 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
           : 'opacity-0 pointer-events-none'
       }`}>
         {isHovered && hasTimelineData && (
-          <>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={scrollLeft}
-              className="h-8 w-8 p-0 flex-shrink-0 hover:bg-slate-100"
+          <div className="flex items-center max-w-6xl overflow-hidden">
+            <div
+              ref={scrollRef}
+              className="flex items-center overflow-x-auto scrollbar-hide cursor-grab active:cursor-grabbing"
+              style={{ 
+                scrollbarWidth: 'none', 
+                msOverflowStyle: 'none',
+                minHeight: '16px'
+              }}
             >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            
-            <div className="flex items-center mx-3 max-w-6xl overflow-hidden">
-              <div
-                ref={scrollRef}
-                className="flex items-center overflow-x-auto scrollbar-hide cursor-grab active:cursor-grabbing"
-                style={{ 
-                  scrollbarWidth: 'none', 
-                  msOverflowStyle: 'none',
-                  minHeight: '16px'
-                }}
-              >
-                {/* Timeline blocks */}
-                <div className="flex relative z-10 gap-0">
-                  {sortedChats.map((chat, index) => {
-                    const isActive = livePopups.some(popup => popup.id === chat.id);
-                    
-                    return (
-                      <button
-                        key={chat.id}
-                        onClick={() => handleChatReopen(chat)}
-                        className={`flex-shrink-0 h-3 w-2 transition-all duration-200 hover:scale-110 hover:z-20 relative border-r border-white/30 first:rounded-l-sm last:rounded-r-sm ${getBlockColor(chat.chat_type, isActive)}`}
-                        title={`${chat.chat_type} - ${format(new Date(chat.created_at), 'MMM dd, HH:mm')} ${isActive ? '(active)' : '(closed)'}`}
-                      />
-                    );
-                  })}
-                </div>
-                
-                {/* Time markers for timeline start and end */}
-                {hasTimelineData && (
-                  <div className="absolute top-4 left-0 right-0 flex justify-between text-xs text-slate-500 pointer-events-none">
-                    <span>{format(new Date(sortedChats[0].created_at), 'MMM dd')}</span>
-                    {sortedChats.length > 1 && (
-                      <span>{format(new Date(sortedChats[sortedChats.length - 1].created_at), 'MMM dd')}</span>
-                    )}
-                  </div>
-                )}
+              {/* Timeline blocks */}
+              <div className="flex relative z-10 gap-0">
+                {sortedChats.map((chat, index) => {
+                  const isActive = livePopups.some(popup => popup.id === chat.id);
+                  
+                  return (
+                    <button
+                      key={chat.id}
+                      onClick={() => handleChatReopen(chat)}
+                      className={`flex-shrink-0 h-3 w-2 transition-all duration-200 hover:scale-110 hover:z-20 relative border-r border-white/30 first:rounded-l-sm last:rounded-r-sm ${getBlockColor(chat.chat_type, isActive)}`}
+                      title={`${chat.chat_type} - ${format(new Date(chat.created_at), 'MMM dd, HH:mm')} ${isActive ? '(active)' : '(closed)'}`}
+                    />
+                  );
+                })}
               </div>
+              
+              {/* Time markers for timeline start and end */}
+              {hasTimelineData && (
+                <div className="absolute top-4 left-0 right-0 flex justify-between text-xs text-slate-500 pointer-events-none">
+                  <span>{format(new Date(sortedChats[0].created_at), 'MMM dd')}</span>
+                  {sortedChats.length > 1 && (
+                    <span>{format(new Date(sortedChats[sortedChats.length - 1].created_at), 'MMM dd')}</span>
+                  )}
+                </div>
+              )}
             </div>
-            
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={scrollRight}
-              className="h-8 w-8 p-0 flex-shrink-0 hover:bg-slate-100"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </>
+          </div>
         )}
         
         {/* Message when no data and hovered */}
         {isHovered && !hasTimelineData && (
           <div className="px-4 py-2">
             <span className="text-xs text-slate-600 whitespace-nowrap">
-              {isLoading ? 'Loading timeline...' : 'Timeline will appear here as you create comments'}
+              {isLoading ? 'Loading timeline...' : 'Timeline will appear here as you create comments and chats'}
             </span>
           </div>
         )}
