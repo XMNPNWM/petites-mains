@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +16,7 @@ interface Chapter {
   word_count: number;
   order_index: number;
   status: string;
+  project_id: string; // Added missing project_id field
 }
 
 export const useWritingSpace = () => {

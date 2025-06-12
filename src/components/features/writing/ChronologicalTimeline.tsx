@@ -65,14 +65,32 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     }
   }, [timelineVersion]);
 
-  // Sort chats chronologically
-  const sortedChats = timelineChats.sort((a, b) => 
+  // Sort chats chronologically and remove duplicates based on ID
+  const uniqueChats = timelineChats.reduce((acc, chat) => {
+    const existing = acc.find(c => c.id === chat.id);
+    if (!existing) {
+      acc.push(chat);
+    }
+    return acc;
+  }, [] as TimelineChat[]);
+
+  const sortedChats = uniqueChats.sort((a, b) => 
     new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
   const handleChatReopen = async (chat: TimelineChat) => {
     console.log('Reopening chat from timeline:', chat.id);
-    await reopenPopup(chat.id, chat.chat_type, chat.position, projectId, chat.chapter_id, chat.selected_text);
+    
+    // Check if popup is already open to prevent duplicates
+    const isAlreadyOpen = livePopups.some(popup => popup.id === chat.id);
+    if (isAlreadyOpen) {
+      console.log('Chat is already open, not reopening:', chat.id);
+      return;
+    }
+
+    // Use the chat type from the database record
+    const chatType = chat.chat_type as 'comment' | 'chat';
+    await reopenPopup(chat.id, chatType, chat.position, projectId, chat.chapter_id, chat.selected_text);
   };
 
   // Get block color based on chat type (only comment and chat now)
