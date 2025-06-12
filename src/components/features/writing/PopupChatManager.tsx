@@ -1,10 +1,13 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
-import PopupChat, { ChatType } from './PopupChat';
+import PopupChat from './PopupChat';
 import { SelectedTextContext, LocalChatSession } from '@/types/comments';
 import { useChatDatabase } from '@/hooks/useChatDatabase';
 import { useChatState } from '@/hooks/useChatState';
 import { useToast } from '@/hooks/use-toast';
+
+// Define ChatType locally to only include comment and chat
+type ChatType = 'comment' | 'chat';
 
 interface PopupChatContextType {
   chats: LocalChatSession[];
@@ -232,12 +235,12 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       loadProjectChats 
     }}>
       {children}
-      {/* Render all active popup chats */}
-      {chats.filter(chat => chat.status === 'active').map(chat => (
+      {/* Render all active popup chats - only comment and chat types */}
+      {chats.filter(chat => chat.status === 'active' && (chat.type === 'comment' || chat.type === 'chat')).map(chat => (
         <PopupChat
           key={chat.id}
           id={chat.id}
-          type={chat.type}
+          type={chat.type as ChatType}
           initialPosition={chat.position}
           onClose={() => closeChat(chat.id)}
           onMinimize={() => minimizeChat(chat.id)}

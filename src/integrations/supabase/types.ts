@@ -139,6 +139,7 @@ export type Database = {
           created_at: string
           id: string
           is_minimized: boolean
+          line_number: number | null
           messages: Json
           position: Json
           project_id: string
@@ -153,6 +154,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_minimized?: boolean
+          line_number?: number | null
           messages?: Json
           position: Json
           project_id: string
@@ -167,6 +169,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_minimized?: boolean
+          line_number?: number | null
           messages?: Json
           position?: Json
           project_id?: string

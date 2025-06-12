@@ -14,6 +14,7 @@ interface Chapter {
   word_count: number;
   order_index: number;
   status: string;
+  project_id: string; // Added missing project_id
 }
 
 interface TextEditorPanelProps {
@@ -75,20 +76,24 @@ const TextEditorPanel = ({
             </div>
           </div>
 
-          {/* Editor with Right-Click Menu */}
-          <Card className="flex-1 flex flex-col overflow-hidden">
-            <CardContent className="p-6 flex-1 flex flex-col overflow-hidden">
-              <SimpleRightClickMenu onMenuClick={handleRightClickMenu}>
-                <Textarea
-                  ref={textareaRef}
-                  value={cleanContent}
-                  onChange={(e) => handleContentChange(e.target.value)}
-                  placeholder="Start writing your story..."
-                  className="flex-1 resize-none border-none focus-visible:ring-0 text-base leading-relaxed overflow-y-auto"
-                />
-              </SimpleRightClickMenu>
-            </CardContent>
-          </Card>
+          {/* Editor with Right-Click Menu - Fixed layout */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <Card className="flex-1 flex flex-col overflow-hidden">
+              <CardContent className="p-6 flex-1 flex flex-col overflow-hidden">
+                <SimpleRightClickMenu onMenuClick={handleRightClickMenu}>
+                  <div className="flex-1 flex flex-col overflow-hidden">
+                    <Textarea
+                      ref={textareaRef}
+                      value={cleanContent}
+                      onChange={(e) => handleContentChange(e.target.value)}
+                      placeholder="Start writing your story..."
+                      className="flex-1 resize-none border-none focus-visible:ring-0 text-base leading-relaxed overflow-y-auto min-h-0"
+                    />
+                  </div>
+                </SimpleRightClickMenu>
+              </CardContent>
+            </Card>
+          </div>
         </>
       ) : (
         <div className="flex-1 flex items-center justify-center overflow-hidden">

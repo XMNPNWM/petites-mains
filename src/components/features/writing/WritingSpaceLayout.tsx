@@ -7,7 +7,9 @@ import ChapterOrganizerPanel from './ChapterOrganizerPanel';
 import StorylinePanel from './StorylinePanel';
 import SimpleRightClickMenu from './simple/SimpleRightClickMenu';
 import { useSimplePopups } from './simple/SimplePopupManager';
-import { ChatType } from './simple/SimpleChatPopup';
+
+// Define ChatType locally to match the SimplePopupManager
+type ChatType = 'comment' | 'chat';
 
 interface Chapter {
   id: string;
@@ -16,6 +18,7 @@ interface Chapter {
   word_count: number;
   order_index: number;
   status: string;
+  project_id: string; // Added missing project_id
 }
 
 interface WritingSpaceLayoutProps {
@@ -150,14 +153,12 @@ const WritingSpaceLayout = ({
           <ResizableHandle withHandle />
           
           <ResizablePanel defaultSize={50} minSize={30} className="overflow-hidden">
-            <SimpleRightClickMenu onMenuClick={handleMenuClick}>
-              <TextEditorPanel 
-                chapter={currentChapter}
-                onContentChange={onContentChange}
-                areMinimized={areAllPanelsMinimized()}
-                onFocusToggle={handleFocusToggle}
-              />
-            </SimpleRightClickMenu>
+            <TextEditorPanel 
+              chapter={currentChapter}
+              onContentChange={onContentChange}
+              areMinimized={areAllPanelsMinimized()}
+              onFocusToggle={handleFocusToggle}
+            />
           </ResizablePanel>
           
           <ResizableHandle withHandle />
