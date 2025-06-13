@@ -134,6 +134,8 @@ export const useWritingSpace = () => {
       if (error) throw error;
       setLastSaved(new Date());
       console.log('Chapter auto-saved successfully');
+      
+      // Project timestamp will be updated automatically by the database trigger
     } catch (error) {
       console.error('Error auto-saving chapter:', error);
     }
@@ -164,6 +166,8 @@ export const useWritingSpace = () => {
         description: "Your changes have been saved successfully.",
       });
       console.log('Chapter saved successfully');
+      
+      // Project timestamp will be updated automatically by the database trigger
     } catch (error) {
       console.error('Error saving chapter:', error);
       toast({

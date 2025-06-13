@@ -1,4 +1,3 @@
-
 export const stripHtmlTags = (html: string): string => {
   if (!html) return '';
   
@@ -19,11 +18,34 @@ export const getWordCount = (text: string): number => {
   return cleanText.split(' ').filter(word => word.length > 0).length;
 };
 
-export const getTextPreview = (text: string, maxLength: number = 100): string => {
-  if (!text) return '';
+export const getTextPreview = (content: string, maxLength: number = 100, fromEnd: boolean = false): string => {
+  if (!content) return '';
   
-  const cleanText = stripHtmlTags(text);
+  const cleanText = stripHtmlTags(content).trim();
+  if (!cleanText) return '';
+  
   if (cleanText.length <= maxLength) return cleanText;
   
-  return cleanText.substring(0, maxLength) + '...';
+  if (fromEnd) {
+    // Get preview from the end of the content
+    const endText = cleanText.slice(-maxLength);
+    
+    // Try to start from a word boundary to avoid cutting words
+    const spaceIndex = endText.indexOf(' ');
+    if (spaceIndex > 0 && spaceIndex < endText.length / 2) {
+      return '...' + endText.slice(spaceIndex + 1);
+    }
+    
+    return '...' + endText;
+  } else {
+    // Get preview from the beginning (existing behavior)
+    const truncated = cleanText.slice(0, maxLength);
+    const lastSpaceIndex = truncated.lastIndexOf(' ');
+    
+    if (lastSpaceIndex > 0 && lastSpaceIndex > maxLength * 0.8) {
+      return truncated.slice(0, lastSpaceIndex) + '...';
+    }
+    
+    return truncated + '...';
+  }
 };

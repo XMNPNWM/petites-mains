@@ -1,82 +1,98 @@
 
-import React from 'react';
-import { MoreHorizontal, Edit3, Trash2, Eye } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Edit, Trash2, Map } from 'lucide-react';
+import { useStorylineWorldbuildingNavigation } from '@/hooks/useStorylineWorldbuildingNavigation';
 
-interface Element {
-  id: number;
+interface WorldbuildingElement {
+  id: string;
   name: string;
   type: string;
-  description: string;
-  tags: string[];
-  image: string;
+  description: string | null;
+  details: any;
 }
 
 interface ElementCardProps {
-  element: Element;
+  element: WorldbuildingElement;
+  onEdit: (element: WorldbuildingElement) => void;
+  onDelete: (id: string) => void;
 }
 
-const ElementCard = ({ element }: ElementCardProps) => {
-  return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardContent className="p-0">
-        {/* Image/Avatar */}
-        <div className="h-48 bg-gradient-to-br from-purple-400 to-blue-500 rounded-t-lg flex items-center justify-center">
-          <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-            <span className="text-white text-xl font-bold">
-              {element.name.charAt(0)}
-            </span>
-          </div>
-        </div>
+const ElementCard = ({ element, onEdit, onDelete }: ElementCardProps) => {
+  const [isNavigating, setIsNavigating] = useState(false);
+  const { navigateToWorldbuildingElement } = useStorylineWorldbuildingNavigation();
 
-        <div className="p-4">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-2">
-            <div>
-              <h3 className="font-semibold text-slate-900 text-lg">{element.name}</h3>
-              <p className="text-purple-600 text-sm font-medium">{element.type}</p>
-            </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="w-4 h-4" />
+  const handleViewInStoryline = async () => {
+    setIsNavigating(true);
+    try {
+      await navigateToWorldbuildingElement(element.id);
+    } catch (error) {
+      console.error('Error navigating to storyline:', error);
+    } finally {
+      setIsNavigating(false);
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    const colors: Record<string, string> = {
+      character: 'bg-blue-100 text-blue-800',
+      location: 'bg-green-100 text-green-800',
+      item: 'bg-purple-100 text-purple-800',
+      concept: 'bg-orange-100 text-orange-800',
+      event: 'bg-red-100 text-red-800'
+    };
+    return colors[type.toLowerCase()] || 'bg-gray-100 text-gray-800';
+  };
+
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <CardTitle className="text-lg font-semibold mb-2">{element.name}</CardTitle>
+            <Badge className={getTypeColor(element.type)}>
+              {element.type}
+            </Badge>
+          </div>
+          <div className="flex gap-1 ml-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleViewInStoryline}
+              disabled={isNavigating}
+              className="h-8 w-8 p-0"
+            >
+              <Map className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onEdit(element)}
+              className="h-8 w-8 p-0"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDelete(element.id)}
+              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+            >
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
-
-          {/* Description */}
-          <p className="text-slate-600 text-sm mb-3 line-clamp-2">
+        </div>
+      </CardHeader>
+      
+      {element.description && (
+        <CardContent className="pt-0">
+          <p className="text-sm text-slate-600 line-clamp-3">
             {element.description}
           </p>
-
-          {/* Tags */}
-          <div className="flex flex-wrap gap-1 mb-4">
-            {element.tags.slice(0, 3).map((tag, index) => (
-              <span
-                key={index}
-                className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full"
-              >
-                {tag}
-              </span>
-            ))}
-            {element.tags.length > 3 && (
-              <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full">
-                +{element.tags.length - 3} more
-              </span>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" className="flex-1">
-              <Eye className="w-4 h-4 mr-1" />
-              View
-            </Button>
-            <Button variant="outline" size="sm" className="flex-1">
-              <Edit3 className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
-          </div>
-        </div>
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   );
 };

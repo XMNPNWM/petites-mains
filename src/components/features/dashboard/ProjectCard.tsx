@@ -60,7 +60,8 @@ const ProjectCard = ({ project, onProjectUpdate }: ProjectCardProps) => {
     if (isLoadingContent) return 'Loading...';
     if (!content) return 'No content written yet...';
     
-    const cleanText = getTextPreview(content, 150);
+    // Get preview from the end of the content to show last written text
+    const cleanText = getTextPreview(content, 150, true);
     if (!cleanText.trim()) return 'No content written yet...';
     
     return cleanText;
