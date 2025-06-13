@@ -1,21 +1,11 @@
-import React, {
-  createContext,
-  useState,
-  useContext,
-  useCallback,
-  useEffect,
-  ReactNode
-} from 'react';
+
+import React, { createContext, useState, useContext, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { supabase } from '@/integrations/supabase/client';
 import { useParams } from 'react-router-dom';
 
-// Define the types for the popup
-export type PopupType = 'comment' | 'chat';
-
-export interface Popup {
+export interface SimplePopup {
   id: string;
-  type: PopupType;
+  type: 'comment' | 'chat';
   position: { x: number; y: number };
   projectId: string;
   chapterId?: string;
@@ -23,56 +13,47 @@ export interface Popup {
   lineNumber?: number;
   isMinimized: boolean;
   createdAt: Date;
-  messages?: any[];
-  status?: string;
-  textPosition?: number;
+  messages: Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date }>;
+  status: 'open' | 'closed';
+  textPosition?: number | null;
 }
 
 interface SimplePopupsContextProps {
-  livePopups: Popup[];
-  createPopup: (type: PopupType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string, lineNumber?: number) => void;
-  updatePopup: (id: string, updates: Partial<Popup>) => void;
+  livePopups: SimplePopup[];
+  popups: SimplePopup[]; // Add alias for backward compatibility
+  createPopup: (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string, lineNumber?: number) => void;
+  updatePopup: (id: string, updates: Partial<SimplePopup>) => void;
   closePopup: (id: string) => void;
-  reopenPopup: (id: string) => void;
-  goToLine: (chapterId: string, lineNumber: number) => void;
+  reopenPopup: (id: string, type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string) => void;
+  goToLine: (chapterId: string, lineNumber: number) => Promise<void>;
   timelineVersion: number;
 }
 
-const SimplePopupsContext = createContext<SimplePopupsContextProps | undefined>(
-  undefined
-);
+const SimplePopupsContext = createContext<SimplePopupsContextProps | undefined>(undefined);
 
 export const useSimplePopups = () => {
   const context = useContext(SimplePopupsContext);
   if (!context) {
-    throw new Error(
-      'useSimplePopups must be used within a SimplePopupProvider'
-    );
+    throw new Error('useSimplePopups must be used within a SimplePopupProvider');
   }
   return context;
 };
 
-interface SimplePopupProviderProps {
-  children: ReactNode;
-}
-
-export const SimplePopupProvider: React.FC<SimplePopupProviderProps> = ({
-  children,
-}) => {
-  const [livePopups, setLivePopups] = useState<Popup[]>([]);
+export const SimplePopupProvider = ({ children }: { children: React.ReactNode }) => {
+  const [livePopups, setLivePopups] = useState<SimplePopup[]>([]);
   const [timelineVersion, setTimelineVersion] = useState(0);
   const { projectId } = useParams();
 
   // Function to create a new popup
   const createPopup = (
-    type: PopupType,
-    position: { x: number; y: number },
-    projectId: string,
-    chapterId?: string,
-    selectedText?: string,
+    type: 'comment' | 'chat', 
+    position: { x: number; y: number }, 
+    projectId: string, 
+    chapterId?: string, 
+    selectedText?: string, 
     lineNumber?: number
   ) => {
-    const newPopup: Popup = {
+    const newPopup: SimplePopup = {
       id: uuidv4(),
       type,
       position,
@@ -84,40 +65,68 @@ export const SimplePopupProvider: React.FC<SimplePopupProviderProps> = ({
       createdAt: new Date(),
       messages: [],
       status: 'open',
-      textPosition: null,
+      textPosition: null
     };
 
-    setLivePopups((prevPopups) => [...prevPopups, newPopup]);
-    setTimelineVersion((prev) => prev + 1);
+    setLivePopups(prevPopups => [...prevPopups, newPopup]);
+    setTimelineVersion(prev => prev + 1);
   };
 
   // Function to update an existing popup
-  const updatePopup = (id: string, updates: Partial<Popup>) => {
-    setLivePopups((prevPopups) =>
-      prevPopups.map((popup) => (popup.id === id ? { ...popup, ...updates } : popup))
+  const updatePopup = (id: string, updates: Partial<SimplePopup>) => {
+    setLivePopups(prevPopups => 
+      prevPopups.map(popup => 
+        popup.id === id ? { ...popup, ...updates } : popup
+      )
     );
-    setTimelineVersion((prev) => prev + 1);
+    setTimelineVersion(prev => prev + 1);
   };
 
   // Function to close a popup
   const closePopup = (id: string) => {
-    setLivePopups((prevPopups) => prevPopups.filter((popup) => popup.id !== id));
-    setTimelineVersion((prev) => prev + 1);
+    setLivePopups(prevPopups => prevPopups.filter(popup => popup.id !== id));
+    setTimelineVersion(prev => prev + 1);
   };
 
-  // Function to reopen a popup
-  const reopenPopup = (id: string) => {
-    setLivePopups((prevPopups) =>
-      prevPopups.map((popup) =>
-        popup.id === id ? { ...popup, isMinimized: false } : popup
-      )
-    );
-    setTimelineVersion((prev) => prev + 1);
+  // Function to reopen a popup with proper signature
+  const reopenPopup = (
+    id: string, 
+    type: 'comment' | 'chat', 
+    position: { x: number; y: number }, 
+    projectId: string, 
+    chapterId?: string, 
+    selectedText?: string
+  ) => {
+    // Check if popup already exists
+    const existingPopup = livePopups.find(popup => popup.id === id);
+    if (existingPopup) {
+      setLivePopups(prevPopups => 
+        prevPopups.map(popup => 
+          popup.id === id ? { ...popup, isMinimized: false } : popup
+        )
+      );
+    } else {
+      // Create new popup if it doesn't exist
+      const newPopup: SimplePopup = {
+        id,
+        type,
+        position,
+        projectId,
+        chapterId,
+        selectedText,
+        isMinimized: false,
+        createdAt: new Date(),
+        messages: [],
+        status: 'open',
+        textPosition: null
+      };
+      setLivePopups(prevPopups => [...prevPopups, newPopup]);
+    }
+    setTimelineVersion(prev => prev + 1);
   };
 
   const goToLine = useCallback(async (chapterId: string, lineNumber: number) => {
     console.log('Going to line:', { chapterId, lineNumber });
-    
     try {
       // Navigate to the chapter first if it's different from current
       const currentPath = window.location.pathname;
@@ -126,7 +135,6 @@ export const SimplePopupProvider: React.FC<SimplePopupProviderProps> = ({
       if (!currentPath.includes(chapterId)) {
         // Navigate to the chapter
         window.location.href = targetPath;
-        
         // Wait for navigation and component mount
         setTimeout(() => {
           scrollToLine(lineNumber);
@@ -143,7 +151,7 @@ export const SimplePopupProvider: React.FC<SimplePopupProviderProps> = ({
   const scrollToLine = useCallback((lineNumber: number) => {
     try {
       // Find the textarea element
-      const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+      const textarea = document.querySelector('textarea');
       if (!textarea) {
         console.warn('Textarea not found for line navigation');
         return;
@@ -176,7 +184,6 @@ export const SimplePopupProvider: React.FC<SimplePopupProviderProps> = ({
       const centeredScrollTop = Math.max(0, scrollTop - textareaHeight / 2);
       
       textarea.scrollTop = centeredScrollTop;
-      
       console.log('Scrolled to line:', lineNumber);
     } catch (error) {
       console.error('Error scrolling to line:', error);
@@ -184,9 +191,10 @@ export const SimplePopupProvider: React.FC<SimplePopupProviderProps> = ({
   }, []);
 
   return (
-    <SimplePopupsContext.Provider
+    <SimplePopupsContext.Provider 
       value={{
         livePopups,
+        popups: livePopups, // Add alias for backward compatibility
         createPopup,
         updatePopup,
         closePopup,
