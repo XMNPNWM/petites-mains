@@ -5,17 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2, Map } from 'lucide-react';
 import { useStorylineWorldbuildingNavigation } from '@/hooks/useStorylineWorldbuildingNavigation';
-
-interface WorldbuildingElement {
-  id: string;
-  name: string;
-  type: string;
-  description: string | null;
-  details?: any; // Make details optional to handle mock data
-}
+import { WorldbuildingElement, WorldbuildingElementMock, convertMockToWorldbuildingElement } from '@/types/worldbuilding';
 
 interface ElementCardProps {
-  element: WorldbuildingElement;
+  element: WorldbuildingElement | WorldbuildingElementMock;
   onEdit?: (element: WorldbuildingElement) => void;
   onDelete?: (id: string) => void;
 }
@@ -24,10 +17,15 @@ const ElementCard = ({ element, onEdit, onDelete }: ElementCardProps) => {
   const [isNavigating, setIsNavigating] = useState(false);
   const { navigateToWorldbuildingElement } = useStorylineWorldbuildingNavigation();
 
+  // Convert mock element to proper WorldbuildingElement if needed
+  const worldbuildingElement: WorldbuildingElement = typeof element.id === 'number' 
+    ? convertMockToWorldbuildingElement(element as WorldbuildingElementMock)
+    : element as WorldbuildingElement;
+
   const handleViewInStoryline = async () => {
     setIsNavigating(true);
     try {
-      await navigateToWorldbuildingElement(element.id);
+      await navigateToWorldbuildingElement(worldbuildingElement.id);
     } catch (error) {
       console.error('Error navigating to storyline:', error);
     } finally {
@@ -58,9 +56,9 @@ const ElementCard = ({ element, onEdit, onDelete }: ElementCardProps) => {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-lg font-semibold mb-2">{element.name}</CardTitle>
-            <Badge className={getTypeColor(element.type)}>
-              {element.type}
+            <CardTitle className="text-lg font-semibold mb-2">{worldbuildingElement.name}</CardTitle>
+            <Badge className={getTypeColor(worldbuildingElement.type)}>
+              {worldbuildingElement.type}
             </Badge>
           </div>
           <div className="flex gap-1 ml-2">
@@ -78,7 +76,7 @@ const ElementCard = ({ element, onEdit, onDelete }: ElementCardProps) => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onEdit(element)}
+                onClick={() => onEdit(worldbuildingElement)}
                 className="h-8 w-8 p-0"
                 title="Edit Element"
               >
@@ -89,7 +87,7 @@ const ElementCard = ({ element, onEdit, onDelete }: ElementCardProps) => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onDelete(element.id)}
+                onClick={() => onDelete(worldbuildingElement.id)}
                 className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                 title="Delete Element"
               >
@@ -100,10 +98,10 @@ const ElementCard = ({ element, onEdit, onDelete }: ElementCardProps) => {
         </div>
       </CardHeader>
       
-      {element.description && (
+      {worldbuildingElement.description && (
         <CardContent className="pt-0">
           <p className="text-sm text-slate-600 line-clamp-3">
-            {element.description}
+            {worldbuildingElement.description}
           </p>
         </CardContent>
       )}

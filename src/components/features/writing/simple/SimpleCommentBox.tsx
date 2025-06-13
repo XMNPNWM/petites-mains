@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -14,14 +15,14 @@ interface Popup {
   selectedText: string | null;
   lineNumber: number | null;
   position: { x: number; y: number };
-  messages: { role: string; content: string }[];
+  messages: { role: string; content: string; timestamp: Date }[];
   status: string | null;
   isMinimized: boolean;
 }
 
 interface SimpleCommentBoxProps {
   popup: Popup;
-  onUpdate: (id: string, messages: { role: string; content: string }[]) => void;
+  onUpdate: (id: string, messages: { role: string; content: string; timestamp: Date }[]) => void;
   onClose: (id: string) => void;
 }
 
@@ -40,7 +41,11 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
 
   const handleAddComment = () => {
     if (comment.trim() !== '') {
-      const newMessage = { role: 'user', content: comment };
+      const newMessage = { 
+        role: 'user', 
+        content: comment,
+        timestamp: new Date()
+      };
       const updatedMessages = [...messages, newMessage];
       setMessages(updatedMessages);
       onUpdate(popup.id, updatedMessages);
