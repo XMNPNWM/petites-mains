@@ -29,12 +29,14 @@ export const useStorylineWorldbuildingNavigation = () => {
 
       if (error) throw error;
 
-      // Filter nodes that are actually linked to this worldbuilding element
-      const linkedNodesData = data?.filter(node => {
-        // This is a simplified check - in a full implementation, you'd have a proper
-        // many-to-many relationship table between storyline_nodes and worldbuilding_elements
-        return true; // For now, return all nodes in the project
-      }) || [];
+      // Transform the data to ensure proper typing
+      const linkedNodesData: StorylineNode[] = (data || []).map(node => ({
+        id: node.id,
+        title: node.title,
+        position: typeof node.position === 'string' 
+          ? JSON.parse(node.position) 
+          : node.position as { x: number; y: number } | null
+      })).filter(node => node.position !== null) as StorylineNode[];
 
       setLinkedNodes(linkedNodesData);
       setCurrentNodeIndex(0);
