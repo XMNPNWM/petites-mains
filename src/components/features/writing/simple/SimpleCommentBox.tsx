@@ -15,14 +15,14 @@ interface Popup {
   selectedText: string | null;
   lineNumber: number | null;
   position: { x: number; y: number };
-  messages: { role: string; content: string; timestamp: Date }[];
+  messages: { role: 'user' | 'assistant'; content: string; timestamp: Date }[];
   status: string | null;
   isMinimized: boolean;
 }
 
 interface SimpleCommentBoxProps {
   popup: Popup;
-  onUpdate: (id: string, messages: { role: string; content: string; timestamp: Date }[]) => void;
+  onUpdate: (id: string, messages: { role: 'user' | 'assistant'; content: string; timestamp: Date }[]) => void;
   onClose: (id: string) => void;
 }
 
@@ -42,7 +42,7 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
   const handleAddComment = () => {
     if (comment.trim() !== '') {
       const newMessage = { 
-        role: 'user', 
+        role: 'user' as const, 
         content: comment,
         timestamp: new Date()
       };
