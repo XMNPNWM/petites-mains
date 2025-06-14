@@ -1,161 +1,220 @@
 
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Users, MapPin, Scroll, Crown } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Search, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ElementCard from './ElementCard';
-import ElementForm from './ElementForm';
+import DemoElementForm from './DemoElementForm';
+import { supabase } from '@/integrations/supabase/client';
 
-const WorldElementLibrary = () => {
-  const [activeTab, setActiveTab] = useState('characters');
+// Remove mock data - use real database elements
+interface WorldElement {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  storyline_node_id?: string | null;
+  created_from_storyline?: boolean;
+}
+
+interface WorldElementLibraryProps {
+  projectId: string;
+}
+
+const CATEGORIES = [
+  { value: 'characters', label: 'Characters' },
+  { value: 'locations', label: 'Locations' },
+  { value: 'lore', label: 'Lore' },
+  { value: 'organizations', label: 'Organizations' }
+];
+
+const WorldElementLibrary = ({ projectId }: WorldElementLibraryProps) => {
+  const [elements, setElements] = useState<WorldElement[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedType, setSelectedType] = useState<string>('all');
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [showForm, setShowForm] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('characters');
+  const [isLoading, setIsLoading] = useState(true);
 
-  const tabs = [
-    { id: 'characters', label: 'Characters', icon: Users, count: 12 },
-    { id: 'locations', label: 'Locations', icon: MapPin, count: 8 },
-    { id: 'lore', label: 'Lore & History', icon: Scroll, count: 15 },
-    { id: 'organizations', label: 'Organizations', icon: Crown, count: 5 }
-  ];
+  React.useEffect(() => {
+    fetchElements();
+  }, [projectId]);
 
-  const elements = {
-    characters: [
-      {
-        id: 1,
-        name: 'Aria Shadowmere',
-        type: 'Protagonist',
-        description: 'A skilled assassin turned reluctant hero with the power to manipulate shadows.',
-        tags: ['Main Character', 'Magic User', 'Assassin'],
-        image: '/placeholder.svg'
-      },
-      {
-        id: 2,
-        name: 'Lord Blackthorne',
-        type: 'Antagonist',
-        description: 'A powerful necromancer seeking to overthrow the kingdom and rule the undead.',
-        tags: ['Villain', 'Necromancer', 'Noble'],
-        image: '/placeholder.svg'
-      },
-      {
-        id: 3,
-        name: 'Finn the Brave',
-        type: 'Supporting',
-        description: 'A loyal knight and childhood friend of the protagonist.',
-        tags: ['Knight', 'Loyal', 'Childhood Friend'],
-        image: '/placeholder.svg'
-      }
-    ],
-    locations: [
-      {
-        id: 1,
-        name: 'The Whispering Woods',
-        type: 'Forest',
-        description: 'An ancient forest where the trees are said to hold the memories of the past.',
-        tags: ['Magical', 'Ancient', 'Mysterious'],
-        image: '/placeholder.svg'
-      },
-      {
-        id: 2,
-        name: 'Shadowmere Castle',
-        type: 'Castle',
-        description: 'The ancestral home of the Shadowmere family, built on a cliff overlooking the sea.',
-        tags: ['Noble House', 'Fortress', 'Coastal'],
-        image: '/placeholder.svg'
-      }
-    ],
-    lore: [
-      {
-        id: 1,
-        name: 'The Great Sundering',
-        type: 'Historical Event',
-        description: 'A cataclysmic event that split the realm into multiple dimensions.',
-        tags: ['Ancient History', 'Magical Event', 'World-changing'],
-        image: '/placeholder.svg'
-      }
-    ],
-    organizations: [
-      {
-        id: 1,
-        name: 'The Shadow Guild',
-        type: 'Secret Society',
-        description: 'A clandestine organization of assassins and spies.',
-        tags: ['Secret', 'Assassins', 'Underground'],
-        image: '/placeholder.svg'
-      }
-    ]
+  const fetchElements = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('worldbuilding_elements')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setElements(data || []);
+    } catch (error) {
+      console.error('Error fetching worldbuilding elements:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">World Library</h1>
-          <p className="text-slate-600">Build and organize your story's world elements</p>
-        </div>
-        <Button 
-          onClick={() => setShowForm(true)}
-          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Element
-        </Button>
-      </div>
+  const toggleCategory = (categoryType: string) => {
+    const newCollapsed = new Set(collapsedCategories);
+    if (newCollapsed.has(categoryType)) {
+      newCollapsed.delete(categoryType);
+    } else {
+      newCollapsed.add(categoryType);
+    }
+    setCollapsedCategories(newCollapsed);
+  };
 
-      {/* Search and Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <Input placeholder="Search characters, locations, lore..." className="pl-10" />
-            </div>
-            <Button variant="outline">
-              <Filter className="w-4 h-4 mr-2" />
-              Filters
+  const filteredElements = elements.filter(element => {
+    const matchesSearch = element.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         element.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = selectedType === 'all' || element.type === selectedType;
+    return matchesSearch && matchesType;
+  });
+
+  const uniqueTypes = Array.from(new Set(elements.map(element => element.type)));
+  
+  // Group elements by category
+  const groupedElements = CATEGORIES.reduce((acc, category) => {
+    acc[category.value] = filteredElements.filter(element => element.type === category.value);
+    return acc;
+  }, {} as Record<string, WorldElement[]>);
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col bg-white">
+      <CardHeader className="flex-shrink-0 pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold">Element Library</CardTitle>
+          <div className="flex gap-2">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORIES.map(category => (
+                  <SelectItem key={category.value} value={category.value}>
+                    {category.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={() => setShowForm(true)} size="sm">
+              <Plus className="w-4 h-4 mr-1" />
+              Add
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        
+        <div className="space-y-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <Input
+              placeholder="Search elements..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          <Select value={selectedType} onValueChange={setSelectedType}>
+            <SelectTrigger className="w-full">
+              <Filter className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {uniqueTypes.map(type => (
+                <SelectItem key={type} value={type}>
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
 
-      {/* Tabs */}
-      <div className="border-b border-slate-200">
-        <nav className="flex space-x-8">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center space-x-2 py-3 px-1 border-b-2 font-medium text-sm ${
-                activeTab === tab.id
-                  ? 'border-purple-500 text-purple-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-              }`}
+      <CardContent className="flex-1 overflow-auto p-4">
+        {CATEGORIES.map((category) => {
+          const categoryElements = groupedElements[category.value];
+          const isCollapsed = collapsedCategories.has(category.value);
+          
+          if (categoryElements.length === 0 && searchTerm) return null;
+
+          return (
+            <div key={category.value} className="mb-4">
+              {/* Category Header */}
+              <div 
+                className="flex items-center justify-between p-2 cursor-pointer hover:bg-slate-50 rounded"
+                onClick={() => toggleCategory(category.value)}
+              >
+                <div className="flex items-center space-x-2">
+                  {isCollapsed ? (
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  )}
+                  <h3 className="font-medium text-slate-700">{category.label}</h3>
+                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">
+                    {categoryElements.length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Category Elements */}
+              {!isCollapsed && (
+                <div className="ml-6 space-y-2">
+                  {categoryElements.length === 0 ? (
+                    <p className="text-sm text-slate-500 italic py-4">No {category.label.toLowerCase()} yet</p>
+                  ) : (
+                    categoryElements.map((element) => (
+                      <ElementCard
+                        key={element.id}
+                        element={element}
+                        onEdit={() => {}}
+                        onDelete={() => {}}
+                      />
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {filteredElements.length === 0 && (
+          <div className="text-center py-8 text-slate-500">
+            <p>No elements found.</p>
+            <Button 
+              onClick={() => setShowForm(true)} 
+              variant="outline" 
+              className="mt-2"
             >
-              <tab.icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-              <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded-full text-xs">
-                {tab.count}
-              </span>
-            </button>
-          ))}
-        </nav>
-      </div>
+              Create your first element
+            </Button>
+          </div>
+        )}
+      </CardContent>
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {elements[activeTab as keyof typeof elements]?.map((element) => (
-          <ElementCard key={element.id} element={element} />
-        ))}
-      </div>
-
-      {/* Add Element Form Modal */}
-      {showForm && (
-        <ElementForm 
-          isOpen={showForm} 
-          onClose={() => setShowForm(false)}
-          elementType={activeTab}
-        />
-      )}
+      {/* Demo Form */}
+      <DemoElementForm
+        isOpen={showForm}
+        onClose={() => setShowForm(false)}
+        elementType={selectedCategory}
+      />
     </div>
   );
 };

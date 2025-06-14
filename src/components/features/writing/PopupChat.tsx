@@ -1,13 +1,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Minus, MessageSquare, Brain, ArrowRight, MessageCircle, Send } from 'lucide-react';
+import { X, Minus, MessageSquare, MessageCircle, Send } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { SelectedTextContext } from '@/types/comments';
 import { usePopupChats } from './PopupChatManager';
 
-export type ChatType = 'comment' | 'coherence' | 'next-steps' | 'chat';
+export type ChatType = 'comment' | 'chat';
 
 interface PopupChatProps {
   id: string;
@@ -25,8 +25,6 @@ interface PopupChatProps {
 const getChatIcon = (type: ChatType) => {
   switch (type) {
     case 'comment': return <MessageSquare className="w-4 h-4 text-blue-600" />;
-    case 'coherence': return <Brain className="w-4 h-4 text-purple-600" />;
-    case 'next-steps': return <ArrowRight className="w-4 h-4 text-green-600" />;
     case 'chat': return <MessageCircle className="w-4 h-4 text-orange-600" />;
   }
 };
@@ -34,8 +32,6 @@ const getChatIcon = (type: ChatType) => {
 const getChatTitle = (type: ChatType) => {
   switch (type) {
     case 'comment': return 'Comment';
-    case 'coherence': return 'AI Coherence Check';
-    case 'next-steps': return 'AI Next Steps';
     case 'chat': return 'Chat Assistant';
   }
 };
@@ -53,7 +49,10 @@ const PopupChat = ({
   initialMessages = []
 }: PopupChatProps) => {
   const [position, setPosition] = useState(initialPosition);
-  const [size, setSize] = useState({ width: 400, height: 500 });
+  const [size, setSize] = useState({ 
+    width: type === 'comment' ? 320 : 400, 
+    height: type === 'comment' ? 280 : 500 
+  });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [messages, setMessages] = useState(initialMessages);
@@ -63,7 +62,7 @@ const PopupChat = ({
   const resizeRef = useRef({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 });
   const { saveChatMessage } = usePopupChats();
 
-  // Initialize messages from props with error boundary
+  // Initialize messages from props
   useEffect(() => {
     try {
       console.log('PopupChat initialized:', { id, type, initialMessages: initialMessages?.length || 0 });
@@ -72,7 +71,6 @@ const PopupChat = ({
       }
     } catch (error) {
       console.error('Error initializing popup chat:', error);
-      // Fallback to empty messages
       setMessages([]);
     }
   }, [initialMessages, id, type]);
@@ -135,7 +133,7 @@ const PopupChat = ({
           const deltaY = e.clientY - resizeRef.current.startY;
           
           setSize({
-            width: Math.max(300, resizeRef.current.startWidth + deltaX),
+            width: Math.max(280, resizeRef.current.startWidth + deltaX),
             height: Math.max(200, resizeRef.current.startHeight + deltaY)
           });
         }
@@ -184,13 +182,13 @@ const PopupChat = ({
       // Save to context/database in background
       await saveChatMessage(id, userMessage);
       
-      // Simulate AI response for non-comment types
-      if (type !== 'comment') {
+      // For chat type, simulate AI response
+      if (type === 'chat') {
         setTimeout(async () => {
           try {
             const aiResponse = {
               role: 'assistant' as const,
-              content: `I understand you're asking about: "${currentMessage}". This is a placeholder response for ${getChatTitle(type)}.`,
+              content: `I understand you're asking about: "${currentMessage}". I'm here to help with your writing!`,
               timestamp: new Date()
             };
             setMessages(prev => [...prev, aiResponse]);
@@ -202,7 +200,6 @@ const PopupChat = ({
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      // Message still appears in local state
     } finally {
       setIsSaving(false);
     }
@@ -230,7 +227,6 @@ const PopupChat = ({
     }
   };
 
-  // Error boundary for render
   try {
     if (isMinimized) {
       return (
@@ -244,7 +240,7 @@ const PopupChat = ({
             {getChatTitle(type)}
             {selectedText && type === 'comment' && (
               <span className="text-xs text-slate-500 ml-1">
-                ("{selectedText.text}")
+                ("{selectedText.text.substring(0, 20)}...")
               </span>
             )}
           </span>
@@ -294,7 +290,7 @@ const PopupChat = ({
               <div className="text-center text-slate-500 text-sm mt-8">
                 {type === 'comment' && selectedText 
                   ? `Write a comment about "${selectedText.text}"`
-                  : `Start a conversation about your ${type === 'comment' ? 'chapter content' : 'story'}.`
+                  : `Start a conversation about your story.`
                 }
               </div>
             ) : (
@@ -307,7 +303,9 @@ const PopupChat = ({
                     className={`max-w-[80%] p-2 rounded-lg text-sm ${
                       message.role === 'user'
                         ? 'bg-blue-500 text-white'
-                        : 'bg-slate-100 text-slate-900'
+                        : type === 'comment' 
+                          ? 'bg-yellow-50 text-yellow-900 border border-yellow-200'
+                          : 'bg-slate-100 text-slate-900'
                     }`}
                   >
                     {message.content}
@@ -324,11 +322,11 @@ const PopupChat = ({
               onChange={(e) => setCurrentMessage(e.target.value)}
               placeholder={
                 type === 'comment' && selectedText 
-                  ? `Comment on "${selectedText.text}"...`
-                  : `Ask about ${getChatTitle(type).toLowerCase()}...`
+                  ? `Comment on "${selectedText.text.substring(0, 30)}..."`
+                  : `Ask about your story...`
               }
               className="flex-1 min-h-0 resize-none"
-              rows={2}
+              rows={type === 'comment' ? 1 : 2}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
@@ -346,13 +344,15 @@ const PopupChat = ({
             </Button>
           </div>
           
-          {/* Resize Handle */}
-          <div
-            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
-            onMouseDown={handleResizeMouseDown}
-          >
-            <div className="absolute bottom-1 right-1 w-2 h-2 bg-slate-400 rotate-45"></div>
-          </div>
+          {/* Resize Handle - only for chat type */}
+          {type === 'chat' && (
+            <div
+              className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
+              onMouseDown={handleResizeMouseDown}
+            >
+              <div className="absolute bottom-1 right-1 w-2 h-2 bg-slate-400 rotate-45"></div>
+            </div>
+          )}
         </CardContent>
       </Card>
     );

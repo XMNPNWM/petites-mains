@@ -6,12 +6,12 @@ import { useChatDatabase } from '@/hooks/useChatDatabase';
 import { useChatState } from '@/hooks/useChatState';
 import { useToast } from '@/hooks/use-toast';
 
-// Define ChatType locally to only include comment and chat
+// Support both comment and chat types
 type ChatType = 'comment' | 'chat';
 
 interface PopupChatContextType {
   chats: LocalChatSession[];
-  openChat: (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => void;
+  openChat: (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext, lineNumber?: number) => void;
   reopenChat: (existingChatId: string) => Promise<void>;
   closeChat: (id: string) => void;
   minimizeChat: (id: string) => void;
@@ -63,14 +63,13 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       setAllChats(activeChats);
     } catch (error) {
       console.error('Error loading project chats:', error);
-      // Don't show error toast for initial load failures
     } finally {
       isLoadingRef.current = false;
     }
   };
 
-  const openChat = async (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => {
-    console.log('Opening chat:', { type, position, projectId, chapterId, selectedText });
+  const openChat = async (type: ChatType, position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext, lineNumber?: number) => {
+    console.log('Opening chat:', { type, position, projectId, chapterId, selectedText, lineNumber });
     
     // Ensure position is within viewport bounds
     const safePosition = {
@@ -88,29 +87,35 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       chapterId,
       selectedText,
       messages: [],
-      status: 'active'
+      status: 'active',
+      line_number: lineNumber
     };
     
-    // Add initial message for comment type
+    // Add initial message based on type
     if (type === 'comment' && selectedText) {
       newChat.messages = [{
         role: 'assistant',
-        content: `You're commenting on: "${selectedText.text}"\n\nWhat would you like to note about this text?`,
+        content: `You're commenting on: "${selectedText.text}"${lineNumber ? ` (Line ${lineNumber})` : ''}\n\nWhat would you like to note about this text?`,
+        timestamp: new Date()
+      }];
+    } else if (type === 'chat') {
+      newChat.messages = [{
+        role: 'assistant',
+        content: "Hello! I'm here to help with your writing. What would you like to discuss?",
         timestamp: new Date()
       }];
     }
     
-    // ALWAYS add chat to state first - this ensures it appears immediately
+    // Add chat to state first - this ensures it appears immediately
     console.log('Adding new chat to state:', newChat.id);
     addChat(newChat);
     
-    // Save to database in background - don't await or let failures affect UI
+    // Save to database in background
     try {
       await saveChat(newChat);
       console.log('Chat saved to database successfully:', newChat.id);
     } catch (error) {
       console.error('Failed to save chat to database (chat will retry later):', error);
-      // Chat stays visible in UI even if database save fails
     }
   };
 
@@ -183,7 +188,6 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       console.log('Chat marked as closed in database:', id);
     } catch (error) {
       console.error('Failed to update chat status to closed:', error);
-      // Chat is still removed from UI
     }
   };
 
@@ -200,7 +204,6 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       await saveChat(updatedChat);
     } catch (error) {
       console.error('Failed to save minimize state:', error);
-      // UI change still persists
     }
   };
 
@@ -220,7 +223,6 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       await saveChat(updatedChat);
     } catch (error) {
       console.error('Failed to save message to database:', error);
-      // Message still appears in UI
     }
   };
 
@@ -235,7 +237,7 @@ export const PopupChatProvider = ({ children }: PopupChatProviderProps) => {
       loadProjectChats 
     }}>
       {children}
-      {/* Render all active popup chats - only comment and chat types */}
+      {/* Render all active popup chats - both comment and chat types */}
       {chats.filter(chat => chat.status === 'active' && (chat.type === 'comment' || chat.type === 'chat')).map(chat => (
         <PopupChat
           key={chat.id}
