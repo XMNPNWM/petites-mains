@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import WritingContextMenu from './WritingContextMenu';
 import { usePopupChat } from './PopupChatManager';
+import { SelectedTextContext } from '@/types/comments';
 
 interface Chapter {
   id: string;
@@ -58,15 +59,28 @@ const TextEditorPanel = ({
       const selectedText = textarea.value.substring(start, end);
       (window as any).selectedTextContext = {
         text: selectedText,
-        start,
-        end
+        startOffset: start,
+        endOffset: end
       };
     } else {
       (window as any).selectedTextContext = null;
     }
   };
 
-  const handleMenuClick = (type: 'comment' | 'chat', position: { x: number; y: number }, selectedText?: string) => {
+  const handleCommentClick = (position: { x: number; y: number }, selectedText?: SelectedTextContext, lineNumber?: number) => {
+    if (!chapter) return;
+    
+    createPopup(
+      'comment', 
+      position, 
+      chapter.id, 
+      chapter.id, 
+      selectedText?.text, 
+      lineNumber
+    );
+  };
+
+  const handleChatClick = (position: { x: number; y: number }) => {
     if (!chapter) return;
     
     const textarea = textareaRef.current;
@@ -77,7 +91,14 @@ const TextEditorPanel = ({
       lineNumber = textBeforeCursor.split('\n').length;
     }
     
-    createPopup(type, position, chapter.id, selectedText, lineNumber);
+    createPopup(
+      'chat', 
+      position, 
+      chapter.id, 
+      chapter.id, 
+      undefined, 
+      lineNumber
+    );
   };
 
   const wordCount = localContent.split(/\s+/).filter(word => word.length > 0).length;
@@ -119,7 +140,7 @@ const TextEditorPanel = ({
 
       {/* Editor */}
       <div className="flex-1 relative">
-        <WritingContextMenu onComment={handleMenuClick} onChat={handleMenuClick}>
+        <WritingContextMenu onComment={handleCommentClick} onChat={handleChatClick}>
           <Card className="h-full border-none rounded-none shadow-none">
             <Textarea
               ref={textareaRef}

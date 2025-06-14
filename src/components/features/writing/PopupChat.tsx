@@ -1,11 +1,10 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Minus, MessageSquare, MessageCircle, Send } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { SelectedTextContext } from '@/types/comments';
-import { usePopupChats } from './PopupChatManager';
+import { usePopupChat } from './PopupChatManager';
 
 export type ChatType = 'comment' | 'chat';
 
@@ -60,7 +59,7 @@ const PopupChat = ({
   const [isSaving, setIsSaving] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
   const resizeRef = useRef({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 });
-  const { saveChatMessage } = usePopupChats();
+  const { saveChatMessage } = usePopupChat();
 
   // Initialize messages from props
   useEffect(() => {

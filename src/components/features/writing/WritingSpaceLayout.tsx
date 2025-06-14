@@ -7,6 +7,7 @@ import ChapterOrganizerPanel from './ChapterOrganizerPanel';
 import StorylinePanel from './StorylinePanel';
 import WritingContextMenu from './WritingContextMenu';
 import { usePopupChat } from './PopupChatManager';
+import { SelectedTextContext } from '@/types/comments';
 
 interface Chapter {
   id: string;
@@ -117,8 +118,12 @@ const WritingSpaceLayout = ({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  const handleMenuClick = (type: 'comment' | 'chat', position: { x: number; y: number }, selectedText?: string) => {
-    createPopup(type, position, projectId, currentChapter?.id, selectedText);
+  const handleCommentClick = (position: { x: number; y: number }, selectedText?: SelectedTextContext, lineNumber?: number) => {
+    createPopup('comment', position, projectId, currentChapter?.id, selectedText?.text, lineNumber);
+  };
+
+  const handleChatClick = (position: { x: number; y: number }) => {
+    createPopup('chat', position, projectId, currentChapter?.id);
   };
 
   return (
@@ -138,7 +143,7 @@ const WritingSpaceLayout = ({
             maxSize={40}
             className="overflow-hidden"
           >
-            <WritingContextMenu onComment={handleMenuClick} onChat={handleMenuClick}>
+            <WritingContextMenu onComment={handleCommentClick} onChat={handleChatClick}>
               <WorldbuildingPanel 
                 projectId={projectId} 
                 refreshTrigger={worldbuildingRefreshTrigger}
@@ -166,7 +171,7 @@ const WritingSpaceLayout = ({
             maxSize={40}
             className="overflow-hidden"
           >
-            <WritingContextMenu onComment={handleMenuClick} onChat={handleMenuClick}>
+            <WritingContextMenu onComment={handleCommentClick} onChat={handleChatClick}>
               <ChapterOrganizerPanel 
                 projectId={projectId}
                 currentChapter={currentChapter}
