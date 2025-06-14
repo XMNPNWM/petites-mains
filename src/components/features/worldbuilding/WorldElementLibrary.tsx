@@ -6,10 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ElementCard from './ElementCard';
-import DemoElementForm from './DemoElementForm';
+import ElementForm from './ElementForm';
 import { supabase } from '@/integrations/supabase/client';
 
-// Remove mock data - use real database elements
 interface WorldElement {
   id: string;
   name: string;
@@ -36,7 +35,7 @@ const WorldElementLibrary = ({ projectId }: WorldElementLibraryProps) => {
   const [selectedType, setSelectedType] = useState<string>('all');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [showForm, setShowForm] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('characters');
+  const [editingElement, setEditingElement] = useState<WorldElement | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   React.useEffect(() => {
@@ -58,6 +57,36 @@ const WorldElementLibrary = ({ projectId }: WorldElementLibraryProps) => {
       console.error('Error fetching worldbuilding elements:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleFormSubmit = () => {
+    setShowForm(false);
+    setEditingElement(null);
+    fetchElements();
+  };
+
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingElement(null);
+  };
+
+  const handleEdit = (element: WorldElement) => {
+    setEditingElement(element);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('worldbuilding_elements')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      fetchElements();
+    } catch (error) {
+      console.error('Error deleting element:', error);
     }
   };
 
@@ -86,6 +115,33 @@ const WorldElementLibrary = ({ projectId }: WorldElementLibraryProps) => {
     return acc;
   }, {} as Record<string, WorldElement[]>);
 
+  if (showForm) {
+    return (
+      <div className="h-full flex flex-col bg-white">
+        <div className="p-4 border-b">
+          <Button
+            onClick={handleFormCancel}
+            variant="ghost"
+            className="mb-2"
+          >
+            ← Back to Library
+          </Button>
+          <h2 className="text-lg font-semibold">
+            {editingElement ? 'Edit Element' : 'Create New Element'}
+          </h2>
+        </div>
+        <div className="flex-1 overflow-auto">
+          <ElementForm
+            projectId={projectId}
+            element={editingElement}
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -99,24 +155,10 @@ const WorldElementLibrary = ({ projectId }: WorldElementLibraryProps) => {
       <CardHeader className="flex-shrink-0 pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold">Element Library</CardTitle>
-          <div className="flex gap-2">
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map(category => (
-                  <SelectItem key={category.value} value={category.value}>
-                    {category.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={() => setShowForm(true)} size="sm">
-              <Plus className="w-4 h-4 mr-1" />
-              Add
-            </Button>
-          </div>
+          <Button onClick={() => setShowForm(true)} size="sm">
+            <Plus className="w-4 h-4 mr-1" />
+            Add
+          </Button>
         </div>
         
         <div className="space-y-2">
@@ -184,8 +226,8 @@ const WorldElementLibrary = ({ projectId }: WorldElementLibraryProps) => {
                       <ElementCard
                         key={element.id}
                         element={element}
-                        onEdit={() => {}}
-                        onDelete={() => {}}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
                       />
                     ))
                   )}
@@ -208,13 +250,6 @@ const WorldElementLibrary = ({ projectId }: WorldElementLibraryProps) => {
           </div>
         )}
       </CardContent>
-
-      {/* Demo Form */}
-      <DemoElementForm
-        isOpen={showForm}
-        onClose={() => setShowForm(false)}
-        elementType={selectedCategory}
-      />
     </div>
   );
 };

@@ -5,11 +5,8 @@ import WorldbuildingPanel from './WorldbuildingPanel';
 import TextEditorPanel from './TextEditorPanel';
 import ChapterOrganizerPanel from './ChapterOrganizerPanel';
 import StorylinePanel from './StorylinePanel';
-import SimpleRightClickMenu from './simple/SimpleRightClickMenu';
-import { useSimplePopups } from './simple/SimplePopupManager';
-
-// Define ChatType locally to match the SimplePopupManager
-type ChatType = 'comment' | 'chat';
+import WritingContextMenu from './WritingContextMenu';
+import { usePopupChat } from './PopupChatManager';
 
 interface Chapter {
   id: string;
@@ -18,7 +15,7 @@ interface Chapter {
   word_count: number;
   order_index: number;
   status: string;
-  project_id: string; // Added missing project_id
+  project_id: string;
 }
 
 interface WritingSpaceLayoutProps {
@@ -39,7 +36,7 @@ const WritingSpaceLayout = ({
   const [overlayHeight, setOverlayHeight] = useState(30);
   const [isDragging, setIsDragging] = useState(false);
   const [worldbuildingRefreshTrigger, setWorldbuildingRefreshTrigger] = useState(0);
-  const { createPopup } = useSimplePopups();
+  const { createPopup } = usePopupChat();
 
   const worldbuildingPanelRef = useRef<any>(null);
   const chapterOrganizerPanelRef = useRef<any>(null);
@@ -120,8 +117,7 @@ const WritingSpaceLayout = ({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  // Simple right-click menu handler
-  const handleMenuClick = (type: ChatType, position: { x: number; y: number }, selectedText?: string) => {
+  const handleMenuClick = (type: 'comment' | 'chat', position: { x: number; y: number }, selectedText?: string) => {
     createPopup(type, position, projectId, currentChapter?.id, selectedText);
   };
 
@@ -142,12 +138,12 @@ const WritingSpaceLayout = ({
             maxSize={40}
             className="overflow-hidden"
           >
-            <SimpleRightClickMenu onMenuClick={handleMenuClick}>
+            <WritingContextMenu onComment={handleMenuClick} onChat={handleMenuClick}>
               <WorldbuildingPanel 
                 projectId={projectId} 
                 refreshTrigger={worldbuildingRefreshTrigger}
               />
-            </SimpleRightClickMenu>
+            </WritingContextMenu>
           </ResizablePanel>
           
           <ResizableHandle withHandle />
@@ -170,14 +166,14 @@ const WritingSpaceLayout = ({
             maxSize={40}
             className="overflow-hidden"
           >
-            <SimpleRightClickMenu onMenuClick={handleMenuClick}>
+            <WritingContextMenu onComment={handleMenuClick} onChat={handleMenuClick}>
               <ChapterOrganizerPanel 
                 projectId={projectId}
                 currentChapter={currentChapter}
                 onChapterSelect={onChapterSelect}
                 onChaptersChange={onChaptersChange}
               />
-            </SimpleRightClickMenu>
+            </WritingContextMenu>
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
