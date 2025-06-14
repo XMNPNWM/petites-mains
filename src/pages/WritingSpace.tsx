@@ -4,6 +4,7 @@ import { useWritingSpace } from '@/hooks/useWritingSpace';
 import WritingSpaceHeader from '@/components/features/writing/WritingSpaceHeader';
 import WritingSpaceLayout from '@/components/features/writing/WritingSpaceLayout';
 import { SimplePopupProvider } from '@/components/features/writing/simple/SimplePopupManager';
+import SimplePopupRenderer from '@/components/features/writing/simple/SimplePopupRenderer';
 
 const WritingSpace = () => {
   const {
@@ -51,6 +52,7 @@ const WritingSpace = () => {
           onChaptersChange={refreshChapters}
         />
       </div>
+      <SimplePopupRenderer />
     </SimplePopupProvider>
   );
 };

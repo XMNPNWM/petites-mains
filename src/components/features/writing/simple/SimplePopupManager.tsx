@@ -2,6 +2,7 @@
 import React, { createContext, useState, useContext, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useParams } from 'react-router-dom';
+import { useChatDatabase } from '@/hooks/useChatDatabase';
 
 export interface SimplePopup {
   id: string;
@@ -43,9 +44,10 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
   const [livePopups, setLivePopups] = useState<SimplePopup[]>([]);
   const [timelineVersion, setTimelineVersion] = useState(0);
   const { projectId } = useParams();
+  const { saveChat, loadChatById, updateChatStatus } = useChatDatabase();
 
   // Function to create a new popup
-  const createPopup = (
+  const createPopup = async (
     type: 'comment' | 'chat', 
     position: { x: number; y: number }, 
     projectId: string, 
@@ -53,10 +55,18 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     selectedText?: string, 
     lineNumber?: number
   ) => {
+    console.log('Creating popup:', { type, position, projectId, chapterId, selectedText, lineNumber });
+
+    // Ensure position is within viewport bounds
+    const safePosition = {
+      x: Math.max(20, Math.min(position.x, window.innerWidth - 420)),
+      y: Math.max(20, Math.min(position.y, window.innerHeight - 520))
+    };
+
     const newPopup: SimplePopup = {
       id: uuidv4(),
       type,
-      position,
+      position: safePosition,
       projectId,
       chapterId,
       selectedText,
@@ -68,8 +78,45 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
       textPosition: null
     };
 
+    // Add initial message for comment type
+    if (type === 'comment' && selectedText) {
+      newPopup.messages = [{
+        role: 'assistant',
+        content: `You're commenting on: "${selectedText}"\n\nWhat would you like to note about this text?`,
+        timestamp: new Date()
+      }];
+    }
+
+    // Add to state immediately
     setLivePopups(prevPopups => [...prevPopups, newPopup]);
     setTimelineVersion(prev => prev + 1);
+
+    // Save to database
+    const chatSession = {
+      id: newPopup.id,
+      type: newPopup.type,
+      position: newPopup.position,
+      isMinimized: newPopup.isMinimized,
+      createdAt: newPopup.createdAt,
+      projectId: newPopup.projectId,
+      chapterId: newPopup.chapterId,
+      selectedText: newPopup.selectedText ? {
+        text: newPopup.selectedText,
+        startOffset: newPopup.textPosition || 0,
+        endOffset: (newPopup.textPosition || 0) + newPopup.selectedText.length,
+        lineNumber: newPopup.lineNumber
+      } : undefined,
+      lineNumber: newPopup.lineNumber,
+      messages: newPopup.messages,
+      status: 'active' as const
+    };
+
+    try {
+      await saveChat(chatSession);
+      console.log('Popup saved to database:', newPopup.id);
+    } catch (error) {
+      console.error('Failed to save popup to database:', error);
+    }
   };
 
   // Function to update an existing popup
@@ -83,13 +130,21 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
   };
 
   // Function to close a popup
-  const closePopup = (id: string) => {
+  const closePopup = async (id: string) => {
     setLivePopups(prevPopups => prevPopups.filter(popup => popup.id !== id));
     setTimelineVersion(prev => prev + 1);
+
+    // Update status in database
+    try {
+      await updateChatStatus(id, 'closed');
+      console.log('Popup marked as closed in database:', id);
+    } catch (error) {
+      console.error('Failed to update popup status:', error);
+    }
   };
 
-  // Function to reopen a popup with proper signature
-  const reopenPopup = (
+  // Function to reopen a popup - fixed signature and implementation
+  const reopenPopup = async (
     id: string, 
     type: 'comment' | 'chat', 
     position: { x: number; y: number }, 
@@ -97,32 +152,54 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     chapterId?: string, 
     selectedText?: string
   ) => {
-    // Check if popup already exists
+    console.log('Reopening popup:', id);
+
+    // Check if popup is already open
     const existingPopup = livePopups.find(popup => popup.id === id);
     if (existingPopup) {
-      setLivePopups(prevPopups => 
-        prevPopups.map(popup => 
-          popup.id === id ? { ...popup, isMinimized: false } : popup
-        )
-      );
-    } else {
-      // Create new popup if it doesn't exist
-      const newPopup: SimplePopup = {
-        id,
-        type,
-        position,
-        projectId,
-        chapterId,
-        selectedText,
-        isMinimized: false,
-        createdAt: new Date(),
-        messages: [],
-        status: 'open',
-        textPosition: null
-      };
-      setLivePopups(prevPopups => [...prevPopups, newPopup]);
+      console.log('Popup is already open:', id);
+      return;
     }
-    setTimelineVersion(prev => prev + 1);
+
+    try {
+      // Load the existing popup from database
+      const dbChat = await loadChatById(id);
+      if (!dbChat) {
+        console.error('Popup not found in database:', id);
+        return;
+      }
+
+      // Calculate new safe position (slightly offset from original)
+      const safePosition = {
+        x: Math.max(20, Math.min(position.x + 30, window.innerWidth - 420)),
+        y: Math.max(20, Math.min(position.y + 30, window.innerHeight - 520))
+      };
+
+      const reopenedPopup: SimplePopup = {
+        id: dbChat.id,
+        type: dbChat.type,
+        position: safePosition,
+        projectId: dbChat.projectId,
+        chapterId: dbChat.chapterId,
+        selectedText: dbChat.selectedText?.text,
+        lineNumber: dbChat.lineNumber,
+        isMinimized: false,
+        createdAt: dbChat.createdAt,
+        messages: dbChat.messages || [],
+        status: 'open',
+        textPosition: dbChat.selectedText?.startOffset
+      };
+
+      // Add to active popups
+      setLivePopups(prevPopups => [...prevPopups, reopenedPopup]);
+      setTimelineVersion(prev => prev + 1);
+
+      // Update status in database
+      await updateChatStatus(id, 'active');
+      console.log('Popup reopened successfully:', id);
+    } catch (error) {
+      console.error('Error reopening popup:', error);
+    }
   };
 
   const goToLine = useCallback(async (chapterId: string, lineNumber: number) => {
