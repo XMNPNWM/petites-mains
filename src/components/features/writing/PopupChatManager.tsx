@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useCallback, useContext } from 'react';
 
 // Define the types
@@ -35,6 +36,7 @@ interface PopupChatContextProps {
   ) => void;
   updatePopup: (id: string, updates: Partial<LocalChatSession>) => void;
   removePopup: (id: string) => void;
+  saveChatMessage: (id: string, message: { role: 'user' | 'assistant'; content: string; timestamp: Date }) => Promise<void>;
 }
 
 const PopupChatContext = createContext<PopupChatContextProps | undefined>(undefined);
@@ -64,7 +66,7 @@ const PopupChatManager = ({ children }: PopupChatProviderProps) => {
       position,
       messages: [],
       selectedText: selectedText || null,
-      lineNumber: lineNumber || null, // Fixed: use lineNumber instead of line_number
+      lineNumber: lineNumber || null,
       isMinimized: false,
       status: 'active'
     };
@@ -82,11 +84,45 @@ const PopupChatManager = ({ children }: PopupChatProviderProps) => {
     setPopups(prev => prev.filter(popup => popup.id !== id));
   }, []);
 
+  const saveChatMessage = useCallback(async (
+    id: string, 
+    message: { role: 'user' | 'assistant'; content: string; timestamp: Date }
+  ) => {
+    try {
+      console.log('Saving chat message:', { id, message });
+      
+      // Convert to the format expected by LocalChatSession
+      const chatMessage: ChatMessage = {
+        id: `msg_${Date.now()}`,
+        content: message.content,
+        timestamp: message.timestamp.toISOString(),
+        sender: message.role
+      };
+
+      // Update the popup with the new message
+      setPopups(prev =>
+        prev.map(popup => 
+          popup.id === id 
+            ? { ...popup, messages: [...popup.messages, chatMessage] }
+            : popup
+        )
+      );
+
+      // Here you could also save to a database if needed
+      // await ChatDatabaseService.saveChatMessage(id, message);
+      
+    } catch (error) {
+      console.error('Failed to save chat message:', error);
+      throw error;
+    }
+  }, []);
+
   const contextValue: PopupChatContextProps = {
     popups,
     createPopup,
     updatePopup,
-    removePopup
+    removePopup,
+    saveChatMessage
   };
 
   return (
