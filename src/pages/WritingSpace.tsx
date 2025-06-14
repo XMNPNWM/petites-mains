@@ -3,7 +3,8 @@ import React from 'react';
 import { useWritingSpace } from '@/hooks/useWritingSpace';
 import WritingSpaceHeader from '@/components/features/writing/WritingSpaceHeader';
 import WritingSpaceLayout from '@/components/features/writing/WritingSpaceLayout';
-import { PopupChatManager } from '@/components/features/writing/PopupChatManager';
+import { SimplePopupProvider } from '@/components/features/writing/simple/SimplePopupManager';
+import SimplePopupRenderer from '@/components/features/writing/simple/SimplePopupRenderer';
 
 const WritingSpace = () => {
   const {
@@ -32,7 +33,7 @@ const WritingSpace = () => {
   }
 
   return (
-    <PopupChatManager>
+    <SimplePopupProvider>
       <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
         <WritingSpaceHeader
           project={project}
@@ -51,7 +52,8 @@ const WritingSpace = () => {
           onChaptersChange={refreshChapters}
         />
       </div>
-    </PopupChatManager>
+      <SimplePopupRenderer />
+    </SimplePopupProvider>
   );
 };
 
