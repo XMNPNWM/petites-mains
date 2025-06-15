@@ -11,7 +11,7 @@ interface Popup {
   id: string;
   type: string;
   projectId: string;
-  chapterId: string;
+  chapterId?: string; // Made optional to match SimplePopup
   textPosition: number | null;
   selectedText: string | null;
   lineNumber: number | null;
@@ -40,9 +40,12 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
     setMessages(popup.messages || []);
   }, [popup.messages]);
 
-  // Dragging functionality
+  // Enhanced dragging functionality with larger drag area
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.target !== dragRef.current) return;
+    // Only allow dragging from the left portion of the header (grip + title area)
+    const target = e.target as HTMLElement;
+    const isActionButton = target.closest('button');
+    if (isActionButton) return; // Don't drag when clicking action buttons
     
     setIsDragging(true);
     setDragOffset({
@@ -118,6 +121,7 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
   };
 
   const handleGoToLine = () => {
+    // Enhanced null checking for optional chapterId
     if (popup.chapterId && popup.lineNumber) {
       console.log('Going to line from comment:', { chapterId: popup.chapterId, lineNumber: popup.lineNumber });
       goToLine(popup.chapterId, popup.lineNumber);
@@ -136,18 +140,30 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
       }}
     >
       <Card className="shadow-xl border-slate-300">
-        {/* Draggable Header */}
+        {/* Enhanced Draggable Header with larger drag area */}
         <div 
-          ref={dragRef}
-          className="bg-blue-50 border-b border-blue-200 p-3 cursor-move flex items-center gap-2 rounded-t-lg"
+          className="bg-blue-50 border-b border-blue-200 p-3 cursor-move flex items-center gap-3 rounded-t-lg hover:bg-blue-100 transition-colors"
           onMouseDown={handleMouseDown}
         >
-          <GripVertical className="w-4 h-4 text-blue-600" />
-          <div className="flex-1">
+          <GripVertical className="w-6 h-6 text-blue-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-sm text-blue-800">Comment</h3>
             {popup.lineNumber && (
               <span className="text-xs text-blue-600">Line {popup.lineNumber}</span>
             )}
+          </div>
+          <div className="flex gap-1 flex-shrink-0">
+            <Button 
+              onClick={handleDelete} 
+              variant={showDeleteConfirm ? "destructive" : "ghost"} 
+              size="sm"
+              className="h-6 w-6 p-0"
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+            <Button onClick={handleClose} variant="ghost" size="sm" className="h-6 w-6 p-0">
+              ×
+            </Button>
           </div>
         </div>
 
@@ -177,7 +193,8 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
           <Button onClick={handleAddComment} className="w-full mb-2 bg-blue-600 hover:bg-blue-700" size="sm">
             Add Comment
           </Button>
-          {popup.lineNumber !== null && (
+          {/* Enhanced null checking for Go to Line button */}
+          {popup.chapterId && popup.lineNumber !== null && (
             <Button onClick={handleGoToLine} className="w-full mb-2" variant="secondary" size="sm">
               <MapPin className="w-4 h-4 mr-1" />
               Go to Line {popup.lineNumber}

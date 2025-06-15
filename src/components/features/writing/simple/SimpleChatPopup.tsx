@@ -29,9 +29,12 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
     scrollToBottom();
   }, [popup.messages]);
 
-  // Dragging functionality
+  // Enhanced dragging functionality with larger drag area
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.target !== dragRef.current) return;
+    // Only allow dragging from the left portion of the header (grip + title area)
+    const target = e.target as HTMLElement;
+    const isActionButton = target.closest('button');
+    if (isActionButton) return; // Don't drag when clicking action buttons
     
     setIsDragging(true);
     setDragOffset({
@@ -140,6 +143,7 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
   };
 
   const handleGoToLine = () => {
+    // Enhanced null checking for optional chapterId
     if (popup.chapterId && popup.lineNumber) {
       goToLine(popup.chapterId, popup.lineNumber);
     }
@@ -241,21 +245,21 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
       }}
     >
       <Card className="h-full flex flex-col shadow-xl border-slate-300">
-        {/* Draggable Header */}
+        {/* Enhanced Draggable Header with larger drag area */}
         <div 
-          ref={dragRef}
-          className={`flex items-center gap-2 p-3 cursor-move border-b ${theme.headerBg} rounded-t-lg`}
+          className={`flex items-center gap-3 p-3 cursor-move border-b ${theme.headerBg} rounded-t-lg hover:bg-orange-100 transition-colors`}
           onMouseDown={handleMouseDown}
         >
-          <GripVertical className="w-4 h-4 text-orange-600" />
-          <div className="flex items-center gap-2 flex-1">
+          <GripVertical className="w-6 h-6 text-orange-600 flex-shrink-0" />
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             {theme.icon}
             <h3 className="font-semibold text-sm">{theme.title}</h3>
             {popup.lineNumber && (
               <span className="text-xs text-slate-500">Line {popup.lineNumber}</span>
             )}
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1 flex-shrink-0">
+            {/* Enhanced null checking for Go to Line button */}
             {popup.lineNumber && popup.chapterId && (
               <Button
                 variant="ghost"
