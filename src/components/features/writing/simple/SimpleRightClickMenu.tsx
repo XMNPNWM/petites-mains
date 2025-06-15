@@ -18,33 +18,31 @@ const SimpleRightClickMenu = ({
   onMenuClick
 }: SimpleRightClickMenuProps) => {
   const [contextPosition, setContextPosition] = useState({ x: 0, y: 0 });
+  const [contextSelectedText, setContextSelectedText] = useState<string | undefined>(undefined);
+  const [contextLineNumber, setContextLineNumber] = useState<number>(1);
 
   const handleContextMenu = (event: React.MouseEvent) => {
     setContextPosition({ x: event.clientX, y: event.clientY });
-  };
-
-  const getSelectedText = (): string | undefined => {
+    
+    // Capture selected text and line number at the exact moment of right-click
     const selection = window.getSelection();
     const selectedText = selection?.toString().trim();
-    return selectedText && selectedText.length > 0 ? selectedText : undefined;
-  };
-
-  const getCurrentLineNumber = (): number => {
-    // Simple line number calculation based on cursor position
-    // This is a basic implementation - could be enhanced for more precision
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
+    setContextSelectedText(selectedText && selectedText.length > 0 ? selectedText : undefined);
+    
+    // Calculate line number based on cursor position
+    const textarea = document.querySelector('textarea');
+    if (textarea && selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
-      const textBefore = range.startContainer.textContent?.substring(0, range.startOffset) || '';
-      return textBefore.split('\n').length;
+      const textBefore = textarea.value.substring(0, range.startOffset);
+      const lineNumber = textBefore.split('\n').length;
+      setContextLineNumber(lineNumber);
+    } else {
+      setContextLineNumber(1);
     }
-    return 1;
   };
 
   const handleMenuItemClick = (type: 'comment' | 'chat') => {
-    const selectedText = getSelectedText();
-    const lineNumber = getCurrentLineNumber();
-    onMenuClick(type, contextPosition, selectedText, lineNumber);
+    onMenuClick(type, contextPosition, contextSelectedText, contextLineNumber);
   };
 
   return (

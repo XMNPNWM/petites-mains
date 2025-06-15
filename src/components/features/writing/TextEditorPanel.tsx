@@ -4,8 +4,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { stripHtmlTags, getWordCount } from '@/lib/contentUtils';
 import FocusModeToggle from './FocusModeToggle';
-import WritingContextMenu from './WritingContextMenu';
-import { usePopupChats } from './PopupChatManager';
 import { SelectedTextContext } from '@/types/comments';
 
 interface Chapter {
@@ -32,7 +30,6 @@ const TextEditorPanel = ({
   onFocusToggle 
 }: TextEditorPanelProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { openChat } = usePopupChats();
   const [selectedTextContext, setSelectedTextContext] = useState<SelectedTextContext | null>(null);
   
   const cleanContent = chapter?.content ? stripHtmlTags(chapter.content) : '';
@@ -67,8 +64,8 @@ const TextEditorPanel = ({
     
     return {
       text: selectedText.trim(),
-      startPosition: textarea.selectionStart,
-      endPosition: textarea.selectionEnd,
+      startOffset: textarea.selectionStart,
+      endOffset: textarea.selectionEnd,
       lineNumber
     };
   }, [getCurrentLineNumber]);
@@ -80,37 +77,6 @@ const TextEditorPanel = ({
     // Store in global for context menu access
     (window as any).selectedTextContext = context;
   }, [getSelectedTextContext]);
-
-  const handleComment = useCallback((position: { x: number; y: number }, selectedText?: SelectedTextContext) => {
-    if (!chapter) return;
-    
-    const lineNumber = selectedText?.lineNumber || getCurrentLineNumber();
-    const textContext = selectedText || getSelectedTextContext();
-    
-    console.log('Creating comment popup:', { position, textContext, lineNumber });
-    
-    openChat('comment', position, chapter.project_id, chapter.id, textContext);
-  }, [chapter, getCurrentLineNumber, getSelectedTextContext, openChat]);
-
-  const handleCoherence = useCallback((position: { x: number; y: number }) => {
-    if (!chapter) return;
-    console.log('Creating coherence popup:', position);
-    // This will be implemented as a specialized AI chat
-    openChat('chat', position, chapter.project_id, chapter.id);
-  }, [chapter, openChat]);
-
-  const handleNextSteps = useCallback((position: { x: number; y: number }) => {
-    if (!chapter) return;
-    console.log('Creating next steps popup:', position);
-    // This will be implemented as a specialized AI chat
-    openChat('chat', position, chapter.project_id, chapter.id);
-  }, [chapter, openChat]);
-
-  const handleChat = useCallback((position: { x: number; y: number }) => {
-    if (!chapter) return;
-    console.log('Creating chat popup:', position);
-    openChat('chat', position, chapter.project_id, chapter.id);
-  }, [chapter, openChat]);
 
   return (
     <div className="h-full bg-slate-50 p-6 flex flex-col">
@@ -141,29 +107,22 @@ const TextEditorPanel = ({
             </div>
           </div>
 
-          {/* Editor with Right-Click Menu */}
+          {/* Editor */}
           <div className="flex-1 min-h-0">
             <Card className="h-full flex flex-col">
               <CardContent className="p-6 h-full flex flex-col">
-                <WritingContextMenu
-                  onComment={handleComment}
-                  onCoherence={handleCoherence}
-                  onNextSteps={handleNextSteps}
-                  onChat={handleChat}
-                >
-                  <div className="h-full flex flex-col">
-                    <Textarea
-                      ref={textareaRef}
-                      value={cleanContent}
-                      onChange={(e) => handleContentChange(e.target.value)}
-                      onSelect={handleSelectionChange}
-                      onKeyUp={handleSelectionChange}
-                      onMouseUp={handleSelectionChange}
-                      placeholder="Start writing your story..."
-                      className="flex-1 resize-none border-none focus-visible:ring-0 text-base leading-relaxed h-full min-h-0"
-                    />
-                  </div>
-                </WritingContextMenu>
+                <div className="h-full flex flex-col">
+                  <Textarea
+                    ref={textareaRef}
+                    value={cleanContent}
+                    onChange={(e) => handleContentChange(e.target.value)}
+                    onSelect={handleSelectionChange}
+                    onKeyUp={handleSelectionChange}
+                    onMouseUp={handleSelectionChange}
+                    placeholder="Start writing your story..."
+                    className="flex-1 resize-none border-none focus-visible:ring-0 text-base leading-relaxed h-full min-h-0"
+                  />
+                </div>
               </CardContent>
             </Card>
           </div>
