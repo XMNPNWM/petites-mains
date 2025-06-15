@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { createPortal } from 'react-dom';
-import SimpleCommentBox from './SimpleCommentBox';
+import SimpleChatPopup from './SimpleChatPopup';
 import { useSimplePopups } from './SimplePopupManager';
 import { useChatDatabase } from '@/hooks/useChatDatabase';
 
@@ -13,10 +13,8 @@ const SimplePopupRenderer = () => {
     const popup = livePopups.find(p => p.id === id);
     if (!popup) return;
 
-    // Update popup in memory
     updatePopup(id, { messages });
 
-    // Save to database
     const chatSession = {
       id: popup.id,
       type: popup.type,
@@ -47,42 +45,16 @@ const SimplePopupRenderer = () => {
     closePopup(id);
   };
 
-  // Only render active popups
   const activePopups = livePopups.filter(popup => popup.status === 'open');
 
   return (
     <>
       {activePopups.map(popup => 
         createPortal(
-          <div
+          <SimpleChatPopup
             key={popup.id}
-            className="fixed z-[9999]"
-            style={{
-              left: popup.position.x,
-              top: popup.position.y,
-              transform: popup.isMinimized ? 'scale(0.8)' : 'scale(1)',
-              opacity: popup.isMinimized ? 0.7 : 1,
-              transition: 'all 0.2s ease-in-out'
-            }}
-          >
-            <SimpleCommentBox
-              popup={{
-                id: popup.id,
-                type: popup.type,
-                projectId: popup.projectId,
-                chapterId: popup.chapterId || '',
-                textPosition: popup.textPosition,
-                selectedText: popup.selectedText,
-                lineNumber: popup.lineNumber,
-                position: popup.position,
-                messages: popup.messages,
-                status: popup.status,
-                isMinimized: popup.isMinimized
-              }}
-              onUpdate={handleUpdate}
-              onClose={handleClose}
-            />
-          </div>,
+            popup={popup}
+          />,
           document.body
         )
       )}

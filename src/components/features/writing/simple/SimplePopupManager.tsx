@@ -1,6 +1,7 @@
+
 import React, { createContext, useState, useContext, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useChatDatabase } from '@/hooks/useChatDatabase';
 
 export interface SimplePopup {
@@ -20,7 +21,7 @@ export interface SimplePopup {
 
 interface SimplePopupsContextProps {
   livePopups: SimplePopup[];
-  popups: SimplePopup[]; // Add alias for backward compatibility
+  popups: SimplePopup[];
   createPopup: (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string, lineNumber?: number) => void;
   updatePopup: (id: string, updates: Partial<SimplePopup>) => void;
   closePopup: (id: string) => void;
@@ -44,9 +45,9 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
   const [livePopups, setLivePopups] = useState<SimplePopup[]>([]);
   const [timelineVersion, setTimelineVersion] = useState(0);
   const { projectId } = useParams();
+  const navigate = useNavigate();
   const { saveChat, loadChatById, updateChatStatus, deleteChat } = useChatDatabase();
 
-  // Function to create a new popup
   const createPopup = async (
     type: 'comment' | 'chat', 
     position: { x: number; y: number }, 
@@ -57,10 +58,9 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
   ) => {
     console.log('Creating popup:', { type, position, projectId, chapterId, selectedText, lineNumber });
 
-    // Ensure position is within viewport bounds
     const safePosition = {
-      x: Math.max(20, Math.min(position.x, window.innerWidth - 420)),
-      y: Math.max(20, Math.min(position.y, window.innerHeight - 520))
+      x: Math.max(20, Math.min(position.x, window.innerWidth - (type === 'comment' ? 370 : 470))),
+      y: Math.max(20, Math.min(position.y, window.innerHeight - (type === 'comment' ? 420 : 570)))
     };
 
     const newPopup: SimplePopup = {
@@ -85,9 +85,14 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         content: `You're commenting on: "${selectedText}"\n\nWhat would you like to note about this text?`,
         timestamp: new Date()
       }];
+    } else if (type === 'chat') {
+      newPopup.messages = [{
+        role: 'assistant',
+        content: `Hello! I'm your AI writing assistant. I have access to all your project chapters and I'm here to help you with your story. What would you like to discuss?`,
+        timestamp: new Date()
+      }];
     }
 
-    // Add to state immediately
     setLivePopups(prevPopups => [...prevPopups, newPopup]);
     setTimelineVersion(prev => prev + 1);
 
@@ -119,7 +124,6 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     }
   };
 
-  // Function to update an existing popup
   const updatePopup = (id: string, updates: Partial<SimplePopup>) => {
     setLivePopups(prevPopups => 
       prevPopups.map(popup => 
@@ -129,12 +133,10 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     setTimelineVersion(prev => prev + 1);
   };
 
-  // Function to close a popup (minimize to timeline)
   const closePopup = async (id: string) => {
     setLivePopups(prevPopups => prevPopups.filter(popup => popup.id !== id));
     setTimelineVersion(prev => prev + 1);
 
-    // Update status in database to closed (can be reopened)
     try {
       await updateChatStatus(id, 'closed');
       console.log('Popup marked as closed in database:', id);
@@ -143,13 +145,10 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     }
   };
 
-  // Function to permanently delete a popup
   const deletePopup = async (id: string) => {
-    // Remove from live popups immediately
     setLivePopups(prevPopups => prevPopups.filter(popup => popup.id !== id));
     setTimelineVersion(prev => prev + 1);
 
-    // Permanently delete from database
     try {
       await deleteChat(id);
       console.log('Popup permanently deleted from database:', id);
@@ -158,7 +157,6 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     }
   };
 
-  // Function to reopen a popup - fixed signature and implementation
   const reopenPopup = async (
     id: string, 
     type: 'comment' | 'chat', 
@@ -169,7 +167,6 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
   ) => {
     console.log('Reopening popup:', id);
 
-    // Check if popup is already open
     const existingPopup = livePopups.find(popup => popup.id === id);
     if (existingPopup) {
       console.log('Popup is already open:', id);
@@ -177,17 +174,15 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     }
 
     try {
-      // Load the existing popup from database
       const dbChat = await loadChatById(id);
       if (!dbChat) {
         console.error('Popup not found in database:', id);
         return;
       }
 
-      // Calculate new safe position (slightly offset from original)
       const safePosition = {
-        x: Math.max(20, Math.min(position.x + 30, window.innerWidth - 420)),
-        y: Math.max(20, Math.min(position.y + 30, window.innerHeight - 520))
+        x: Math.max(20, Math.min(position.x + 30, window.innerWidth - (type === 'comment' ? 370 : 470))),
+        y: Math.max(20, Math.min(position.y + 30, window.innerHeight - (type === 'comment' ? 420 : 570)))
       };
 
       const reopenedPopup: SimplePopup = {
@@ -205,11 +200,9 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         textPosition: dbChat.selectedText?.startOffset
       };
 
-      // Add to active popups
       setLivePopups(prevPopups => [...prevPopups, reopenedPopup]);
       setTimelineVersion(prev => prev + 1);
 
-      // Update status in database
       await updateChatStatus(id, 'active');
       console.log('Popup reopened successfully:', id);
     } catch (error) {
@@ -218,34 +211,51 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
   };
 
   const goToLine = useCallback(async (chapterId: string, lineNumber: number) => {
-    console.log('Going to line:', { chapterId, lineNumber });
+    console.log('Enhanced goToLine function called:', { chapterId, lineNumber });
+    
     try {
-      // Navigate to the chapter first if it's different from current
       const currentPath = window.location.pathname;
       const targetPath = `/project/${projectId}/write/${chapterId}`;
       
       if (!currentPath.includes(chapterId)) {
-        // Navigate to the chapter
-        window.location.href = targetPath;
-        // Wait for navigation and component mount
+        console.log('Navigating to different chapter:', targetPath);
+        navigate(targetPath);
+        
+        // Wait for navigation and component mount, then scroll
         setTimeout(() => {
-          scrollToLine(lineNumber);
-        }, 500);
+          scrollToLineEnhanced(lineNumber);
+        }, 800);
       } else {
-        // Already on the right chapter, just scroll
-        scrollToLine(lineNumber);
+        console.log('Already on target chapter, scrolling to line:', lineNumber);
+        scrollToLineEnhanced(lineNumber);
       }
     } catch (error) {
-      console.error('Error navigating to line:', error);
+      console.error('Error in enhanced goToLine:', error);
     }
-  }, [projectId]);
+  }, [projectId, navigate]);
 
-  const scrollToLine = useCallback((lineNumber: number) => {
+  const scrollToLineEnhanced = useCallback((lineNumber: number) => {
     try {
-      // Find the textarea element
-      const textarea = document.querySelector('textarea');
+      console.log('Enhanced scroll to line:', lineNumber);
+      
+      // Find the textarea with more robust selectors
+      const textareas = document.querySelectorAll('textarea');
+      let textarea: HTMLTextAreaElement | null = null;
+      
+      // Try to find the main content textarea (usually the largest one)
+      for (const ta of textareas) {
+        if (ta.value && ta.value.length > 100) { // Find textarea with substantial content
+          textarea = ta;
+          break;
+        }
+      }
+      
+      if (!textarea && textareas.length > 0) {
+        textarea = textareas[0]; // Fallback to first textarea
+      }
+      
       if (!textarea) {
-        console.warn('Textarea not found for line navigation');
+        console.warn('No textarea found for line navigation');
         return;
       }
 
@@ -253,32 +263,46 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
       const lines = content.split('\n');
       
       if (lineNumber <= 0 || lineNumber > lines.length) {
-        console.warn('Invalid line number:', lineNumber);
+        console.warn('Invalid line number for content:', { lineNumber, totalLines: lines.length });
         return;
       }
 
-      // Calculate the character position of the target line
+      // Calculate character position
       let charPosition = 0;
       for (let i = 0; i < lineNumber - 1; i++) {
-        charPosition += lines[i].length + 1; // +1 for newline character
+        charPosition += lines[i].length + 1;
       }
 
-      // Set cursor position to the beginning of the target line
+      // Focus and set cursor position
       textarea.focus();
       textarea.setSelectionRange(charPosition, charPosition);
 
-      // Calculate line height and scroll to make the line visible
-      const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20;
-      const scrollTop = (lineNumber - 1) * lineHeight;
+      // Enhanced scrolling calculation
+      const computedStyle = getComputedStyle(textarea);
+      const lineHeight = parseFloat(computedStyle.lineHeight) || 24;
+      const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
       
-      // Adjust scroll position to center the line in view
+      // Calculate scroll position to center the line
+      const targetScrollTop = (lineNumber - 1) * lineHeight;
       const textareaHeight = textarea.clientHeight;
-      const centeredScrollTop = Math.max(0, scrollTop - textareaHeight / 2);
+      const centeredScrollTop = Math.max(0, targetScrollTop - (textareaHeight / 2) + paddingTop);
       
-      textarea.scrollTop = centeredScrollTop;
-      console.log('Scrolled to line:', lineNumber);
+      // Smooth scroll to position
+      textarea.scrollTo({
+        top: centeredScrollTop,
+        behavior: 'smooth'
+      });
+      
+      // Add visual highlight effect
+      const originalBorder = textarea.style.border;
+      textarea.style.border = '2px solid #3b82f6';
+      setTimeout(() => {
+        textarea.style.border = originalBorder;
+      }, 2000);
+      
+      console.log('Successfully scrolled to line:', lineNumber);
     } catch (error) {
-      console.error('Error scrolling to line:', error);
+      console.error('Error in enhanced scrollToLine:', error);
     }
   }, []);
 
@@ -286,7 +310,7 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     <SimplePopupsContext.Provider 
       value={{
         livePopups,
-        popups: livePopups, // Add alias for backward compatibility
+        popups: livePopups,
         createPopup,
         updatePopup,
         closePopup,
