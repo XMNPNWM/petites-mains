@@ -2,6 +2,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import SimpleChatPopup from './SimpleChatPopup';
+import SimpleCommentBox from './SimpleCommentBox';
 import { useSimplePopups } from './SimplePopupManager';
 import { useChatDatabase } from '@/hooks/useChatDatabase';
 
@@ -51,10 +52,19 @@ const SimplePopupRenderer = () => {
     <>
       {activePopups.map(popup => 
         createPortal(
-          <SimpleChatPopup
-            key={popup.id}
-            popup={popup}
-          />,
+          popup.type === 'comment' ? (
+            <SimpleCommentBox
+              key={popup.id}
+              popup={popup}
+              onUpdate={handleUpdate}
+              onClose={handleClose}
+            />
+          ) : (
+            <SimpleChatPopup
+              key={popup.id}
+              popup={popup}
+            />
+          ),
           document.body
         )
       )}

@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Minus, MessageSquare, MessageCircle, ArrowLeft, Trash2, Brain } from 'lucide-react';
+import { X, Send, Minus, MessageSquare, MessageCircle, ArrowLeft, Trash2, Brain, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -15,8 +15,11 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const { updatePopup, closePopup, deletePopup, goToLine } = useSimplePopups();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,6 +28,46 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
   useEffect(() => {
     scrollToBottom();
   }, [popup.messages]);
+
+  // Dragging functionality
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.target !== dragRef.current) return;
+    
+    setIsDragging(true);
+    setDragOffset({
+      x: e.clientX - popup.position.x,
+      y: e.clientY - popup.position.y
+    });
+    document.body.style.userSelect = 'none';
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      
+      const newPosition = {
+        x: Math.max(0, Math.min(window.innerWidth - 450, e.clientX - dragOffset.x)),
+        y: Math.max(0, Math.min(window.innerHeight - 550, e.clientY - dragOffset.y))
+      };
+      
+      updatePopup(popup.id, { position: newPosition });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.body.style.userSelect = '';
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset, popup.id, updatePopup]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
@@ -193,13 +236,19 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
       style={{
         left: popup.position.x,
         top: popup.position.y,
-        width: popup.type === 'comment' ? '350px' : '450px',
-        height: popup.type === 'comment' ? '400px' : '550px'
+        width: '450px',
+        height: '550px'
       }}
     >
       <Card className="h-full flex flex-col shadow-xl border-slate-300">
-        <CardHeader className={`flex flex-row items-center justify-between space-y-0 pb-2 ${theme.headerBg} rounded-t-lg`}>
-          <div className="flex items-center gap-2">
+        {/* Draggable Header */}
+        <div 
+          ref={dragRef}
+          className={`flex items-center gap-2 p-3 cursor-move border-b ${theme.headerBg} rounded-t-lg`}
+          onMouseDown={handleMouseDown}
+        >
+          <GripVertical className="w-4 h-4 text-orange-600" />
+          <div className="flex items-center gap-2 flex-1">
             {theme.icon}
             <h3 className="font-semibold text-sm">{theme.title}</h3>
             {popup.lineNumber && (
@@ -244,7 +293,7 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
               <X className="w-3 h-3" />
             </Button>
           </div>
-        </CardHeader>
+        </div>
 
         <CardContent className="flex-1 flex flex-col p-4 min-h-0">
           {/* Delete confirmation message */}
@@ -294,12 +343,8 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
                 <div
                   className={`max-w-[80%] p-3 rounded-lg text-sm ${
                     message.role === 'user'
-                      ? popup.type === 'comment' 
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-orange-600 text-white'
-                      : popup.type === 'comment'
-                        ? 'bg-blue-50 text-blue-900 border border-blue-200'
-                        : 'bg-orange-50 text-orange-900 border border-orange-200'
+                      ? 'bg-orange-600 text-white'
+                      : 'bg-orange-50 text-orange-900 border border-orange-200'
                   }`}
                 >
                   {message.content}
@@ -309,11 +354,7 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
             
             {isLoading && (
               <div className="flex justify-start">
-                <div className={`p-3 rounded-lg text-sm ${
-                  popup.type === 'comment' 
-                    ? 'bg-blue-50 text-blue-900 border border-blue-200'
-                    : 'bg-orange-50 text-orange-900 border border-orange-200'
-                }`}>
+                <div className="bg-orange-50 text-orange-900 border border-orange-200 p-3 rounded-lg text-sm">
                   <div className="flex space-x-1">
                     <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
                     <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
@@ -331,16 +372,16 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={popup.type === 'comment' ? 'Add your comment...' : 'Ask me about your story...'}
+              placeholder="Ask me about your story..."
               className="flex-1 resize-none"
-              rows={popup.type === 'comment' ? 2 : 3}
+              rows={3}
               disabled={isLoading}
             />
             <Button
               onClick={handleSendMessage}
               disabled={!inputValue.trim() || isLoading}
               size="sm"
-              className={popup.type === 'comment' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}
+              className="bg-orange-600 hover:bg-orange-700"
             >
               <Send className="w-4 h-4" />
             </Button>
