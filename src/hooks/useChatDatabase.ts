@@ -38,6 +38,14 @@ export const useChatDatabase = () => {
     }
   }, []);
 
+  const deleteChat = useCallback(async (chatId: string) => {
+    try {
+      await ChatDatabaseService.deleteChat(chatId);
+    } catch (error) {
+      console.error('Failed to delete chat:', error);
+    }
+  }, []);
+
   const loadTimelineChats = useCallback(async (projectId: string) => {
     try {
       return await ChatDatabaseService.loadTimelineChats(projectId);
@@ -52,6 +60,7 @@ export const useChatDatabase = () => {
     loadProjectChats,
     updateChatStatus,
     loadChatById,
+    deleteChat,
     loadTimelineChats
   };
 };

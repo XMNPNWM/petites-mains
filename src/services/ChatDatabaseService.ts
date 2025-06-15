@@ -106,6 +106,27 @@ export class ChatDatabaseService {
     }
   }
 
+  static async deleteChat(chatId: string): Promise<void> {
+    try {
+      console.log('Permanently deleting chat from database:', chatId);
+      
+      const { error } = await supabase
+        .from('chat_sessions')
+        .delete()
+        .eq('id', chatId);
+
+      if (error) {
+        console.error('Error deleting chat from database:', error);
+        throw error;
+      }
+
+      console.log('Chat permanently deleted from database:', chatId);
+    } catch (error) {
+      console.error('Failed to delete chat from database:', error);
+      throw error;
+    }
+  }
+
   static async loadTimelineChats(projectId: string): Promise<any[]> {
     try {
       console.log('Loading timeline chats for project:', projectId);

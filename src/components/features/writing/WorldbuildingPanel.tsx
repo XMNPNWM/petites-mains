@@ -1,11 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit3, Trash2, ChevronDown, ChevronRight, Link, MapPin } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, ChevronDown, ChevronRight, Link, MapPin, ChevronLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
-import { useStorylineWorldbuildingNavigation } from '@/hooks/useStorylineWorldbuildingNavigation';
+import { useWorldbuildingNavigation } from '@/hooks/useWorldbuildingNavigation';
 
 interface WorldElement {
   id: string;
@@ -47,13 +48,11 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
   });
 
   const {
-    isNavigating,
-    linkedNodes,
-    currentNodeIndex,
     navigateToWorldbuildingElement,
     navigateToNextNode,
-    navigateToPreviousNode
-  } = useStorylineWorldbuildingNavigation();
+    navigateToPreviousNode,
+    getNavigationState
+  } = useWorldbuildingNavigation();
 
   const fetchElements = async () => {
     try {
@@ -182,10 +181,14 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
     action();
   };
 
-  // Handle navigation to storyline
+  // Handle navigation to storyline for specific element
   const handleNavigateToStoryline = async (e: React.MouseEvent, elementId: string) => {
     e.stopPropagation();
-    await navigateToWorldbuildingElement(elementId);
+    const result = await navigateToWorldbuildingElement(elementId);
+    
+    if (!result.success) {
+      alert(result.message || 'No linked storyline nodes found for this element.');
+    }
   };
 
   return (
@@ -247,59 +250,103 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
                   {categoryElements.length === 0 ? (
                     <p className="text-xs text-slate-500 italic pl-6">No {category.label.toLowerCase()} yet</p>
                   ) : (
-                    categoryElements.map((element) => (
-                      <Card key={element.id} className="hover:shadow-md transition-shadow ml-6">
-                        <CardContent className="p-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-medium text-slate-900 text-sm">{element.name}</h4>
-                                {element.storyline_node_id && (
-                                  <div className="flex items-center gap-1">
-                                    <Link className="w-3 h-3 text-blue-500" />
-                                    <span className="text-xs text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
-                                      {element.created_from_storyline ? 'Synced' : 'Linked'}
+                    categoryElements.map((element) => {
+                      const navState = getNavigationState(element.id);
+                      const hasMultipleNodes = navState.nodes.length > 1;
+                      
+                      return (
+                        <Card key={element.id} className="hover:shadow-md transition-shadow ml-6">
+                          <CardContent className="p-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-medium text-slate-900 text-sm">{element.name}</h4>
+                                  {element.storyline_node_id && (
+                                    <div className="flex items-center gap-1">
+                                      <Link className="w-3 h-3 text-blue-500" />
+                                      <span className="text-xs text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
+                                        {element.created_from_storyline ? 'Synced' : 'Linked'}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-600 mt-2 line-clamp-2">{element.description}</p>
+                                
+                                {/* Navigation info for this element */}
+                                {navState.nodes.length > 0 && (
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <span className="text-xs text-slate-500">
+                                      Found in {navState.nodes.length} storyline node{navState.nodes.length !== 1 ? 's' : ''}
                                     </span>
+                                    {hasMultipleNodes && (
+                                      <span className="text-xs text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
+                                        {navState.currentIndex + 1}/{navState.nodes.length}
+                                      </span>
+                                    )}
                                   </div>
                                 )}
                               </div>
-                              <p className="text-xs text-slate-600 mt-2 line-clamp-2">{element.description}</p>
+                              
+                              <div className="flex items-center space-x-1 ml-2">
+                                {/* Navigation controls for elements with multiple nodes */}
+                                {hasMultipleNodes && (
+                                  <>
+                                    <Button 
+                                      size="icon" 
+                                      variant="ghost" 
+                                      className="h-6 w-6"
+                                      onClick={(e) => handleButtonClick(e, () => navigateToPreviousNode(element.id))}
+                                      title="Previous linked node"
+                                    >
+                                      <ChevronLeft className="w-3 h-3" />
+                                    </Button>
+                                    <Button 
+                                      size="icon" 
+                                      variant="ghost" 
+                                      className="h-6 w-6"
+                                      onClick={(e) => handleButtonClick(e, () => navigateToNextNode(element.id))}
+                                      title="Next linked node"
+                                    >
+                                      <ChevronRight className="w-3 h-3" />
+                                    </Button>
+                                  </>
+                                )}
+                                
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  className="h-6 w-6"
+                                  onClick={(e) => handleNavigateToStoryline(e, element.id)}
+                                  title="Navigate to storyline"
+                                  disabled={navState.isNavigating}
+                                >
+                                  <MapPin className="w-3 h-3" />
+                                </Button>
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  className="h-6 w-6"
+                                  onClick={(e) => handleButtonClick(e, () => handleEdit(element))}
+                                  title={element.storyline_node_id ? 'Edit from storyline map' : 'Edit element'}
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                </Button>
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  className="h-6 w-6"
+                                  onClick={(e) => handleButtonClick(e, () => handleDelete(element.id))}
+                                  disabled={!!element.storyline_node_id}
+                                  title={element.storyline_node_id ? 'Delete from storyline map' : 'Delete element'}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
                             </div>
-                            <div className="flex items-center space-x-1 ml-2">
-                              <Button 
-                                size="icon" 
-                                variant="ghost" 
-                                className="h-6 w-6"
-                                onClick={(e) => handleNavigateToStoryline(e, element.id)}
-                                title="Navigate to storyline"
-                                disabled={isNavigating}
-                              >
-                                <MapPin className="w-3 h-3" />
-                              </Button>
-                              <Button 
-                                size="icon" 
-                                variant="ghost" 
-                                className="h-6 w-6"
-                                onClick={(e) => handleButtonClick(e, () => handleEdit(element))}
-                                title={element.storyline_node_id ? 'Edit from storyline map' : 'Edit element'}
-                              >
-                                <Edit3 className="w-3 h-3" />
-                              </Button>
-                              <Button 
-                                size="icon" 
-                                variant="ghost" 
-                                className="h-6 w-6"
-                                onClick={(e) => handleButtonClick(e, () => handleDelete(element.id))}
-                                disabled={!!element.storyline_node_id}
-                                title={element.storyline_node_id ? 'Delete from storyline map' : 'Delete element'}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
+                          </CardContent>
+                        </Card>
+                      );
+                    })
                   )}
                 </div>
               )}
@@ -307,34 +354,6 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
           );
         })}
       </div>
-
-      {/* Navigation Controls - Show when navigating with multiple nodes */}
-      {linkedNodes.length > 1 && (
-        <div className="p-3 border-t border-slate-200 bg-slate-50">
-          <div className="flex items-center justify-between text-xs text-slate-600 mb-2">
-            <span>Storyline Navigation</span>
-            <span>{currentNodeIndex + 1} of {linkedNodes.length}</span>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={navigateToPreviousNode}
-              className="flex-1"
-            >
-              Previous
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={navigateToNextNode}
-              className="flex-1"
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Create/Edit Form */}
       {showForm && (
