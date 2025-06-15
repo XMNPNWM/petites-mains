@@ -1,9 +1,9 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Minus, MessageSquare, Brain, ArrowRight, MessageCircle, Send } from 'lucide-react';
+import { X, Minus, MessageSquare, Brain, ArrowRight, MessageCircle, Send, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { SelectedTextContext } from '@/types/comments';
 import { usePopupChats } from './PopupChatManager';
 
@@ -24,7 +24,7 @@ interface PopupChatProps {
 
 const getChatIcon = (type: ChatType) => {
   switch (type) {
-    case 'comment': return <MessageSquare className="w-4 h-4 text-blue-600" />;
+    case 'comment': return <FileText className="w-4 h-4 text-blue-600" />;
     case 'coherence': return <Brain className="w-4 h-4 text-purple-600" />;
     case 'next-steps': return <ArrowRight className="w-4 h-4 text-green-600" />;
     case 'chat': return <MessageCircle className="w-4 h-4 text-orange-600" />;
@@ -53,17 +53,18 @@ const PopupChat = ({
   initialMessages = []
 }: PopupChatProps) => {
   const [position, setPosition] = useState(initialPosition);
-  const [size, setSize] = useState({ width: 400, height: 500 });
+  const [size, setSize] = useState({ width: 400, height: type === 'comment' ? 300 : 500 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [messages, setMessages] = useState(initialMessages);
   const [currentMessage, setCurrentMessage] = useState('');
+  const [commentText, setCommentText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
   const resizeRef = useRef({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 });
   const { saveChatMessage } = usePopupChats();
 
-  // Initialize messages from props with error boundary
+  // Initialize messages from props
   useEffect(() => {
     try {
       console.log('PopupChat initialized:', { id, type, initialMessages: initialMessages?.length || 0 });
@@ -72,7 +73,6 @@ const PopupChat = ({
       }
     } catch (error) {
       console.error('Error initializing popup chat:', error);
-      // Fallback to empty messages
       setMessages([]);
     }
   }, [initialMessages, id, type]);
@@ -166,6 +166,33 @@ const PopupChat = ({
   }, [isDragging, isResizing, size]);
 
   const handleSendMessage = async () => {
+    if (type === 'comment') {
+      // Handle comment saving
+      if (!commentText.trim()) return;
+      
+      try {
+        setIsSaving(true);
+        
+        const commentMessage = {
+          role: 'user' as const,
+          content: commentText,
+          timestamp: new Date()
+        };
+        
+        setMessages([commentMessage]);
+        await saveChatMessage(id, commentMessage);
+        setCommentText('');
+        
+        console.log('Comment saved:', commentMessage);
+      } catch (error) {
+        console.error('Error saving comment:', error);
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    // Handle chat messages
     if (!currentMessage.trim()) return;
     
     try {
@@ -177,32 +204,27 @@ const PopupChat = ({
         timestamp: new Date()
       };
       
-      // Update local state immediately
       setMessages(prev => [...prev, userMessage]);
       setCurrentMessage('');
       
-      // Save to context/database in background
       await saveChatMessage(id, userMessage);
       
-      // Simulate AI response for non-comment types
-      if (type !== 'comment') {
-        setTimeout(async () => {
-          try {
-            const aiResponse = {
-              role: 'assistant' as const,
-              content: `I understand you're asking about: "${currentMessage}". This is a placeholder response for ${getChatTitle(type)}.`,
-              timestamp: new Date()
-            };
-            setMessages(prev => [...prev, aiResponse]);
-            await saveChatMessage(id, aiResponse);
-          } catch (error) {
-            console.error('Error sending AI response:', error);
-          }
-        }, 1000);
-      }
+      // Simulate AI response for chat types
+      setTimeout(async () => {
+        try {
+          const aiResponse = {
+            role: 'assistant' as const,
+            content: `I understand you're asking about: "${userMessage.content}". This is a placeholder response for ${getChatTitle(type)}.`,
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, aiResponse]);
+          await saveChatMessage(id, aiResponse);
+        } catch (error) {
+          console.error('Error sending AI response:', error);
+        }
+      }, 1000);
     } catch (error) {
       console.error('Error sending message:', error);
-      // Message still appears in local state
     } finally {
       setIsSaving(false);
     }
@@ -230,28 +252,29 @@ const PopupChat = ({
     }
   };
 
-  // Error boundary for render
-  try {
-    if (isMinimized) {
-      return (
-        <div
-          className="fixed bg-white border border-slate-200 rounded-lg shadow-lg p-2 flex items-center gap-2 cursor-pointer z-[9999]"
-          style={{ left: position.x, top: position.y }}
-          onClick={handleMinimize}
-        >
-          {getChatIcon(type)}
-          <span className="text-sm font-medium">
-            {getChatTitle(type)}
-            {selectedText && type === 'comment' && (
-              <span className="text-xs text-slate-500 ml-1">
-                ("{selectedText.text}")
-              </span>
-            )}
-          </span>
-        </div>
-      );
-    }
+  // Render minimized state
+  if (isMinimized) {
+    return (
+      <div
+        className="fixed bg-white border border-slate-200 rounded-lg shadow-lg p-2 flex items-center gap-2 cursor-pointer z-[9999]"
+        style={{ left: position.x, top: position.y }}
+        onClick={handleMinimize}
+      >
+        {getChatIcon(type)}
+        <span className="text-sm font-medium">
+          {getChatTitle(type)}
+          {selectedText && type === 'comment' && (
+            <span className="text-xs text-slate-500 ml-1">
+              ("{selectedText.text}")
+            </span>
+          )}
+        </span>
+      </div>
+    );
+  }
 
+  // Render comment interface
+  if (type === 'comment') {
     return (
       <Card
         className="fixed shadow-xl border border-slate-200 z-[9999]"
@@ -270,9 +293,9 @@ const PopupChat = ({
             {getChatIcon(type)}
             <div className="flex flex-col">
               <h3 className="text-sm font-semibold">{getChatTitle(type)}</h3>
-              {selectedText && type === 'comment' && (
+              {selectedText && (
                 <span className="text-xs text-slate-500 truncate max-w-48">
-                  on "{selectedText.text}"
+                  Line {selectedText.lineNumber}: "{selectedText.text}"
                 </span>
               )}
             </div>
@@ -287,62 +310,35 @@ const PopupChat = ({
           </div>
         </CardHeader>
         
-        <CardContent className="p-0 flex flex-col h-full">
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
-            {(!messages || messages.length === 0) ? (
-              <div className="text-center text-slate-500 text-sm mt-8">
-                {type === 'comment' && selectedText 
-                  ? `Write a comment about "${selectedText.text}"`
-                  : `Start a conversation about your ${type === 'comment' ? 'chapter content' : 'story'}.`
-                }
-              </div>
-            ) : (
-              messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[80%] p-2 rounded-lg text-sm ${
-                      message.role === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-slate-100 text-slate-900'
-                    }`}
-                  >
-                    {message.content}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+        <CardContent className="p-3 flex flex-col h-full">
+          {/* Existing comment display */}
+          {messages.length > 0 && (
+            <div className="mb-3 p-2 bg-slate-50 rounded text-sm">
+              {messages[0].content}
+            </div>
+          )}
           
-          {/* Input Area */}
-          <div className="border-t p-3 flex gap-2">
+          {/* Comment input */}
+          <div className="flex-1 flex flex-col gap-2">
             <Textarea
-              value={currentMessage}
-              onChange={(e) => setCurrentMessage(e.target.value)}
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
               placeholder={
-                type === 'comment' && selectedText 
-                  ? `Comment on "${selectedText.text}"...`
-                  : `Ask about ${getChatTitle(type).toLowerCase()}...`
+                selectedText 
+                  ? `Add a note about "${selectedText.text}"...`
+                  : "Add your comment..."
               }
-              className="flex-1 min-h-0 resize-none"
-              rows={2}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
+              className="flex-1 resize-none"
+              rows={messages.length > 0 ? 2 : 4}
             />
             <Button
-              size="sm"
               onClick={handleSendMessage}
-              disabled={!currentMessage.trim() || isSaving}
+              disabled={!commentText.trim() || isSaving}
+              size="sm"
               className="self-end"
             >
-              <Send className="w-4 h-4" />
+              <FileText className="w-4 h-4 mr-1" />
+              {isSaving ? 'Saving...' : 'Save Comment'}
             </Button>
           </div>
           
@@ -356,14 +352,106 @@ const PopupChat = ({
         </CardContent>
       </Card>
     );
-  } catch (error) {
-    console.error('Error rendering PopupChat:', error);
-    return (
-      <div className="fixed bg-red-100 border border-red-300 rounded p-2 z-[9999]" style={{ left: position.x, top: position.y }}>
-        Error loading chat
-      </div>
-    );
   }
+
+  // Render chat interface (existing functionality)
+  return (
+    <Card
+      className="fixed shadow-xl border border-slate-200 z-[9999]"
+      style={{
+        left: position.x,
+        top: position.y,
+        width: size.width,
+        height: size.height
+      }}
+    >
+      <CardHeader
+        className="flex flex-row items-center justify-between p-3 cursor-move bg-slate-50 border-b"
+        onMouseDown={handleMouseDown}
+      >
+        <div className="flex items-center gap-2">
+          {getChatIcon(type)}
+          <div className="flex flex-col">
+            <h3 className="text-sm font-semibold">{getChatTitle(type)}</h3>
+            {selectedText && (
+              <span className="text-xs text-slate-500 truncate max-w-48">
+                on "{selectedText.text}"
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button size="sm" variant="ghost" onClick={handleMinimize} className="h-6 w-6 p-0">
+            <Minus className="w-3 h-3" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={handleClose} className="h-6 w-6 p-0">
+            <X className="w-3 h-3" />
+          </Button>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="p-0 flex flex-col h-full">
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+          {(!messages || messages.length === 0) ? (
+            <div className="text-center text-slate-500 text-sm mt-8">
+              Start a conversation about your story.
+            </div>
+          ) : (
+            messages.map((message, index) => (
+              <div
+                key={index}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] p-2 rounded-lg text-sm ${
+                    message.role === 'user'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-slate-100 text-slate-900'
+                  }`}
+                >
+                  {message.content}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        
+        {/* Input Area */}
+        <div className="border-t p-3 flex gap-2">
+          <Textarea
+            value={currentMessage}
+            onChange={(e) => setCurrentMessage(e.target.value)}
+            placeholder={`Ask about ${getChatTitle(type).toLowerCase()}...`}
+            className="flex-1 min-h-0 resize-none"
+            rows={2}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+          />
+          <Button
+            size="sm"
+            onClick={handleSendMessage}
+            disabled={!currentMessage.trim() || isSaving}
+            className="self-end"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+        
+        {/* Resize Handle */}
+        <div
+          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
+          onMouseDown={handleResizeMouseDown}
+        >
+          <div className="absolute bottom-1 right-1 w-2 h-2 bg-slate-400 rotate-45"></div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 export default PopupChat;

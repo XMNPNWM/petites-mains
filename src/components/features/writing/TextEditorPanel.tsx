@@ -1,11 +1,12 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { stripHtmlTags, getWordCount } from '@/lib/contentUtils';
 import FocusModeToggle from './FocusModeToggle';
-import SimpleRightClickMenu from './simple/SimpleRightClickMenu';
-import { useSimplePopups } from './simple/SimplePopupManager';
+import WritingContextMenu from './WritingContextMenu';
+import { usePopupChats } from './PopupChatManager';
+import { SelectedTextContext } from '@/types/comments';
 
 interface Chapter {
   id: string;
@@ -31,7 +32,8 @@ const TextEditorPanel = ({
   onFocusToggle 
 }: TextEditorPanelProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { createPopup } = useSimplePopups();
+  const { openChat } = usePopupChats();
+  const [selectedTextContext, setSelectedTextContext] = useState<SelectedTextContext | null>(null);
   
   const cleanContent = chapter?.content ? stripHtmlTags(chapter.content) : '';
   const wordCount = getWordCount(cleanContent);
@@ -40,12 +42,75 @@ const TextEditorPanel = ({
     onContentChange(newContent);
   };
 
-  const handleRightClickMenu = (type: 'comment' | 'chat', position: { x: number; y: number }, selectedText?: string, lineNumber?: number) => {
-    if (chapter) {
-      console.log('Creating popup:', { type, position, selectedText, lineNumber, chapterId: chapter.id });
-      createPopup(type, position, chapter.project_id, chapter.id, selectedText, lineNumber);
-    }
-  };
+  // Get current line number based on cursor position
+  const getCurrentLineNumber = useCallback((): number => {
+    if (!textareaRef.current) return 1;
+    
+    const textarea = textareaRef.current;
+    const cursorPosition = textarea.selectionStart;
+    const textBeforeCursor = textarea.value.substring(0, cursorPosition);
+    const lineNumber = textBeforeCursor.split('\n').length;
+    
+    return lineNumber;
+  }, []);
+
+  // Get selected text context
+  const getSelectedTextContext = useCallback((): SelectedTextContext | null => {
+    if (!textareaRef.current) return null;
+    
+    const textarea = textareaRef.current;
+    const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+    
+    if (!selectedText.trim()) return null;
+    
+    const lineNumber = getCurrentLineNumber();
+    
+    return {
+      text: selectedText.trim(),
+      startPosition: textarea.selectionStart,
+      endPosition: textarea.selectionEnd,
+      lineNumber
+    };
+  }, [getCurrentLineNumber]);
+
+  // Update selected text context when selection changes
+  const handleSelectionChange = useCallback(() => {
+    const context = getSelectedTextContext();
+    setSelectedTextContext(context);
+    // Store in global for context menu access
+    (window as any).selectedTextContext = context;
+  }, [getSelectedTextContext]);
+
+  const handleComment = useCallback((position: { x: number; y: number }, selectedText?: SelectedTextContext) => {
+    if (!chapter) return;
+    
+    const lineNumber = selectedText?.lineNumber || getCurrentLineNumber();
+    const textContext = selectedText || getSelectedTextContext();
+    
+    console.log('Creating comment popup:', { position, textContext, lineNumber });
+    
+    openChat('comment', position, chapter.project_id, chapter.id, textContext);
+  }, [chapter, getCurrentLineNumber, getSelectedTextContext, openChat]);
+
+  const handleCoherence = useCallback((position: { x: number; y: number }) => {
+    if (!chapter) return;
+    console.log('Creating coherence popup:', position);
+    // This will be implemented as a specialized AI chat
+    openChat('chat', position, chapter.project_id, chapter.id);
+  }, [chapter, openChat]);
+
+  const handleNextSteps = useCallback((position: { x: number; y: number }) => {
+    if (!chapter) return;
+    console.log('Creating next steps popup:', position);
+    // This will be implemented as a specialized AI chat
+    openChat('chat', position, chapter.project_id, chapter.id);
+  }, [chapter, openChat]);
+
+  const handleChat = useCallback((position: { x: number; y: number }) => {
+    if (!chapter) return;
+    console.log('Creating chat popup:', position);
+    openChat('chat', position, chapter.project_id, chapter.id);
+  }, [chapter, openChat]);
 
   return (
     <div className="h-full bg-slate-50 p-6 flex flex-col">
@@ -76,21 +141,29 @@ const TextEditorPanel = ({
             </div>
           </div>
 
-          {/* Editor with Right-Click Menu - Fixed flex layout */}
+          {/* Editor with Right-Click Menu */}
           <div className="flex-1 min-h-0">
             <Card className="h-full flex flex-col">
               <CardContent className="p-6 h-full flex flex-col">
-                <SimpleRightClickMenu onMenuClick={handleRightClickMenu}>
+                <WritingContextMenu
+                  onComment={handleComment}
+                  onCoherence={handleCoherence}
+                  onNextSteps={handleNextSteps}
+                  onChat={handleChat}
+                >
                   <div className="h-full flex flex-col">
                     <Textarea
                       ref={textareaRef}
                       value={cleanContent}
                       onChange={(e) => handleContentChange(e.target.value)}
+                      onSelect={handleSelectionChange}
+                      onKeyUp={handleSelectionChange}
+                      onMouseUp={handleSelectionChange}
                       placeholder="Start writing your story..."
                       className="flex-1 resize-none border-none focus-visible:ring-0 text-base leading-relaxed h-full min-h-0"
                     />
                   </div>
-                </SimpleRightClickMenu>
+                </WritingContextMenu>
               </CardContent>
             </Card>
           </div>

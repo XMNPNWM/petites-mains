@@ -1,5 +1,5 @@
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import StorylineContextMenu from './StorylineContextMenu';
 import CanvasBackground from './components/CanvasBackground';
 import ConnectionsLayer from './components/ConnectionsLayer';
@@ -44,6 +44,8 @@ interface StorylineCanvasProps {
   onConnectionCancel?: () => void;
   setDraggedNode?: (nodeId: string | null) => void;
   setSelectedNode?: (nodeId: string | null) => void;
+  // Navigation props
+  onNavigateToNode?: (nodeId: string, position: { x: number; y: number }) => void;
   // Read-only specific props
   onMouseDown?: (e: React.MouseEvent) => void;
   onMouseMove?: (e: React.MouseEvent) => void;
@@ -80,6 +82,7 @@ const StorylineCanvas = React.memo(({
   onConnectionCancel = () => {},
   setDraggedNode = () => {},
   setSelectedNode = () => {},
+  onNavigateToNode,
   // Read-only specific handlers
   onMouseDown,
   onMouseMove,
@@ -95,6 +98,24 @@ const StorylineCanvas = React.memo(({
     onConnectionPreviewUpdate,
     onConnectionCancel
   });
+
+  // Listen for navigation events from worldbuilding elements
+  useEffect(() => {
+    const handleNavigationEvent = (event: CustomEvent) => {
+      const { nodeId, position, elementName } = event.detail;
+      console.log('StorylineCanvas: Received navigation event:', { nodeId, position, elementName });
+      
+      if (onNavigateToNode) {
+        onNavigateToNode(nodeId, position);
+      }
+    };
+
+    window.addEventListener('navigateToStorylineNode', handleNavigationEvent as EventListener);
+    
+    return () => {
+      window.removeEventListener('navigateToStorylineNode', handleNavigationEvent as EventListener);
+    };
+  }, [onNavigateToNode]);
 
   const handleCreateNode = useCallback((nodeType: string, position: { x: number; y: number }) => {
     if (readOnly) return;
