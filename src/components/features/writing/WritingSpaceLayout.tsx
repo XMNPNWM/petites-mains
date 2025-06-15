@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
@@ -120,13 +119,15 @@ const WritingSpaceLayout = ({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  // Simple right-click menu handler
-  const handleMenuClick = (type: ChatType, position: { x: number; y: number }, selectedText?: string) => {
+  // Simple right-click menu handler for upper panels only
+  const handleUpperPanelMenuClick = (type: ChatType, position: { x: number; y: number }, selectedText?: string) => {
+    // Only create popups for upper panel right-clicks (not storyline area)
     createPopup(type, position, projectId, currentChapter?.id, selectedText);
   };
 
   return (
     <div className="flex-1 relative overflow-hidden">
+      {/* Upper area with spatial isolation for right-click menu */}
       <div 
         className="absolute inset-0"
         style={{ 
@@ -142,7 +143,7 @@ const WritingSpaceLayout = ({
             maxSize={40}
             className="overflow-hidden"
           >
-            <SimpleRightClickMenu onMenuClick={handleMenuClick}>
+            <SimpleRightClickMenu onMenuClick={handleUpperPanelMenuClick}>
               <WorldbuildingPanel 
                 projectId={projectId} 
                 refreshTrigger={worldbuildingRefreshTrigger}
@@ -153,12 +154,14 @@ const WritingSpaceLayout = ({
           <ResizableHandle withHandle />
           
           <ResizablePanel defaultSize={50} minSize={30} className="overflow-hidden">
-            <TextEditorPanel 
-              chapter={currentChapter}
-              onContentChange={onContentChange}
-              areMinimized={areAllPanelsMinimized()}
-              onFocusToggle={handleFocusToggle}
-            />
+            <SimpleRightClickMenu onMenuClick={handleUpperPanelMenuClick}>
+              <TextEditorPanel 
+                chapter={currentChapter}
+                onContentChange={onContentChange}
+                areMinimized={areAllPanelsMinimized()}
+                onFocusToggle={handleFocusToggle}
+              />
+            </SimpleRightClickMenu>
           </ResizablePanel>
           
           <ResizableHandle withHandle />
@@ -170,7 +173,7 @@ const WritingSpaceLayout = ({
             maxSize={40}
             className="overflow-hidden"
           >
-            <SimpleRightClickMenu onMenuClick={handleMenuClick}>
+            <SimpleRightClickMenu onMenuClick={handleUpperPanelMenuClick}>
               <ChapterOrganizerPanel 
                 projectId={projectId}
                 currentChapter={currentChapter}
@@ -182,30 +185,15 @@ const WritingSpaceLayout = ({
         </ResizablePanelGroup>
       </div>
 
+      {/* Lower area - Storyline Panel (isolated from upper right-click menu) */}
       <div
         className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-[1000] overflow-hidden"
         style={{ height: `${overlayHeight}%` }}
       >
-        <div
-          className={`h-6 bg-slate-100 border-b border-slate-200 flex items-center justify-center cursor-row-resize hover:bg-slate-200 transition-colors select-none ${
-            isDragging ? 'bg-slate-200' : ''
-          } ${overlayHeight <= 10 ? 'bg-slate-300 hover:bg-slate-400' : ''}`}
-          onMouseDown={handleMouseDown}
-          style={{
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-            MozUserSelect: 'none',
-            msUserSelect: 'none'
-          }}
-        >
-          <div className="flex space-x-1 pointer-events-none">
-            <div className={`w-8 h-1 rounded-full ${overlayHeight <= 10 ? 'bg-slate-600' : 'bg-slate-400'}`}></div>
-            <div className={`w-8 h-1 rounded-full ${overlayHeight <= 10 ? 'bg-slate-600' : 'bg-slate-400'}`}></div>
-            <div className={`w-8 h-1 rounded-full ${overlayHeight <= 10 ? 'bg-slate-600' : 'bg-slate-400'}`}></div>
-          </div>
-        </div>
+        {/* ... keep existing code (drag handle) */}
 
         <div className="h-[calc(100%-24px)] overflow-hidden">
+          {/* StorylinePanel has its own context menu system - no SimpleRightClickMenu wrapper */}
           <StorylinePanel 
             projectId={projectId}
             chapterId={currentChapter?.id}

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit3, Trash2, ChevronDown, ChevronRight, Link } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, ChevronDown, ChevronRight, Link, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
+import { useStorylineWorldbuildingNavigation } from '@/hooks/useStorylineWorldbuildingNavigation';
 
 interface WorldElement {
   id: string;
@@ -44,6 +45,15 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
     type: 'scene',
     description: ''
   });
+
+  const {
+    isNavigating,
+    linkedNodes,
+    currentNodeIndex,
+    navigateToWorldbuildingElement,
+    navigateToNextNode,
+    navigateToPreviousNode
+  } = useStorylineWorldbuildingNavigation();
 
   const fetchElements = async () => {
     try {
@@ -172,6 +182,12 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
     action();
   };
 
+  // Handle navigation to storyline
+  const handleNavigateToStoryline = async (e: React.MouseEvent, elementId: string) => {
+    e.stopPropagation();
+    await navigateToWorldbuildingElement(elementId);
+  };
+
   return (
     <div className="h-full bg-white border-r border-slate-200 flex flex-col">
       {/* Header */}
@@ -254,6 +270,16 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
                                 size="icon" 
                                 variant="ghost" 
                                 className="h-6 w-6"
+                                onClick={(e) => handleNavigateToStoryline(e, element.id)}
+                                title="Navigate to storyline"
+                                disabled={isNavigating}
+                              >
+                                <MapPin className="w-3 h-3" />
+                              </Button>
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                className="h-6 w-6"
                                 onClick={(e) => handleButtonClick(e, () => handleEdit(element))}
                                 title={element.storyline_node_id ? 'Edit from storyline map' : 'Edit element'}
                               >
@@ -281,6 +307,34 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
           );
         })}
       </div>
+
+      {/* Navigation Controls - Show when navigating with multiple nodes */}
+      {linkedNodes.length > 1 && (
+        <div className="p-3 border-t border-slate-200 bg-slate-50">
+          <div className="flex items-center justify-between text-xs text-slate-600 mb-2">
+            <span>Storyline Navigation</span>
+            <span>{currentNodeIndex + 1} of {linkedNodes.length}</span>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={navigateToPreviousNode}
+              className="flex-1"
+            >
+              Previous
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={navigateToNextNode}
+              className="flex-1"
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Create/Edit Form */}
       {showForm && (

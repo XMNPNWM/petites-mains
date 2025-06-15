@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useParams } from 'react-router-dom';
@@ -25,6 +24,7 @@ interface SimplePopupsContextProps {
   createPopup: (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string, lineNumber?: number) => void;
   updatePopup: (id: string, updates: Partial<SimplePopup>) => void;
   closePopup: (id: string) => void;
+  deletePopup: (id: string) => void;
   reopenPopup: (id: string, type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string) => void;
   goToLine: (chapterId: string, lineNumber: number) => Promise<void>;
   timelineVersion: number;
@@ -44,7 +44,7 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
   const [livePopups, setLivePopups] = useState<SimplePopup[]>([]);
   const [timelineVersion, setTimelineVersion] = useState(0);
   const { projectId } = useParams();
-  const { saveChat, loadChatById, updateChatStatus } = useChatDatabase();
+  const { saveChat, loadChatById, updateChatStatus, deleteChat } = useChatDatabase();
 
   // Function to create a new popup
   const createPopup = async (
@@ -129,17 +129,32 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     setTimelineVersion(prev => prev + 1);
   };
 
-  // Function to close a popup
+  // Function to close a popup (minimize to timeline)
   const closePopup = async (id: string) => {
     setLivePopups(prevPopups => prevPopups.filter(popup => popup.id !== id));
     setTimelineVersion(prev => prev + 1);
 
-    // Update status in database
+    // Update status in database to closed (can be reopened)
     try {
       await updateChatStatus(id, 'closed');
       console.log('Popup marked as closed in database:', id);
     } catch (error) {
       console.error('Failed to update popup status:', error);
+    }
+  };
+
+  // Function to permanently delete a popup
+  const deletePopup = async (id: string) => {
+    // Remove from live popups immediately
+    setLivePopups(prevPopups => prevPopups.filter(popup => popup.id !== id));
+    setTimelineVersion(prev => prev + 1);
+
+    // Permanently delete from database
+    try {
+      await deleteChat(id);
+      console.log('Popup permanently deleted from database:', id);
+    } catch (error) {
+      console.error('Failed to delete popup from database:', error);
     }
   };
 
@@ -275,6 +290,7 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         createPopup,
         updatePopup,
         closePopup,
+        deletePopup,
         reopenPopup,
         goToLine,
         timelineVersion

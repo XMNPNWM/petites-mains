@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Minus, MessageSquare, MessageCircle, ArrowLeft } from 'lucide-react';
+import { X, Send, Minus, MessageSquare, MessageCircle, ArrowLeft, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -13,7 +12,8 @@ interface SimpleChatPopupProps {
 const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { updatePopup, closePopup, goToLine } = useSimplePopups();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const { updatePopup, closePopup, deletePopup, goToLine } = useSimplePopups();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -80,6 +80,20 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
     updatePopup(popup.id, { isMinimized: !popup.isMinimized });
   };
 
+  const handleClose = () => {
+    closePopup(popup.id);
+  };
+
+  const handleDelete = () => {
+    if (showDeleteConfirm) {
+      deletePopup(popup.id);
+    } else {
+      setShowDeleteConfirm(true);
+      // Reset confirmation after 3 seconds
+      setTimeout(() => setShowDeleteConfirm(false), 3000);
+    }
+  };
+
   if (popup.isMinimized) {
     return (
       <div
@@ -103,17 +117,31 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
               {popup.type === 'comment' ? 'Comment' : 'Chat'}
             </span>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              closePopup(popup.id);
-            }}
-            className="h-6 w-6 p-0"
-          >
-            <X className="w-3 h-3" />
-          </Button>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete();
+              }}
+              className="h-6 w-6 p-0"
+              title={showDeleteConfirm ? 'Click again to confirm delete' : 'Delete permanently'}
+            >
+              <Trash2 className={`w-3 h-3 ${showDeleteConfirm ? 'text-red-600' : ''}`} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClose();
+              }}
+              className="h-6 w-6 p-0"
+            >
+              <X className="w-3 h-3" />
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -159,6 +187,15 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
             <Button
               variant="ghost"
               size="sm"
+              onClick={handleDelete}
+              className="h-6 w-6 p-0"
+              title={showDeleteConfirm ? 'Click again to confirm delete' : 'Delete permanently'}
+            >
+              <Trash2 className={`w-3 h-3 ${showDeleteConfirm ? 'text-red-600' : ''}`} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleMinimize}
               className="h-6 w-6 p-0"
             >
@@ -167,7 +204,7 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => closePopup(popup.id)}
+              onClick={handleClose}
               className="h-6 w-6 p-0"
             >
               <X className="w-3 h-3" />
@@ -176,6 +213,13 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col p-4 min-h-0">
+          {/* Delete confirmation message */}
+          {showDeleteConfirm && (
+            <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-800">
+              Click delete again to permanently remove this {popup.type}
+            </div>
+          )}
+
           {/* Show selected text context for comments */}
           {popup.type === 'comment' && popup.selectedText && (
             <div className="mb-3 p-2 bg-blue-50 border-l-4 border-blue-200 rounded text-sm">
