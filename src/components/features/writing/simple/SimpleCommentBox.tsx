@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Trash2, MapPin } from 'lucide-react';
 import { useSimplePopups } from './SimplePopupManager';
 import { toast } from '@/hooks/use-toast';
 
@@ -29,7 +30,8 @@ interface SimpleCommentBoxProps {
 const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) => {
   const [comment, setComment] = useState('');
   const [messages, setMessages] = useState(popup.messages || []);
-  const { updatePopup, closePopup, goToLine } = useSimplePopups();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const { updatePopup, closePopup, deletePopup, goToLine } = useSimplePopups();
 
   useEffect(() => {
     setMessages(popup.messages || []);
@@ -57,6 +59,19 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
   const handleClose = () => {
     onClose(popup.id);
     closePopup(popup.id);
+  };
+
+  const handleDelete = () => {
+    if (showDeleteConfirm) {
+      deletePopup(popup.id);
+      toast({
+        title: "Comment deleted",
+        description: "The comment has been permanently deleted.",
+      });
+    } else {
+      setShowDeleteConfirm(true);
+      setTimeout(() => setShowDeleteConfirm(false), 3000); // Reset after 3 seconds
+    }
   };
 
   const handleGoToLine = () => {
@@ -88,12 +103,22 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
           Add Comment
         </Button>
         {popup.lineNumber !== null && (
-          <Button onClick={handleGoToLine} className="w-full" variant="secondary" size="sm">
+          <Button onClick={handleGoToLine} className="w-full mb-2" variant="secondary" size="sm">
+            <MapPin className="w-4 h-4 mr-1" />
             Go to Line {popup.lineNumber}
           </Button>
         )}
       </CardContent>
-      <CardFooter className="flex justify-end p-4">
+      <CardFooter className="flex justify-between p-4">
+        <Button 
+          onClick={handleDelete} 
+          variant={showDeleteConfirm ? "destructive" : "ghost"} 
+          size="sm"
+          className="flex items-center gap-1"
+        >
+          <Trash2 className="w-4 h-4" />
+          {showDeleteConfirm ? "Confirm Delete" : "Delete"}
+        </Button>
         <Button onClick={handleClose} variant="ghost" size="sm">
           Close
         </Button>

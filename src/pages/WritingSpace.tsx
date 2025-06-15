@@ -51,8 +51,8 @@ const WritingSpace = () => {
           onContentChange={handleContentChange}
           onChaptersChange={refreshChapters}
         />
+        <SimplePopupRenderer />
       </div>
-      <SimplePopupRenderer />
     </SimplePopupProvider>
   );
 };
