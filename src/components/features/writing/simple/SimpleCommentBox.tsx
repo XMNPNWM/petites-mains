@@ -135,33 +135,17 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
     console.log('Go to line clicked with enhanced validation:', {
       chapterId: popup.chapterId,
       lineNumber: popup.lineNumber,
-      type: typeof popup.lineNumber,
-      isValidChapterId: !!popup.chapterId,
-      isValidLineNumber: popup.lineNumber !== null && popup.lineNumber !== undefined && popup.lineNumber > 0
+      isValid: hasValidNavigationData
     });
 
-    // Clear any previous error
     setNavigationError(null);
 
-    // Enhanced validation with specific error messages
-    if (!popup.chapterId) {
-      const error = "Cannot navigate - missing chapter information";
+    if (!hasValidNavigationData) {
+      const error = getNavigationStatusMessage() || "Navigation data not available";
       setNavigationError(error);
-      console.warn(error);
+      console.warn('Navigation blocked:', error);
       toast({
-        title: "Navigation Error",
-        description: error,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!popup.lineNumber || popup.lineNumber < 1) {
-      const error = "Cannot navigate - missing or invalid line number";
-      setNavigationError(error);
-      console.warn(error, { lineNumber: popup.lineNumber });
-      toast({
-        title: "Navigation Error", 
+        title: "Navigation Not Available",
         description: error,
         variant: "destructive"
       });
@@ -174,9 +158,8 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
         lineNumber: popup.lineNumber 
       });
       
-      await goToLine(popup.chapterId, popup.lineNumber);
+      await goToLine(popup.chapterId!, popup.lineNumber!);
       
-      // Show success feedback
       toast({
         title: "Navigation Success",
         description: `Navigated to line ${popup.lineNumber}`,
@@ -193,7 +176,7 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
     }
   };
 
-  // Enhanced button visibility logic with comprehensive checking
+  // Enhanced button visibility logic with comprehensive validation
   const hasValidNavigationData = Boolean(
     popup.chapterId && 
     popup.lineNumber !== null && 
@@ -201,12 +184,21 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
     popup.lineNumber > 0
   );
 
-  console.log('Enhanced button visibility check:', {
+  const getNavigationStatusMessage = (): string => {
+    if (!popup.chapterId) {
+      return "Comment created outside text editor";
+    }
+    if (!popup.lineNumber || popup.lineNumber < 1) {
+      return "No line information available";
+    }
+    return "";
+  };
+
+  console.log('Navigation status check:', {
     shouldShow: hasValidNavigationData,
     chapterId: popup.chapterId,
     lineNumber: popup.lineNumber,
-    lineNumberType: typeof popup.lineNumber,
-    hasError: !!navigationError
+    statusMessage: getNavigationStatusMessage()
   });
 
   return (
@@ -219,7 +211,7 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
       }}
     >
       <Card className="shadow-xl border-slate-300">
-        {/* Enhanced Draggable Header with navigation info */}
+        {/* Enhanced Header with clearer navigation status */}
         <div 
           className="bg-blue-50 border-b border-blue-200 p-3 cursor-move flex items-center gap-3 rounded-t-lg hover:bg-blue-100 transition-colors"
           onMouseDown={handleMouseDown}
@@ -227,14 +219,11 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
           <GripVertical className="w-6 h-6 text-blue-600 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-sm text-blue-800">Comment</h3>
-            <div className="text-xs text-blue-600">
-              {popup.lineNumber ? (
-                <span>Line {popup.lineNumber}</span>
+            <div className="text-xs">
+              {hasValidNavigationData ? (
+                <span className="text-green-600">Line {popup.lineNumber} • Navigation ready</span>
               ) : (
-                <span className="text-orange-600">No line info</span>
-              )}
-              {popup.chapterId && (
-                <span className="ml-2 opacity-60">• Chapter linked</span>
+                <span className="text-orange-600">{getNavigationStatusMessage()}</span>
               )}
             </div>
           </div>
@@ -254,13 +243,21 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
         </div>
 
         <CardContent className="p-4">
-          {/* Show selected text context with line info */}
+          {/* Enhanced selected text context display */}
           {popup.selectedText && (
             <div className="mb-3 p-2 bg-blue-50 border-l-4 border-blue-200 rounded text-sm">
               <div className="text-blue-800 font-medium mb-1">
-                Selected text {popup.lineNumber ? `from line ${popup.lineNumber}` : ''}:
+                Selected text {popup.lineNumber ? `from line ${popup.lineNumber}` : '(no line info)'}:
               </div>
               <div className="text-blue-700 italic">"{popup.selectedText}"</div>
+            </div>
+          )}
+
+          {/* Show navigation status message if no valid data */}
+          {!hasValidNavigationData && (
+            <div className="mb-3 p-2 bg-orange-50 border-l-4 border-orange-200 rounded text-sm">
+              <div className="text-orange-800 font-medium">Navigation Status:</div>
+              <div className="text-orange-700">{getNavigationStatusMessage()}</div>
             </div>
           )}
 
@@ -290,7 +287,7 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
             Add Comment
           </Button>
           
-          {/* Enhanced Go to Line button with better error states */}
+          {/* Enhanced Go to Line button with clear status indication */}
           {hasValidNavigationData ? (
             <Button 
               onClick={handleGoToLine} 
@@ -308,18 +305,18 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
               variant="outline" 
               size="sm"
               disabled
-              title="Navigation data not available"
+              title={getNavigationStatusMessage()}
             >
               <MapPin className="w-4 h-4 mr-1 opacity-50" />
               Navigation Unavailable
             </Button>
           )}
           
-          {/* Enhanced debug info */}
+          {/* Enhanced debug info for development */}
           {process.env.NODE_ENV === 'development' && (
             <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-50 rounded">
               Debug: Chapter={popup.chapterId || 'none'}, Line={popup.lineNumber ?? 'none'}, 
-              Valid={hasValidNavigationData.toString()}, Error={navigationError || 'none'}
+              Valid={hasValidNavigationData.toString()}, Status="{getNavigationStatusMessage() || 'ready'}"
             </div>
           )}
         </CardContent>

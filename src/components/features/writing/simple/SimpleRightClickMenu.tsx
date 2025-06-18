@@ -19,63 +19,93 @@ const SimpleRightClickMenu = ({
 }: SimpleRightClickMenuProps) => {
   const [contextPosition, setContextPosition] = useState({ x: 0, y: 0 });
   const [contextSelectedText, setContextSelectedText] = useState<string | undefined>(undefined);
-  const [contextLineNumber, setContextLineNumber] = useState<number>(1);
+  const [contextLineNumber, setContextLineNumber] = useState<number | null>(null);
+  const [isFromTextEditor, setIsFromTextEditor] = useState(false);
 
-  const calculateLineNumber = (textarea: HTMLTextAreaElement): number => {
-    try {
-      const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0) {
-        // Fallback: get cursor position if no selection
-        const cursorPosition = textarea.selectionStart;
-        const textBeforeCursor = textarea.value.substring(0, cursorPosition);
-        return textBeforeCursor.split('\n').length;
+  const findMainTextarea = (): HTMLTextAreaElement | null => {
+    const textareas = document.querySelectorAll('textarea');
+    for (const textarea of textareas) {
+      if (textarea.value && textarea.value.length > 100) {
+        return textarea;
       }
-
-      const range = selection.getRangeAt(0);
-      const textBeforeSelection = textarea.value.substring(0, range.startOffset);
-      return textBeforeSelection.split('\n').length;
-    } catch (error) {
-      console.warn('Error calculating line number:', error);
-      return 1;
     }
+    return textareas.length > 0 ? textareas[0] : null;
+  };
+
+  const calculateLineNumberFromCursor = (textarea: HTMLTextAreaElement): number => {
+    const cursorPosition = textarea.selectionStart;
+    const textBeforeCursor = textarea.value.substring(0, cursorPosition);
+    return textBeforeCursor.split('\n').length;
+  };
+
+  const isEventWithinTextarea = (event: React.MouseEvent, textarea: HTMLTextAreaElement): boolean => {
+    const rect = textarea.getBoundingClientRect();
+    return (
+      event.clientX >= rect.left &&
+      event.clientX <= rect.right &&
+      event.clientY >= rect.top &&
+      event.clientY <= rect.bottom
+    );
   };
 
   const handleContextMenu = (event: React.MouseEvent) => {
     setContextPosition({ x: event.clientX, y: event.clientY });
     
-    // Enhanced text selection and line number capture
-    const selection = window.getSelection();
-    const selectedText = selection?.toString().trim();
-    setContextSelectedText(selectedText && selectedText.length > 0 ? selectedText : undefined);
-    
-    // Find the textarea and calculate accurate line number
-    const textareas = document.querySelectorAll('textarea');
-    let calculatedLineNumber = 1;
-    
-    for (const textarea of textareas) {
-      if (textarea.value && textarea.value.length > 100) { // Find the main content textarea
-        calculatedLineNumber = calculateLineNumber(textarea);
-        break;
+    const mainTextarea = findMainTextarea();
+    let selectedText: string | undefined;
+    let lineNumber: number | null = null;
+    let withinTextEditor = false;
+
+    if (mainTextarea) {
+      // Check if the right-click occurred within the textarea bounds
+      withinTextEditor = isEventWithinTextarea(event, mainTextarea);
+      
+      if (withinTextEditor && document.activeElement === mainTextarea) {
+        // Get selected text if any
+        const selection = mainTextarea.value.substring(
+          mainTextarea.selectionStart, 
+          mainTextarea.selectionEnd
+        );
+        selectedText = selection.trim() || undefined;
+        
+        // Calculate accurate line number from cursor position
+        lineNumber = calculateLineNumberFromCursor(mainTextarea);
+        
+        console.log('Context menu - captured from text editor:', {
+          selectedText: selectedText || 'none',
+          lineNumber,
+          cursorPosition: mainTextarea.selectionStart,
+          withinTextEditor: true
+        });
+      } else {
+        console.log('Context menu - created outside text editor:', {
+          withinTextEditor: false,
+          activeElement: document.activeElement?.tagName
+        });
       }
     }
-    
-    setContextLineNumber(calculatedLineNumber);
-    
-    console.log('Context menu - captured data:', {
-      selectedText: selectedText || 'none',
-      lineNumber: calculatedLineNumber,
-      position: { x: event.clientX, y: event.clientY }
-    });
+
+    setContextSelectedText(selectedText);
+    setContextLineNumber(lineNumber);
+    setIsFromTextEditor(withinTextEditor);
   };
 
   const handleMenuItemClick = (type: 'comment' | 'chat') => {
-    console.log('Menu item clicked:', {
+    console.log('Menu item clicked with enhanced context data:', {
       type,
       position: contextPosition,
       selectedText: contextSelectedText,
-      lineNumber: contextLineNumber
+      lineNumber: contextLineNumber,
+      isFromTextEditor,
+      hasValidNavigation: !!(isFromTextEditor && contextLineNumber)
     });
-    onMenuClick(type, contextPosition, contextSelectedText, contextLineNumber);
+    
+    onMenuClick(
+      type, 
+      contextPosition, 
+      contextSelectedText, 
+      isFromTextEditor ? contextLineNumber || undefined : undefined
+    );
   };
 
   return (
@@ -97,14 +127,22 @@ const SimpleRightClickMenu = ({
           <MessageSquare className="w-4 h-4 text-blue-600" />
           <div className="flex flex-col">
             <span>Comment</span>
-            {contextSelectedText && (
-              <span className="text-xs text-slate-500 truncate max-w-40">
-                Line {contextLineNumber}: "{contextSelectedText}"
-              </span>
-            )}
-            {!contextSelectedText && (
-              <span className="text-xs text-slate-500">
-                Line {contextLineNumber}
+            {isFromTextEditor && contextLineNumber ? (
+              <>
+                {contextSelectedText && (
+                  <span className="text-xs text-slate-500 truncate max-w-40">
+                    Line {contextLineNumber}: "{contextSelectedText}"
+                  </span>
+                )}
+                {!contextSelectedText && (
+                  <span className="text-xs text-slate-500">
+                    Line {contextLineNumber}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-xs text-orange-500">
+                No navigation info
               </span>
             )}
           </div>

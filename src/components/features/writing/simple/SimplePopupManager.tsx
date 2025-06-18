@@ -55,8 +55,9 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     selectedText?: string, 
     lineNumber?: number
   ) => {
-    console.log('Creating popup with enhanced data capture:', { 
-      type, position, projectId, chapterId, selectedText, lineNumber 
+    console.log('Creating popup with validated navigation data:', { 
+      type, position, projectId, chapterId, selectedText, lineNumber,
+      hasValidNavigation: !!(chapterId && lineNumber && lineNumber > 0)
     });
 
     const safePosition = {
@@ -64,14 +65,14 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
       y: Math.max(20, Math.min(position.y, window.innerHeight - (type === 'comment' ? 420 : 570)))
     };
 
-    // Enhanced text position calculation
+    // Enhanced text position calculation - only when we have valid line number
     let textPosition: number | null = null;
-    if (selectedText && lineNumber) {
+    if (selectedText && lineNumber && lineNumber > 0) {
       const textarea = document.querySelector('textarea');
       if (textarea) {
         const lines = textarea.value.split('\n');
         let charPosition = 0;
-        for (let i = 0; i < lineNumber - 1; i++) {
+        for (let i = 0; i < Math.min(lineNumber - 1, lines.length); i++) {
           if (lines[i]) {
             charPosition += lines[i].length + 1; // +1 for newline
           }
@@ -93,7 +94,7 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
       projectId,
       chapterId,
       selectedText: selectedText || null,
-      lineNumber: lineNumber || null,
+      lineNumber: (lineNumber && lineNumber > 0) ? lineNumber : null,
       isMinimized: false,
       createdAt: new Date(),
       messages: [],
@@ -101,21 +102,30 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
       textPosition: textPosition
     };
 
-    console.log('Created popup with navigation data:', {
+    console.log('Created popup with final navigation data:', {
       id: newPopup.id,
       lineNumber: newPopup.lineNumber,
       textPosition: newPopup.textPosition,
       selectedText: newPopup.selectedText,
-      chapterId: newPopup.chapterId
+      chapterId: newPopup.chapterId,
+      hasValidNavigation: !!(newPopup.chapterId && newPopup.lineNumber)
     });
 
-    // Add initial message for comment type
-    if (type === 'comment' && selectedText) {
-      newPopup.messages = [{
-        role: 'assistant',
-        content: `You're commenting on line ${lineNumber || 'unknown'}: "${selectedText}"\n\nWhat would you like to note about this text?`,
-        timestamp: new Date()
-      }];
+    // Add contextual initial messages
+    if (type === 'comment') {
+      if (selectedText && lineNumber) {
+        newPopup.messages = [{
+          role: 'assistant',
+          content: `You're commenting on line ${lineNumber}: "${selectedText}"\n\nWhat would you like to note about this text?`,
+          timestamp: new Date()
+        }];
+      } else {
+        newPopup.messages = [{
+          role: 'assistant',
+          content: `Comment created. What would you like to note?`,
+          timestamp: new Date()
+        }];
+      }
     } else if (type === 'chat') {
       newPopup.messages = [{
         role: 'assistant',
@@ -127,7 +137,7 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     setLivePopups(prevPopups => [...prevPopups, newPopup]);
     setTimelineVersion(prev => prev + 1);
 
-    // Enhanced database save with complete navigation data
+    // Enhanced database save with validated navigation data
     const chatSession = {
       id: newPopup.id,
       type: newPopup.type,
@@ -149,10 +159,11 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
 
     try {
       await saveChat(chatSession);
-      console.log('Popup saved to database with complete navigation data:', {
+      console.log('Popup saved to database with validated navigation data:', {
         id: newPopup.id,
         lineNumber: newPopup.lineNumber,
-        chapterId: newPopup.chapterId
+        chapterId: newPopup.chapterId,
+        hasValidNavigation: !!(newPopup.chapterId && newPopup.lineNumber)
       });
     } catch (error) {
       console.error('Failed to save popup to database:', error);
@@ -200,7 +211,7 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     chapterId?: string, 
     selectedText?: string
   ) => {
-    console.log('Reopening popup with enhanced data restoration:', id);
+    console.log('Reopening popup with navigation data restoration:', id);
 
     const existingPopup = livePopups.find(popup => popup.id === id);
     if (existingPopup) {
@@ -215,11 +226,12 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         return;
       }
 
-      console.log('Loaded chat data for reopening with navigation info:', {
+      console.log('Loaded chat data with navigation validation:', {
         id: dbChat.id,
         chapterId: dbChat.chapterId,
         lineNumber: dbChat.lineNumber,
-        selectedText: dbChat.selectedText
+        selectedText: dbChat.selectedText,
+        hasValidNavigation: !!(dbChat.chapterId && dbChat.lineNumber)
       });
 
       const safePosition = {
@@ -242,20 +254,20 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         textPosition: dbChat.selectedText?.startOffset || null
       };
 
-      console.log('Reopened popup with complete navigation data:', {
+      console.log('Reopened popup with navigation data verified:', {
         id: reopenedPopup.id,
         chapterId: reopenedPopup.chapterId,
         lineNumber: reopenedPopup.lineNumber,
         textPosition: reopenedPopup.textPosition,
         selectedText: reopenedPopup.selectedText,
-        hasNavigationData: !!(reopenedPopup.chapterId && reopenedPopup.lineNumber)
+        hasValidNavigation: !!(reopenedPopup.chapterId && reopenedPopup.lineNumber)
       });
 
       setLivePopups(prevPopups => [...prevPopups, reopenedPopup]);
       setTimelineVersion(prev => prev + 1);
 
       await updateChatStatus(id, 'active');
-      console.log('Popup reopened successfully with navigation data verified');
+      console.log('Popup reopened successfully with navigation data validated');
     } catch (error) {
       console.error('Error reopening popup:', error);
     }
