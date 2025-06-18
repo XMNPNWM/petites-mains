@@ -55,12 +55,36 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     selectedText?: string, 
     lineNumber?: number
   ) => {
-    console.log('Creating popup:', { type, position, projectId, chapterId, selectedText, lineNumber });
+    console.log('Creating popup with enhanced data capture:', { 
+      type, position, projectId, chapterId, selectedText, lineNumber 
+    });
 
     const safePosition = {
       x: Math.max(20, Math.min(position.x, window.innerWidth - (type === 'comment' ? 370 : 470))),
       y: Math.max(20, Math.min(position.y, window.innerHeight - (type === 'comment' ? 420 : 570)))
     };
+
+    // Enhanced text position calculation
+    let textPosition: number | null = null;
+    if (selectedText && lineNumber) {
+      const textarea = document.querySelector('textarea');
+      if (textarea) {
+        const lines = textarea.value.split('\n');
+        let charPosition = 0;
+        for (let i = 0; i < lineNumber - 1; i++) {
+          if (lines[i]) {
+            charPosition += lines[i].length + 1; // +1 for newline
+          }
+        }
+        // Find the position of the selected text within the line
+        if (lines[lineNumber - 1]) {
+          const textInLine = lines[lineNumber - 1].indexOf(selectedText);
+          if (textInLine >= 0) {
+            textPosition = charPosition + textInLine;
+          }
+        }
+      }
+    }
 
     const newPopup: SimplePopup = {
       id: uuidv4(),
@@ -68,20 +92,28 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
       position: safePosition,
       projectId,
       chapterId,
-      selectedText: selectedText || null, // Always provide a value (string or null)
-      lineNumber: lineNumber || null, // Always provide a value (number or null)
+      selectedText: selectedText || null,
+      lineNumber: lineNumber || null,
       isMinimized: false,
       createdAt: new Date(),
       messages: [],
       status: 'open',
-      textPosition: selectedText ? 0 : null
+      textPosition: textPosition
     };
+
+    console.log('Created popup with navigation data:', {
+      id: newPopup.id,
+      lineNumber: newPopup.lineNumber,
+      textPosition: newPopup.textPosition,
+      selectedText: newPopup.selectedText,
+      chapterId: newPopup.chapterId
+    });
 
     // Add initial message for comment type
     if (type === 'comment' && selectedText) {
       newPopup.messages = [{
         role: 'assistant',
-        content: `You're commenting on: "${selectedText}"\n\nWhat would you like to note about this text?`,
+        content: `You're commenting on line ${lineNumber || 'unknown'}: "${selectedText}"\n\nWhat would you like to note about this text?`,
         timestamp: new Date()
       }];
     } else if (type === 'chat') {
@@ -95,7 +127,7 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     setLivePopups(prevPopups => [...prevPopups, newPopup]);
     setTimelineVersion(prev => prev + 1);
 
-    // Save to database
+    // Enhanced database save with complete navigation data
     const chatSession = {
       id: newPopup.id,
       type: newPopup.type,
@@ -117,7 +149,11 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
 
     try {
       await saveChat(chatSession);
-      console.log('Popup saved to database:', newPopup.id);
+      console.log('Popup saved to database with complete navigation data:', {
+        id: newPopup.id,
+        lineNumber: newPopup.lineNumber,
+        chapterId: newPopup.chapterId
+      });
     } catch (error) {
       console.error('Failed to save popup to database:', error);
     }
@@ -179,7 +215,12 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         return;
       }
 
-      console.log('Loaded chat data for reopening:', dbChat);
+      console.log('Loaded chat data for reopening with navigation info:', {
+        id: dbChat.id,
+        chapterId: dbChat.chapterId,
+        lineNumber: dbChat.lineNumber,
+        selectedText: dbChat.selectedText
+      });
 
       const safePosition = {
         x: Math.max(20, Math.min(position.x + 30, window.innerWidth - (type === 'comment' ? 370 : 470))),
@@ -191,9 +232,9 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         type: dbChat.type,
         position: safePosition,
         projectId: dbChat.projectId,
-        chapterId: dbChat.chapterId, // Ensure chapterId is restored
-        selectedText: dbChat.selectedText?.text || null, // Always provide a value (string or null)
-        lineNumber: dbChat.lineNumber || null, // Always provide a value (number or null)
+        chapterId: dbChat.chapterId,
+        selectedText: dbChat.selectedText?.text || null,
+        lineNumber: dbChat.lineNumber || null,
         isMinimized: false,
         createdAt: dbChat.createdAt,
         messages: dbChat.messages || [],
@@ -201,26 +242,34 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         textPosition: dbChat.selectedText?.startOffset || null
       };
 
-      console.log('Reopened popup with navigation data:', {
+      console.log('Reopened popup with complete navigation data:', {
+        id: reopenedPopup.id,
         chapterId: reopenedPopup.chapterId,
         lineNumber: reopenedPopup.lineNumber,
         textPosition: reopenedPopup.textPosition,
-        selectedText: reopenedPopup.selectedText
+        selectedText: reopenedPopup.selectedText,
+        hasNavigationData: !!(reopenedPopup.chapterId && reopenedPopup.lineNumber)
       });
 
       setLivePopups(prevPopups => [...prevPopups, reopenedPopup]);
       setTimelineVersion(prev => prev + 1);
 
       await updateChatStatus(id, 'active');
-      console.log('Popup reopened successfully with full navigation data:', id);
+      console.log('Popup reopened successfully with navigation data verified');
     } catch (error) {
       console.error('Error reopening popup:', error);
     }
   };
 
   const goToLine = useCallback(async (chapterId: string, lineNumber: number) => {
-    console.log('Enhanced goToLine function called:', { chapterId, lineNumber });
+    console.log('Enhanced goToLine function called with validation:', { chapterId, lineNumber });
     
+    // Input validation
+    if (!chapterId || !lineNumber || lineNumber < 1) {
+      console.error('Invalid navigation parameters:', { chapterId, lineNumber });
+      return;
+    }
+
     try {
       const currentPath = window.location.pathname;
       const targetPath = `/project/${projectId}/write/${chapterId}`;
@@ -232,7 +281,7 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         // Wait for navigation and component mount, then scroll
         setTimeout(() => {
           scrollToLineEnhanced(lineNumber);
-        }, 800);
+        }, 1000); // Increased timeout for better reliability
       } else {
         console.log('Already on target chapter, scrolling to line:', lineNumber);
         scrollToLineEnhanced(lineNumber);
@@ -244,7 +293,7 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
 
   const scrollToLineEnhanced = useCallback((lineNumber: number) => {
     try {
-      console.log('Enhanced scroll to line:', lineNumber);
+      console.log('Enhanced scroll to line with validation:', lineNumber);
       
       // Find the textarea with more robust selectors
       const textareas = document.querySelectorAll('textarea');
@@ -252,7 +301,7 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
       
       // Try to find the main content textarea (usually the largest one)
       for (const ta of textareas) {
-        if (ta.value && ta.value.length > 100) { // Find textarea with substantial content
+        if (ta.value && ta.value.length > 50) { // Lower threshold for more flexibility
           textarea = ta;
           break;
         }
@@ -271,27 +320,31 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
       const lines = content.split('\n');
       
       if (lineNumber <= 0 || lineNumber > lines.length) {
-        console.warn('Invalid line number for content:', { lineNumber, totalLines: lines.length });
+        console.warn('Invalid line number for content:', { 
+          requestedLine: lineNumber, 
+          totalLines: lines.length,
+          hasContent: content.length > 0
+        });
         return;
       }
 
-      // Calculate character position
+      // Calculate character position with validation
       let charPosition = 0;
-      for (let i = 0; i < lineNumber - 1; i++) {
-        charPosition += lines[i].length + 1;
+      for (let i = 0; i < Math.min(lineNumber - 1, lines.length); i++) {
+        charPosition += lines[i].length + 1; // +1 for newline
       }
 
       // Focus and set cursor position
       textarea.focus();
       textarea.setSelectionRange(charPosition, charPosition);
 
-      // Enhanced scrolling calculation
+      // Enhanced scrolling calculation with error handling
       const computedStyle = getComputedStyle(textarea);
-      const lineHeight = parseFloat(computedStyle.lineHeight) || 24;
-      const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
+      const lineHeight = Math.max(parseFloat(computedStyle.lineHeight) || 24, 20);
+      const paddingTop = parseFloat(computedStyle.paddingTop) || 8;
       
       // Calculate scroll position to center the line
-      const targetScrollTop = (lineNumber - 1) * lineHeight;
+      const targetScrollTop = Math.max(0, (lineNumber - 1) * lineHeight);
       const textareaHeight = textarea.clientHeight;
       const centeredScrollTop = Math.max(0, targetScrollTop - (textareaHeight / 2) + paddingTop);
       
@@ -301,14 +354,24 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         behavior: 'smooth'
       });
       
-      // Add visual highlight effect
+      // Enhanced visual highlight effect
       const originalBorder = textarea.style.border;
-      textarea.style.border = '2px solid #3b82f6';
+      const originalBoxShadow = textarea.style.boxShadow;
+      
+      textarea.style.border = '3px solid #3b82f6';
+      textarea.style.boxShadow = '0 0 10px rgba(59, 130, 246, 0.3)';
+      
       setTimeout(() => {
         textarea.style.border = originalBorder;
-      }, 2000);
+        textarea.style.boxShadow = originalBoxShadow;
+      }, 2500);
       
-      console.log('Successfully scrolled to line:', lineNumber);
+      console.log('Successfully navigated to line with enhanced feedback:', {
+        lineNumber,
+        charPosition,
+        scrollTop: centeredScrollTop,
+        lineHeight
+      });
     } catch (error) {
       console.error('Error in enhanced scrollToLine:', error);
     }
