@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -16,7 +15,7 @@ export interface SimplePopup {
   createdAt: Date;
   messages: Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date }>;
   status: 'open' | 'closed';
-  textPosition?: number | null;
+  textPosition: number | null; // Made required (removed ?)
 }
 
 interface SimplePopupsContextProps {
@@ -75,7 +74,7 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
       createdAt: new Date(),
       messages: [],
       status: 'open',
-      textPosition: null
+      textPosition: selectedText ? 0 : null // Provide default value since now required
     };
 
     // Add initial message for comment type
@@ -165,7 +164,7 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     chapterId?: string, 
     selectedText?: string
   ) => {
-    console.log('Reopening popup:', id);
+    console.log('Reopening popup with enhanced data restoration:', id);
 
     const existingPopup = livePopups.find(popup => popup.id === id);
     if (existingPopup) {
@@ -180,6 +179,8 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         return;
       }
 
+      console.log('Loaded chat data for reopening:', dbChat);
+
       const safePosition = {
         x: Math.max(20, Math.min(position.x + 30, window.innerWidth - (type === 'comment' ? 370 : 470))),
         y: Math.max(20, Math.min(position.y + 30, window.innerHeight - (type === 'comment' ? 420 : 570)))
@@ -190,21 +191,27 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         type: dbChat.type,
         position: safePosition,
         projectId: dbChat.projectId,
-        chapterId: dbChat.chapterId,
+        chapterId: dbChat.chapterId, // Ensure chapterId is restored
         selectedText: dbChat.selectedText?.text,
-        lineNumber: dbChat.lineNumber,
+        lineNumber: dbChat.lineNumber, // Ensure lineNumber is restored
         isMinimized: false,
         createdAt: dbChat.createdAt,
         messages: dbChat.messages || [],
         status: 'open',
-        textPosition: dbChat.selectedText?.startOffset
+        textPosition: dbChat.selectedText?.startOffset || null // Ensure textPosition is restored
       };
+
+      console.log('Reopened popup with navigation data:', {
+        chapterId: reopenedPopup.chapterId,
+        lineNumber: reopenedPopup.lineNumber,
+        textPosition: reopenedPopup.textPosition
+      });
 
       setLivePopups(prevPopups => [...prevPopups, reopenedPopup]);
       setTimelineVersion(prev => prev + 1);
 
       await updateChatStatus(id, 'active');
-      console.log('Popup reopened successfully:', id);
+      console.log('Popup reopened successfully with full navigation data:', id);
     } catch (error) {
       console.error('Error reopening popup:', error);
     }

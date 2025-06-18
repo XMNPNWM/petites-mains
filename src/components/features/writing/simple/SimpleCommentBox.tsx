@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -11,8 +10,8 @@ interface Popup {
   id: string;
   type: string;
   projectId: string;
-  chapterId?: string; // Made optional to match SimplePopup
-  textPosition: number | null;
+  chapterId?: string; // Optional to match SimplePopup
+  textPosition: number | null; // Required to match SimplePopup
   selectedText: string | null;
   lineNumber: number | null;
   position: { x: number; y: number };
@@ -121,12 +120,15 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
   };
 
   const handleGoToLine = () => {
-    // Enhanced null checking for optional chapterId
+    // Enhanced null checking for both chapterId and lineNumber
     if (popup.chapterId && popup.lineNumber) {
       console.log('Going to line from comment:', { chapterId: popup.chapterId, lineNumber: popup.lineNumber });
       goToLine(popup.chapterId, popup.lineNumber);
     } else {
-      console.warn('Missing chapter ID or line number for navigation');
+      console.warn('Missing chapter ID or line number for navigation:', {
+        chapterId: popup.chapterId,
+        lineNumber: popup.lineNumber
+      });
     }
   };
 
@@ -193,8 +195,8 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
           <Button onClick={handleAddComment} className="w-full mb-2 bg-blue-600 hover:bg-blue-700" size="sm">
             Add Comment
           </Button>
-          {/* Enhanced null checking for Go to Line button */}
-          {popup.chapterId && popup.lineNumber !== null && (
+          {/* Enhanced checking: both chapterId AND lineNumber must exist */}
+          {popup.chapterId && popup.lineNumber !== null && popup.lineNumber !== undefined && (
             <Button onClick={handleGoToLine} className="w-full mb-2" variant="secondary" size="sm">
               <MapPin className="w-4 h-4 mr-1" />
               Go to Line {popup.lineNumber}
