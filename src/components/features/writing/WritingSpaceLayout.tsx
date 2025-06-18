@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
@@ -59,17 +58,20 @@ const WritingSpaceLayout = ({
     };
   }, [overlayHeight]);
 
+  // Enhanced minimization detection with smaller thresholds
   const areAllPanelsMinimized = useCallback(() => {
     const sizes = getCurrentPanelSizes();
-    const sidePanelsMinimized = sizes.worldbuilding <= 5 && sizes.chapterOrganizer <= 5;
-    const storylineMinimized = sizes.storyline <= 10;
+    const sidePanelsMinimized = sizes.worldbuilding <= 3 && sizes.chapterOrganizer <= 3; // Reduced from 5
+    const storylineMinimized = sizes.storyline <= 8; // Reduced from 10
     return sidePanelsMinimized && storylineMinimized;
   }, [getCurrentPanelSizes]);
 
+  // Enhanced focus toggle with better minimization support
   const handleFocusToggle = useCallback(() => {
     const panelsMinimized = areAllPanelsMinimized();
     
     if (panelsMinimized) {
+      // Restore to comfortable working sizes
       if (worldbuildingPanelRef.current) {
         worldbuildingPanelRef.current.resize(25);
       }
@@ -78,11 +80,12 @@ const WritingSpaceLayout = ({
       }
       setOverlayHeight(30);
     } else {
+      // Minimize to smaller sizes while keeping drag handles accessible
       if (worldbuildingPanelRef.current) {
-        worldbuildingPanelRef.current.resize(3);
+        worldbuildingPanelRef.current.resize(1.5); // Reduced from 3
       }
       if (chapterOrganizerPanelRef.current) {
-        chapterOrganizerPanelRef.current.resize(3);
+        chapterOrganizerPanelRef.current.resize(1.5); // Reduced from 3
       }
       setOverlayHeight(5);
     }
@@ -140,7 +143,7 @@ const WritingSpaceLayout = ({
           <ResizablePanel 
             ref={worldbuildingPanelRef}
             defaultSize={25} 
-            minSize={3}
+            minSize={1} // Reduced from 3 to allow better minimization
             maxSize={40}
             className="overflow-hidden"
           >
@@ -170,7 +173,7 @@ const WritingSpaceLayout = ({
           <ResizablePanel 
             ref={chapterOrganizerPanelRef}
             defaultSize={25} 
-            minSize={3}
+            minSize={1} // Reduced from 3 to allow better minimization
             maxSize={40}
             className="overflow-hidden"
           >

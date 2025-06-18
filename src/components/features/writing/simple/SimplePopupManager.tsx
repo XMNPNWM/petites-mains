@@ -9,13 +9,13 @@ export interface SimplePopup {
   position: { x: number; y: number };
   projectId: string;
   chapterId?: string;
-  selectedText?: string;
+  selectedText: string | null; // Changed from optional to required (can be null)
   lineNumber?: number;
   isMinimized: boolean;
   createdAt: Date;
   messages: Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date }>;
   status: 'open' | 'closed';
-  textPosition: number | null; // Made required (removed ?)
+  textPosition: number | null;
 }
 
 interface SimplePopupsContextProps {
@@ -68,13 +68,13 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
       position: safePosition,
       projectId,
       chapterId,
-      selectedText,
+      selectedText: selectedText || null, // Always provide a value (string or null)
       lineNumber,
       isMinimized: false,
       createdAt: new Date(),
       messages: [],
       status: 'open',
-      textPosition: selectedText ? 0 : null // Provide default value since now required
+      textPosition: selectedText ? 0 : null
     };
 
     // Add initial message for comment type
@@ -192,19 +192,20 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         position: safePosition,
         projectId: dbChat.projectId,
         chapterId: dbChat.chapterId, // Ensure chapterId is restored
-        selectedText: dbChat.selectedText?.text,
+        selectedText: dbChat.selectedText?.text || null, // Always provide a value (string or null)
         lineNumber: dbChat.lineNumber, // Ensure lineNumber is restored
         isMinimized: false,
         createdAt: dbChat.createdAt,
         messages: dbChat.messages || [],
         status: 'open',
-        textPosition: dbChat.selectedText?.startOffset || null // Ensure textPosition is restored
+        textPosition: dbChat.selectedText?.startOffset || null
       };
 
       console.log('Reopened popup with navigation data:', {
         chapterId: reopenedPopup.chapterId,
         lineNumber: reopenedPopup.lineNumber,
-        textPosition: reopenedPopup.textPosition
+        textPosition: reopenedPopup.textPosition,
+        selectedText: reopenedPopup.selectedText
       });
 
       setLivePopups(prevPopups => [...prevPopups, reopenedPopup]);

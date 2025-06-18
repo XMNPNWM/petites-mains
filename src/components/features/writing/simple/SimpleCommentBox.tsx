@@ -10,8 +10,8 @@ interface Popup {
   id: string;
   type: string;
   projectId: string;
-  chapterId?: string; // Optional to match SimplePopup
-  textPosition: number | null; // Required to match SimplePopup
+  chapterId?: string;
+  textPosition: number | null;
   selectedText: string | null;
   lineNumber: number | null;
   position: { x: number; y: number };
@@ -38,6 +38,17 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
   useEffect(() => {
     setMessages(popup.messages || []);
   }, [popup.messages]);
+
+  // Debug navigation data on popup changes
+  useEffect(() => {
+    console.log('SimpleCommentBox navigation debug:', {
+      popupId: popup.id,
+      chapterId: popup.chapterId,
+      lineNumber: popup.lineNumber,
+      selectedText: popup.selectedText,
+      shouldShowGoToLineButton: !!(popup.chapterId && popup.lineNumber !== null && popup.lineNumber !== undefined)
+    });
+  }, [popup.chapterId, popup.lineNumber, popup.selectedText]);
 
   // Enhanced dragging functionality with larger drag area
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -120,17 +131,47 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
   };
 
   const handleGoToLine = () => {
-    // Enhanced null checking for both chapterId and lineNumber
-    if (popup.chapterId && popup.lineNumber) {
-      console.log('Going to line from comment:', { chapterId: popup.chapterId, lineNumber: popup.lineNumber });
+    // Enhanced debugging and validation
+    console.log('Go to line clicked with data:', {
+      chapterId: popup.chapterId,
+      lineNumber: popup.lineNumber,
+      type: typeof popup.lineNumber,
+      isValidChapterId: !!popup.chapterId,
+      isValidLineNumber: popup.lineNumber !== null && popup.lineNumber !== undefined && popup.lineNumber > 0
+    });
+
+    if (popup.chapterId && popup.lineNumber !== null && popup.lineNumber !== undefined && popup.lineNumber > 0) {
+      console.log('Executing goToLine with validated data:', { chapterId: popup.chapterId, lineNumber: popup.lineNumber });
       goToLine(popup.chapterId, popup.lineNumber);
     } else {
-      console.warn('Missing chapter ID or line number for navigation:', {
+      console.warn('Cannot navigate - missing or invalid navigation data:', {
         chapterId: popup.chapterId,
-        lineNumber: popup.lineNumber
+        lineNumber: popup.lineNumber,
+        hasChapterId: !!popup.chapterId,
+        hasValidLineNumber: popup.lineNumber !== null && popup.lineNumber !== undefined && popup.lineNumber > 0
+      });
+      toast({
+        title: "Navigation Error",
+        description: "Cannot navigate to line - missing chapter or line information.",
+        variant: "destructive"
       });
     }
   };
+
+  // Enhanced button visibility logic with more robust checking
+  const shouldShowGoToLineButton = Boolean(
+    popup.chapterId && 
+    popup.lineNumber !== null && 
+    popup.lineNumber !== undefined && 
+    popup.lineNumber > 0
+  );
+
+  console.log('Button visibility check:', {
+    shouldShow: shouldShowGoToLineButton,
+    chapterId: popup.chapterId,
+    lineNumber: popup.lineNumber,
+    lineNumberType: typeof popup.lineNumber
+  });
 
   return (
     <div
@@ -195,12 +236,20 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
           <Button onClick={handleAddComment} className="w-full mb-2 bg-blue-600 hover:bg-blue-700" size="sm">
             Add Comment
           </Button>
-          {/* Enhanced checking: both chapterId AND lineNumber must exist */}
-          {popup.chapterId && popup.lineNumber !== null && popup.lineNumber !== undefined && (
+          
+          {/* Enhanced Go to Line button with better visibility logic */}
+          {shouldShowGoToLineButton && (
             <Button onClick={handleGoToLine} className="w-full mb-2" variant="secondary" size="sm">
               <MapPin className="w-4 h-4 mr-1" />
               Go to Line {popup.lineNumber}
             </Button>
+          )}
+          
+          {/* Debug info in development (remove in production) */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-50 rounded">
+              Debug: Chapter={popup.chapterId || 'none'}, Line={popup.lineNumber ?? 'none'}, Show={shouldShowGoToLineButton.toString()}
+            </div>
           )}
         </CardContent>
         <CardFooter className="flex justify-between p-4">
