@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
+
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Trash2, MapPin, GripVertical } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Trash2 } from 'lucide-react';
 import { useSimplePopups } from './SimplePopupManager';
 import { toast } from '@/hooks/use-toast';
+import { useDragBehavior } from './hooks/useDragBehavior';
+import CommentBoxHeader from './components/CommentBoxHeader';
+import CommentBoxContent from './components/CommentBoxContent';
 
 interface Popup {
   id: string;
@@ -30,69 +33,18 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
   const [comment, setComment] = useState('');
   const [messages, setMessages] = useState(popup.messages || []);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [navigationError, setNavigationError] = useState<string | null>(null);
   const { updatePopup, closePopup, deletePopup, goToLine } = useSimplePopups();
-  const dragRef = useRef<HTMLDivElement>(null);
+
+  const { handleMouseDown } = useDragBehavior({
+    popupId: popup.id,
+    initialPosition: popup.position,
+    onPositionUpdate: (id, position) => updatePopup(id, { position })
+  });
 
   useEffect(() => {
     setMessages(popup.messages || []);
   }, [popup.messages]);
-
-  // Debug navigation data on popup changes
-  useEffect(() => {
-    console.log('SimpleCommentBox navigation debug:', {
-      popupId: popup.id,
-      chapterId: popup.chapterId,
-      lineNumber: popup.lineNumber,
-      selectedText: popup.selectedText,
-      shouldShowGoToLineButton: !!(popup.chapterId && popup.lineNumber !== null && popup.lineNumber !== undefined)
-    });
-  }, [popup.chapterId, popup.lineNumber, popup.selectedText]);
-
-  // Enhanced dragging functionality with larger drag area
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Only allow dragging from the left portion of the header (grip + title area)
-    const target = e.target as HTMLElement;
-    const isActionButton = target.closest('button');
-    if (isActionButton) return; // Don't drag when clicking action buttons
-    
-    setIsDragging(true);
-    setDragOffset({
-      x: e.clientX - popup.position.x,
-      y: e.clientY - popup.position.y
-    });
-    document.body.style.userSelect = 'none';
-  };
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      
-      const newPosition = {
-        x: Math.max(0, Math.min(window.innerWidth - 320, e.clientX - dragOffset.x)),
-        y: Math.max(0, Math.min(window.innerHeight - 400, e.clientY - dragOffset.y))
-      };
-      
-      updatePopup(popup.id, { position: newPosition });
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-      document.body.style.userSelect = '';
-    };
-
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, dragOffset, popup.id, updatePopup]);
 
   const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setComment(e.target.value);
@@ -135,13 +87,13 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
     console.log('Go to line clicked with enhanced validation:', {
       chapterId: popup.chapterId,
       lineNumber: popup.lineNumber,
-      isValid: hasValidNavigationData
+      isValid: popup.chapterId && popup.lineNumber !== null && popup.lineNumber !== undefined && popup.lineNumber > 0
     });
 
     setNavigationError(null);
 
-    if (!hasValidNavigationData) {
-      const error = getNavigationStatusMessage() || "Navigation data not available";
+    if (!popup.chapterId || !popup.lineNumber || popup.lineNumber < 1) {
+      const error = "Navigation data not available";
       setNavigationError(error);
       console.warn('Navigation blocked:', error);
       toast({
@@ -176,31 +128,6 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
     }
   };
 
-  // Enhanced button visibility logic with comprehensive validation
-  const hasValidNavigationData = Boolean(
-    popup.chapterId && 
-    popup.lineNumber !== null && 
-    popup.lineNumber !== undefined && 
-    popup.lineNumber > 0
-  );
-
-  const getNavigationStatusMessage = (): string => {
-    if (!popup.chapterId) {
-      return "Comment created outside text editor";
-    }
-    if (!popup.lineNumber || popup.lineNumber < 1) {
-      return "No line information available";
-    }
-    return "";
-  };
-
-  console.log('Navigation status check:', {
-    shouldShow: hasValidNavigationData,
-    chapterId: popup.chapterId,
-    lineNumber: popup.lineNumber,
-    statusMessage: getNavigationStatusMessage()
-  });
-
   return (
     <div
       className="fixed z-50"
@@ -211,115 +138,26 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
       }}
     >
       <Card className="shadow-xl border-slate-300">
-        {/* Enhanced Header with clearer navigation status */}
-        <div 
-          className="bg-blue-50 border-b border-blue-200 p-3 cursor-move flex items-center gap-3 rounded-t-lg hover:bg-blue-100 transition-colors"
+        <CommentBoxHeader
+          popup={popup}
+          showDeleteConfirm={showDeleteConfirm}
           onMouseDown={handleMouseDown}
-        >
-          <GripVertical className="w-6 h-6 text-blue-600 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-sm text-blue-800">Comment</h3>
-            <div className="text-xs">
-              {hasValidNavigationData ? (
-                <span className="text-green-600">Line {popup.lineNumber} • Navigation ready</span>
-              ) : (
-                <span className="text-orange-600">{getNavigationStatusMessage()}</span>
-              )}
-            </div>
-          </div>
-          <div className="flex gap-1 flex-shrink-0">
-            <Button 
-              onClick={handleDelete} 
-              variant={showDeleteConfirm ? "destructive" : "ghost"} 
-              size="sm"
-              className="h-6 w-6 p-0"
-            >
-              <Trash2 className="w-3 h-3" />
-            </Button>
-            <Button onClick={handleClose} variant="ghost" size="sm" className="h-6 w-6 p-0">
-              ×
-            </Button>
-          </div>
-        </div>
+          onDelete={handleDelete}
+          onClose={handleClose}
+        />
 
-        <CardContent className="p-4">
-          {/* Enhanced selected text context display */}
-          {popup.selectedText && (
-            <div className="mb-3 p-2 bg-blue-50 border-l-4 border-blue-200 rounded text-sm">
-              <div className="text-blue-800 font-medium mb-1">
-                Selected text {popup.lineNumber ? `from line ${popup.lineNumber}` : '(no line info)'}:
-              </div>
-              <div className="text-blue-700 italic">"{popup.selectedText}"</div>
-            </div>
-          )}
-
-          {/* Show navigation status message if no valid data */}
-          {!hasValidNavigationData && (
-            <div className="mb-3 p-2 bg-orange-50 border-l-4 border-orange-200 rounded text-sm">
-              <div className="text-orange-800 font-medium">Navigation Status:</div>
-              <div className="text-orange-700">{getNavigationStatusMessage()}</div>
-            </div>
-          )}
-
-          {/* Show navigation error if any */}
-          {navigationError && (
-            <div className="mb-3 p-2 bg-red-50 border-l-4 border-red-200 rounded text-sm">
-              <div className="text-red-800 font-medium">Navigation Error:</div>
-              <div className="text-red-700">{navigationError}</div>
-            </div>
-          )}
-
-          <div className="mb-2">
-            {messages.map((msg, index) => (
-              <div key={index} className={`mb-2 p-2 rounded-md ${msg.role === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
-                <p className="text-sm">{msg.content}</p>
-              </div>
-            ))}
-          </div>
-          <Textarea
-            value={comment}
-            onChange={handleCommentChange}
-            placeholder="Add your comment..."
-            className="mb-2 resize-none text-sm"
-            rows={3}
+        <CardContent className="p-0">
+          <CommentBoxContent
+            popup={popup}
+            messages={messages}
+            comment={comment}
+            navigationError={navigationError}
+            onCommentChange={handleCommentChange}
+            onAddComment={handleAddComment}
+            onGoToLine={handleGoToLine}
           />
-          <Button onClick={handleAddComment} className="w-full mb-2 bg-blue-600 hover:bg-blue-700" size="sm">
-            Add Comment
-          </Button>
-          
-          {/* Enhanced Go to Line button with clear status indication */}
-          {hasValidNavigationData ? (
-            <Button 
-              onClick={handleGoToLine} 
-              className="w-full mb-2" 
-              variant="secondary" 
-              size="sm"
-              disabled={!!navigationError}
-            >
-              <MapPin className="w-4 h-4 mr-1" />
-              Go to Line {popup.lineNumber}
-            </Button>
-          ) : (
-            <Button 
-              className="w-full mb-2" 
-              variant="outline" 
-              size="sm"
-              disabled
-              title={getNavigationStatusMessage()}
-            >
-              <MapPin className="w-4 h-4 mr-1 opacity-50" />
-              Navigation Unavailable
-            </Button>
-          )}
-          
-          {/* Enhanced debug info for development */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-50 rounded">
-              Debug: Chapter={popup.chapterId || 'none'}, Line={popup.lineNumber ?? 'none'}, 
-              Valid={hasValidNavigationData.toString()}, Status="{getNavigationStatusMessage() || 'ready'}"
-            </div>
-          )}
         </CardContent>
+
         <CardFooter className="flex justify-between p-4">
           <Button 
             onClick={handleDelete} 

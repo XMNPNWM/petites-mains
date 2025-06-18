@@ -123,10 +123,18 @@ const WritingSpaceLayout = ({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  // Simple right-click menu handler for upper panels only
-  const handleUpperPanelMenuClick = (type: ChatType, position: { x: number; y: number }, selectedText?: string) => {
-    // Only create popups for upper panel right-clicks (not storyline area)
-    createPopup(type, position, projectId, currentChapter?.id, selectedText);
+  // FIXED: Now properly accepts and passes the lineNumber parameter
+  const handleUpperPanelMenuClick = (type: ChatType, position: { x: number; y: number }, selectedText?: string, lineNumber?: number) => {
+    console.log('Upper panel menu click with enhanced parameters:', {
+      type, 
+      position, 
+      selectedText, 
+      lineNumber,
+      currentChapterId: currentChapter?.id
+    });
+    
+    // Pass all parameters including lineNumber to createPopup
+    createPopup(type, position, projectId, currentChapter?.id, selectedText, lineNumber);
   };
 
   return (
@@ -194,7 +202,7 @@ const WritingSpaceLayout = ({
         className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-[1000] overflow-hidden"
         style={{ height: `${overlayHeight}%` }}
       >
-        {/* Drag Handle - RESTORED */}
+        {/* Drag Handle */}
         <div
           className="w-full h-6 bg-slate-100 border-b border-slate-300 cursor-ns-resize flex items-center justify-center hover:bg-slate-200 transition-colors"
           onMouseDown={handleMouseDown}
@@ -207,7 +215,6 @@ const WritingSpaceLayout = ({
         </div>
 
         <div className="h-[calc(100%-24px)] overflow-hidden">
-          {/* StorylinePanel has its own context menu system - no SimpleRightClickMenu wrapper */}
           <StorylinePanel 
             projectId={projectId}
             chapterId={currentChapter?.id}
