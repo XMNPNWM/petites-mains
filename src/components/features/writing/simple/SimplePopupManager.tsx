@@ -9,8 +9,8 @@ export interface SimplePopup {
   position: { x: number; y: number };
   projectId: string;
   chapterId?: string;
-  selectedText: string | null; // Changed from optional to required (can be null)
-  lineNumber?: number;
+  selectedText: string | null; // Required to match Popup interface
+  lineNumber: number | null; // Made required to match Popup interface
   isMinimized: boolean;
   createdAt: Date;
   messages: Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date }>;
@@ -69,7 +69,7 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
       projectId,
       chapterId,
       selectedText: selectedText || null, // Always provide a value (string or null)
-      lineNumber,
+      lineNumber: lineNumber || null, // Always provide a value (number or null)
       isMinimized: false,
       createdAt: new Date(),
       messages: [],
@@ -193,7 +193,7 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         projectId: dbChat.projectId,
         chapterId: dbChat.chapterId, // Ensure chapterId is restored
         selectedText: dbChat.selectedText?.text || null, // Always provide a value (string or null)
-        lineNumber: dbChat.lineNumber, // Ensure lineNumber is restored
+        lineNumber: dbChat.lineNumber || null, // Always provide a value (number or null)
         isMinimized: false,
         createdAt: dbChat.createdAt,
         messages: dbChat.messages || [],
