@@ -66,6 +66,8 @@ const SubscriptionPage = () => {
         'Up to 5 projects',
         'Unlimited words',
         'Unlimited worldbuilding elements',
+        '50 AI credits per month',
+        'AI writing assistant',
         'Advanced writing tools',
         'Export features',
         'Priority support'
@@ -73,7 +75,8 @@ const SubscriptionPage = () => {
       limits: {
         projects: 5,
         words: -1, // unlimited
-        worldbuilding: -1 // unlimited
+        worldbuilding: -1, // unlimited
+        aiCredits: 50
       },
       buttonText: 'Upgrade to Une Main',
       buttonVariant: 'default' as const,
