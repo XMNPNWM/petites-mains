@@ -142,24 +142,22 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
     setChapters(updatedChapters);
 
     try {
-      // Batch update all chapters with new order indices in a single transaction
-      const updates = updatedChapters.map(chapter => ({
-        id: chapter.id,
-        order_index: chapter.order_index
-      }));
+      // Batch update all chapters with new order indices using individual updates
+      // We need to update each chapter individually since we're only changing order_index
+      const updatePromises = updatedChapters.map(chapter => 
+        supabase
+          .from('chapters')
+          .update({ order_index: chapter.order_index })
+          .eq('id', chapter.id)
+      );
 
-      // Use upsert for efficient batch update
-      const { error } = await supabase
-        .from('chapters')
-        .upsert(updates.map(update => ({
-          id: update.id,
-          order_index: update.order_index,
-          project_id: projectId // Required for upsert
-        })), {
-          onConflict: 'id'
-        });
-
-      if (error) throw error;
+      const results = await Promise.all(updatePromises);
+      
+      // Check if any update failed
+      const hasError = results.some(result => result.error);
+      if (hasError) {
+        throw new Error('One or more chapter updates failed');
+      }
 
       toast({
         title: "Chapter moved",
