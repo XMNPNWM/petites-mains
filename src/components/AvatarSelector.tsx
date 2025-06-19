@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Upload, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,17 +11,17 @@ interface AvatarSelectorProps {
   onAvatarChange: (avatarUrl: string) => void;
 }
 
-// Use local preset avatars from public folder
+// Use the uploaded avatar images
 const PRESET_AVATARS = [
-  '/avatars/avatar-1.png',
-  '/avatars/avatar-2.png',
-  '/avatars/avatar-3.png',
-  '/avatars/avatar-4.png',
-  '/avatars/avatar-5.png',
-  '/avatars/avatar-6.png',
-  '/avatars/avatar-7.png',
-  '/avatars/avatar-8.png',
-  '/avatars/avatar-9.png'
+  '/lovable-uploads/60ed14a9-3582-40db-8f8a-20371f69c1c7.png',
+  '/lovable-uploads/66babe0b-5e00-44b6-99ea-20b5468249ae.png',
+  '/lovable-uploads/1feef14f-74fc-4afa-bbd0-823963038275.png',
+  '/lovable-uploads/a8b1fa26-68b6-4cac-8bcd-75358539efb8.png',
+  '/lovable-uploads/b0152cd2-35dc-4e50-9dcf-90178ef7d6ac.png',
+  '/lovable-uploads/443afe62-dff1-4fac-a1ab-729b10cf83b2.png',
+  '/lovable-uploads/64e0079d-5b27-4e53-a89e-5277e0631461.png',
+  '/lovable-uploads/cf3e8cf1-5290-4a49-a0fc-5775a1af53ba.png',
+  '/lovable-uploads/df3b7f6f-af9e-4443-9437-0431eb6c8914.png'
 ];
 
 const AvatarSelector: React.FC<AvatarSelectorProps> = ({ currentAvatarUrl, onAvatarChange }) => {
