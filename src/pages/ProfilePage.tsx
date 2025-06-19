@@ -7,9 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import AvatarSelector from '@/components/AvatarSelector';
 
 interface Profile {
   id: string;
@@ -26,6 +28,8 @@ const ProfilePage = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [fullName, setFullName] = useState('');
   const [bio, setBio] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [showAvatarSelector, setShowAvatarSelector] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -46,6 +50,7 @@ const ProfilePage = () => {
       setProfile(data);
       setFullName(data.full_name || '');
       setBio(data.bio || '');
+      setAvatarUrl(data.avatar_url);
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
@@ -62,6 +67,7 @@ const ProfilePage = () => {
           id: user?.id,
           full_name: fullName,
           bio: bio,
+          avatar_url: avatarUrl,
           updated_at: new Date().toISOString(),
         });
 
@@ -71,6 +77,10 @@ const ProfilePage = () => {
         title: "Profile updated",
         description: "Your profile has been updated successfully.",
       });
+
+      // Update local profile state
+      setProfile(prev => prev ? { ...prev, full_name: fullName, bio, avatar_url: avatarUrl } : null);
+      setShowAvatarSelector(false);
     } catch (error: any) {
       toast({
         title: "Error updating profile",
@@ -80,6 +90,10 @@ const ProfilePage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAvatarChange = (newAvatarUrl: string) => {
+    setAvatarUrl(newAvatarUrl);
   };
 
   return (
@@ -108,8 +122,21 @@ const ProfilePage = () => {
           <div className="lg:col-span-1">
             <Card>
               <CardHeader className="text-center">
-                <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full mx-auto flex items-center justify-center">
-                  <User className="w-10 h-10 text-white" />
+                <div className="relative mx-auto">
+                  <Avatar className="w-20 h-20 mx-auto">
+                    <AvatarImage src={avatarUrl || undefined} alt="Profile picture" />
+                    <AvatarFallback className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
+                      <User className="w-10 h-10" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAvatarSelector(!showAvatarSelector)}
+                    className="mt-2"
+                  >
+                    Change Avatar
+                  </Button>
                 </div>
                 <CardTitle>{profile?.full_name || 'Anonymous User'}</CardTitle>
               </CardHeader>
@@ -122,59 +149,87 @@ const ProfilePage = () => {
           </div>
 
           <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Edit3 className="w-5 h-5 mr-2" />
-                  Edit Profile
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={updateProfile} className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
-                    <Input
-                      id="fullName"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Enter your full name"
-                    />
+            {showAvatarSelector ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Select Avatar</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <AvatarSelector
+                    currentAvatarUrl={avatarUrl}
+                    onAvatarChange={handleAvatarChange}
+                  />
+                  <div className="flex gap-2 mt-6">
+                    <Button
+                      onClick={() => setShowAvatarSelector(false)}
+                      variant="outline"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => setShowAvatarSelector(false)}
+                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                    >
+                      Save Selection
+                    </Button>
                   </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Edit3 className="w-5 h-5 mr-2" />
+                    Edit Profile
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={updateProfile} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="fullName">Full Name</Label>
+                      <Input
+                        id="fullName"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="Enter your full name"
+                      />
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      value={user?.email || ''}
-                      disabled
-                      className="bg-slate-50"
-                    />
-                    <p className="text-xs text-slate-500">
-                      Email cannot be changed. Contact support if needed.
-                    </p>
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        value={user?.email || ''}
+                        disabled
+                        className="bg-slate-50"
+                      />
+                      <p className="text-xs text-slate-500">
+                        Email cannot be changed. Contact support if needed.
+                      </p>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="bio">Bio</Label>
-                    <Textarea
-                      id="bio"
-                      value={bio}
-                      onChange={(e) => setBio(e.target.value)}
-                      placeholder="Tell us about yourself..."
-                      rows={4}
-                    />
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="bio">Bio</Label>
+                      <Textarea
+                        id="bio"
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        placeholder="Tell us about yourself..."
+                        rows={4}
+                      />
+                    </div>
 
-                  <Button
-                    type="submit"
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                    disabled={loading}
-                  >
-                    {loading ? 'Updating...' : 'Update Profile'}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
+                    <Button
+                      type="submit"
+                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                      disabled={loading}
+                    >
+                      {loading ? 'Updating...' : 'Update Profile'}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
