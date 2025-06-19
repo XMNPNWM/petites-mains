@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +28,8 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState('');
-  const [isReordering, setIsReordering] = useState<string | null>(null);
+  const [isReordering, setIsReordering] = useState(false);
+  const [movingChapterId, setMovingChapterId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -119,39 +121,67 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
     if (targetIndex < 0 || targetIndex >= chapters.length) return;
 
-    setIsReordering(chapterId);
+    // Prevent multiple simultaneous operations
+    if (isReordering) return;
+
+    setIsReordering(true);
+    setMovingChapterId(chapterId);
+
+    // Optimistic UI update - immediately show the new order
+    const newChapters = [...chapters];
+    const [movedChapter] = newChapters.splice(currentIndex, 1);
+    newChapters.splice(targetIndex, 0, movedChapter);
+    
+    // Update order indices sequentially
+    const updatedChapters = newChapters.map((chapter, index) => ({
+      ...chapter,
+      order_index: index + 1
+    }));
+    
+    // Update local state immediately for fluid UI
+    setChapters(updatedChapters);
 
     try {
-      const currentChapter = chapters[currentIndex];
-      const targetChapter = chapters[targetIndex];
+      // Batch update all chapters with new order indices in a single transaction
+      const updates = updatedChapters.map(chapter => ({
+        id: chapter.id,
+        order_index: chapter.order_index
+      }));
 
-      // Swap order_index values
-      const { error: error1 } = await supabase
+      // Use upsert for efficient batch update
+      const { error } = await supabase
         .from('chapters')
-        .update({ order_index: targetChapter.order_index })
-        .eq('id', currentChapter.id);
+        .upsert(updates.map(update => ({
+          id: update.id,
+          order_index: update.order_index,
+          project_id: projectId // Required for upsert
+        })), {
+          onConflict: 'id'
+        });
 
-      const { error: error2 } = await supabase
-        .from('chapters')
-        .update({ order_index: currentChapter.order_index })
-        .eq('id', targetChapter.id);
+      if (error) throw error;
 
-      if (error1 || error2) throw error1 || error2;
-
-      fetchChapters();
       toast({
         title: "Chapter moved",
-        description: `Chapter "${currentChapter.title}" moved ${direction}.`,
+        description: `Chapter "${movedChapter.title}" moved ${direction}.`,
       });
+
+      // Trigger parent callback for any dependent updates
+      onChaptersChange?.();
     } catch (error) {
       console.error('Error moving chapter:', error);
+      
+      // Revert optimistic update on error
+      fetchChapters();
+      
       toast({
         title: "Error",
         description: "Failed to move chapter. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsReordering(null);
+      setIsReordering(false);
+      setMovingChapterId(null);
     }
   };
 
@@ -210,6 +240,7 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
             size="sm" 
             onClick={(e) => handleButtonClick(e, () => setShowForm(true))}
             className="bg-gradient-to-r from-purple-600 to-blue-600"
+            disabled={isReordering}
           >
             <Plus className="w-4 h-4" />
           </Button>
@@ -225,9 +256,10 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
               onChange={(e) => setNewChapterTitle(e.target.value)}
               placeholder="Chapter title..."
               autoFocus
+              disabled={isReordering}
             />
             <div className="flex items-center space-x-2">
-              <Button type="submit" size="sm">Create</Button>
+              <Button type="submit" size="sm" disabled={isReordering}>Create</Button>
               <Button 
                 type="button" 
                 variant="outline" 
@@ -236,6 +268,7 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
                   setShowForm(false);
                   setNewChapterTitle('');
                 }}
+                disabled={isReordering}
               >
                 Cancel
               </Button>
@@ -253,15 +286,20 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
               currentChapter?.id === chapter.id 
                 ? 'ring-2 ring-purple-500 bg-purple-50' 
                 : ''
-            }`}
+            } ${movingChapterId === chapter.id ? 'opacity-75' : ''}`}
             onClick={(e) => handleChapterCardClick(e, chapter)}
           >
             <CardContent className="p-3">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-slate-900 text-sm line-clamp-1 mb-2">
-                    {chapter.title}
-                  </h3>
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="font-medium text-slate-900 text-sm line-clamp-1 flex-1">
+                      {chapter.title}
+                    </h3>
+                    {movingChapterId === chapter.id && (
+                      <Loader2 className="w-3 h-3 animate-spin text-purple-600" />
+                    )}
+                  </div>
                   
                   <div className="flex items-center justify-between mb-2">
                     <ChapterStatusSelector
@@ -283,7 +321,7 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
                     variant="ghost" 
                     className="h-6 w-6"
                     onClick={(e) => handleButtonClick(e, () => moveChapter(chapter.id, 'up'))}
-                    disabled={index === 0 || isReordering === chapter.id}
+                    disabled={index === 0 || isReordering}
                   >
                     <ChevronUp className="w-3 h-3" />
                   </Button>
@@ -292,7 +330,7 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
                     variant="ghost" 
                     className="h-6 w-6"
                     onClick={(e) => handleButtonClick(e, () => moveChapter(chapter.id, 'down'))}
-                    disabled={index === chapters.length - 1 || isReordering === chapter.id}
+                    disabled={index === chapters.length - 1 || isReordering}
                   >
                     <ChevronDown className="w-3 h-3" />
                   </Button>
@@ -302,6 +340,7 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
                   variant="ghost" 
                   className="h-6 w-6"
                   onClick={(e) => handleButtonClick(e, () => deleteChapter(chapter.id))}
+                  disabled={isReordering}
                 >
                   <Trash2 className="w-3 h-3" />
                 </Button>
@@ -316,6 +355,7 @@ const ChapterOrganizerPanel = ({ projectId, currentChapter, onChapterSelect, onC
             <Button 
               variant="outline" 
               onClick={() => setShowForm(true)}
+              disabled={isReordering}
             >
               Create First Chapter
             </Button>
