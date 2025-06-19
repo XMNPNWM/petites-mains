@@ -1,234 +1,72 @@
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Edit3 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import AvatarSelector from '@/components/AvatarSelector';
-
-interface Profile {
-  id: string;
-  full_name: string | null;
-  bio: string | null;
-  avatar_url: string | null;
-}
+import React, { useState } from 'react';
+import ProfileHeader from '@/components/profile/ProfileHeader';
+import ProfileSidebar from '@/components/profile/ProfileSidebar';
+import ProfileForm from '@/components/profile/ProfileForm';
+import AvatarSection from '@/components/profile/AvatarSection';
+import { useProfile } from '@/hooks/useProfile';
 
 const ProfilePage = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [fullName, setFullName] = useState('');
-  const [bio, setBio] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const {
+    profile,
+    fullName,
+    bio,
+    avatarUrl,
+    loading,
+    setFullName,
+    setBio,
+    setAvatarUrl,
+    updateProfile
+  } = useProfile();
+  
   const [showAvatarSelector, setShowAvatarSelector] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchProfile();
-    }
-  }, [user]);
-
-  const fetchProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .single();
-
-      if (error) throw error;
-      
-      setProfile(data);
-      setFullName(data.full_name || '');
-      setBio(data.bio || '');
-      setAvatarUrl(data.avatar_url);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    }
-  };
-
-  const updateProfile = async (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user?.id,
-          full_name: fullName,
-          bio: bio,
-          avatar_url: avatarUrl,
-          updated_at: new Date().toISOString(),
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully.",
-      });
-
-      // Update local profile state
-      setProfile(prev => prev ? { ...prev, full_name: fullName, bio, avatar_url: avatarUrl } : null);
-      setShowAvatarSelector(false);
-    } catch (error: any) {
-      toast({
-        title: "Error updating profile",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    await updateProfile();
   };
 
   const handleAvatarChange = (newAvatarUrl: string) => {
     setAvatarUrl(newAvatarUrl);
   };
 
+  const handleAvatarSave = () => {
+    setShowAvatarSelector(false);
+  };
+
+  const handleAvatarCancel = () => {
+    setShowAvatarSelector(false);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-4xl mx-auto px-6 py-6">
-          <div className="flex items-center space-x-4">
-            <Button 
-              variant="ghost" 
-              onClick={() => navigate('/')}
-              className="flex items-center"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Profile Settings</h1>
-              <p className="text-slate-600">Manage your account information</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ProfileHeader />
 
       <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader className="text-center">
-                <div className="relative mx-auto">
-                  <Avatar className="w-20 h-20 mx-auto">
-                    <AvatarImage src={avatarUrl || undefined} alt="Profile picture" />
-                    <AvatarFallback className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
-                      <User className="w-10 h-10" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowAvatarSelector(!showAvatarSelector)}
-                    className="mt-2"
-                  >
-                    Change Avatar
-                  </Button>
-                </div>
-                <CardTitle>{profile?.full_name || 'Anonymous User'}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-slate-600 text-center">
-                  {profile?.bio || 'No bio provided'}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          <ProfileSidebar
+            profile={profile}
+            avatarUrl={avatarUrl}
+            onChangeAvatar={() => setShowAvatarSelector(!showAvatarSelector)}
+          />
 
           <div className="lg:col-span-2">
             {showAvatarSelector ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Select Avatar</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <AvatarSelector
-                    currentAvatarUrl={avatarUrl}
-                    onAvatarChange={handleAvatarChange}
-                  />
-                  <div className="flex gap-2 mt-6">
-                    <Button
-                      onClick={() => setShowAvatarSelector(false)}
-                      variant="outline"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={() => setShowAvatarSelector(false)}
-                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                    >
-                      Save Selection
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <AvatarSection
+                avatarUrl={avatarUrl}
+                onAvatarChange={handleAvatarChange}
+                onCancel={handleAvatarCancel}
+                onSave={handleAvatarSave}
+              />
             ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Edit3 className="w-5 h-5 mr-2" />
-                    Edit Profile
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={updateProfile} className="space-y-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName">Full Name</Label>
-                      <Input
-                        id="fullName"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Enter your full name"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        value={user?.email || ''}
-                        disabled
-                        className="bg-slate-50"
-                      />
-                      <p className="text-xs text-slate-500">
-                        Email cannot be changed. Contact support if needed.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="bio">Bio</Label>
-                      <Textarea
-                        id="bio"
-                        value={bio}
-                        onChange={(e) => setBio(e.target.value)}
-                        placeholder="Tell us about yourself..."
-                        rows={4}
-                      />
-                    </div>
-
-                    <Button
-                      type="submit"
-                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                      disabled={loading}
-                    >
-                      {loading ? 'Updating...' : 'Update Profile'}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
+              <ProfileForm
+                fullName={fullName}
+                bio={bio}
+                loading={loading}
+                onFullNameChange={setFullName}
+                onBioChange={setBio}
+                onSubmit={handleUpdateProfile}
+              />
             )}
           </div>
         </div>
