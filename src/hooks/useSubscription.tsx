@@ -24,6 +24,11 @@ export const useSubscription = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Admin bypass check
+  const isAdmin = useCallback(() => {
+    return user?.email === 'xmnp306@tutanota.com';
+  }, [user]);
+
   const checkSubscription = useCallback(async () => {
     if (!user) return;
     
@@ -115,6 +120,7 @@ export const useSubscription = () => {
   }, [user, authLoading, checkSubscription, fetchUsageData]);
 
   const canCreateProject = useCallback(() => {
+    if (isAdmin()) return true;
     if (!subscriptionData || !usageData) return false;
     
     const tier = subscriptionData.subscription_tier || 'plume';
@@ -130,16 +136,17 @@ export const useSubscription = () => {
       default:
         return false;
     }
-  }, [subscriptionData, usageData]);
+  }, [subscriptionData, usageData, isAdmin]);
 
   const canAddWorldbuildingElement = useCallback(() => {
+    if (isAdmin()) return true;
     if (!subscriptionData || !usageData) return false;
     
     const tier = subscriptionData.subscription_tier || 'plume';
     
     switch (tier) {
       case 'plume':
-        return usageData.worldbuilding_elements_count < 20;
+        return usageData.worldbuilding_elements_count < 40;
       case 'une_main':
       case 'deux_mains':
       case 'enterprise':
@@ -147,16 +154,17 @@ export const useSubscription = () => {
       default:
         return false;
     }
-  }, [subscriptionData, usageData]);
+  }, [subscriptionData, usageData, isAdmin]);
 
   const canWriteMoreWords = useCallback((currentWordCount: number) => {
+    if (isAdmin()) return true;
     if (!subscriptionData) return false;
     
     const tier = subscriptionData.subscription_tier || 'plume';
     
     switch (tier) {
       case 'plume':
-        return currentWordCount < 2000;
+        return currentWordCount < 10000;
       case 'une_main':
       case 'deux_mains':
       case 'enterprise':
@@ -164,21 +172,26 @@ export const useSubscription = () => {
       default:
         return false;
     }
-  }, [subscriptionData]);
+  }, [subscriptionData, isAdmin]);
 
   const hasAICredits = useCallback(() => {
+    if (isAdmin()) return true;
     if (!subscriptionData || !usageData) return false;
     
     const tier = subscriptionData.subscription_tier || 'plume';
     
     switch (tier) {
+      case 'plume':
+        return false; // No AI credits for Plume
+      case 'une_main':
+        return usageData.ai_credits_used < 50;
       case 'deux_mains':
       case 'enterprise':
         return usageData.ai_credits_used < usageData.ai_credits_limit;
       default:
         return false;
     }
-  }, [subscriptionData, usageData]);
+  }, [subscriptionData, usageData, isAdmin]);
 
   return {
     subscriptionData,
@@ -190,6 +203,7 @@ export const useSubscription = () => {
     canCreateProject,
     canAddWorldbuildingElement,
     canWriteMoreWords,
-    hasAICredits
+    hasAICredits,
+    isAdmin: isAdmin()
   };
 };

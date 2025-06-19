@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Star, Loader2 } from 'lucide-react';
@@ -41,16 +40,15 @@ const SubscriptionPage = () => {
       description: 'Perfect for getting started',
       features: [
         'Up to 1 project',
-        'Up to 2,000 words',
-        'Up to 20 worldbuilding elements',
-        'Basic writing tools',
-        'Character management',
-        'Community support'
+        'Up to 10,000 words',
+        'Up to 40 worldbuilding elements',
+        'Advanced writing tools',
+        'Character management'
       ],
       limits: {
         projects: 1,
-        words: 2000,
-        worldbuilding: 20
+        words: 10000,
+        worldbuilding: 40
       },
       buttonText: 'Current Plan',
       buttonVariant: 'secondary' as const,
@@ -67,10 +65,8 @@ const SubscriptionPage = () => {
         'Unlimited words',
         'Unlimited worldbuilding elements',
         '50 AI credits per month',
-        'AI writing assistant',
         'Advanced writing tools',
-        'Export features',
-        'Priority support'
+        'Export features'
       ],
       limits: {
         projects: 5,
@@ -94,10 +90,8 @@ const SubscriptionPage = () => {
         'Unlimited words',
         'Unlimited worldbuilding elements',
         '100 AI credits per month',
-        'AI writing assistant',
-        'Advanced analytics',
-        'Collaboration features',
-        'Priority support'
+        'Advanced writing tools',
+        'Advanced analytics'
       ],
       limits: {
         projects: -1, // unlimited
@@ -118,11 +112,7 @@ const SubscriptionPage = () => {
       features: [
         'Everything in Deux Mains',
         'Custom AI credit limits',
-        'Team collaboration',
-        'Advanced permissions',
-        'Custom integrations',
-        'Dedicated support',
-        'Custom training'
+        'Team collaboration'
       ],
       buttonText: 'Contact Sales',
       buttonVariant: 'outline' as const,
