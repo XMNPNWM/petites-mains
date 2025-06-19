@@ -12,16 +12,17 @@ interface AvatarSelectorProps {
   onAvatarChange: (avatarUrl: string) => void;
 }
 
+// Use Supabase storage URLs for preset avatars
 const PRESET_AVATARS = [
-  '/avatars/avatar-1.png',
-  '/avatars/avatar-2.png',
-  '/avatars/avatar-3.png',
-  '/avatars/avatar-4.png',
-  '/avatars/avatar-5.png',
-  '/avatars/avatar-6.png',
-  '/avatars/avatar-7.png',
-  '/avatars/avatar-8.png',
-  '/avatars/avatar-9.png'
+  `${supabase.storage.from('avatars').getPublicUrl('preset/avatar-1.png').data.publicUrl}`,
+  `${supabase.storage.from('avatars').getPublicUrl('preset/avatar-2.png').data.publicUrl}`,
+  `${supabase.storage.from('avatars').getPublicUrl('preset/avatar-3.png').data.publicUrl}`,
+  `${supabase.storage.from('avatars').getPublicUrl('preset/avatar-4.png').data.publicUrl}`,
+  `${supabase.storage.from('avatars').getPublicUrl('preset/avatar-5.png').data.publicUrl}`,
+  `${supabase.storage.from('avatars').getPublicUrl('preset/avatar-6.png').data.publicUrl}`,
+  `${supabase.storage.from('avatars').getPublicUrl('preset/avatar-7.png').data.publicUrl}`,
+  `${supabase.storage.from('avatars').getPublicUrl('preset/avatar-8.png').data.publicUrl}`,
+  `${supabase.storage.from('avatars').getPublicUrl('preset/avatar-9.png').data.publicUrl}`
 ];
 
 const AvatarSelector: React.FC<AvatarSelectorProps> = ({ currentAvatarUrl, onAvatarChange }) => {
@@ -116,7 +117,11 @@ const AvatarSelector: React.FC<AvatarSelectorProps> = ({ currentAvatarUrl, onAva
                 }`}
               >
                 <Avatar className="w-full h-full">
-                  <AvatarImage src={avatarUrl} alt={`Avatar ${index + 1}`} />
+                  <AvatarImage 
+                    src={avatarUrl} 
+                    alt={`Avatar ${index + 1}`}
+                    className="object-cover"
+                  />
                   <AvatarFallback>{index + 1}</AvatarFallback>
                 </Avatar>
                 {selectedAvatar === avatarUrl && (
