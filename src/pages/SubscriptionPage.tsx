@@ -8,6 +8,7 @@ import SubscriptionHeader from '@/components/features/subscription/SubscriptionH
 import ManageSubscriptionButton from '@/components/features/subscription/ManageSubscriptionButton';
 import SubscriptionPlans from '@/components/features/subscription/SubscriptionPlans';
 import ContactSalesCard from '@/components/features/subscription/ContactSalesCard';
+import AICreditBooster from '@/components/features/subscription/AICreditBooster';
 
 interface SubscriptionData {
   subscribed: boolean;
@@ -103,6 +104,8 @@ const SubscriptionPage = () => {
         <ManageSubscriptionButton subscribed={subscriptionData?.subscribed || false} />
 
         <SubscriptionPlans subscriptionData={subscriptionData} usageData={usageData} />
+
+        <AICreditBooster />
 
         <ContactSalesCard />
       </div>

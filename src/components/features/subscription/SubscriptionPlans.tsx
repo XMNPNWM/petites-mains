@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Check, Star, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,6 +28,16 @@ interface SubscriptionPlansProps {
 const SubscriptionPlans = ({ subscriptionData, usageData }: SubscriptionPlansProps) => {
   const { toast } = useToast();
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+
+  const handleContactSales = () => {
+    // Create a hidden mailto link to avoid exposing email in UI
+    const email = 'xmnp306@tutanota.com';
+    const subject = 'Enterprise Plan Inquiry';
+    const body = 'Hello,\n\nI am interested in learning more about the Enterprise plan.\n\nPlease let me know the best time to connect.\n\nThank you!';
+    
+    const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoLink;
+  };
 
   const plans = [
     {
@@ -111,7 +120,7 @@ const SubscriptionPlans = ({ subscriptionData, usageData }: SubscriptionPlansPro
       features: [
         'Everything in Deux Mains',
         'Custom AI credit limits',
-        'Team collaboration'
+        'Priority support'
       ],
       buttonText: 'Contact Sales',
       buttonVariant: 'outline' as const,
@@ -227,7 +236,7 @@ const SubscriptionPlans = ({ subscriptionData, usageData }: SubscriptionPlansPro
                 disabled={isCurrent || checkoutLoading === plan.id}
                 onClick={() => {
                   if (plan.isEnterprise) {
-                    window.location.href = 'mailto:contact@example.com';
+                    handleContactSales();
                   } else if (!plan.isFree && !isCurrent) {
                     handleCheckout(plan.priceId!, plan.id);
                   }

@@ -12,7 +12,7 @@ interface UpgradePromptProps {
   current?: number;
 }
 
-const UpgradePrompt = ({ type, currentTier, limit, current }: UpgradePromptProps) => {
+const UpgradePrompt = ({ type, currentTier, limit }: UpgradePromptProps) => {
   const navigate = useNavigate();
 
   const getPromptContent = () => {
@@ -93,7 +93,7 @@ const UpgradePrompt = ({ type, currentTier, limit, current }: UpgradePromptProps
           </Button>
           {type === 'ai-credits' && currentTier !== 'plume' && (
             <Button 
-              onClick={() => navigate('/subscription?tab=booster')}
+              onClick={() => navigate('/subscription')}
               variant="outline"
               className="border-orange-600 text-orange-600 hover:bg-orange-50"
             >
