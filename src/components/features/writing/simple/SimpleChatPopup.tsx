@@ -4,7 +4,8 @@ import { X, Send, Minus, MessageSquare, MessageCircle, ArrowLeft, Trash2, Brain,
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { SimplePopup, useSimplePopups } from './SimplePopupManager';
+import { SimplePopup } from './types/popupTypes';
+import { useSimplePopups } from './SimplePopupManager';
 import { AIService } from '@/services/AIService';
 
 interface SimpleChatPopupProps {
