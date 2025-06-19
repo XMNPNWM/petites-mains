@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import WorldbuildingPanel from './WorldbuildingPanel';
@@ -38,6 +39,7 @@ const WritingSpaceLayout = ({
   const [overlayHeight, setOverlayHeight] = useState(30);
   const [isDragging, setIsDragging] = useState(false);
   const [worldbuildingRefreshTrigger, setWorldbuildingRefreshTrigger] = useState(0);
+  const [isWorldbuildingMinimized, setIsWorldbuildingMinimized] = useState(false);
   const { createPopup } = useSimplePopups();
 
   const worldbuildingPanelRef = useRef<any>(null);
@@ -90,6 +92,11 @@ const WritingSpaceLayout = ({
       setOverlayHeight(5);
     }
   }, [areAllPanelsMinimized]);
+
+  // Handler for worldbuilding panel resize
+  const handleWorldbuildingResize = useCallback((size: number) => {
+    setIsWorldbuildingMinimized(size <= 5); // Consider minimized when 5% or less
+  }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -154,11 +161,13 @@ const WritingSpaceLayout = ({
             minSize={1} // Reduced from 3 to allow better minimization
             maxSize={40}
             className="overflow-hidden"
+            onResize={handleWorldbuildingResize}
           >
             <SimpleRightClickMenu onMenuClick={handleUpperPanelMenuClick}>
               <WorldbuildingPanel 
                 projectId={projectId} 
                 refreshTrigger={worldbuildingRefreshTrigger}
+                isMinimized={isWorldbuildingMinimized}
               />
             </SimpleRightClickMenu>
           </ResizablePanel>
