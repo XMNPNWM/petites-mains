@@ -20,6 +20,7 @@ interface WorldElement {
 interface WorldbuildingPanelProps {
   projectId: string;
   refreshTrigger?: number;
+  isMinimized?: boolean; // Add prop to detect minimized state
 }
 
 const CATEGORIES = [
@@ -34,7 +35,7 @@ const CATEGORIES = [
   { value: 'artifact', label: 'Artifacts' }
 ];
 
-const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelProps) => {
+const WorldbuildingPanel = ({ projectId, refreshTrigger, isMinimized = false }: WorldbuildingPanelProps) => {
   const [elements, setElements] = useState<WorldElement[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingElement, setEditingElement] = useState<WorldElement | null>(null);
@@ -191,6 +192,11 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
     }
   };
 
+  // Dynamic CSS classes based on minimized state
+  const scrollbarClasses = isMinimized 
+    ? 'overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'
+    : 'overflow-y-auto';
+
   return (
     <div className="h-full bg-white border-r border-slate-200 flex flex-col">
       {/* Header */}
@@ -217,7 +223,7 @@ const WorldbuildingPanel = ({ projectId, refreshTrigger }: WorldbuildingPanelPro
       </div>
 
       {/* Categories and Elements */}
-      <div className="flex-1 overflow-y-auto">
+      <div className={`flex-1 ${scrollbarClasses}`}>
         {CATEGORIES.map((category) => {
           const categoryElements = groupedElements[category.value];
           const isCollapsed = collapsedCategories.has(category.value);

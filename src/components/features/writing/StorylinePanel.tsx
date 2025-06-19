@@ -39,7 +39,8 @@ const StorylinePanel = ({ projectId, chapterId, onDataChange }: StorylinePanelPr
     handleCanvasMouseDown,
     handleCanvasMouseMove,
     handleCanvasMouseUp,
-    resetView
+    resetView,
+    navigateToNode
   } = useViewportControls(nodes, dataPan);
 
   // Enhanced data change handler that triggers the parent callback
@@ -92,6 +93,13 @@ const StorylinePanel = ({ projectId, chapterId, onDataChange }: StorylinePanelPr
     cancelEditingConnectionLabel();
   };
 
+  // Navigation handler for worldbuilding elements
+  const handleNavigateToNode = React.useCallback((nodeId: string, position: { x: number; y: number }) => {
+    console.log('StorylinePanel: Navigating to node:', nodeId, position);
+    navigateToNode(nodeId, position);
+    setSelectedNode(nodeId);
+  }, [navigateToNode, setSelectedNode]);
+
   return (
     <div className="h-full bg-white flex flex-col overflow-hidden relative z-[1000]">
       <div className="flex-shrink-0">
@@ -133,6 +141,7 @@ const StorylinePanel = ({ projectId, chapterId, onDataChange }: StorylinePanelPr
           onConnectionCancel={cancelConnectionCreation}
           setDraggedNode={setDraggedNode}
           setSelectedNode={setSelectedNode}
+          onNavigateToNode={handleNavigateToNode}
         />
       </div>
 

@@ -61,6 +61,29 @@ export const useViewportControls = (nodes: StorylineNode[], initialPan: { x: num
     setZoom(1);
   };
 
+  // Navigation function for worldbuilding elements
+  const navigateToNode = useCallback((nodeId: string, targetPosition: { x: number; y: number }) => {
+    console.log('useViewportControls: Navigating to node', nodeId, 'at position', targetPosition);
+    
+    // Calculate the canvas center (assuming standard canvas dimensions)
+    const canvasWidth = window.innerWidth * 0.7; // Approximate canvas width
+    const canvasHeight = window.innerHeight * 0.8; // Approximate canvas height
+    const canvasCenterX = canvasWidth / 2;
+    const canvasCenterY = canvasHeight / 2;
+    
+    // Calculate the pan needed to center the target position
+    const newPan = {
+      x: canvasCenterX - (targetPosition.x * zoom),
+      y: canvasCenterY - (targetPosition.y * zoom)
+    };
+    
+    console.log('useViewportControls: Setting new pan:', newPan);
+    setPan(newPan);
+    
+    // Ensure the node is selected for visual feedback
+    setSelectedNode(nodeId);
+  }, [zoom]);
+
   return {
     zoom,
     pan,
@@ -75,6 +98,7 @@ export const useViewportControls = (nodes: StorylineNode[], initialPan: { x: num
     handleCanvasMouseDown,
     handleCanvasMouseMove,
     handleCanvasMouseUp,
-    resetView
+    resetView,
+    navigateToNode
   };
 };
