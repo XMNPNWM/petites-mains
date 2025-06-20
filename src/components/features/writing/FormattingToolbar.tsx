@@ -1,12 +1,16 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Bold, Italic, Search, Type } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import FindReplaceDialog from './FindReplaceDialog';
-import { insertFormattingAtCursor } from '@/lib/contentRenderUtils';
-import { findAndReplace } from '@/lib/textFormattingUtils';
+import {
+  applyBoldFormatting,
+  applyItalicFormatting,
+  applyFontSize,
+  findAndReplace
+} from '@/lib/textFormattingUtils';
 
 interface FormattingToolbarProps {
   textareaRef: React.RefObject<HTMLTextAreaElement>;
@@ -18,48 +22,29 @@ const FormattingToolbar = ({ textareaRef, content, onContentChange }: Formatting
   const [showFindReplace, setShowFindReplace] = useState(false);
   const { toast } = useToast();
 
-  const updateTextareaAndContent = useCallback((newContent: string) => {
-    onContentChange(newContent);
-    
-    // Update textarea value and trigger events
+  const handleBold = () => {
     if (textareaRef.current) {
-      textareaRef.current.value = newContent;
-      const event = new Event('input', { bubbles: true });
-      textareaRef.current.dispatchEvent(event);
+      applyBoldFormatting(textareaRef.current);
     }
-  }, [textareaRef, onContentChange]);
+  };
 
-  const handleBold = useCallback(() => {
+  const handleItalic = () => {
     if (textareaRef.current) {
-      const newContent = insertFormattingAtCursor(textareaRef.current, '**');
-      updateTextareaAndContent(newContent);
+      applyItalicFormatting(textareaRef.current);
     }
-  }, [textareaRef, updateTextareaAndContent]);
+  };
 
-  const handleItalic = useCallback(() => {
+  const handleFontSize = (size: string) => {
     if (textareaRef.current) {
-      const newContent = insertFormattingAtCursor(textareaRef.current, '*');
-      updateTextareaAndContent(newContent);
+      applyFontSize(textareaRef.current, size);
     }
-  }, [textareaRef, updateTextareaAndContent]);
+  };
 
-  const handleFontSize = useCallback((size: string) => {
-    if (textareaRef.current) {
-      const newContent = insertFormattingAtCursor(
-        textareaRef.current, 
-        `<span style="font-size: ${size}">`, 
-        '</span>'
-      );
-      updateTextareaAndContent(newContent);
-    }
-  }, [textareaRef, updateTextareaAndContent]);
-
-  const handleFindReplace = useCallback((findText: string, replaceText: string, replaceAll: boolean) => {
+  const handleFindReplace = (findText: string, replaceText: string, replaceAll: boolean) => {
     const result = findAndReplace(content, findText, replaceText, replaceAll);
     
     if (result.replacements > 0) {
-      updateTextareaAndContent(result.newContent);
-      
+      onContentChange(result.newContent);
       toast({
         title: "Text replaced",
         description: `${result.replacements} replacement${result.replacements > 1 ? 's' : ''} made.`,
@@ -75,7 +60,7 @@ const FormattingToolbar = ({ textareaRef, content, onContentChange }: Formatting
     if (replaceAll || result.replacements > 0) {
       setShowFindReplace(false);
     }
-  }, [content, updateTextareaAndContent, toast]);
+  };
 
   return (
     <>
