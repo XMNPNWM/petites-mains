@@ -1,9 +1,9 @@
-
 import React, { useRef, useState, useCallback } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { stripHtmlTags, getWordCount } from '@/lib/contentUtils';
 import FocusModeToggle from './FocusModeToggle';
+import FormattingToolbar from './FormattingToolbar';
 import { SelectedTextContext } from '@/types/comments';
 
 interface Chapter {
@@ -98,12 +98,20 @@ const TextEditorPanel = ({
                   </span>
                 </div>
               </div>
-              {onFocusToggle && (
-                <FocusModeToggle 
-                  areMinimized={areMinimized} 
-                  onToggle={onFocusToggle} 
+              
+              <div className="flex items-center space-x-4">
+                <FormattingToolbar
+                  textareaRef={textareaRef}
+                  content={cleanContent}
+                  onContentChange={handleContentChange}
                 />
-              )}
+                {onFocusToggle && (
+                  <FocusModeToggle 
+                    areMinimized={areMinimized} 
+                    onToggle={onFocusToggle} 
+                  />
+                )}
+              </div>
             </div>
           </div>
 
@@ -121,6 +129,7 @@ const TextEditorPanel = ({
                     onMouseUp={handleSelectionChange}
                     placeholder="Start writing your story..."
                     className="flex-1 resize-none border-none focus-visible:ring-0 text-base leading-relaxed h-full min-h-0"
+                    spellCheck={true}
                   />
                 </div>
               </CardContent>
