@@ -1,9 +1,12 @@
+
 import React, { useRef, useState, useCallback } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { stripHtmlTags, getWordCount } from '@/lib/contentUtils';
 import FocusModeToggle from './FocusModeToggle';
 import FormattingToolbar from './FormattingToolbar';
+import VisualDisplayLayer from './VisualDisplayLayer';
+import { useVisualTextEditor } from '@/hooks/useVisualTextEditor';
 import { SelectedTextContext } from '@/types/comments';
 
 interface Chapter {
@@ -29,15 +32,26 @@ const TextEditorPanel = ({
   areMinimized = false, 
   onFocusToggle 
 }: TextEditorPanelProps) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedTextContext, setSelectedTextContext] = useState<SelectedTextContext | null>(null);
   
   const cleanContent = chapter?.content ? stripHtmlTags(chapter.content) : '';
   const wordCount = getWordCount(cleanContent);
 
-  const handleContentChange = (newContent: string) => {
-    onContentChange(newContent);
-  };
+  const {
+    content,
+    scrollPosition,
+    textareaRef,
+    handleContentChange,
+    handleScroll,
+    handleInput
+  } = useVisualTextEditor(cleanContent);
+
+  // Update parent when content changes
+  React.useEffect(() => {
+    if (content !== cleanContent) {
+      onContentChange(content);
+    }
+  }, [content, cleanContent, onContentChange]);
 
   // Get current line number based on cursor position
   const getCurrentLineNumber = useCallback((): number => {
@@ -78,6 +92,10 @@ const TextEditorPanel = ({
     (window as any).selectedTextContext = context;
   }, [getSelectedTextContext]);
 
+  const handleTextareaChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    handleInput(e);
+  }, [handleInput]);
+
   return (
     <div className="h-full bg-slate-50 p-6 flex flex-col">
       {chapter ? (
@@ -102,7 +120,7 @@ const TextEditorPanel = ({
               <div className="flex items-center space-x-4">
                 <FormattingToolbar
                   textareaRef={textareaRef}
-                  content={cleanContent}
+                  content={content}
                   onContentChange={handleContentChange}
                 />
                 {onFocusToggle && (
@@ -119,16 +137,31 @@ const TextEditorPanel = ({
           <div className="flex-1 min-h-0">
             <Card className="h-full flex flex-col">
               <CardContent className="p-6 h-full flex flex-col">
-                <div className="h-full flex flex-col">
+                <div className="h-full flex flex-col relative">
+                  {/* Visual Display Layer */}
+                  <VisualDisplayLayer
+                    content={content}
+                    textareaRef={textareaRef}
+                    scrollTop={scrollPosition.top}
+                    scrollLeft={scrollPosition.left}
+                  />
+                  
+                  {/* Editable Textarea Layer */}
                   <Textarea
                     ref={textareaRef}
-                    value={cleanContent}
-                    onChange={(e) => handleContentChange(e.target.value)}
+                    value={content}
+                    onChange={handleTextareaChange}
+                    onScroll={handleScroll}
                     onSelect={handleSelectionChange}
                     onKeyUp={handleSelectionChange}
                     onMouseUp={handleSelectionChange}
                     placeholder="Start writing your story..."
-                    className="flex-1 resize-none border-none focus-visible:ring-0 text-base leading-relaxed h-full min-h-0"
+                    className="flex-1 resize-none border-none focus-visible:ring-0 text-base leading-relaxed h-full min-h-0 relative z-0"
+                    style={{ 
+                      color: 'transparent',
+                      caretColor: 'black',
+                      backgroundColor: 'transparent'
+                    }}
                     spellCheck={true}
                   />
                 </div>

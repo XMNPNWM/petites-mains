@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Bold, Italic, Search, Type } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import FindReplaceDialog from './FindReplaceDialog';
+import { insertFormattingAtCursor } from '@/lib/contentRenderUtils';
 import {
   applyBoldFormatting,
   applyItalicFormatting,
@@ -24,19 +25,41 @@ const FormattingToolbar = ({ textareaRef, content, onContentChange }: Formatting
 
   const handleBold = () => {
     if (textareaRef.current) {
-      applyBoldFormatting(textareaRef.current);
+      const newContent = insertFormattingAtCursor(textareaRef.current, '**');
+      onContentChange(newContent);
+      
+      // Update textarea value and trigger events
+      textareaRef.current.value = newContent;
+      const event = new Event('input', { bubbles: true });
+      textareaRef.current.dispatchEvent(event);
     }
   };
 
   const handleItalic = () => {
     if (textareaRef.current) {
-      applyItalicFormatting(textareaRef.current);
+      const newContent = insertFormattingAtCursor(textareaRef.current, '*');
+      onContentChange(newContent);
+      
+      // Update textarea value and trigger events
+      textareaRef.current.value = newContent;
+      const event = new Event('input', { bubbles: true });
+      textareaRef.current.dispatchEvent(event);
     }
   };
 
   const handleFontSize = (size: string) => {
     if (textareaRef.current) {
-      applyFontSize(textareaRef.current, size);
+      const newContent = insertFormattingAtCursor(
+        textareaRef.current, 
+        `<span style="font-size: ${size}">`, 
+        '</span>'
+      );
+      onContentChange(newContent);
+      
+      // Update textarea value and trigger events
+      textareaRef.current.value = newContent;
+      const event = new Event('input', { bubbles: true });
+      textareaRef.current.dispatchEvent(event);
     }
   };
 
@@ -45,6 +68,14 @@ const FormattingToolbar = ({ textareaRef, content, onContentChange }: Formatting
     
     if (result.replacements > 0) {
       onContentChange(result.newContent);
+      
+      // Update textarea value
+      if (textareaRef.current) {
+        textareaRef.current.value = result.newContent;
+        const event = new Event('input', { bubbles: true });
+        textareaRef.current.dispatchEvent(event);
+      }
+      
       toast({
         title: "Text replaced",
         description: `${result.replacements} replacement${result.replacements > 1 ? 's' : ''} made.`,
