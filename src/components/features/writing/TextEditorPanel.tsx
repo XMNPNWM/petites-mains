@@ -136,34 +136,39 @@ const TextEditorPanel = ({
           {/* Editor */}
           <div className="flex-1 min-h-0">
             <Card className="h-full flex flex-col">
-              <CardContent className="p-6 h-full flex flex-col">
+              <CardContent className="p-0 h-full flex flex-col">
                 <div className="h-full flex flex-col relative">
-                  {/* Visual Display Layer */}
-                  <VisualDisplayLayer
-                    content={content}
-                    textareaRef={textareaRef}
-                    scrollTop={scrollPosition.top}
-                    scrollLeft={scrollPosition.left}
-                  />
-                  
-                  {/* Editable Textarea Layer */}
-                  <Textarea
-                    ref={textareaRef}
-                    value={content}
-                    onChange={handleTextareaChange}
-                    onScroll={handleScroll}
-                    onSelect={handleSelectionChange}
-                    onKeyUp={handleSelectionChange}
-                    onMouseUp={handleSelectionChange}
-                    placeholder="Start writing your story..."
-                    className="flex-1 resize-none border-none focus-visible:ring-0 text-base leading-relaxed h-full min-h-0 relative z-0"
-                    style={{ 
-                      color: 'transparent',
-                      caretColor: 'black',
-                      backgroundColor: 'transparent'
-                    }}
-                    spellCheck={true}
-                  />
+                  {/* Stable container for both layers */}
+                  <div className="relative flex-1 min-h-0" style={{ isolation: 'isolate' }}>
+                    {/* Visual Display Layer */}
+                    <VisualDisplayLayer
+                      content={content}
+                      textareaRef={textareaRef}
+                      scrollTop={scrollPosition.top}
+                      scrollLeft={scrollPosition.left}
+                    />
+                    
+                    {/* Editable Textarea Layer */}
+                    <Textarea
+                      ref={textareaRef}
+                      value={content}
+                      onChange={handleTextareaChange}
+                      onScroll={handleScroll}
+                      onSelect={handleSelectionChange}
+                      onKeyUp={handleSelectionChange}
+                      onMouseUp={handleSelectionChange}
+                      placeholder="Start writing your story..."
+                      className="absolute inset-0 resize-none border-none focus-visible:ring-0 text-base leading-relaxed bg-transparent z-0 p-3"
+                      style={{ 
+                        color: 'transparent',
+                        caretColor: 'rgb(15 23 42)', // slate-900
+                        backgroundColor: 'transparent',
+                        outline: 'none',
+                        boxShadow: 'none'
+                      }}
+                      spellCheck={true}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -1,6 +1,14 @@
 
+// Cache for formatted content to prevent unnecessary re-parsing
+const formatCache = new Map<string, string>();
+
 export const renderFormattedContent = (content: string): string => {
   if (!content) return '';
+  
+  // Check cache first
+  if (formatCache.has(content)) {
+    return formatCache.get(content)!;
+  }
   
   let processed = content;
   
@@ -16,6 +24,12 @@ export const renderFormattedContent = (content: string): string => {
   
   // Preserve line breaks
   processed = processed.replace(/\n/g, '<br>');
+  
+  // Cache the result (limit cache size to prevent memory issues)
+  if (formatCache.size > 100) {
+    formatCache.clear();
+  }
+  formatCache.set(content, processed);
   
   return processed;
 };
