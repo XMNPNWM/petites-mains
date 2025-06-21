@@ -1,8 +1,10 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Save, Loader2, Sparkles } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import ChronologicalTimeline from './ChronologicalTimeline';
 
 interface Chapter {
   id: string;
@@ -47,7 +49,7 @@ const WritingSpaceHeader = ({
   };
 
   return (
-    <div className="bg-white border-b border-slate-200 px-6 py-4 flex-shrink-0">
+    <div className="bg-white border-b border-slate-200 px-6 py-4 flex-shrink-0 relative">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button
@@ -70,6 +72,9 @@ const WritingSpaceHeader = ({
             )}
           </div>
         </div>
+
+        {/* Timeline Component */}
+        <ChronologicalTimeline projectId={project.id} />
 
         <div className="flex items-center space-x-4">
           <Button

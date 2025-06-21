@@ -1,9 +1,9 @@
 
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Sparkles, ArrowLeft } from 'lucide-react';
+import RichTextEditor from '../RichTextEditor';
 
 interface EnhancedEditorPanelProps {
   content: string;
@@ -22,22 +22,6 @@ const EnhancedEditorPanel = ({
   scrollPosition,
   onImportToCreation
 }: EnhancedEditorPanelProps) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
-    if (onScrollSync && textareaRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = textareaRef.current;
-      onScrollSync(scrollTop, scrollHeight, clientHeight);
-    }
-  };
-
-  // Sync scroll position when it changes externally
-  useEffect(() => {
-    if (scrollPosition !== undefined && textareaRef.current) {
-      textareaRef.current.scrollTop = scrollPosition;
-    }
-  }, [scrollPosition]);
-
   return (
     <div className="h-full bg-slate-50 p-4 flex flex-col">
       <div className="mb-4 flex items-center justify-between">
@@ -65,17 +49,13 @@ const EnhancedEditorPanel = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-1 pt-0 flex flex-col">
-          <div className="flex-1">
-            <Textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => onContentChange(e.target.value)}
-              onScroll={handleScroll}
-              placeholder="AI-enhanced content will appear here..."
-              className="h-full resize-none border-none focus-visible:ring-0 text-sm leading-relaxed"
-              spellCheck={true}
-            />
-          </div>
+          <RichTextEditor
+            content={content}
+            onContentChange={onContentChange}
+            onScrollSync={onScrollSync}
+            scrollPosition={scrollPosition}
+            placeholder="AI-enhanced content will appear here..."
+          />
         </CardContent>
       </Card>
     </div>

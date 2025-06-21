@@ -2,6 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Edit3, Sparkles } from 'lucide-react';
+import ChronologicalTimeline from '../writing/ChronologicalTimeline';
 
 interface Chapter {
   id: string;
@@ -32,7 +33,7 @@ const RefinementSpaceHeader = ({
   onBackClick 
 }: RefinementSpaceHeaderProps) => {
   return (
-    <div className="bg-white border-b border-slate-200 px-6 py-4 flex-shrink-0">
+    <div className="bg-white border-b border-slate-200 px-6 py-4 flex-shrink-0 relative">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button
@@ -63,6 +64,9 @@ const RefinementSpaceHeader = ({
             </div>
           </div>
         </div>
+
+        {/* Timeline Component */}
+        <ChronologicalTimeline projectId={project.id} />
 
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-2 text-sm text-slate-500">
