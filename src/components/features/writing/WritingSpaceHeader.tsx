@@ -2,8 +2,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Save, Loader2, Sparkles } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { ArrowLeft, Save, Loader2, Sparkles, Check } from 'lucide-react';
 import ChronologicalTimeline from './ChronologicalTimeline';
 
 interface Chapter {
@@ -89,18 +88,12 @@ const WritingSpaceHeader = ({
           <div className="h-6 w-px bg-slate-200" />
           
           <div className="flex items-center space-x-3">
-            {isSaving && (
-              <div className="flex items-center space-x-2 text-sm text-slate-500">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Saving...</span>
-              </div>
-            )}
-            
-            {!isSaving && lastSaved && (
-              <div className="text-sm text-slate-500">
-                Last saved {formatDistanceToNow(lastSaved, { addSuffix: true })}
-              </div>
-            )}
+            {/* Simple animated save status icon */}
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 animate-spin text-slate-500" title="Saving..." />
+            ) : lastSaved ? (
+              <Check className="w-4 h-4 text-green-500 animate-pulse" title="Saved" />
+            ) : null}
             
             <Button onClick={onSave} disabled={isSaving}>
               <Save className="w-4 h-4 mr-2" />
