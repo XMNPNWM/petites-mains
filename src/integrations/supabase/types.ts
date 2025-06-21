@@ -9,6 +9,53 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      ai_change_tracking: {
+        Row: {
+          change_type: string
+          confidence_score: number | null
+          created_at: string | null
+          enhanced_text: string
+          id: string
+          original_text: string
+          position_end: number
+          position_start: number
+          refinement_id: string
+          user_decision: string | null
+        }
+        Insert: {
+          change_type: string
+          confidence_score?: number | null
+          created_at?: string | null
+          enhanced_text: string
+          id?: string
+          original_text: string
+          position_end: number
+          position_start: number
+          refinement_id: string
+          user_decision?: string | null
+        }
+        Update: {
+          change_type?: string
+          confidence_score?: number | null
+          created_at?: string | null
+          enhanced_text?: string
+          id?: string
+          original_text?: string
+          position_end?: number
+          position_start?: number
+          refinement_id?: string
+          user_decision?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_change_tracking_refinement_id_fkey"
+            columns: ["refinement_id"]
+            isOneToOne: false
+            referencedRelation: "chapter_refinements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       author_styles: {
         Row: {
           author: string
@@ -40,6 +87,97 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chapter_metrics: {
+        Row: {
+          computed_at: string | null
+          consistency_score: number | null
+          dialogue_ratio: number | null
+          id: string
+          pacing_score: number | null
+          readability_score: number | null
+          refinement_id: string
+          sentence_variety: number | null
+          word_count: number | null
+        }
+        Insert: {
+          computed_at?: string | null
+          consistency_score?: number | null
+          dialogue_ratio?: number | null
+          id?: string
+          pacing_score?: number | null
+          readability_score?: number | null
+          refinement_id: string
+          sentence_variety?: number | null
+          word_count?: number | null
+        }
+        Update: {
+          computed_at?: string | null
+          consistency_score?: number | null
+          dialogue_ratio?: number | null
+          id?: string
+          pacing_score?: number | null
+          readability_score?: number | null
+          refinement_id?: string
+          sentence_variety?: number | null
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_metrics_refinement_id_fkey"
+            columns: ["refinement_id"]
+            isOneToOne: true
+            referencedRelation: "chapter_refinements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chapter_refinements: {
+        Row: {
+          ai_changes: Json | null
+          chapter_id: string
+          context_summary: string | null
+          created_at: string | null
+          enhanced_content: string | null
+          id: string
+          original_content: string | null
+          refinement_status: string
+          updated_at: string | null
+          user_preferences: Json | null
+        }
+        Insert: {
+          ai_changes?: Json | null
+          chapter_id: string
+          context_summary?: string | null
+          created_at?: string | null
+          enhanced_content?: string | null
+          id?: string
+          original_content?: string | null
+          refinement_status?: string
+          updated_at?: string | null
+          user_preferences?: Json | null
+        }
+        Update: {
+          ai_changes?: Json | null
+          chapter_id?: string
+          context_summary?: string | null
+          created_at?: string | null
+          enhanced_content?: string | null
+          id?: string
+          original_content?: string | null
+          refinement_status?: string
+          updated_at?: string | null
+          user_preferences?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_refinements_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: true
+            referencedRelation: "chapters"
             referencedColumns: ["id"]
           },
         ]

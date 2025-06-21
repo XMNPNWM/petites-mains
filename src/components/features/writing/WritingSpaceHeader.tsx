@@ -1,14 +1,8 @@
-
 import React from 'react';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import ExportDialog from './ExportDialog';
-import ChronologicalTimeline from './ChronologicalTimeline';
-
-interface Project {
-  id: string;
-  title: string;
-}
+import { ArrowLeft, Save, Loader2, Sparkles } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 interface Chapter {
   id: string;
@@ -17,6 +11,14 @@ interface Chapter {
   word_count: number;
   order_index: number;
   status: string;
+  project_id: string;
+}
+
+interface Project {
+  id: string;
+  title: string;
+  description: string;
+  user_id: string;
 }
 
 interface WritingSpaceHeaderProps {
@@ -29,77 +31,77 @@ interface WritingSpaceHeaderProps {
   onSave: () => void;
 }
 
-const formatLastSaved = (date: Date) => {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const minutes = Math.floor(diff / 60000);
-  
-  if (minutes < 1) {
-    return 'just now';
-  } else if (minutes < 60) {
-    return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
-  } else {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-};
-
-const WritingSpaceHeader = ({ 
-  project, 
+const WritingSpaceHeader = ({
+  project,
   currentChapter,
   chapters,
-  isSaving, 
-  lastSaved, 
-  onBackClick, 
-  onSave 
+  isSaving,
+  lastSaved,
+  onBackClick,
+  onSave
 }: WritingSpaceHeaderProps) => {
+  const navigate = useNavigate();
+  
+  const handleRefinementSpace = () => {
+    navigate(`/project/${project.id}/refine${currentChapter ? `/${currentChapter.id}` : ''}`);
+  };
+
   return (
-    <div className="bg-white border-b border-slate-200 px-6 py-4 relative">
+    <div className="bg-white border-b border-slate-200 px-6 py-4 flex-shrink-0">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={onBackClick}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Project
+          <Button
+            variant="ghost"
+            onClick={onBackClick}
+            className="flex items-center space-x-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Dashboard</span>
           </Button>
+          
+          <div className="h-6 w-px bg-slate-300" />
+          
           <div>
-            <h1 className="text-xl font-bold text-slate-900">{project.title}</h1>
-            <div className="flex items-center space-x-3">
-              {currentChapter && (
-                <p className="text-sm text-slate-600">{currentChapter.title}</p>
-              )}
-              {lastSaved && (
-                <>
-                  <span className="text-slate-300">•</span>
-                  <p className="text-xs text-slate-500">
-                    Last saved {formatLastSaved(lastSaved)}
-                  </p>
-                </>
-              )}
-            </div>
+            <h1 className="text-lg font-semibold text-slate-900">{project.title}</h1>
+            {currentChapter && (
+              <p className="text-sm text-slate-600">
+                {currentChapter.title} • {chapters.length} chapters
+              </p>
+            )}
           </div>
         </div>
-        
-        {/* Chronological Timeline in the center */}
-        <ChronologicalTimeline projectId={project.id} />
-        
-        <div className="flex items-center space-x-2">
-          <ExportDialog 
-            project={project} 
-            chapters={chapters}
-            currentChapter={currentChapter}
-          />
-          <Button 
-            onClick={onSave} 
-            size="sm" 
-            className="bg-gradient-to-r from-purple-600 to-blue-600"
-            disabled={isSaving}
+
+        <div className="flex items-center space-x-4">
+          <Button
+            variant="outline"
+            onClick={handleRefinementSpace}
+            className="flex items-center space-x-2 text-purple-600 border-purple-200 hover:bg-purple-50"
           >
-            {isSaving ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            {isSaving ? 'Saving...' : 'Save'}
+            <Sparkles className="w-4 h-4" />
+            <span>Enter Refinement Space</span>
           </Button>
+          
+          <div className="h-6 w-px bg-slate-200" />
+          
+          <div className="flex items-center space-x-3">
+            {isSaving && (
+              <div className="flex items-center space-x-2 text-sm text-slate-500">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Saving...</span>
+              </div>
+            )}
+            
+            {!isSaving && lastSaved && (
+              <div className="text-sm text-slate-500">
+                Last saved {formatDistanceToNow(lastSaved, { addSuffix: true })}
+              </div>
+            )}
+            
+            <Button onClick={onSave} disabled={isSaving}>
+              <Save className="w-4 h-4 mr-2" />
+              Save
+            </Button>
+          </div>
         </div>
       </div>
     </div>
