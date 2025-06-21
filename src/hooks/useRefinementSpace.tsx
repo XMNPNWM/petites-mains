@@ -3,139 +3,32 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
-interface Chapter {
-  id: string;
-  title: string;
-  content: string;
-  word_count: number;
-  order_index: number;
-  status: string;
-  project_id: string;
-}
-
-interface Project {
-  id: string;
-  title: string;
-  description: string;
-  user_id: string;
-}
-
-interface RefinementData {
-  id: string;
-  chapter_id: string;
-  original_content: string;
-  enhanced_content: string;
-  refinement_status: 'untouched' | 'in_progress' | 'completed' | 'updated';
-  ai_changes: any[];
-  context_summary: string;
-}
-
-// Type casting function to handle database type mismatches
-const castToProject = (dbProject: any): Project => {
-  return {
-    id: dbProject.id,
-    title: dbProject.title,
-    description: dbProject.description || '',
-    user_id: dbProject.user_id || ''
-  };
-};
-
-const castToRefinementData = (dbRefinement: any): RefinementData => {
-  const validStatuses = ['untouched', 'in_progress', 'completed', 'updated'];
-  
-  return {
-    id: dbRefinement.id,
-    chapter_id: dbRefinement.chapter_id,
-    original_content: dbRefinement.original_content,
-    enhanced_content: dbRefinement.enhanced_content,
-    refinement_status: validStatuses.includes(dbRefinement.refinement_status) 
-      ? dbRefinement.refinement_status 
-      : 'untouched',
-    ai_changes: dbRefinement.ai_changes || [],
-    context_summary: dbRefinement.context_summary
-  };
-};
+import { useProjectData } from './useProjectData';
+import { RefinementService } from '@/services/RefinementService';
+import { Chapter, RefinementData } from '@/types/shared';
 
 export const useRefinementSpace = (projectId: string | undefined) => {
-  const [project, setProject] = useState<Project | null>(null);
-  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
   const [refinementData, setRefinementData] = useState<RefinementData | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const fetchProject = useCallback(async () => {
-    if (!projectId) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .single();
-
-      if (error) throw error;
-      setProject(castToProject(data));
-    } catch (error) {
-      console.error('Error fetching project:', error);
-    }
-  }, [projectId]);
-
-  const fetchChapters = useCallback(async () => {
-    if (!projectId) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('chapters')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('order_index');
-
-      if (error) throw error;
-      setChapters(data || []);
-      
-      if (data && data.length > 0 && !currentChapter) {
-        setCurrentChapter(data[0]);
-      }
-    } catch (error) {
-      console.error('Error fetching chapters:', error);
-    }
-  }, [projectId, currentChapter]);
+  const { project, chapters } = useProjectData(projectId);
 
   const fetchRefinementData = useCallback(async (chapterId: string) => {
     if (!chapterId) return;
     
     try {
-      const { data, error } = await supabase
-        .from('chapter_refinements')
-        .select('*')
-        .eq('chapter_id', chapterId)
-        .maybeSingle();
-
-      if (error) throw error;
+      let data = await RefinementService.fetchRefinementData(chapterId);
       
-      if (data) {
-        setRefinementData(castToRefinementData(data));
-      } else {
-        // Create initial refinement record if it doesn't exist
+      if (!data) {
         const chapter = chapters.find(c => c.id === chapterId);
         if (chapter) {
-          const { data: newRefinement, error: createError } = await supabase
-            .from('chapter_refinements')
-            .insert({
-              chapter_id: chapterId,
-              original_content: chapter.content || '',
-              enhanced_content: chapter.content || '',
-              refinement_status: 'untouched'
-            })
-            .select()
-            .single();
-
-          if (createError) throw createError;
-          setRefinementData(castToRefinementData(newRefinement));
+          data = await RefinementService.createRefinementData(chapterId, chapter.content || '');
         }
       }
+      
+      setRefinementData(data);
     } catch (error) {
       console.error('Error fetching refinement data:', error);
     }
@@ -150,16 +43,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     if (!refinementData) return;
     
     try {
-      const { error } = await supabase
-        .from('chapter_refinements')
-        .update({
-          enhanced_content: content,
-          refinement_status: 'in_progress',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', refinementData.id);
-
-      if (error) throw error;
+      await RefinementService.updateRefinementContent(refinementData.id, content);
       
       setRefinementData(prev => prev ? {
         ...prev,
@@ -200,22 +84,20 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   }, [toast]);
 
   const handleBackClick = useCallback(() => {
-    // Navigate to Writing Space instead of project overview
     navigate(`/project/${projectId}/write`);
   }, [navigate, projectId]);
 
   const refreshData = useCallback(() => {
-    fetchProject();
-    fetchChapters();
     if (currentChapter) {
       fetchRefinementData(currentChapter.id);
     }
-  }, [fetchProject, fetchChapters, fetchRefinementData, currentChapter]);
+  }, [fetchRefinementData, currentChapter]);
 
   useEffect(() => {
-    fetchProject();
-    fetchChapters();
-  }, [fetchProject, fetchChapters]);
+    if (chapters.length > 0 && !currentChapter) {
+      setCurrentChapter(chapters[0]);
+    }
+  }, [chapters, currentChapter]);
 
   useEffect(() => {
     if (currentChapter) {

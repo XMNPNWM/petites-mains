@@ -2,98 +2,32 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSimplePopups } from './simple/SimplePopupManager';
 import { format } from 'date-fns';
-import { useChatDatabase } from '@/hooks/useChatDatabase';
-
-interface TimelineChat {
-  id: string;
-  project_id: string;
-  chapter_id?: string;
-  chat_type: 'comment' | 'chat';
-  position: { x: number; y: number };
-  selected_text?: string;
-  text_position?: number;
-  line_number?: number;
-  status?: string;
-  created_at: string;
-}
+import { useTimelineData } from '@/hooks/useTimelineData';
+import { TimelineChat } from '@/types/shared';
 
 interface ChronologicalTimelineProps {
   projectId: string;
 }
 
 const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
-  const { reopenPopup, popups: livePopups, timelineVersion } = useSimplePopups();
-  const { loadTimelineChats } = useChatDatabase();
+  const { reopenPopup, popups: livePopups } = useSimplePopups();
+  const { timelineChats, isLoading } = useTimelineData(projectId);
   const [isHovered, setIsHovered] = useState(false);
-  const [timelineChats, setTimelineChats] = useState<TimelineChat[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  // Force reload timeline data
-  const reloadTimelineData = async () => {
-    if (isLoading) return;
-    
-    setIsLoading(true);
-    try {
-      console.log('Reloading timeline chats for project:', projectId);
-      const data = await loadTimelineChats(projectId);
-      // Filter out legacy types that shouldn't exist anymore
-      const filteredData = data.filter(chat => 
-        chat.chat_type === 'comment' || chat.chat_type === 'chat'
-      );
-      setTimelineChats(filteredData);
-      console.log('Timeline chats reloaded:', filteredData.length);
-    } catch (error) {
-      console.error('Error reloading timeline chats:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Load timeline chats on mount
-  useEffect(() => {
-    reloadTimelineData();
-  }, [projectId]);
-
-  // Reload when timeline version changes (when popups are created/closed)
-  useEffect(() => {
-    if (timelineVersion > 0) {
-      console.log('Timeline version changed, reloading data...');
-      setTimeout(() => {
-        reloadTimelineData();
-      }, 500);
-    }
-  }, [timelineVersion]);
-
-  // Sort chats chronologically and remove duplicates based on ID
-  const uniqueChats = timelineChats.reduce((acc, chat) => {
-    const existing = acc.find(c => c.id === chat.id);
-    if (!existing) {
-      acc.push(chat);
-    }
-    return acc;
-  }, [] as TimelineChat[]);
-
-  const sortedChats = uniqueChats.sort((a, b) => 
-    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  );
 
   const handleChatReopen = async (chat: TimelineChat) => {
     console.log('Reopening chat from timeline:', chat.id);
     
-    // Check if popup is already open to prevent duplicates
     const isAlreadyOpen = livePopups.some(popup => popup.id === chat.id);
     if (isAlreadyOpen) {
       console.log('Chat is already open, not reopening:', chat.id);
       return;
     }
 
-    // Use the chat type from the database record
     const chatType = chat.chat_type as 'comment' | 'chat';
     await reopenPopup(chat.id, chatType, chat.position, projectId, chat.chapter_id, chat.selected_text);
   };
 
-  // Get block color based on chat type (only comment and chat now)
   const getBlockColor = (type: string, isActive: boolean) => {
     const baseColors = {
       comment: 'bg-blue-500',
@@ -104,7 +38,6 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     return isActive ? `${color} ring-2 ring-white shadow-lg` : `${color} opacity-70`;
   };
 
-  // Enable horizontal mouse wheel scrolling and dragging
   useEffect(() => {
     const scrollElement = scrollRef.current;
     if (!scrollElement) return;
@@ -159,7 +92,7 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     };
   }, []);
 
-  const hasTimelineData = sortedChats.length > 0;
+  const hasTimelineData = timelineChats.length > 0;
 
   return (
     <div
@@ -169,18 +102,14 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
     >
       {/* Always visible subtle indicator */}
       <div className={`flex items-center justify-center transition-all duration-300 ${
-        isHovered 
-          ? 'opacity-0' 
-          : 'opacity-40'
+        isHovered ? 'opacity-0' : 'opacity-40'
       }`}>
         <div className="h-1 w-48 bg-slate-300 rounded-full"></div>
       </div>
 
       {/* Full timeline that appears on hover */}
       <div className={`flex items-center justify-center transition-all duration-300 absolute inset-0 ${
-        isHovered 
-          ? 'opacity-100 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-2' 
-          : 'opacity-0 pointer-events-none'
+        isHovered ? 'opacity-100 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-2' : 'opacity-0 pointer-events-none'
       }`}>
         {isHovered && hasTimelineData && (
           <div className="flex items-center max-w-6xl overflow-hidden">
@@ -193,9 +122,8 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
                 minHeight: '16px'
               }}
             >
-              {/* Timeline blocks */}
               <div className="flex relative z-10 gap-0">
-                {sortedChats.map((chat, index) => {
+                {timelineChats.map((chat, index) => {
                   const isActive = livePopups.some(popup => popup.id === chat.id);
                   
                   return (
@@ -209,12 +137,11 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
                 })}
               </div>
               
-              {/* Time markers for timeline start and end */}
               {hasTimelineData && (
                 <div className="absolute top-4 left-0 right-0 flex justify-between text-xs text-slate-500 pointer-events-none">
-                  <span>{format(new Date(sortedChats[0].created_at), 'MMM dd')}</span>
-                  {sortedChats.length > 1 && (
-                    <span>{format(new Date(sortedChats[sortedChats.length - 1].created_at), 'MMM dd')}</span>
+                  <span>{format(new Date(timelineChats[0].created_at), 'MMM dd')}</span>
+                  {timelineChats.length > 1 && (
+                    <span>{format(new Date(timelineChats[timelineChats.length - 1].created_at), 'MMM dd')}</span>
                   )}
                 </div>
               )}
@@ -222,7 +149,6 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
           </div>
         )}
         
-        {/* Message when no data and hovered */}
         {isHovered && !hasTimelineData && (
           <div className="px-4 py-2">
             <span className="text-xs text-slate-600 whitespace-nowrap">

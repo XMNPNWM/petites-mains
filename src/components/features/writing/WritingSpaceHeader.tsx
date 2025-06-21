@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -89,11 +88,13 @@ const WritingSpaceHeader = ({
           
           <div className="flex items-center space-x-3">
             {/* Simple animated save status icon */}
-            {isSaving ? (
-              <Loader2 className="w-4 h-4 animate-spin text-slate-500" title="Saving..." />
-            ) : lastSaved ? (
-              <Check className="w-4 h-4 text-green-500 animate-pulse" title="Saved" />
-            ) : null}
+            <div className="flex items-center">
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+              ) : lastSaved ? (
+                <Check className="w-4 h-4 text-green-500 animate-pulse" />
+              ) : null}
+            </div>
             
             <Button onClick={onSave} disabled={isSaving}>
               <Save className="w-4 h-4 mr-2" />

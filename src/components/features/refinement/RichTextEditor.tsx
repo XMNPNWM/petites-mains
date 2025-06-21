@@ -1,11 +1,10 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Button } from '@/components/ui/button';
-import { Bold, Italic, Type, Search, Replace } from 'lucide-react';
+import { Bold, Italic, Type, Search } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useState } from 'react';
 
 interface RichTextEditorProps {
   content: string;
@@ -44,15 +43,23 @@ const RichTextEditor = ({
         class: 'prose prose-sm max-w-none focus:outline-none min-h-full p-4 text-sm leading-relaxed',
         spellcheck: 'true',
       },
-      handleScroll: (view, event) => {
-        if (onScrollSync && editorRef.current) {
-          const element = event.target as HTMLElement;
-          const { scrollTop, scrollHeight, clientHeight } = element;
-          onScrollSync(scrollTop, scrollHeight, clientHeight);
-        }
-      },
     },
   });
+
+  // Handle scroll synchronization
+  useEffect(() => {
+    const editorElement = editorRef.current?.querySelector('.ProseMirror');
+    if (!editorElement || !onScrollSync) return;
+
+    const handleScroll = (e: Event) => {
+      const element = e.target as HTMLElement;
+      const { scrollTop, scrollHeight, clientHeight } = element;
+      onScrollSync(scrollTop, scrollHeight, clientHeight);
+    };
+
+    editorElement.addEventListener('scroll', handleScroll);
+    return () => editorElement.removeEventListener('scroll', handleScroll);
+  }, [onScrollSync]);
 
   // Sync scroll position when it changes externally
   useEffect(() => {
@@ -71,15 +78,8 @@ const RichTextEditor = ({
     }
   }, [content, editor]);
 
-  const handleFontSize = (size: string) => {
-    if (editor) {
-      editor.chain().focus().setFontSize(size).run();
-    }
-  };
-
   const handleFind = () => {
     if (editor && findText) {
-      // Simple find functionality - highlight text
       const { state } = editor;
       const { doc } = state;
       let found = false;
@@ -88,7 +88,7 @@ const RichTextEditor = ({
         if (node.isText && node.text?.includes(findText)) {
           editor.commands.setTextSelection({ from: pos, to: pos + findText.length });
           found = true;
-          return false; // Stop searching after first match
+          return false;
         }
       });
       
@@ -120,7 +120,6 @@ const RichTextEditor = ({
           size="sm"
           onClick={() => editor.chain().focus().toggleBold().run()}
           className={`h-8 w-8 p-0 ${editor.isActive('bold') ? 'bg-slate-200' : ''}`}
-          title="Bold (Ctrl+B)"
         >
           <Bold className="w-4 h-4" />
         </Button>
@@ -130,12 +129,17 @@ const RichTextEditor = ({
           size="sm"
           onClick={() => editor.chain().focus().toggleItalic().run()}
           className={`h-8 w-8 p-0 ${editor.isActive('italic') ? 'bg-slate-200' : ''}`}
-          title="Italic (Ctrl+I)"
         >
           <Italic className="w-4 h-4" />
         </Button>
         
-        <Select onValueChange={(value) => editor.chain().focus().toggleHeading({ level: parseInt(value) as any }).run()}>
+        <Select onValueChange={(value) => {
+          if (value === '0') {
+            editor.chain().focus().setParagraph().run();
+          } else {
+            editor.chain().focus().toggleHeading({ level: parseInt(value) as any }).run();
+          }
+        }}>
           <SelectTrigger className="h-8 w-24">
             <Type className="w-4 h-4" />
           </SelectTrigger>
@@ -152,7 +156,6 @@ const RichTextEditor = ({
           size="sm"
           onClick={() => setShowFindReplace(!showFindReplace)}
           className="h-8 w-8 p-0"
-          title="Find & Replace (Ctrl+F)"
         >
           <Search className="w-4 h-4" />
         </Button>
