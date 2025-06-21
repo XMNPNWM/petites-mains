@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import ChapterNavigationPanel from './panels/ChapterNavigationPanel';
 import OriginalTextPanel from './panels/OriginalTextPanel';
 import EnhancedEditorPanel from './panels/EnhancedEditorPanel';

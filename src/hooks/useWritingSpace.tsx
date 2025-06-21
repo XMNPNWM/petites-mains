@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 interface Project {
   id: string;
   title: string;
+  description: string;
+  user_id: string;
 }
 
 interface Chapter {
@@ -16,7 +19,7 @@ interface Chapter {
   word_count: number;
   order_index: number;
   status: string;
-  project_id: string; // Added missing project_id field
+  project_id: string;
 }
 
 export const useWritingSpace = () => {
@@ -66,7 +69,7 @@ export const useWritingSpace = () => {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, title')
+        .select('id, title, description, user_id')
         .eq('id', projectId)
         .single();
 
