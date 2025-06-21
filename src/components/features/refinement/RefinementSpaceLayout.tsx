@@ -2,7 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import ChapterNavigationPanel from './panels/ChapterNavigationPanel';
 import OriginalTextPanel from './panels/OriginalTextPanel';
@@ -12,6 +12,7 @@ import MetricsPanel from './panels/MetricsPanel';
 import StorylinePanel from '@/components/features/writing/StorylinePanel';
 import SimpleRightClickMenu from '@/components/features/writing/simple/SimpleRightClickMenu';
 import { useSimplePopups } from '@/components/features/writing/simple/SimplePopupManager';
+import { useScrollSync } from '@/hooks/useScrollSync';
 
 // Define ChatType locally to match the SimplePopupManager
 type ChatType = 'comment' | 'chat';
@@ -70,30 +71,9 @@ const RefinementSpaceLayout = ({
 }: RefinementSpaceLayoutProps) => {
   const [metricsExpanded, setMetricsExpanded] = useState(false);
   const [overlayHeight, setOverlayHeight] = useState(30);
-  const [scrollPositions, setScrollPositions] = useState({
-    original: 0,
-    enhanced: 0
-  });
   const [highlightedRange, setHighlightedRange] = useState<{ start: number; end: number } | null>(null);
   const { createPopup } = useSimplePopups();
-
-  // Scroll synchronization handler
-  const handleScrollSync = useCallback((panelType: 'original' | 'enhanced', scrollTop: number, scrollHeight: number, clientHeight: number) => {
-    const scrollRatio = scrollTop / (scrollHeight - clientHeight);
-    setScrollPositions(prev => ({
-      ...prev,
-      [panelType]: scrollTop
-    }));
-
-    // Sync the other panel
-    setScrollPositions(prev => {
-      const otherPanel = panelType === 'original' ? 'enhanced' : 'original';
-      return {
-        ...prev,
-        [otherPanel]: scrollTop
-      };
-    });
-  }, []);
+  const { scrollPositions, handleScrollSync } = useScrollSync();
 
   // Handle change click for jump navigation
   const handleChangeClick = useCallback((change: AIChange) => {
@@ -130,6 +110,16 @@ const RefinementSpaceLayout = ({
       console.error('Error importing content:', error);
     }
   }, [refinementData, currentChapter]);
+
+  // Handle metrics panel toggle
+  const handleMetricsToggle = useCallback(() => {
+    setMetricsExpanded(!metricsExpanded);
+  }, [metricsExpanded]);
+
+  // Double-click handler for storyline drag handle
+  const handleStorylineDragHandleDoubleClick = useCallback(() => {
+    setOverlayHeight(prevHeight => prevHeight <= 10 ? 75 : 5);
+  }, []);
 
   // Drag handle for storyline overlay
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -201,8 +191,8 @@ const RefinementSpaceLayout = ({
           
           {/* Panel 2: Original Text */}
           <ResizablePanel 
-            defaultSize={metricsExpanded ? 20 : 25} 
-            minSize={15} 
+            defaultSize={metricsExpanded ? 15 : 25} 
+            minSize={metricsExpanded ? 5 : 15} 
             maxSize={35}
           >
             <SimpleRightClickMenu onMenuClick={handleRightClickMenuClick}>
@@ -229,7 +219,7 @@ const RefinementSpaceLayout = ({
               className="p-1 h-auto"
               title="Import to Creation Editor"
             >
-              <ArrowRight className="w-4 h-4 text-purple-600" />
+              <ArrowLeft className="w-4 h-4 text-purple-600" />
             </Button>
           </div>
           
@@ -244,7 +234,6 @@ const RefinementSpaceLayout = ({
                   handleScrollSync('enhanced', scrollTop, scrollHeight, clientHeight)
                 }
                 scrollPosition={scrollPositions.enhanced}
-                onImportToCreation={handleImportToCreation}
               />
             </SimpleRightClickMenu>
           </ResizablePanel>
@@ -264,33 +253,54 @@ const RefinementSpaceLayout = ({
           
           <ResizableHandle />
           
+          {/* Metrics Panel Toggle Button */}
+          {!metricsExpanded && (
+            <div className="flex items-center justify-center w-6 bg-slate-50 border-l border-slate-200">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleMetricsToggle}
+                className="p-1 h-auto rotate-180"
+                title="Show Metrics"
+              >
+                <ChevronRight className="w-3 h-3 text-slate-500" />
+              </Button>
+            </div>
+          )}
+          
           {/* Panel 5: Metrics (Collapsible) */}
-          <ResizablePanel 
-            defaultSize={metricsExpanded ? 15 : 10} 
-            minSize={8} 
-            maxSize={20}
-          >
-            <SimpleRightClickMenu onMenuClick={handleRightClickMenuClick}>
-              <MetricsPanel
-                refinementId={refinementData?.id || ''}
-                isExpanded={metricsExpanded}
-                onToggleExpanded={() => setMetricsExpanded(!metricsExpanded)}
-                content={refinementData?.enhanced_content || ''}
-              />
-            </SimpleRightClickMenu>
-          </ResizablePanel>
+          {metricsExpanded && (
+            <>
+              <ResizableHandle />
+              <ResizablePanel 
+                defaultSize={20} 
+                minSize={15} 
+                maxSize={25}
+              >
+                <SimpleRightClickMenu onMenuClick={handleRightClickMenuClick}>
+                  <MetricsPanel
+                    refinementId={refinementData?.id || ''}
+                    isExpanded={metricsExpanded}
+                    onToggleExpanded={handleMetricsToggle}
+                    content={refinementData?.enhanced_content || ''}
+                  />
+                </SimpleRightClickMenu>
+              </ResizablePanel>
+            </>
+          )}
         </ResizablePanelGroup>
       </div>
 
-      {/* Storyline Panel Overlay (same as Creation Mode) */}
+      {/* Storyline Panel Overlay */}
       <div
         className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-[1000] overflow-hidden"
         style={{ height: `${overlayHeight}%` }}
       >
-        {/* Drag Handle */}
+        {/* Drag Handle with Double-Click Support */}
         <div
           className="w-full h-6 bg-slate-100 border-b border-slate-300 cursor-ns-resize flex items-center justify-center hover:bg-slate-200 transition-colors"
           onMouseDown={handleMouseDown}
+          onDoubleClick={handleStorylineDragHandleDoubleClick}
         >
           <div className="flex space-x-1">
             <div className="w-8 h-1 bg-slate-400 rounded-full"></div>

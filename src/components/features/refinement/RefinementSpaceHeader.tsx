@@ -1,8 +1,9 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit3, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, Download } from 'lucide-react';
 import ChronologicalTimeline from '../writing/ChronologicalTimeline';
+import ExportDialog from '../writing/ExportDialog';
 
 interface Chapter {
   id: string;
@@ -32,6 +33,8 @@ const RefinementSpaceHeader = ({
   currentChapter, 
   onBackClick 
 }: RefinementSpaceHeaderProps) => {
+  const [showExportDialog, setShowExportDialog] = React.useState(false);
+
   return (
     <div className="bg-white border-b border-slate-200 px-6 py-4 flex-shrink-0 relative">
       <div className="flex items-center justify-between">
@@ -48,20 +51,9 @@ const RefinementSpaceHeader = ({
           
           <div className="h-6 w-px bg-slate-300" />
           
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2 text-purple-600">
-              <Sparkles className="w-5 h-5" />
-              <span className="font-semibold">Refinement Space</span>
-            </div>
-            <div className="text-slate-600">
-              <span className="font-medium">{project.title}</span>
-              {currentChapter && (
-                <>
-                  <span className="mx-2">•</span>
-                  <span>{currentChapter.title}</span>
-                </>
-              )}
-            </div>
+          <div className="flex items-center space-x-2 text-purple-600">
+            <Sparkles className="w-5 h-5" />
+            <span className="font-semibold">Refinement Space</span>
           </div>
         </div>
 
@@ -69,12 +61,26 @@ const RefinementSpaceHeader = ({
         <ChronologicalTimeline projectId={project.id} />
 
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2 text-sm text-slate-500">
-            <Edit3 className="w-4 h-4" />
-            <span>Enhanced Editor Mode</span>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowExportDialog(true)}
+            className="flex items-center space-x-2"
+          >
+            <Download className="w-4 h-4" />
+            <span>Export</span>
+          </Button>
         </div>
       </div>
+
+      {showExportDialog && (
+        <ExportDialog
+          isOpen={showExportDialog}
+          onClose={() => setShowExportDialog(false)}
+          projectId={project.id}
+          currentChapter={currentChapter}
+        />
+      )}
     </div>
   );
 };
