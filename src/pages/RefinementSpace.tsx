@@ -4,6 +4,8 @@ import { useParams } from 'react-router-dom';
 import { useRefinementSpace } from '@/hooks/useRefinementSpace';
 import RefinementSpaceHeader from '@/components/features/refinement/RefinementSpaceHeader';
 import RefinementSpaceLayout from '@/components/features/refinement/RefinementSpaceLayout';
+import { SimplePopupProvider } from '@/components/features/writing/simple/SimplePopupManager';
+import SimplePopupRenderer from '@/components/features/writing/simple/SimplePopupRenderer';
 
 const RefinementSpace = () => {
   const { projectId } = useParams();
@@ -31,23 +33,26 @@ const RefinementSpace = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
-      <RefinementSpaceHeader
-        project={project}
-        currentChapter={currentChapter}
-        onBackClick={handleBackClick}
-      />
-      <RefinementSpaceLayout
-        projectId={projectId!}
-        chapters={chapters}
-        currentChapter={currentChapter}
-        refinementData={refinementData}
-        onChapterSelect={handleChapterSelect}
-        onContentChange={handleContentChange}
-        onChangeDecision={handleChangeDecision}
-        onRefresh={refreshData}
-      />
-    </div>
+    <SimplePopupProvider>
+      <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
+        <RefinementSpaceHeader
+          project={project}
+          currentChapter={currentChapter}
+          onBackClick={handleBackClick}
+        />
+        <RefinementSpaceLayout
+          projectId={projectId!}
+          chapters={chapters}
+          currentChapter={currentChapter}
+          refinementData={refinementData}
+          onChapterSelect={handleChapterSelect}
+          onContentChange={handleContentChange}
+          onChangeDecision={handleChangeDecision}
+          onRefresh={refreshData}
+        />
+        <SimplePopupRenderer />
+      </div>
+    </SimplePopupProvider>
   );
 };
 

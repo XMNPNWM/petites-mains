@@ -20,9 +20,27 @@ interface AIChange {
 interface ChangeTrackingPanelProps {
   refinementId: string;
   onChangeDecision: (changeId: string, decision: 'accepted' | 'rejected') => void;
+  onChangeClick?: (change: AIChange) => void;
 }
 
-const ChangeTrackingPanel = ({ refinementId, onChangeDecision }: ChangeTrackingPanelProps) => {
+// Type casting function to handle database type mismatches
+const castToAIChange = (dbChange: any): AIChange => {
+  const validChangeTypes = ['grammar', 'structure', 'dialogue', 'style'];
+  const validDecisions = ['accepted', 'rejected', 'pending'];
+  
+  return {
+    id: dbChange.id,
+    change_type: validChangeTypes.includes(dbChange.change_type) ? dbChange.change_type : 'grammar',
+    original_text: dbChange.original_text,
+    enhanced_text: dbChange.enhanced_text,
+    position_start: dbChange.position_start,
+    position_end: dbChange.position_end,
+    user_decision: validDecisions.includes(dbChange.user_decision) ? dbChange.user_decision : 'pending',
+    confidence_score: dbChange.confidence_score || 0.5
+  };
+};
+
+const ChangeTrackingPanel = ({ refinementId, onChangeDecision, onChangeClick }: ChangeTrackingPanelProps) => {
   const [changes, setChanges] = useState<AIChange[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -44,7 +62,10 @@ const ChangeTrackingPanel = ({ refinementId, onChangeDecision }: ChangeTrackingP
         .order('position_start');
 
       if (error) throw error;
-      setChanges(data || []);
+      
+      // Cast database results to proper types
+      const typedChanges = (data || []).map(castToAIChange);
+      setChanges(typedChanges);
     } catch (error) {
       console.error('Error fetching changes:', error);
     } finally {
@@ -91,6 +112,12 @@ const ChangeTrackingPanel = ({ refinementId, onChangeDecision }: ChangeTrackingP
     ));
   };
 
+  const handleChangeClick = (change: AIChange) => {
+    if (onChangeClick) {
+      onChangeClick(change);
+    }
+  };
+
   return (
     <div className="h-full bg-slate-50 p-4 flex flex-col">
       <div className="mb-4">
@@ -124,13 +151,14 @@ const ChangeTrackingPanel = ({ refinementId, onChangeDecision }: ChangeTrackingP
               {changes.map((change) => (
                 <div
                   key={change.id}
-                  className={`p-3 rounded-lg border ${
+                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                     change.user_decision === 'accepted'
                       ? 'bg-green-50 border-green-200'
                       : change.user_decision === 'rejected'
                       ? 'bg-red-50 border-red-200'
-                      : 'bg-white border-slate-200'
+                      : 'bg-white border-slate-200 hover:bg-slate-50'
                   }`}
+                  onClick={() => handleChangeClick(change)}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center space-x-2">
@@ -163,7 +191,10 @@ const ChangeTrackingPanel = ({ refinementId, onChangeDecision }: ChangeTrackingP
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDecision(change.id, 'accepted')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDecision(change.id, 'accepted');
+                        }}
                         className="flex items-center space-x-1 text-green-600 hover:bg-green-50"
                       >
                         <Check className="w-3 h-3" />
@@ -172,7 +203,10 @@ const ChangeTrackingPanel = ({ refinementId, onChangeDecision }: ChangeTrackingP
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDecision(change.id, 'rejected')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDecision(change.id, 'rejected');
+                        }}
                         className="flex items-center space-x-1 text-red-600 hover:bg-red-50"
                       >
                         <X className="w-3 h-3" />

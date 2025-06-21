@@ -31,6 +31,32 @@ interface RefinementData {
   context_summary: string;
 }
 
+// Type casting function to handle database type mismatches
+const castToProject = (dbProject: any): Project => {
+  return {
+    id: dbProject.id,
+    title: dbProject.title,
+    description: dbProject.description || '',
+    user_id: dbProject.user_id || ''
+  };
+};
+
+const castToRefinementData = (dbRefinement: any): RefinementData => {
+  const validStatuses = ['untouched', 'in_progress', 'completed', 'updated'];
+  
+  return {
+    id: dbRefinement.id,
+    chapter_id: dbRefinement.chapter_id,
+    original_content: dbRefinement.original_content,
+    enhanced_content: dbRefinement.enhanced_content,
+    refinement_status: validStatuses.includes(dbRefinement.refinement_status) 
+      ? dbRefinement.refinement_status 
+      : 'untouched',
+    ai_changes: dbRefinement.ai_changes || [],
+    context_summary: dbRefinement.context_summary
+  };
+};
+
 export const useRefinementSpace = (projectId: string | undefined) => {
   const [project, setProject] = useState<Project | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -50,7 +76,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
         .single();
 
       if (error) throw error;
-      setProject(data);
+      setProject(castToProject(data));
     } catch (error) {
       console.error('Error fetching project:', error);
     }
@@ -90,7 +116,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
       if (error) throw error;
       
       if (data) {
-        setRefinementData(data);
+        setRefinementData(castToRefinementData(data));
       } else {
         // Create initial refinement record if it doesn't exist
         const chapter = chapters.find(c => c.id === chapterId);
@@ -107,7 +133,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
             .single();
 
           if (createError) throw createError;
-          setRefinementData(newRefinement);
+          setRefinementData(castToRefinementData(newRefinement));
         }
       }
     } catch (error) {
@@ -174,7 +200,8 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   }, [toast]);
 
   const handleBackClick = useCallback(() => {
-    navigate(`/project/${projectId}`);
+    // Navigate to Writing Space instead of project overview
+    navigate(`/project/${projectId}/write`);
   }, [navigate, projectId]);
 
   const refreshData = useCallback(() => {
