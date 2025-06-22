@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +20,8 @@ interface ChangeTrackingPanelProps {
   refinementId: string;
   onChangeDecision: (changeId: string, decision: 'accepted' | 'rejected') => void;
   onChangeClick?: (change: AIChange) => void;
+  scrollPosition?: number;
+  onScrollSync?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
 }
 
 // Type casting function to handle database type mismatches
@@ -40,15 +41,36 @@ const castToAIChange = (dbChange: any): AIChange => {
   };
 };
 
-const ChangeTrackingPanel = ({ refinementId, onChangeDecision, onChangeClick }: ChangeTrackingPanelProps) => {
+const ChangeTrackingPanel = ({ 
+  refinementId, 
+  onChangeDecision, 
+  onChangeClick,
+  scrollPosition = 0,
+  onScrollSync
+}: ChangeTrackingPanelProps) => {
   const [changes, setChanges] = useState<AIChange[]>([]);
   const [loading, setLoading] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (refinementId) {
       fetchChanges();
     }
   }, [refinementId]);
+
+  // Handle scroll synchronization
+  useEffect(() => {
+    if (scrollContainerRef.current && scrollPosition !== undefined) {
+      scrollContainerRef.current.scrollTop = scrollPosition;
+    }
+  }, [scrollPosition]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (onScrollSync) {
+      const target = e.currentTarget;
+      onScrollSync(target.scrollTop, target.scrollHeight, target.clientHeight);
+    }
+  };
 
   const fetchChanges = async () => {
     if (!refinementId) return;
@@ -134,90 +156,96 @@ const ChangeTrackingPanel = ({ refinementId, onChangeDecision, onChangeClick }: 
         <CardHeader className="pb-3">
           <CardTitle className="text-sm text-slate-700">AI Modifications</CardTitle>
         </CardHeader>
-        <CardContent className="flex-1 pt-0 overflow-y-auto">
-          {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
-            </div>
-          ) : changes.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-slate-400">
-              <div className="text-center">
-                <Eye className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No changes to review</p>
+        <CardContent className="flex-1 pt-0 overflow-hidden">
+          <div 
+            ref={scrollContainerRef}
+            className="h-full overflow-y-auto"
+            onScroll={handleScroll}
+          >
+            {loading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
               </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {changes.map((change) => (
-                <div
-                  key={change.id}
-                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                    change.user_decision === 'accepted'
-                      ? 'bg-green-50 border-green-200'
-                      : change.user_decision === 'rejected'
-                      ? 'bg-red-50 border-red-200'
-                      : 'bg-white border-slate-200 hover:bg-slate-50'
-                  }`}
-                  onClick={() => handleChangeClick(change)}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      {getChangeIcon(change.change_type)}
-                      <Badge 
-                        variant="secondary" 
-                        className={`text-xs px-2 py-1 ${getChangeColor(change.change_type)}`}
-                      >
-                        {change.change_type}
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {Math.round(change.confidence_score * 100)}% confident
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2 text-xs">
-                    <div>
-                      <span className="font-medium text-red-600">Original: </span>
-                      <span className="text-slate-700">{change.original_text}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium text-green-600">Enhanced: </span>
-                      <span className="text-slate-700">{change.enhanced_text}</span>
-                    </div>
-                  </div>
-                  
-                  {change.user_decision === 'pending' && (
-                    <div className="flex space-x-2 mt-3">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDecision(change.id, 'accepted');
-                        }}
-                        className="flex items-center space-x-1 text-green-600 hover:bg-green-50"
-                      >
-                        <Check className="w-3 h-3" />
-                        <span>Accept</span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDecision(change.id, 'rejected');
-                        }}
-                        className="flex items-center space-x-1 text-red-600 hover:bg-red-50"
-                      >
-                        <X className="w-3 h-3" />
-                        <span>Reject</span>
-                      </Button>
-                    </div>
-                  )}
+            ) : changes.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-slate-400">
+                <div className="text-center">
+                  <Eye className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No changes to review</p>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {changes.map((change) => (
+                  <div
+                    key={change.id}
+                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                      change.user_decision === 'accepted'
+                        ? 'bg-green-50 border-green-200'
+                        : change.user_decision === 'rejected'
+                        ? 'bg-red-50 border-red-200'
+                        : 'bg-white border-slate-200 hover:bg-slate-50'
+                    }`}
+                    onClick={() => handleChangeClick(change)}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        {getChangeIcon(change.change_type)}
+                        <Badge 
+                          variant="secondary" 
+                          className={`text-xs px-2 py-1 ${getChangeColor(change.change_type)}`}
+                        >
+                          {change.change_type}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {Math.round(change.confidence_score * 100)}% confident
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2 text-xs">
+                      <div>
+                        <span className="font-medium text-red-600">Original: </span>
+                        <span className="text-slate-700">{change.original_text}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-green-600">Enhanced: </span>
+                        <span className="text-slate-700">{change.enhanced_text}</span>
+                      </div>
+                    </div>
+                    
+                    {change.user_decision === 'pending' && (
+                      <div className="flex space-x-2 mt-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDecision(change.id, 'accepted');
+                          }}
+                          className="flex items-center space-x-1 text-green-600 hover:bg-green-50"
+                        >
+                          <Check className="w-3 h-3" />
+                          <span>Accept</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDecision(change.id, 'rejected');
+                          }}
+                          className="flex items-center space-x-1 text-red-600 hover:bg-red-50"
+                        >
+                          <X className="w-3 h-3" />
+                          <span>Reject</span>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
