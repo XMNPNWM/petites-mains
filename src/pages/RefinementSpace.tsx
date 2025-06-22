@@ -14,10 +14,13 @@ const RefinementSpace = () => {
     chapters,
     currentChapter,
     refinementData,
+    isSaving,
+    lastSaved,
     handleChapterSelect,
     handleContentChange,
     handleChangeDecision,
     handleBackClick,
+    handleSave,
     refreshData
   } = useRefinementSpace(projectId);
 
@@ -39,6 +42,9 @@ const RefinementSpace = () => {
           project={project}
           currentChapter={currentChapter}
           onBackClick={handleBackClick}
+          onSave={handleSave}
+          isSaving={isSaving}
+          lastSaved={lastSaved}
         />
         <RefinementSpaceLayout
           projectId={projectId!}

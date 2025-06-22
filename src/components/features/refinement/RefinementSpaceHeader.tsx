@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Sparkles, Download } from 'lucide-react';
+import { ArrowLeft, Sparkles, Download, Save, Loader2, Check } from 'lucide-react';
 import ChronologicalTimeline from '../writing/ChronologicalTimeline';
 import ExportDialog from '../writing/ExportDialog';
 import { useProjectData } from '@/hooks/useProjectData';
@@ -27,12 +27,18 @@ interface RefinementSpaceHeaderProps {
   project: Project;
   currentChapter: Chapter | null;
   onBackClick: () => void;
+  onSave?: () => void;
+  isSaving?: boolean;
+  lastSaved?: Date | null;
 }
 
 const RefinementSpaceHeader = ({ 
   project, 
   currentChapter, 
-  onBackClick 
+  onBackClick,
+  onSave,
+  isSaving = false,
+  lastSaved
 }: RefinementSpaceHeaderProps) => {
   const [showExportDialog, setShowExportDialog] = React.useState(false);
   const { chapters } = useProjectData(project.id);
@@ -63,6 +69,35 @@ const RefinementSpaceHeader = ({
         <ChronologicalTimeline projectId={project.id} />
 
         <div className="flex items-center space-x-3">
+          {/* Save functionality */}
+          {onSave && (
+            <>
+              <div className="flex items-center space-x-2">
+                {/* Save status indicator */}
+                <div className="flex items-center">
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+                  ) : lastSaved ? (
+                    <Check className="w-4 h-4 text-green-500 animate-pulse" />
+                  ) : null}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onSave}
+                  disabled={isSaving}
+                  className="flex items-center space-x-2"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Save</span>
+                </Button>
+              </div>
+              
+              <div className="h-6 w-px bg-slate-200" />
+            </>
+          )}
+          
           <Button
             variant="outline"
             size="sm"
@@ -80,6 +115,8 @@ const RefinementSpaceHeader = ({
           project={project}
           chapters={chapters}
           currentChapter={currentChapter}
+          onClose={() => setShowExportDialog(false)}
+          isRefinementSpace={true}
         />
       )}
     </div>

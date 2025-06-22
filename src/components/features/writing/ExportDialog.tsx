@@ -7,6 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Download, Loader2, X } from 'lucide-react';
 import { exportToPDF, exportToDOCX, exportToTXT } from '@/lib/exportUtils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Chapter {
   id: string;
@@ -15,6 +16,12 @@ interface Chapter {
   word_count: number;
   order_index: number;
   status: string;
+}
+
+interface RefinementData {
+  id: string;
+  chapter_id: string;
+  enhanced_content: string;
 }
 
 interface Project {
@@ -26,14 +33,49 @@ interface ExportDialogProps {
   project: Project;
   chapters: Chapter[];
   currentChapter?: Chapter | null;
+  onClose?: () => void;
+  isRefinementSpace?: boolean;
 }
 
-const ExportDialog = ({ project, chapters, currentChapter }: ExportDialogProps) => {
+const ExportDialog = ({ 
+  project, 
+  chapters, 
+  currentChapter, 
+  onClose,
+  isRefinementSpace = false 
+}: ExportDialogProps) => {
   const [isOpen, setIsOpen] = useState(true);
   const [exportFormat, setExportFormat] = useState('pdf');
   const [exportScope, setExportScope] = useState('all');
+  const [contentSource, setContentSource] = useState('original');
   const [includeMetadata, setIncludeMetadata] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+
+  const handleClose = () => {
+    setIsOpen(false);
+    if (onClose) onClose();
+  };
+
+  const fetchEnhancedContent = async (chapterIds: string[]) => {
+    try {
+      const { data, error } = await supabase
+        .from('refinement_data')
+        .select('chapter_id, enhanced_content')
+        .in('chapter_id', chapterIds);
+
+      if (error) throw error;
+
+      const enhancedContentMap = new Map();
+      data?.forEach((item: RefinementData) => {
+        enhancedContentMap.set(item.chapter_id, item.enhanced_content);
+      });
+
+      return enhancedContentMap;
+    } catch (error) {
+      console.error('Error fetching enhanced content:', error);
+      return new Map();
+    }
+  };
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -43,19 +85,32 @@ const ExportDialog = ({ project, chapters, currentChapter }: ExportDialogProps) 
         ? [currentChapter] 
         : chapters.sort((a, b) => a.order_index - b.order_index);
 
+      let finalChapters = [...chaptersToExport];
+
+      // If in refinement space and user wants enhanced content
+      if (isRefinementSpace && contentSource === 'enhanced') {
+        const chapterIds = chaptersToExport.map(ch => ch.id);
+        const enhancedContentMap = await fetchEnhancedContent(chapterIds);
+        
+        finalChapters = chaptersToExport.map(chapter => ({
+          ...chapter,
+          content: enhancedContentMap.get(chapter.id) || chapter.content
+        }));
+      }
+
       switch (exportFormat) {
         case 'pdf':
-          await exportToPDF(project, chaptersToExport, includeMetadata);
+          await exportToPDF(project, finalChapters, includeMetadata);
           break;
         case 'docx':
-          await exportToDOCX(project, chaptersToExport, includeMetadata);
+          await exportToDOCX(project, finalChapters, includeMetadata);
           break;
         case 'txt':
-          exportToTXT(project, chaptersToExport, includeMetadata);
+          exportToTXT(project, finalChapters, includeMetadata);
           break;
       }
       
-      setIsOpen(false);
+      handleClose();
     } catch (error) {
       console.error('Export failed:', error);
     } finally {
@@ -66,7 +121,7 @@ const ExportDialog = ({ project, chapters, currentChapter }: ExportDialogProps) 
   if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center justify-between">
@@ -74,7 +129,7 @@ const ExportDialog = ({ project, chapters, currentChapter }: ExportDialogProps) 
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setIsOpen(false)}
+              onClick={handleClose}
               className="h-6 w-6 p-0"
             >
               <X className="h-4 w-4" />
@@ -101,6 +156,23 @@ const ExportDialog = ({ project, chapters, currentChapter }: ExportDialogProps) 
               </div>
             </RadioGroup>
           </div>
+
+          {/* Content Source - Only show in refinement space */}
+          {isRefinementSpace && (
+            <div>
+              <Label className="text-sm font-medium">Content Source</Label>
+              <RadioGroup value={contentSource} onValueChange={setContentSource} className="mt-2">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="original" id="original" />
+                  <Label htmlFor="original">Original Content</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="enhanced" id="enhanced" />
+                  <Label htmlFor="enhanced">Enhanced Content</Label>
+                </div>
+              </RadioGroup>
+            </div>
+          )}
 
           {/* Export Scope */}
           <div>
@@ -133,7 +205,7 @@ const ExportDialog = ({ project, chapters, currentChapter }: ExportDialogProps) 
 
           {/* Export Button */}
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setIsOpen(false)}>
+            <Button variant="outline" onClick={handleClose}>
               Cancel
             </Button>
             <Button onClick={handleExport} disabled={isExporting}>

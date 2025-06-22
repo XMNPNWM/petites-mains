@@ -40,7 +40,7 @@ const RichTextEditor = ({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none min-h-full p-4 text-sm leading-relaxed',
+        class: 'prose prose-sm max-w-none focus:outline-none min-h-full p-4 text-sm leading-relaxed overflow-y-auto',
         spellcheck: 'true',
       },
     },
@@ -73,17 +73,21 @@ const RichTextEditor = ({
 
   // Update editor content when content prop changes
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
+    if (editor && editor.getHTML() !== content) {
       editor.commands.setContent(content);
     }
   }, [content, editor]);
 
   if (!editor) {
-    return <div className="flex-1 p-4">Loading editor...</div>;
+    return (
+      <div className="flex-1 p-4 flex items-center justify-center">
+        <div className="text-slate-500">Loading editor...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex-1 flex flex-col relative">
+    <div className="flex-1 flex flex-col relative h-full">
       <RichTextToolbar 
         editor={editor} 
         onFindReplaceToggle={() => setShowFindReplace(!showFindReplace)} 
@@ -97,13 +101,17 @@ const RichTextEditor = ({
           onFindTextChange={setFindText}
           onReplaceTextChange={setReplaceText}
           onContentChange={onContentChange}
+          onClose={() => setShowFindReplace(false)}
         />
       )}
 
       <RichTextBubbleMenu editor={editor} />
 
-      <div ref={editorRef} className="flex-1 overflow-y-auto">
-        <EditorContent editor={editor} className="h-full" />
+      <div ref={editorRef} className="flex-1 overflow-hidden">
+        <EditorContent 
+          editor={editor} 
+          className="h-full overflow-y-auto prose prose-sm max-w-none"
+        />
       </div>
     </div>
   );

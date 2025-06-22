@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +9,8 @@ import { Chapter, RefinementData } from '@/types/shared';
 export const useRefinementSpace = (projectId: string | undefined) => {
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
   const [refinementData, setRefinementData] = useState<RefinementData | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -83,6 +84,30 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     }
   }, [toast]);
 
+  const handleSave = useCallback(async () => {
+    if (!refinementData || isSaving) return;
+    
+    setIsSaving(true);
+    try {
+      await RefinementService.updateRefinementContent(refinementData.id, refinementData.enhanced_content);
+      setLastSaved(new Date());
+      
+      toast({
+        title: "Saved",
+        description: "Enhanced content saved successfully",
+      });
+    } catch (error) {
+      console.error('Error saving:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save changes",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [refinementData, isSaving, toast]);
+
   const handleBackClick = useCallback(() => {
     navigate(`/project/${projectId}/write`);
   }, [navigate, projectId]);
@@ -110,10 +135,13 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     chapters,
     currentChapter,
     refinementData,
+    isSaving,
+    lastSaved,
     handleChapterSelect,
     handleContentChange,
     handleChangeDecision,
     handleBackClick,
+    handleSave,
     refreshData
   };
 };

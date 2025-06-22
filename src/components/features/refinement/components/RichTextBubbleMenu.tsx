@@ -9,13 +9,21 @@ interface RichTextBubbleMenuProps {
 }
 
 const RichTextBubbleMenu = ({ editor }: RichTextBubbleMenuProps) => {
+  if (!editor) return null;
+
   return (
     <BubbleMenu 
       editor={editor} 
       tippyOptions={{ 
         duration: 100,
         appendTo: () => document.body,
-        placement: 'top'
+        placement: 'top',
+        zIndex: 1000
+      }}
+      shouldShow={({ editor, state }) => {
+        const { selection } = state;
+        const { empty } = selection;
+        return !empty;
       }}
     >
       <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-1 flex items-center space-x-1 z-50">
