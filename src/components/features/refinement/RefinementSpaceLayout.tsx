@@ -69,7 +69,7 @@ const RefinementSpaceLayout = ({
   onRefresh
 }: RefinementSpaceLayoutProps) => {
   const [metricsExpanded, setMetricsExpanded] = useState(false);
-  const [overlayHeight, setOverlayHeight] = useState(30);
+  const [overlayHeight, setOverlayHeight] = useState(25); // Reduced from 30 to match screenshot
   const [highlightedRange, setHighlightedRange] = useState<{ start: number; end: number } | null>(null);
   const { createPopup } = useSimplePopups();
   const { scrollPositions, handleScrollSync } = useImprovedScrollSync();
@@ -176,7 +176,7 @@ const RefinementSpaceLayout = ({
       >
         <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* Panel 1: Chapter Navigation */}
-          <ResizablePanel defaultSize={15} minSize={12} maxSize={25}>
+          <ResizablePanel defaultSize={12} minSize={8} maxSize={20}>
             <SimpleRightClickMenu onMenuClick={handleRightClickMenuClick}>
               <ChapterNavigationPanel
                 chapters={chapters}
@@ -189,11 +189,7 @@ const RefinementSpaceLayout = ({
           <ResizableHandle />
           
           {/* Panel 2: Original Text */}
-          <ResizablePanel 
-            defaultSize={metricsExpanded ? 15 : 25} 
-            minSize={metricsExpanded ? 5 : 15} 
-            maxSize={35}
-          >
+          <ResizablePanel defaultSize={28} minSize={20} maxSize={40}>
             <SimpleRightClickMenu onMenuClick={handleRightClickMenuClick}>
               <OriginalTextPanel
                 content={refinementData?.original_content || ''}
@@ -223,7 +219,7 @@ const RefinementSpaceLayout = ({
           </div>
           
           {/* Panel 3: Enhanced Editor */}
-          <ResizablePanel defaultSize={30} minSize={25} maxSize={40}>
+          <ResizablePanel defaultSize={28} minSize={20} maxSize={40}>
             <SimpleRightClickMenu onMenuClick={handleRightClickMenuClick}>
               <EnhancedEditorPanel
                 content={refinementData?.enhanced_content || ''}
@@ -240,7 +236,7 @@ const RefinementSpaceLayout = ({
           <ResizableHandle />
           
           {/* Panel 4: Change Tracking */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+          <ResizablePanel defaultSize={17} minSize={12} maxSize={25}>
             <SimpleRightClickMenu onMenuClick={handleRightClickMenuClick}>
               <ChangeTrackingPanel
                 refinementId={refinementData?.id || ''}
@@ -276,8 +272,8 @@ const RefinementSpaceLayout = ({
             <>
               <ResizableHandle />
               <ResizablePanel 
-                defaultSize={20} 
-                minSize={15} 
+                defaultSize={15} 
+                minSize={12} 
                 maxSize={25}
               >
                 <SimpleRightClickMenu onMenuClick={handleRightClickMenuClick}>

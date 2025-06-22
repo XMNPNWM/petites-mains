@@ -48,7 +48,7 @@ const SegmentedRichTextEditor = ({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none min-h-full p-4 text-sm leading-relaxed overflow-y-auto',
+        class: 'prose-sm max-w-none focus:outline-none min-h-full p-4 text-sm leading-relaxed overflow-y-auto',
         spellcheck: 'true',
       },
       handleKeyDown: (view, event) => {
@@ -138,13 +138,13 @@ const SegmentedRichTextEditor = ({
       <RichTextBubbleMenu editor={editor} />
       <div ref={editorRef} className="flex-1 overflow-hidden">
         {shouldShowSegmented ? (
-          <div className="h-full overflow-y-auto prose prose-sm max-w-none">
+          <div className="h-full overflow-y-auto prose-sm max-w-none">
             <div className="space-y-8 p-4">
               {segments.map((segment, index) => (
                 <div key={index} className="min-h-[400px] border-b border-slate-100 pb-6 last:border-b-0">
                   <div className="text-xs text-slate-400 mb-2 text-right">Page {segment.pageNumber}</div>
                   <div 
-                    className="whitespace-pre-wrap leading-relaxed break-words"
+                    className="whitespace-pre-wrap leading-relaxed break-words text-sm"
                     dangerouslySetInnerHTML={{ __html: segment.content }}
                   />
                 </div>
@@ -153,14 +153,14 @@ const SegmentedRichTextEditor = ({
             <div className="absolute inset-0 pointer-events-none">
               <EditorContent 
                 editor={editor} 
-                className="h-full overflow-y-auto prose prose-sm max-w-none opacity-0"
+                className="h-full overflow-y-auto prose-sm max-w-none opacity-0"
               />
             </div>
           </div>
         ) : (
           <EditorContent 
             editor={editor} 
-            className="h-full overflow-y-auto prose prose-sm max-w-none"
+            className="h-full overflow-y-auto prose-sm max-w-none text-sm"
           />
         )}
       </div>

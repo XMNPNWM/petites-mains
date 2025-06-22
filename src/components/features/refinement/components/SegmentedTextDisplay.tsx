@@ -17,7 +17,7 @@ const SegmentedTextDisplay = ({
 
   const renderSegmentWithHighlight = (segment: any) => {
     if (!highlightedRange) {
-      return <div className="whitespace-pre-wrap leading-relaxed break-words">{segment.content}</div>;
+      return <div className="whitespace-pre-wrap leading-relaxed break-words text-sm">{segment.content}</div>;
     }
 
     const segmentStart = segment.startIndex;
@@ -27,7 +27,7 @@ const SegmentedTextDisplay = ({
 
     // Check if highlight overlaps with this segment
     if (highlightEnd < segmentStart || highlightStart > segmentEnd) {
-      return <div className="whitespace-pre-wrap leading-relaxed break-words">{segment.content}</div>;
+      return <div className="whitespace-pre-wrap leading-relaxed break-words text-sm">{segment.content}</div>;
     }
 
     // Calculate relative positions within the segment
@@ -39,7 +39,7 @@ const SegmentedTextDisplay = ({
     const after = segment.content.slice(relativeHighlightEnd);
 
     return (
-      <div className="whitespace-pre-wrap leading-relaxed break-words">
+      <div className="whitespace-pre-wrap leading-relaxed break-words text-sm">
         {before}
         <span className="bg-yellow-200 px-1 rounded animate-pulse">
           {highlighted}
@@ -50,7 +50,16 @@ const SegmentedTextDisplay = ({
   };
 
   if (segments.length === 0) {
-    return <div className="whitespace-pre-wrap leading-relaxed break-words">{content}</div>;
+    // Clean content from HTML tags and preserve line breaks
+    const cleanContent = content
+      .replace(/<p>/g, '\n')
+      .replace(/<\/p>/g, '\n')
+      .replace(/<br\s*\/?>/g, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/\n\s*\n/g, '\n\n')
+      .trim();
+    
+    return <div className="whitespace-pre-wrap leading-relaxed break-words text-sm">{cleanContent}</div>;
   }
 
   return (

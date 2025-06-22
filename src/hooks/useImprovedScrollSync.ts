@@ -14,7 +14,6 @@ export const useImprovedScrollSync = () => {
     changeTracking: 0
   });
   
-  const lastSyncSource = useRef<string>('');
   const syncInProgress = useRef(false);
 
   const handleScrollSync = useCallback((
@@ -24,42 +23,38 @@ export const useImprovedScrollSync = () => {
     clientHeight: number
   ) => {
     // Prevent infinite scroll loops
-    if (syncInProgress.current || lastSyncSource.current === panelType) {
+    if (syncInProgress.current) {
       return;
     }
 
     syncInProgress.current = true;
-    lastSyncSource.current = panelType;
 
-    // Calculate scroll ratio (0 to 1)
+    // Calculate scroll ratio (0 to 1) for the current panel
     const maxScroll = scrollHeight - clientHeight;
     const scrollRatio = maxScroll > 0 ? scrollTop / maxScroll : 0;
 
-    // Update positions for all panels
-    setScrollPositions(prev => {
-      const newPositions = { ...prev };
-      
-      // Set the source panel position
-      newPositions[panelType] = scrollTop;
-      
-      // Calculate proportional positions for other panels based on scroll ratio
+    // Update positions - other panels will use this ratio with their own dimensions
+    setScrollPositions(prev => ({
+      ...prev,
+      [panelType]: scrollTop
+    }));
+
+    // Broadcast the scroll ratio to other panels
+    setTimeout(() => {
       if (panelType !== 'original') {
-        newPositions.original = scrollRatio * maxScroll;
+        setScrollPositions(prev => ({ ...prev, original: scrollRatio }));
       }
       if (panelType !== 'enhanced') {
-        newPositions.enhanced = scrollRatio * maxScroll;
+        setScrollPositions(prev => ({ ...prev, enhanced: scrollRatio }));
       }
       if (panelType !== 'changeTracking') {
-        newPositions.changeTracking = scrollRatio * maxScroll;
+        setScrollPositions(prev => ({ ...prev, changeTracking: scrollRatio }));
       }
-      
-      return newPositions;
-    });
+    }, 0);
 
-    // Reset sync flags after a brief delay
+    // Reset sync flag after a brief delay
     setTimeout(() => {
       syncInProgress.current = false;
-      lastSyncSource.current = '';
     }, 50);
   }, []);
 
