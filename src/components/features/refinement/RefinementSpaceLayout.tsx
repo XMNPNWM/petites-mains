@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,7 @@ import MetricsPanel from './panels/MetricsPanel';
 import StorylinePanel from '@/components/features/writing/StorylinePanel';
 import SimpleRightClickMenu from '@/components/features/writing/simple/SimpleRightClickMenu';
 import { useSimplePopups } from '@/components/features/writing/simple/SimplePopupManager';
-import { useScrollSync } from '@/hooks/useScrollSync';
+import { useImprovedScrollSync } from '@/hooks/useImprovedScrollSync';
 
 // Define ChatType locally to match the SimplePopupManager
 type ChatType = 'comment' | 'chat';
@@ -73,7 +72,7 @@ const RefinementSpaceLayout = ({
   const [overlayHeight, setOverlayHeight] = useState(30);
   const [highlightedRange, setHighlightedRange] = useState<{ start: number; end: number } | null>(null);
   const { createPopup } = useSimplePopups();
-  const { scrollPositions, handleScrollSync } = useScrollSync();
+  const { scrollPositions, handleScrollSync } = useImprovedScrollSync();
 
   // Handle change click for jump navigation
   const handleChangeClick = useCallback((change: AIChange) => {
@@ -247,6 +246,10 @@ const RefinementSpaceLayout = ({
                 refinementId={refinementData?.id || ''}
                 onChangeDecision={onChangeDecision}
                 onChangeClick={handleChangeClick}
+                scrollPosition={scrollPositions.changeTracking}
+                onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
+                  handleScrollSync('changeTracking', scrollTop, scrollHeight, clientHeight)
+                }
               />
             </SimpleRightClickMenu>
           </ResizablePanel>

@@ -11,6 +11,18 @@ interface RichTextBubbleMenuProps {
 const RichTextBubbleMenu = ({ editor }: RichTextBubbleMenuProps) => {
   if (!editor || editor.isDestroyed) return null;
 
+  const handleBold = () => {
+    if (!editor.isDestroyed) {
+      editor.chain().focus().toggleBold().run();
+    }
+  };
+
+  const handleItalic = () => {
+    if (!editor.isDestroyed) {
+      editor.chain().focus().toggleItalic().run();
+    }
+  };
+
   return (
     <BubbleMenu 
       editor={editor} 
@@ -18,7 +30,10 @@ const RichTextBubbleMenu = ({ editor }: RichTextBubbleMenuProps) => {
         duration: 100,
         appendTo: () => document.body,
         placement: 'top',
-        zIndex: 1000
+        zIndex: 1000,
+        interactive: true,
+        trigger: 'mouseenter focus',
+        hideOnClick: false
       }}
       shouldShow={({ editor, state }) => {
         const { selection } = state;
@@ -30,11 +45,8 @@ const RichTextBubbleMenu = ({ editor }: RichTextBubbleMenuProps) => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => {
-            if (!editor.isDestroyed) {
-              editor.chain().focus().toggleBold().run();
-            }
-          }}
+          onClick={handleBold}
+          onMouseDown={(e) => e.preventDefault()}
           className={`h-8 w-8 p-0 ${editor.isActive('bold') ? 'bg-slate-200' : ''}`}
         >
           <Bold className="w-4 h-4" />
@@ -42,11 +54,8 @@ const RichTextBubbleMenu = ({ editor }: RichTextBubbleMenuProps) => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => {
-            if (!editor.isDestroyed) {
-              editor.chain().focus().toggleItalic().run();
-            }
-          }}
+          onClick={handleItalic}
+          onMouseDown={(e) => e.preventDefault()}
           className={`h-8 w-8 p-0 ${editor.isActive('italic') ? 'bg-slate-200' : ''}`}
         >
           <Italic className="w-4 h-4" />

@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
-import RichTextEditor from '../RichTextEditor';
+import SegmentedRichTextEditor from '../components/SegmentedRichTextEditor';
 import EnhancedRichTextToolbar from '../components/EnhancedRichTextToolbar';
 import EnhancedFindReplaceBar from '../components/EnhancedFindReplaceBar';
 
@@ -20,24 +20,8 @@ const EnhancedEditorPanel = ({
   onScrollSync,
   scrollPosition
 }: EnhancedEditorPanelProps) => {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [editor, setEditor] = useState<any>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
-
-  // Handle scroll synchronization
-  const handleScroll = () => {
-    if (scrollContainerRef.current && onScrollSync) {
-      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-      onScrollSync(scrollTop, scrollHeight, clientHeight);
-    }
-  };
-
-  // Apply scroll position from external sync
-  useEffect(() => {
-    if (scrollContainerRef.current && scrollPosition !== undefined) {
-      scrollContainerRef.current.scrollTop = scrollPosition;
-    }
-  }, [scrollPosition]);
 
   return (
     <div className="h-full flex flex-col bg-slate-50 overflow-hidden">
@@ -64,13 +48,14 @@ const EnhancedEditorPanel = ({
       <div className="flex-1 overflow-hidden">
         <Card className="m-4 h-[calc(100%-2rem)] flex flex-col overflow-hidden">
           <div className="flex-1 overflow-hidden">
-            <RichTextEditor
+            <SegmentedRichTextEditor
               content={content}
               onContentChange={onContentChange}
               onScrollSync={onScrollSync}
               scrollPosition={scrollPosition}
               placeholder="Enhanced content will appear here..."
               onEditorReady={setEditor}
+              wordsPerPage={300}
             />
           </div>
         </Card>

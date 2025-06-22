@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useProjectData } from './useProjectData';
 import { RefinementService } from '@/services/RefinementService';
+import { ChapterNavigationService } from '@/services/ChapterNavigationService';
 import { Chapter, RefinementData } from '@/types/shared';
 
 export const useRefinementSpace = (projectId: string | undefined) => {
@@ -38,7 +39,12 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   const handleChapterSelect = useCallback((chapter: Chapter) => {
     setCurrentChapter(chapter);
     fetchRefinementData(chapter.id);
-  }, [fetchRefinementData]);
+    
+    // Save selected chapter for cross-space navigation
+    if (projectId) {
+      ChapterNavigationService.setCurrentChapter(projectId, chapter.id);
+    }
+  }, [fetchRefinementData, projectId]);
 
   const handleContentChange = useCallback(async (content: string) => {
     if (!refinementData) return;
@@ -119,10 +125,16 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   }, [fetchRefinementData, currentChapter]);
 
   useEffect(() => {
-    if (chapters.length > 0 && !currentChapter) {
-      setCurrentChapter(chapters[0]);
+    if (chapters.length > 0 && !currentChapter && projectId) {
+      // Try to restore previously selected chapter
+      const savedChapterId = ChapterNavigationService.getCurrentChapter(projectId);
+      const savedChapter = savedChapterId ? chapters.find(c => c.id === savedChapterId) : null;
+      
+      // Use saved chapter or default to first chapter
+      const chapterToSelect = savedChapter || chapters[0];
+      setCurrentChapter(chapterToSelect);
     }
-  }, [chapters, currentChapter]);
+  }, [chapters, currentChapter, projectId]);
 
   useEffect(() => {
     if (currentChapter) {

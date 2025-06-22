@@ -1,10 +1,10 @@
-
 import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useProjectData } from './useProjectData';
 import { useAutoSave } from './useAutoSave';
 import { ChapterService } from '@/services/ChapterService';
+import { ChapterNavigationService } from '@/services/ChapterNavigationService';
 import { Chapter } from '@/types/shared';
 
 export const useWritingSpace = () => {
@@ -49,6 +49,11 @@ export const useWritingSpace = () => {
   const handleChapterSelect = useCallback((chapter: Chapter) => {
     setCurrentChapter(chapter);
     navigate(`/project/${projectId}/write/${chapter.id}`);
+    
+    // Save selected chapter for cross-space navigation
+    if (projectId) {
+      ChapterNavigationService.setCurrentChapter(projectId, chapter.id);
+    }
   }, [navigate, projectId]);
 
   const handleSave = useCallback(async () => {
