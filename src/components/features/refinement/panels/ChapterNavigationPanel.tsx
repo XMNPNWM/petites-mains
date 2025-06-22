@@ -1,8 +1,9 @@
 
 import React from 'react';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Clock, FileText, AlertCircle } from 'lucide-react';
+import { FileText, Clock } from 'lucide-react';
 
 interface Chapter {
   id: string;
@@ -25,82 +26,67 @@ const ChapterNavigationPanel = ({
   currentChapter,
   onChapterSelect
 }: ChapterNavigationPanelProps) => {
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'in_progress':
-        return <Clock className="w-4 h-4 text-yellow-500" />;
-      case 'updated':
-        return <AlertCircle className="w-4 h-4 text-orange-500" />;
-      default:
-        return <FileText className="w-4 h-4 text-slate-400" />;
-    }
-  };
+  // Sort chapters by order_index and create display numbers starting from 1
+  const sortedChapters = [...chapters].sort((a, b) => a.order_index - b.order_index);
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'bg-green-100 text-green-700';
+        return 'text-green-600 bg-green-50 border-green-200';
       case 'in_progress':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'updated':
-        return 'bg-orange-100 text-orange-700';
+        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'draft':
+        return 'text-blue-600 bg-blue-50 border-blue-200';
       default:
-        return 'bg-slate-100 text-slate-600';
+        return 'text-slate-600 bg-slate-50 border-slate-200';
     }
   };
 
+  const formatStatus = (status: string) => {
+    return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
   return (
-    <div className="h-full bg-slate-50 p-4 overflow-y-auto">
-      <div className="mb-4">
-        <h3 className="text-sm font-semibold text-slate-700 mb-2">Chapters</h3>
-        <p className="text-xs text-slate-500">
-          {chapters.length} chapters total
-        </p>
+    <Card className="h-full">
+      <div className="p-4 border-b border-slate-200">
+        <h3 className="font-semibold text-slate-800 flex items-center space-x-2">
+          <FileText className="w-4 h-4" />
+          <span>Chapters ({chapters.length})</span>
+        </h3>
       </div>
-      
-      <div className="space-y-2">
-        {chapters.map((chapter) => {
-          const isSelected = currentChapter?.id === chapter.id;
-          
-          return (
-            <Card
+
+      <ScrollArea className="flex-1">
+        <div className="p-2">
+          {sortedChapters.map((chapter, index) => (
+            <Button
               key={chapter.id}
-              className={`p-3 cursor-pointer transition-colors hover:bg-white ${
-                isSelected 
-                  ? 'bg-white border-purple-200 shadow-sm' 
-                  : 'bg-slate-50 hover:bg-white'
-              }`}
+              variant={currentChapter?.id === chapter.id ? "default" : "ghost"}
+              className="w-full mb-2 p-3 h-auto flex flex-col items-start space-y-2"
               onClick={() => onChapterSelect(chapter)}
             >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  {getStatusIcon(chapter.status)}
-                  <span className="text-xs font-medium text-slate-600">
-                    Chapter {chapter.order_index + 1}
-                  </span>
+              <div className="flex items-center justify-between w-full">
+                <span className="font-medium text-sm">
+                  Chapter {index + 1}
+                </span>
+                <div className={`px-2 py-1 rounded-full text-xs border ${getStatusColor(chapter.status)}`}>
+                  {formatStatus(chapter.status)}
                 </div>
-                <Badge 
-                  variant="secondary" 
-                  className={`text-xs px-2 py-1 ${getStatusColor(chapter.status)}`}
-                >
-                  {chapter.status || 'untouched'}
-                </Badge>
               </div>
               
-              <h4 className="text-sm font-medium text-slate-900 mb-1 line-clamp-2">
-                {chapter.title}
-              </h4>
-              
-              <p className="text-xs text-slate-500">
-                {chapter.word_count || 0} words
-              </p>
-            </Card>
-          );
-        })}
-      </div>
-    </div>
+              <div className="text-left w-full">
+                <p className="text-sm font-medium truncate">
+                  {chapter.title}
+                </p>
+                <div className="flex items-center space-x-2 text-xs text-slate-500 mt-1">
+                  <Clock className="w-3 h-3" />
+                  <span>{chapter.word_count} words</span>
+                </div>
+              </div>
+            </Button>
+          ))}
+        </div>
+      </ScrollArea>
+    </Card>
   );
 };
 

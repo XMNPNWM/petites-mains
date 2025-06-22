@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Sparkles, Download } from 'lucide-react';
 import ChronologicalTimeline from '../writing/ChronologicalTimeline';
 import ExportDialog from '../writing/ExportDialog';
+import { useProjectData } from '@/hooks/useProjectData';
 
 interface Chapter {
   id: string;
@@ -34,6 +35,7 @@ const RefinementSpaceHeader = ({
   onBackClick 
 }: RefinementSpaceHeaderProps) => {
   const [showExportDialog, setShowExportDialog] = React.useState(false);
+  const { chapters } = useProjectData(project.id);
 
   return (
     <div className="bg-white border-b border-slate-200 px-6 py-4 flex-shrink-0 relative">
@@ -75,9 +77,8 @@ const RefinementSpaceHeader = ({
 
       {showExportDialog && (
         <ExportDialog
-          isOpen={showExportDialog}
-          onClose={() => setShowExportDialog(false)}
-          projectId={project.id}
+          project={project}
+          chapters={chapters}
           currentChapter={currentChapter}
         />
       )}

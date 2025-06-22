@@ -55,7 +55,9 @@ const EnhancedEditorPanel = ({
           <div className="p-4 h-full">
             <RichTextEditor
               content={content}
-              onChange={onContentChange}
+              onContentChange={onContentChange}
+              onScrollSync={onScrollSync}
+              scrollPosition={scrollPosition}
               placeholder="Enhanced content will appear here..."
             />
           </div>

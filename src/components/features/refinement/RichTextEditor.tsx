@@ -112,7 +112,7 @@ const RichTextEditor = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col relative">
       {/* Rich Text Toolbar */}
       <div className="border-b border-slate-200 p-2 flex items-center space-x-2">
         <Button
@@ -183,9 +183,16 @@ const RichTextEditor = ({
         </div>
       )}
 
-      {/* Bubble Menu for selection-based formatting */}
-      <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}>
-        <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-1 flex items-center space-x-1">
+      {/* Bubble Menu for selection-based formatting - fixed positioning */}
+      <BubbleMenu 
+        editor={editor} 
+        tippyOptions={{ 
+          duration: 100,
+          appendTo: () => document.body,
+          placement: 'top'
+        }}
+      >
+        <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-1 flex items-center space-x-1 z-50">
           <Button
             variant="ghost"
             size="sm"

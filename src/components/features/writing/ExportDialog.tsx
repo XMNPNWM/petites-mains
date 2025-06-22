@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Download, Loader2 } from 'lucide-react';
+import { Download, Loader2, X } from 'lucide-react';
 import { exportToPDF, exportToDOCX, exportToTXT } from '@/lib/exportUtils';
 
 interface Chapter {
@@ -29,7 +29,7 @@ interface ExportDialogProps {
 }
 
 const ExportDialog = ({ project, chapters, currentChapter }: ExportDialogProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const [exportFormat, setExportFormat] = useState('pdf');
   const [exportScope, setExportScope] = useState('all');
   const [includeMetadata, setIncludeMetadata] = useState(true);
@@ -63,17 +63,23 @@ const ExportDialog = ({ project, chapters, currentChapter }: ExportDialogProps) 
     }
   };
 
+  if (!isOpen) return null;
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Download className="w-4 h-4 mr-2" />
-          Export
-        </Button>
-      </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Export Project</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Export Project</DialogTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsOpen(false)}
+              className="h-6 w-6 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </DialogHeader>
         
         <div className="space-y-6">
