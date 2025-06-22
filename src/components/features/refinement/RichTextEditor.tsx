@@ -2,9 +2,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import RichTextToolbar from './components/RichTextToolbar';
-import FindReplaceBar from './components/FindReplaceBar';
 import RichTextBubbleMenu from './components/RichTextBubbleMenu';
+import { SearchReplaceExtension } from './extensions/SearchReplaceExtension';
 
 interface RichTextEditorProps {
   content: string;
@@ -12,6 +11,7 @@ interface RichTextEditorProps {
   onScrollSync?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
   scrollPosition?: number;
   placeholder?: string;
+  onEditorReady?: (editor: any) => void;
 }
 
 const RichTextEditor = ({ 
@@ -19,12 +19,10 @@ const RichTextEditor = ({
   onContentChange, 
   onScrollSync,
   scrollPosition,
-  placeholder = "Start writing..."
+  placeholder = "Start writing...",
+  onEditorReady
 }: RichTextEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
-  const [showFindReplace, setShowFindReplace] = useState(false);
-  const [findText, setFindText] = useState('');
-  const [replaceText, setReplaceText] = useState('');
 
   const editor = useEditor({
     extensions: [
@@ -33,6 +31,7 @@ const RichTextEditor = ({
           levels: [1, 2, 3, 4, 5, 6],
         },
       }),
+      SearchReplaceExtension,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -44,6 +43,13 @@ const RichTextEditor = ({
       attributes: {
         class: 'prose prose-sm max-w-none focus:outline-none min-h-full p-4 text-sm leading-relaxed overflow-y-auto',
         spellcheck: 'true',
+      },
+      handleKeyDown: (view, event) => {
+        // Prevent losing focus on common shortcuts
+        if (event.ctrlKey || event.metaKey) {
+          return false;
+        }
+        return false;
       },
     },
   });
@@ -80,6 +86,13 @@ const RichTextEditor = ({
     }
   }, [content, editor]);
 
+  // Notify parent when editor is ready
+  useEffect(() => {
+    if (editor && onEditorReady) {
+      onEditorReady(editor);
+    }
+  }, [editor, onEditorReady]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -99,25 +112,7 @@ const RichTextEditor = ({
 
   return (
     <div className="flex-1 flex flex-col relative h-full">
-      <RichTextToolbar 
-        editor={editor} 
-        onFindReplaceToggle={() => setShowFindReplace(!showFindReplace)} 
-      />
-
-      {showFindReplace && (
-        <FindReplaceBar
-          editor={editor}
-          findText={findText}
-          replaceText={replaceText}
-          onFindTextChange={setFindText}
-          onReplaceTextChange={setReplaceText}
-          onContentChange={onContentChange}
-          onClose={() => setShowFindReplace(false)}
-        />
-      )}
-
       <RichTextBubbleMenu editor={editor} />
-
       <div ref={editorRef} className="flex-1 overflow-hidden">
         <EditorContent 
           editor={editor} 

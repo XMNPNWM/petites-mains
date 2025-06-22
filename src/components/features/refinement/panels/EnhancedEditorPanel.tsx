@@ -1,7 +1,9 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import RichTextEditor from '../RichTextEditor';
+import EnhancedRichTextToolbar from '../components/EnhancedRichTextToolbar';
+import EnhancedFindReplaceBar from '../components/EnhancedFindReplaceBar';
 
 interface EnhancedEditorPanelProps {
   content: string;
@@ -19,6 +21,8 @@ const EnhancedEditorPanel = ({
   scrollPosition
 }: EnhancedEditorPanelProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [editor, setEditor] = useState<any>(null);
+  const [showFindReplace, setShowFindReplace] = useState(false);
 
   // Handle scroll synchronization
   const handleScroll = () => {
@@ -37,9 +41,23 @@ const EnhancedEditorPanel = ({
 
   return (
     <div className="h-full flex flex-col bg-slate-50 overflow-hidden">
-      {/* Simplified Header */}
+      {/* Enhanced Header with Toolbar */}
       <div className="bg-white border-b border-slate-200 px-4 py-3 flex-shrink-0">
-        <h3 className="font-semibold text-slate-800">Enhanced Content</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-slate-800">Enhanced Content</h3>
+          <EnhancedRichTextToolbar 
+            editor={editor}
+            onFindReplaceToggle={() => setShowFindReplace(!showFindReplace)}
+          />
+        </div>
+        {showFindReplace && (
+          <div className="mt-2">
+            <EnhancedFindReplaceBar
+              editor={editor}
+              onClose={() => setShowFindReplace(false)}
+            />
+          </div>
+        )}
       </div>
 
       {/* Editor Container */}
@@ -52,6 +70,7 @@ const EnhancedEditorPanel = ({
               onScrollSync={onScrollSync}
               scrollPosition={scrollPosition}
               placeholder="Enhanced content will appear here..."
+              onEditorReady={setEditor}
             />
           </div>
         </Card>

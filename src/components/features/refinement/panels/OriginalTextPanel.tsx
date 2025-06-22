@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
+import SegmentedTextDisplay from '../components/SegmentedTextDisplay';
 
 interface OriginalTextPanelProps {
   content: string;
@@ -18,7 +19,6 @@ const OriginalTextPanel = ({
   highlightedRange
 }: OriginalTextPanelProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const textContainerRef = useRef<HTMLDivElement>(null);
 
   // Handle scroll synchronization
   const handleScroll = () => {
@@ -35,44 +35,27 @@ const OriginalTextPanel = ({
     }
   }, [scrollPosition]);
 
-  // Handle highlighting
-  const renderContentWithHighlight = () => {
-    if (!highlightedRange || !content) {
-      return <div className="whitespace-pre-wrap leading-relaxed break-words">{content}</div>;
-    }
-
-    const before = content.slice(0, highlightedRange.start);
-    const highlighted = content.slice(highlightedRange.start, highlightedRange.end);
-    const after = content.slice(highlightedRange.end);
-
-    return (
-      <div className="whitespace-pre-wrap leading-relaxed break-words">
-        {before}
-        <span className="bg-yellow-200 px-1 rounded animate-pulse">
-          {highlighted}
-        </span>
-        {after}
-      </div>
-    );
-  };
-
   return (
     <div className="h-full flex flex-col bg-slate-50 overflow-hidden">
-      {/* Simplified Header */}
+      {/* Header */}
       <div className="bg-white border-b border-slate-200 px-4 py-3 flex-shrink-0">
         <h3 className="font-semibold text-slate-800">Original Content</h3>
       </div>
 
-      {/* Content Container */}
+      {/* Content Container with Segmentation */}
       <div 
         ref={scrollContainerRef}
         className="flex-1 overflow-auto"
         onScroll={handleScroll}
       >
         <Card className="m-4 flex-1 min-h-0">
-          <div ref={textContainerRef} className="p-6 h-full overflow-hidden">
+          <div className="p-6 h-full overflow-hidden">
             <div className="text-slate-700 text-sm leading-relaxed h-full overflow-y-auto">
-              {renderContentWithHighlight()}
+              <SegmentedTextDisplay 
+                content={content}
+                highlightedRange={highlightedRange}
+                wordsPerPage={300}
+              />
             </div>
           </div>
         </Card>
