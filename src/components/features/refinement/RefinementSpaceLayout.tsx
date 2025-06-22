@@ -1,15 +1,8 @@
+
 import React, { useState, useCallback } from 'react';
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import ChapterNavigationPanel from './panels/ChapterNavigationPanel';
-import OriginalTextPanel from './panels/OriginalTextPanel';
-import EnhancedEditorPanel from './panels/EnhancedEditorPanel';
-import ChangeTrackingPanel from './panels/ChangeTrackingPanel';
-import MetricsPanel from './panels/MetricsPanel';
-import StorylinePanel from '@/components/features/writing/StorylinePanel';
-import SimpleRightClickMenu from '@/components/features/writing/simple/SimpleRightClickMenu';
+import RefinementMainPanels from './components/RefinementMainPanels';
+import RefinementStorylineOverlay from './components/RefinementStorylineOverlay';
 import { useSimplePopups } from '@/components/features/writing/simple/SimplePopupManager';
 import { useImprovedScrollSync } from '@/hooks/useImprovedScrollSync';
 
@@ -69,7 +62,7 @@ const RefinementSpaceLayout = ({
   onRefresh
 }: RefinementSpaceLayoutProps) => {
   const [metricsExpanded, setMetricsExpanded] = useState(false);
-  const [overlayHeight, setOverlayHeight] = useState(25); // Reduced from 30 to match screenshot
+  const [overlayHeight, setOverlayHeight] = useState(25);
   const [highlightedRange, setHighlightedRange] = useState<{ start: number; end: number } | null>(null);
   const { createPopup } = useSimplePopups();
   const { scrollPositions, handleScrollSync } = useImprovedScrollSync();
@@ -174,148 +167,33 @@ const RefinementSpaceLayout = ({
           top: 0
         }}
       >
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Panel 1: Chapter Navigation */}
-          <ResizablePanel defaultSize={12} minSize={8} maxSize={20}>
-            <SimpleRightClickMenu onMenuClick={handleRightClickMenuClick}>
-              <ChapterNavigationPanel
-                chapters={chapters}
-                currentChapter={currentChapter}
-                onChapterSelect={onChapterSelect}
-              />
-            </SimpleRightClickMenu>
-          </ResizablePanel>
-          
-          <ResizableHandle />
-          
-          {/* Panel 2: Original Text */}
-          <ResizablePanel defaultSize={28} minSize={20} maxSize={40}>
-            <SimpleRightClickMenu onMenuClick={handleRightClickMenuClick}>
-              <OriginalTextPanel
-                content={refinementData?.original_content || ''}
-                chapterTitle={currentChapter?.title || ''}
-                onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
-                  handleScrollSync('original', scrollTop, scrollHeight, clientHeight)
-                }
-                scrollPosition={scrollPositions.original}
-                highlightedRange={highlightedRange}
-              />
-            </SimpleRightClickMenu>
-          </ResizablePanel>
-          
-          <ResizableHandle />
-          
-          {/* Import Arrow Button */}
-          <div className="flex items-center justify-center w-8 bg-slate-100 border-x border-slate-200">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleImportToCreation}
-              className="p-1 h-auto"
-              title="Import to Creation Editor"
-            >
-              <ArrowLeft className="w-4 h-4 text-purple-600" />
-            </Button>
-          </div>
-          
-          {/* Panel 3: Enhanced Editor */}
-          <ResizablePanel defaultSize={28} minSize={20} maxSize={40}>
-            <SimpleRightClickMenu onMenuClick={handleRightClickMenuClick}>
-              <EnhancedEditorPanel
-                content={refinementData?.enhanced_content || ''}
-                onContentChange={onContentChange}
-                chapterTitle={currentChapter?.title || ''}
-                onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
-                  handleScrollSync('enhanced', scrollTop, scrollHeight, clientHeight)
-                }
-                scrollPosition={scrollPositions.enhanced}
-              />
-            </SimpleRightClickMenu>
-          </ResizablePanel>
-          
-          <ResizableHandle />
-          
-          {/* Panel 4: Change Tracking */}
-          <ResizablePanel defaultSize={17} minSize={12} maxSize={25}>
-            <SimpleRightClickMenu onMenuClick={handleRightClickMenuClick}>
-              <ChangeTrackingPanel
-                refinementId={refinementData?.id || ''}
-                onChangeDecision={onChangeDecision}
-                onChangeClick={handleChangeClick}
-                scrollPosition={scrollPositions.changeTracking}
-                onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
-                  handleScrollSync('changeTracking', scrollTop, scrollHeight, clientHeight)
-                }
-              />
-            </SimpleRightClickMenu>
-          </ResizablePanel>
-          
-          <ResizableHandle />
-          
-          {/* Metrics Panel Toggle Button */}
-          {!metricsExpanded && (
-            <div className="flex items-center justify-center w-6 bg-slate-50 border-l border-slate-200">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleMetricsToggle}
-                className="p-1 h-auto rotate-180"
-                title="Show Metrics"
-              >
-                <ChevronRight className="w-3 h-3 text-slate-500" />
-              </Button>
-            </div>
-          )}
-          
-          {/* Panel 5: Metrics (Collapsible) */}
-          {metricsExpanded && (
-            <>
-              <ResizableHandle />
-              <ResizablePanel 
-                defaultSize={15} 
-                minSize={12} 
-                maxSize={25}
-              >
-                <SimpleRightClickMenu onMenuClick={handleRightClickMenuClick}>
-                  <MetricsPanel
-                    refinementId={refinementData?.id || ''}
-                    isExpanded={metricsExpanded}
-                    onToggleExpanded={handleMetricsToggle}
-                    content={refinementData?.enhanced_content || ''}
-                  />
-                </SimpleRightClickMenu>
-              </ResizablePanel>
-            </>
-          )}
-        </ResizablePanelGroup>
+        <RefinementMainPanels
+          chapters={chapters}
+          currentChapter={currentChapter}
+          refinementData={refinementData}
+          onChapterSelect={onChapterSelect}
+          onContentChange={onContentChange}
+          onChangeDecision={onChangeDecision}
+          onChangeClick={handleChangeClick}
+          onImportToCreation={handleImportToCreation}
+          scrollPositions={scrollPositions}
+          handleScrollSync={handleScrollSync}
+          highlightedRange={highlightedRange}
+          onRightClickMenuClick={handleRightClickMenuClick}
+          metricsExpanded={metricsExpanded}
+          onMetricsToggle={handleMetricsToggle}
+        />
       </div>
 
       {/* Storyline Panel Overlay */}
-      <div
-        className="absolute bottom-0 left-0 right-0 bg-white shadow-lg border-t-2 border-slate-300 transition-all duration-200 ease-out z-[1000] overflow-hidden"
-        style={{ height: `${overlayHeight}%` }}
-      >
-        {/* Drag Handle with Double-Click Support */}
-        <div
-          className="w-full h-6 bg-slate-100 border-b border-slate-300 cursor-ns-resize flex items-center justify-center hover:bg-slate-200 transition-colors"
-          onMouseDown={handleMouseDown}
-          onDoubleClick={handleStorylineDragHandleDoubleClick}
-        >
-          <div className="flex space-x-1">
-            <div className="w-8 h-1 bg-slate-400 rounded-full"></div>
-            <div className="w-8 h-1 bg-slate-400 rounded-full"></div>
-            <div className="w-8 h-1 bg-slate-400 rounded-full"></div>
-          </div>
-        </div>
-
-        <div className="h-[calc(100%-24px)] overflow-hidden">
-          <StorylinePanel 
-            projectId={projectId}
-            chapterId={currentChapter?.id}
-            onDataChange={onRefresh}
-          />
-        </div>
-      </div>
+      <RefinementStorylineOverlay
+        projectId={projectId}
+        currentChapterId={currentChapter?.id}
+        overlayHeight={overlayHeight}
+        onRefresh={onRefresh}
+        onMouseDown={handleMouseDown}
+        onDoubleClick={handleStorylineDragHandleDoubleClick}
+      />
     </div>
   );
 };
