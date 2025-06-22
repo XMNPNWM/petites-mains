@@ -1,12 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChevronUp, ChevronDown, X } from 'lucide-react';
 
 interface FindReplaceBarProps {
-  editor: Editor;
+  editor: Editor | null;
   findText: string;
   replaceText: string;
   onFindTextChange: (text: string) => void;
@@ -27,8 +27,8 @@ const FindReplaceBar = ({
   const [currentMatch, setCurrentMatch] = useState(0);
   const [totalMatches, setTotalMatches] = useState(0);
 
-  const findMatches = () => {
-    if (!editor || !findText) {
+  const findMatches = useCallback(() => {
+    if (!editor || editor.isDestroyed || !findText) {
       setTotalMatches(0);
       setCurrentMatch(0);
       return [];
@@ -46,9 +46,11 @@ const FindReplaceBar = ({
     
     setTotalMatches(matches.length);
     return matches;
-  };
+  }, [editor, findText]);
 
-  const handleFind = (direction: 'next' | 'prev' = 'next') => {
+  const handleFind = useCallback((direction: 'next' | 'prev' = 'next') => {
+    if (!editor || editor.isDestroyed) return;
+    
     const matches = findMatches();
     if (matches.length === 0) return;
 
@@ -63,14 +65,16 @@ const FindReplaceBar = ({
     
     // Highlight the match
     const matchPosition = matches[nextMatch];
-    editor.commands.setTextSelection({
-      from: matchPosition,
-      to: matchPosition + findText.length
-    });
-  };
+    if (matchPosition !== undefined) {
+      editor.commands.setTextSelection({
+        from: matchPosition,
+        to: matchPosition + findText.length
+      });
+    }
+  }, [editor, findMatches, currentMatch, findText]);
 
-  const handleReplace = () => {
-    if (!editor || !findText || !replaceText) return;
+  const handleReplace = useCallback(() => {
+    if (!editor || editor.isDestroyed || !findText || !replaceText) return;
     
     const selection = editor.state.selection;
     const selectedText = editor.state.doc.textBetween(selection.from, selection.to);
@@ -80,10 +84,10 @@ const FindReplaceBar = ({
       onContentChange(editor.getHTML());
       handleFind('next');
     }
-  };
+  }, [editor, findText, replaceText, onContentChange, handleFind]);
 
-  const handleReplaceAll = () => {
-    if (!editor || !findText || !replaceText) return;
+  const handleReplaceAll = useCallback(() => {
+    if (!editor || editor.isDestroyed || !findText || !replaceText) return;
     
     const content = editor.getHTML();
     const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
@@ -94,13 +98,15 @@ const FindReplaceBar = ({
     
     setCurrentMatch(0);
     setTotalMatches(0);
-  };
+  }, [editor, findText, replaceText, onContentChange]);
 
-  React.useEffect(() => {
-    if (findText) {
+  useEffect(() => {
+    if (findText && editor && !editor.isDestroyed) {
       findMatches();
     }
-  }, [findText, editor]);
+  }, [findText, editor, findMatches]);
+
+  const isEditorReady = editor && !editor.isDestroyed;
 
   return (
     <div className="border-b border-slate-200 p-2 flex items-center space-x-2 bg-slate-50">
@@ -112,10 +118,22 @@ const FindReplaceBar = ({
           onChange={(e) => onFindTextChange(e.target.value)}
           className="h-8 w-32 text-sm"
         />
-        <Button size="sm" variant="ghost" onClick={() => handleFind('prev')} className="h-8 w-8 p-0">
+        <Button 
+          size="sm" 
+          variant="ghost" 
+          onClick={() => handleFind('prev')} 
+          className="h-8 w-8 p-0"
+          disabled={!isEditorReady || totalMatches === 0}
+        >
           <ChevronUp className="w-4 h-4" />
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => handleFind('next')} className="h-8 w-8 p-0">
+        <Button 
+          size="sm" 
+          variant="ghost" 
+          onClick={() => handleFind('next')} 
+          className="h-8 w-8 p-0"
+          disabled={!isEditorReady || totalMatches === 0}
+        >
           <ChevronDown className="w-4 h-4" />
         </Button>
         {totalMatches > 0 && (
@@ -133,8 +151,20 @@ const FindReplaceBar = ({
           onChange={(e) => onReplaceTextChange(e.target.value)}
           className="h-8 w-32 text-sm"
         />
-        <Button size="sm" onClick={handleReplace}>Replace</Button>
-        <Button size="sm" onClick={handleReplaceAll}>Replace All</Button>
+        <Button 
+          size="sm" 
+          onClick={handleReplace}
+          disabled={!isEditorReady || !findText || !replaceText}
+        >
+          Replace
+        </Button>
+        <Button 
+          size="sm" 
+          onClick={handleReplaceAll}
+          disabled={!isEditorReady || !findText || !replaceText}
+        >
+          Replace All
+        </Button>
       </div>
       
       <Button size="sm" variant="ghost" onClick={onClose} className="h-8 w-8 p-0">

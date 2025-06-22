@@ -36,7 +36,9 @@ const RichTextEditor = ({
     ],
     content,
     onUpdate: ({ editor }) => {
-      onContentChange(editor.getHTML());
+      if (!editor.isDestroyed) {
+        onContentChange(editor.getHTML());
+      }
     },
     editorProps: {
       attributes: {
@@ -73,10 +75,19 @@ const RichTextEditor = ({
 
   // Update editor content when content prop changes
   useEffect(() => {
-    if (editor && editor.getHTML() !== content) {
+    if (editor && !editor.isDestroyed && editor.getHTML() !== content) {
       editor.commands.setContent(content);
     }
   }, [content, editor]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (editor && !editor.isDestroyed) {
+        editor.destroy();
+      }
+    };
+  }, [editor]);
 
   if (!editor) {
     return (

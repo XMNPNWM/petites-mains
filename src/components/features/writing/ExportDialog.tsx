@@ -18,7 +18,7 @@ interface Chapter {
   status: string;
 }
 
-interface RefinementData {
+interface ChapterRefinement {
   id: string;
   chapter_id: string;
   enhanced_content: string;
@@ -59,14 +59,14 @@ const ExportDialog = ({
   const fetchEnhancedContent = async (chapterIds: string[]) => {
     try {
       const { data, error } = await supabase
-        .from('refinement_data')
+        .from('chapter_refinements')
         .select('chapter_id, enhanced_content')
         .in('chapter_id', chapterIds);
 
       if (error) throw error;
 
       const enhancedContentMap = new Map();
-      data?.forEach((item: RefinementData) => {
+      data?.forEach((item: ChapterRefinement) => {
         enhancedContentMap.set(item.chapter_id, item.enhanced_content);
       });
 
