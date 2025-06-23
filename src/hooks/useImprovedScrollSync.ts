@@ -15,6 +15,7 @@ export const useImprovedScrollSync = () => {
   });
   
   const syncInProgress = useRef(false);
+  const lastSyncSource = useRef<string | null>(null);
 
   const handleScrollSync = useCallback((
     panelType: 'original' | 'enhanced' | 'changeTracking',
@@ -23,39 +24,39 @@ export const useImprovedScrollSync = () => {
     clientHeight: number
   ) => {
     // Prevent infinite scroll loops
-    if (syncInProgress.current) {
+    if (syncInProgress.current && lastSyncSource.current === panelType) {
       return;
     }
 
     syncInProgress.current = true;
+    lastSyncSource.current = panelType;
 
     // Calculate scroll ratio (0 to 1) for the current panel
-    const maxScroll = scrollHeight - clientHeight;
-    const scrollRatio = maxScroll > 0 ? scrollTop / maxScroll : 0;
+    const maxScroll = Math.max(0, scrollHeight - clientHeight);
+    const scrollRatio = maxScroll > 0 ? Math.min(1, Math.max(0, scrollTop / maxScroll)) : 0;
 
-    // Update positions - other panels will use this ratio with their own dimensions
+    // Update the current panel's position
     setScrollPositions(prev => ({
       ...prev,
       [panelType]: scrollTop
     }));
 
-    // Broadcast the scroll ratio to other panels
-    setTimeout(() => {
-      if (panelType !== 'original') {
-        setScrollPositions(prev => ({ ...prev, original: scrollRatio }));
+    // Broadcast the scroll ratio to sync other panels
+    const syncEvent = new CustomEvent('scrollSync', {
+      detail: {
+        sourcePanel: panelType,
+        scrollRatio,
+        sourceScrollTop: scrollTop
       }
-      if (panelType !== 'enhanced') {
-        setScrollPositions(prev => ({ ...prev, enhanced: scrollRatio }));
-      }
-      if (panelType !== 'changeTracking') {
-        setScrollPositions(prev => ({ ...prev, changeTracking: scrollRatio }));
-      }
-    }, 0);
+    });
+    
+    window.dispatchEvent(syncEvent);
 
     // Reset sync flag after a brief delay
     setTimeout(() => {
       syncInProgress.current = false;
-    }, 50);
+      lastSyncSource.current = null;
+    }, 100);
   }, []);
 
   return {

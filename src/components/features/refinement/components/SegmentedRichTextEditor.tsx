@@ -66,15 +66,36 @@ const SegmentedRichTextEditor = ({
     const editorElement = editorRef.current?.querySelector('.ProseMirror');
     if (!editorElement || !onScrollSync) return;
 
-    const handleScroll = (e: Event) => {
-      const element = e.target as HTMLElement;
-      const { scrollTop, scrollHeight, clientHeight } = element;
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = editorElement;
       onScrollSync(scrollTop, scrollHeight, clientHeight);
     };
 
-    editorElement.addEventListener('scroll', handleScroll);
+    editorElement.addEventListener('scroll', handleScroll, { passive: true });
     return () => editorElement.removeEventListener('scroll', handleScroll);
   }, [onScrollSync]);
+
+  // Listen for external scroll sync events
+  useEffect(() => {
+    const editorElement = editorRef.current?.querySelector('.ProseMirror');
+    if (!editorElement) return;
+
+    const handleExternalSync = (event: CustomEvent) => {
+      const { sourcePanel, scrollRatio } = event.detail;
+      
+      // Don't sync if this panel is the source
+      if (sourcePanel === 'enhanced') return;
+
+      const { scrollHeight, clientHeight } = editorElement;
+      const maxScroll = Math.max(0, scrollHeight - clientHeight);
+      const targetScrollTop = scrollRatio * maxScroll;
+      
+      editorElement.scrollTop = targetScrollTop;
+    };
+
+    window.addEventListener('scrollSync', handleExternalSync as EventListener);
+    return () => window.removeEventListener('scrollSync', handleExternalSync as EventListener);
+  }, []);
 
   // Sync scroll position when it changes externally
   useEffect(() => {

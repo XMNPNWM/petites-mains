@@ -204,10 +204,7 @@ const ExportDialog = ({
           </div>
 
           {/* Export Button */}
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
+          <div className="flex justify-end">
             <Button onClick={handleExport} disabled={isExporting}>
               {isExporting ? (
                 <>
