@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
-import SegmentedRichTextEditor from '../components/SegmentedRichTextEditor';
+import EditableSegmentedDisplay from '../components/EditableSegmentedDisplay';
 import EnhancedRichTextToolbar from '../components/EnhancedRichTextToolbar';
 import EnhancedFindReplaceBar from '../components/EnhancedFindReplaceBar';
 
@@ -48,14 +48,14 @@ const EnhancedEditorPanel = ({
       <div className="flex-1 overflow-hidden">
         <Card className="m-4 h-[calc(100%-2rem)] flex flex-col overflow-hidden">
           <div className="flex-1 overflow-hidden">
-            <SegmentedRichTextEditor
+            <EditableSegmentedDisplay
               content={content}
               onContentChange={onContentChange}
               onScrollSync={onScrollSync}
               scrollPosition={scrollPosition}
               placeholder="Enhanced content will appear here..."
               onEditorReady={setEditor}
-              wordsPerPage={300}
+              linesPerPage={25}
             />
           </div>
         </Card>

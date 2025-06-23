@@ -1,33 +1,29 @@
 
 import { useMemo } from 'react';
 
-interface TextSegment {
+interface LineSegment {
   content: string;
   startIndex: number;
   endIndex: number;
   pageNumber: number;
+  lineCount: number;
 }
 
-// Legacy hook - maintained for backward compatibility
-// New components should use useLineBasedSegmentation instead
-export const useTextSegmentation = (content: string, wordsPerPage: number = 300) => {
+export const useLineBasedSegmentation = (content: string, linesPerPage: number = 25) => {
   const segments = useMemo(() => {
     if (!content) return [];
     
-    // Convert to line-based segmentation for consistency
-    // Approximate: 300 words ≈ 25 lines (12 words per line average)
-    const approximateLinesPerPage = Math.max(1, Math.round(wordsPerPage / 12));
-    
+    // Clean content and preserve structure
     const cleanContent = content
       .replace(/<p>/g, '\n')
       .replace(/<\/p>/g, '\n')
       .replace(/<br\s*\/?>/g, '\n')
-      .replace(/<[^>]*>/g, '')
-      .replace(/\n\s*\n/g, '\n\n')
+      .replace(/<[^>]*>/g, '') // Remove other HTML tags
+      .replace(/\n\s*\n/g, '\n\n') // Normalize multiple line breaks
       .trim();
     
     const lines = cleanContent.split('\n');
-    const segments: TextSegment[] = [];
+    const segments: LineSegment[] = [];
     let currentIndex = 0;
     let currentPageLines: string[] = [];
     
@@ -35,7 +31,7 @@ export const useTextSegmentation = (content: string, wordsPerPage: number = 300)
       const line = lines[i];
       currentPageLines.push(line);
       
-      if (currentPageLines.length >= approximateLinesPerPage || i === lines.length - 1) {
+      if (currentPageLines.length >= linesPerPage || i === lines.length - 1) {
         const pageContent = currentPageLines.join('\n');
         const startIndex = currentIndex;
         const endIndex = currentIndex + pageContent.length;
@@ -44,16 +40,17 @@ export const useTextSegmentation = (content: string, wordsPerPage: number = 300)
           content: pageContent,
           startIndex,
           endIndex,
-          pageNumber: segments.length + 1
+          pageNumber: segments.length + 1,
+          lineCount: currentPageLines.length
         });
         
-        currentIndex = endIndex + 1;
+        currentIndex = endIndex + 1; // +1 for the line break between pages
         currentPageLines = [];
       }
     }
     
     return segments;
-  }, [content, wordsPerPage]);
+  }, [content, linesPerPage]);
 
   return segments;
 };

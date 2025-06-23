@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 import { Card } from '@/components/ui/card';
 import SegmentedTextDisplay from '../components/SegmentedTextDisplay';
 
@@ -38,7 +38,7 @@ const OriginalTextPanel = ({
               onScrollSync={onScrollSync}
               scrollPosition={scrollPosition}
               highlightedRange={highlightedRange}
-              wordsPerPage={300}
+              linesPerPage={25}
             />
           </div>
         </Card>

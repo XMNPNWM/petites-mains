@@ -1,13 +1,13 @@
 
 import React, { useRef, useEffect } from 'react';
-import { useTextSegmentation } from '@/hooks/useTextSegmentation';
+import { useLineBasedSegmentation } from '@/hooks/useLineBasedSegmentation';
 
 interface SegmentedTextDisplayProps {
   content: string;
   onScrollSync?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
   scrollPosition?: number;
   highlightedRange?: { start: number; end: number } | null;
-  wordsPerPage?: number;
+  linesPerPage?: number;
 }
 
 const SegmentedTextDisplay = ({
@@ -15,10 +15,10 @@ const SegmentedTextDisplay = ({
   onScrollSync,
   scrollPosition,
   highlightedRange,
-  wordsPerPage = 300
+  linesPerPage = 25
 }: SegmentedTextDisplayProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const segments = useTextSegmentation(content, wordsPerPage);
+  const segments = useLineBasedSegmentation(content, linesPerPage);
 
   // Handle scroll synchronization
   useEffect(() => {
@@ -42,7 +42,6 @@ const SegmentedTextDisplay = ({
     const handleExternalSync = (event: CustomEvent) => {
       const { sourcePanel, scrollRatio } = event.detail;
       
-      // Don't sync if this panel is the source
       if (sourcePanel === 'original') return;
 
       const { scrollHeight, clientHeight } = container;
@@ -74,9 +73,12 @@ const SegmentedTextDisplay = ({
         <div className="space-y-8">
           {segments.map((segment, index) => (
             <div key={index} className="min-h-[400px] border-b border-slate-100 pb-6 last:border-b-0">
-              <div className="text-xs text-slate-400 mb-2 text-right">Page {segment.pageNumber}</div>
+              <div className="text-xs text-slate-400 mb-2 text-right">
+                Page {segment.pageNumber} ({segment.lineCount} lines)
+              </div>
               <div 
                 className="whitespace-pre-wrap leading-relaxed break-words text-sm"
+                style={{ lineHeight: '1.6' }}
                 dangerouslySetInnerHTML={{ __html: segment.content }}
               />
             </div>
@@ -85,6 +87,7 @@ const SegmentedTextDisplay = ({
       ) : (
         <div 
           className="whitespace-pre-wrap leading-relaxed break-words"
+          style={{ lineHeight: '1.6' }}
           dangerouslySetInnerHTML={{ __html: content }}
         />
       )}
