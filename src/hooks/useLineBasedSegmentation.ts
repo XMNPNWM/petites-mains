@@ -11,7 +11,8 @@ interface LineSegment {
 
 export const useLineBasedSegmentation = (content: string, linesPerPage: number = 25) => {
   const segments = useMemo(() => {
-    if (!content) return [];
+    // Add proper null/undefined checks
+    if (!content || typeof content !== 'string') return [];
     
     // Clean content and preserve structure
     const cleanContent = content
@@ -21,6 +22,9 @@ export const useLineBasedSegmentation = (content: string, linesPerPage: number =
       .replace(/<[^>]*>/g, '') // Remove other HTML tags
       .replace(/\n\s*\n/g, '\n\n') // Normalize multiple line breaks
       .trim();
+    
+    // Handle empty content after cleaning
+    if (!cleanContent) return [];
     
     const lines = cleanContent.split('\n');
     const segments: LineSegment[] = [];
