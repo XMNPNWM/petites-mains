@@ -318,6 +318,353 @@ export type Database = {
         }
         Relationships: []
       }
+      content_hashes: {
+        Row: {
+          change_summary: string | null
+          chapter_id: string
+          created_at: string | null
+          enhanced_content_hash: string | null
+          has_changes: boolean | null
+          id: string
+          last_processed_at: string | null
+          original_content_hash: string
+          paragraph_hashes: Json
+          processing_version: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          change_summary?: string | null
+          chapter_id: string
+          created_at?: string | null
+          enhanced_content_hash?: string | null
+          has_changes?: boolean | null
+          id?: string
+          last_processed_at?: string | null
+          original_content_hash: string
+          paragraph_hashes?: Json
+          processing_version?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          change_summary?: string | null
+          chapter_id?: string
+          created_at?: string | null
+          enhanced_content_hash?: string | null
+          has_changes?: boolean | null
+          id?: string
+          last_processed_at?: string | null
+          original_content_hash?: string
+          paragraph_hashes?: Json
+          processing_version?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_hashes_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: true
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_base: {
+        Row: {
+          category: Database["public"]["Enums"]["knowledge_category"]
+          confidence_score: number
+          created_at: string | null
+          description: string | null
+          details: Json | null
+          evidence: string | null
+          extraction_method: Database["public"]["Enums"]["extraction_method"]
+          id: string
+          is_flagged: boolean | null
+          is_verified: boolean | null
+          last_seen_at: string | null
+          name: string
+          project_id: string
+          reasoning: string | null
+          review_notes: string | null
+          search_vector: unknown | null
+          source_chapter_id: string | null
+          source_paragraph_hash: string | null
+          source_text_excerpt: string | null
+          subcategory: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["knowledge_category"]
+          confidence_score?: number
+          created_at?: string | null
+          description?: string | null
+          details?: Json | null
+          evidence?: string | null
+          extraction_method?: Database["public"]["Enums"]["extraction_method"]
+          id?: string
+          is_flagged?: boolean | null
+          is_verified?: boolean | null
+          last_seen_at?: string | null
+          name: string
+          project_id: string
+          reasoning?: string | null
+          review_notes?: string | null
+          search_vector?: unknown | null
+          source_chapter_id?: string | null
+          source_paragraph_hash?: string | null
+          source_text_excerpt?: string | null
+          subcategory?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["knowledge_category"]
+          confidence_score?: number
+          created_at?: string | null
+          description?: string | null
+          details?: Json | null
+          evidence?: string | null
+          extraction_method?: Database["public"]["Enums"]["extraction_method"]
+          id?: string
+          is_flagged?: boolean | null
+          is_verified?: boolean | null
+          last_seen_at?: string | null
+          name?: string
+          project_id?: string
+          reasoning?: string | null
+          review_notes?: string | null
+          search_vector?: unknown | null
+          source_chapter_id?: string | null
+          source_paragraph_hash?: string | null
+          source_text_excerpt?: string | null
+          subcategory?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_base_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_base_source_chapter_id_fkey"
+            columns: ["source_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_change_log: {
+        Row: {
+          change_reason: string | null
+          change_type: Database["public"]["Enums"]["change_type"]
+          changed_by_user: boolean | null
+          confidence_after: number | null
+          confidence_before: number | null
+          created_at: string | null
+          field_changed: string | null
+          id: string
+          knowledge_base_id: string | null
+          knowledge_fact_id: string | null
+          new_value: string | null
+          old_value: string | null
+          triggered_by_chapter_id: string | null
+          triggered_by_hash: string | null
+          user_notes: string | null
+        }
+        Insert: {
+          change_reason?: string | null
+          change_type: Database["public"]["Enums"]["change_type"]
+          changed_by_user?: boolean | null
+          confidence_after?: number | null
+          confidence_before?: number | null
+          created_at?: string | null
+          field_changed?: string | null
+          id?: string
+          knowledge_base_id?: string | null
+          knowledge_fact_id?: string | null
+          new_value?: string | null
+          old_value?: string | null
+          triggered_by_chapter_id?: string | null
+          triggered_by_hash?: string | null
+          user_notes?: string | null
+        }
+        Update: {
+          change_reason?: string | null
+          change_type?: Database["public"]["Enums"]["change_type"]
+          changed_by_user?: boolean | null
+          confidence_after?: number | null
+          confidence_before?: number | null
+          created_at?: string | null
+          field_changed?: string | null
+          id?: string
+          knowledge_base_id?: string | null
+          knowledge_fact_id?: string | null
+          new_value?: string | null
+          old_value?: string | null
+          triggered_by_chapter_id?: string | null
+          triggered_by_hash?: string | null
+          user_notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_change_log_knowledge_base_id_fkey"
+            columns: ["knowledge_base_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_change_log_knowledge_fact_id_fkey"
+            columns: ["knowledge_fact_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_facts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_change_log_triggered_by_chapter_id_fkey"
+            columns: ["triggered_by_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_facts: {
+        Row: {
+          confidence_score: number
+          created_at: string | null
+          evidence: string | null
+          extraction_method: Database["public"]["Enums"]["extraction_method"]
+          fact_key: string
+          fact_type: string | null
+          fact_value: string
+          id: string
+          knowledge_base_id: string
+          reasoning: string | null
+          source_paragraph_hash: string | null
+          source_text_excerpt: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          confidence_score?: number
+          created_at?: string | null
+          evidence?: string | null
+          extraction_method?: Database["public"]["Enums"]["extraction_method"]
+          fact_key: string
+          fact_type?: string | null
+          fact_value: string
+          id?: string
+          knowledge_base_id: string
+          reasoning?: string | null
+          source_paragraph_hash?: string | null
+          source_text_excerpt?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          confidence_score?: number
+          created_at?: string | null
+          evidence?: string | null
+          extraction_method?: Database["public"]["Enums"]["extraction_method"]
+          fact_key?: string
+          fact_type?: string | null
+          fact_value?: string
+          id?: string
+          knowledge_base_id?: string
+          reasoning?: string | null
+          source_paragraph_hash?: string | null
+          source_text_excerpt?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_facts_knowledge_base_id_fkey"
+            columns: ["knowledge_base_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_base"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_processing_jobs: {
+        Row: {
+          chapter_id: string | null
+          completed_at: string | null
+          completed_steps: number | null
+          created_at: string | null
+          current_step: string | null
+          error_details: Json | null
+          error_message: string | null
+          estimated_duration_minutes: number | null
+          id: string
+          job_type: string
+          processing_options: Json | null
+          progress_percentage: number | null
+          project_id: string
+          results_summary: Json | null
+          started_at: string | null
+          state: Database["public"]["Enums"]["processing_state"] | null
+          total_steps: number | null
+          word_count: number | null
+        }
+        Insert: {
+          chapter_id?: string | null
+          completed_at?: string | null
+          completed_steps?: number | null
+          created_at?: string | null
+          current_step?: string | null
+          error_details?: Json | null
+          error_message?: string | null
+          estimated_duration_minutes?: number | null
+          id?: string
+          job_type?: string
+          processing_options?: Json | null
+          progress_percentage?: number | null
+          project_id: string
+          results_summary?: Json | null
+          started_at?: string | null
+          state?: Database["public"]["Enums"]["processing_state"] | null
+          total_steps?: number | null
+          word_count?: number | null
+        }
+        Update: {
+          chapter_id?: string | null
+          completed_at?: string | null
+          completed_steps?: number | null
+          created_at?: string | null
+          current_step?: string | null
+          error_details?: Json | null
+          error_message?: string | null
+          estimated_duration_minutes?: number | null
+          id?: string
+          job_type?: string
+          processing_options?: Json | null
+          progress_percentage?: number | null
+          project_id?: string
+          results_summary?: Json | null
+          started_at?: string | null
+          state?: Database["public"]["Enums"]["processing_state"] | null
+          total_steps?: number | null
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_processing_jobs_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_processing_jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -616,7 +963,33 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      change_type:
+        | "addition"
+        | "modification"
+        | "deletion"
+        | "confidence_update"
+      extraction_method:
+        | "llm_direct"
+        | "llm_inferred"
+        | "user_input"
+        | "user_correction"
+      knowledge_category:
+        | "character"
+        | "plot_point"
+        | "world_building"
+        | "theme"
+        | "setting"
+        | "object"
+        | "event"
+        | "relationship"
+        | "other"
+      processing_state:
+        | "pending"
+        | "thinking"
+        | "analyzing"
+        | "extracting"
+        | "done"
+        | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -731,6 +1104,38 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      change_type: [
+        "addition",
+        "modification",
+        "deletion",
+        "confidence_update",
+      ],
+      extraction_method: [
+        "llm_direct",
+        "llm_inferred",
+        "user_input",
+        "user_correction",
+      ],
+      knowledge_category: [
+        "character",
+        "plot_point",
+        "world_building",
+        "theme",
+        "setting",
+        "object",
+        "event",
+        "relationship",
+        "other",
+      ],
+      processing_state: [
+        "pending",
+        "thinking",
+        "analyzing",
+        "extracting",
+        "done",
+        "failed",
+      ],
+    },
   },
 } as const
