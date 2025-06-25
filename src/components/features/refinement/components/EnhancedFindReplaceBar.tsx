@@ -8,28 +8,30 @@ import { ChevronUp, ChevronDown, X } from 'lucide-react';
 interface EnhancedFindReplaceBarProps {
   editor: Editor | null;
   onClose: () => void;
+  disabled?: boolean;
 }
 
 const EnhancedFindReplaceBar = ({
   editor,
-  onClose
+  onClose,
+  disabled = false
 }: EnhancedFindReplaceBarProps) => {
   const [findText, setFindText] = useState('');
   const [replaceText, setReplaceText] = useState('');
   const [matchCount, setMatchCount] = useState(0);
 
   const handleFind = useCallback((direction: 'next' | 'prev' = 'next') => {
-    if (!editor || editor.isDestroyed || !findText) return;
+    if (!editor || editor.isDestroyed || !findText || disabled) return;
     
     try {
       editor.commands.find(findText);
     } catch (error) {
       console.warn('Find operation failed:', error);
     }
-  }, [editor, findText]);
+  }, [editor, findText, disabled]);
 
   const handleReplace = useCallback(() => {
-    if (!editor || editor.isDestroyed || !findText || !replaceText) return;
+    if (!editor || editor.isDestroyed || !findText || !replaceText || disabled) return;
     
     try {
       const success = editor.commands.replace(findText, replaceText);
@@ -40,10 +42,10 @@ const EnhancedFindReplaceBar = ({
     } catch (error) {
       console.warn('Replace operation failed:', error);
     }
-  }, [editor, findText, replaceText, handleFind]);
+  }, [editor, findText, replaceText, handleFind, disabled]);
 
   const handleReplaceAll = useCallback(() => {
-    if (!editor || editor.isDestroyed || !findText || !replaceText) return;
+    if (!editor || editor.isDestroyed || !findText || !replaceText || disabled) return;
     
     try {
       editor.commands.replaceAll(findText, replaceText);
@@ -51,9 +53,9 @@ const EnhancedFindReplaceBar = ({
     } catch (error) {
       console.warn('Replace all operation failed:', error);
     }
-  }, [editor, findText, replaceText]);
+  }, [editor, findText, replaceText, disabled]);
 
-  const isEditorReady = editor && !editor.isDestroyed;
+  const isEditorReady = editor && !editor.isDestroyed && !disabled;
 
   return (
     <div className="border-b border-slate-200 p-2 flex items-center space-x-2 bg-slate-50">
@@ -64,8 +66,9 @@ const EnhancedFindReplaceBar = ({
           value={findText}
           onChange={(e) => setFindText(e.target.value)}
           className="h-8 w-32 text-sm"
+          disabled={disabled}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !disabled) {
               handleFind('next');
             }
           }}
@@ -97,8 +100,9 @@ const EnhancedFindReplaceBar = ({
           value={replaceText}
           onChange={(e) => setReplaceText(e.target.value)}
           className="h-8 w-32 text-sm"
+          disabled={disabled}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !disabled) {
               handleReplace();
             }
           }}

@@ -8,25 +8,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 interface EnhancedRichTextToolbarProps {
   editor: Editor | null;
   onFindReplaceToggle: () => void;
+  disabled?: boolean;
 }
 
-const EnhancedRichTextToolbar = ({ editor, onFindReplaceToggle }: EnhancedRichTextToolbarProps) => {
+const EnhancedRichTextToolbar = ({ editor, onFindReplaceToggle, disabled = false }: EnhancedRichTextToolbarProps) => {
   const handleBold = () => {
-    if (editor && !editor.isDestroyed) {
+    if (editor && !editor.isDestroyed && !disabled) {
       // Maintain focus and selection
       editor.chain().focus().toggleBold().run();
     }
   };
 
   const handleItalic = () => {
-    if (editor && !editor.isDestroyed) {
+    if (editor && !editor.isDestroyed && !disabled) {
       // Maintain focus and selection
       editor.chain().focus().toggleItalic().run();
     }
   };
 
   const handleHeadingChange = (value: string) => {
-    if (!editor || editor.isDestroyed) return;
+    if (!editor || editor.isDestroyed || disabled) return;
     
     editor.chain().focus();
     
@@ -49,7 +50,7 @@ const EnhancedRichTextToolbar = ({ editor, onFindReplaceToggle }: EnhancedRichTe
     return '0';
   };
 
-  const isEditorReady = editor && !editor.isDestroyed;
+  const isEditorReady = editor && !editor.isDestroyed && !disabled;
 
   return (
     <div className="flex items-center space-x-2">

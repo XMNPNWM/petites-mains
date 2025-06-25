@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useChatDatabase } from '@/hooks/useChatDatabase';

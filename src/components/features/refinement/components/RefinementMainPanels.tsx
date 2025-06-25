@@ -67,6 +67,9 @@ interface RefinementMainPanelsProps {
   onRightClickMenuClick: (type: ChatType, position: { x: number; y: number }, selectedText?: string, lineNumber?: number) => void;
   metricsExpanded: boolean;
   onMetricsToggle: () => void;
+  isEnhancing?: boolean;
+  onEnhanceChapter?: () => void;
+  hasEnhancedContent?: boolean;
 }
 
 const RefinementMainPanels = ({
@@ -83,7 +86,10 @@ const RefinementMainPanels = ({
   highlightedRange,
   onRightClickMenuClick,
   metricsExpanded,
-  onMetricsToggle
+  onMetricsToggle,
+  isEnhancing = false,
+  onEnhanceChapter,
+  hasEnhancedContent = false
 }: RefinementMainPanelsProps) => {
   return (
     <ResizablePanelGroup direction="horizontal" className="h-full">
@@ -131,6 +137,9 @@ const RefinementMainPanels = ({
               handleScrollSync('enhanced', scrollTop, scrollHeight, clientHeight)
             }
             scrollPosition={scrollPositions.enhanced}
+            isEnhancing={isEnhancing}
+            onEnhanceChapter={onEnhanceChapter}
+            hasEnhancedContent={hasEnhancedContent}
           />
         </SimpleRightClickMenu>
       </ResizablePanel>

@@ -41,7 +41,7 @@ const SimpleChatPopup = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const { updatePopup, closePopup, sendMessageWithHashVerification } = useSimplePopups();
-  const { dragRef, isDragging } = useDragBehavior(id, position, updatePopup);
+  const { dragRef, isDragging } = useDragBehavior(id, updatePopup);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

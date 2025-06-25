@@ -14,6 +14,7 @@ interface EditableSegmentedDisplayProps {
   placeholder?: string;
   onEditorReady?: (editor: any) => void;
   linesPerPage?: number;
+  readOnly?: boolean;
 }
 
 const EditableSegmentedDisplay = ({ 
@@ -23,16 +24,30 @@ const EditableSegmentedDisplay = ({
   scrollPosition,
   placeholder = "Start writing...",
   onEditorReady,
-  linesPerPage = 25
+  linesPerPage = 25,
+  readOnly = false
 }: EditableSegmentedDisplayProps) => {
   const [editor, setEditor] = useState<any>(null);
 
   const handleEditorReady = (editorInstance: any) => {
     setEditor(editorInstance);
+    
+    // Apply read-only state if needed
+    if (readOnly && editorInstance && !editorInstance.isDestroyed) {
+      editorInstance.setEditable(!readOnly);
+    }
+    
     if (onEditorReady) {
       onEditorReady(editorInstance);
     }
   };
+
+  // Update editor read-only state when prop changes
+  React.useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      editor.setEditable(!readOnly);
+    }
+  }, [editor, readOnly]);
 
   if (!editor) {
     return (
@@ -45,7 +60,7 @@ const EditableSegmentedDisplay = ({
   return (
     <EditorStylesProvider>
       <div className="flex-1 flex flex-col relative h-full">
-        <RichTextBubbleMenu editor={editor} />
+        {!readOnly && <RichTextBubbleMenu editor={editor} />}
         <ScrollSyncHandler onScrollSync={onScrollSync} scrollPosition={scrollPosition}>
           <ContentProcessor content={content} linesPerPage={linesPerPage}>
             {(processedContent) => (
