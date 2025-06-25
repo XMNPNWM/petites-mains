@@ -1,15 +1,10 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
-interface DragBehaviorProps {
-  popupId: string;
-  initialPosition: { x: number; y: number };
-  onPositionUpdate: (id: string, position: { x: number; y: number }) => void;
-}
-
-export const useDragBehavior = ({ popupId, initialPosition, onPositionUpdate }: DragBehaviorProps) => {
+export const useDragBehavior = (popupId: string, onPositionUpdate: (id: string, position: { x: number; y: number }) => void) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Only allow dragging from the left portion of the header (grip + title area)
@@ -18,9 +13,9 @@ export const useDragBehavior = ({ popupId, initialPosition, onPositionUpdate }: 
     if (isActionButton) return; // Don't drag when clicking action buttons
     
     setIsDragging(true);
-    setDragOffset({
-      x: e.clientX - initialPosition.x,
-      y: e.clientY - initialPosition.y
+    setDragStart({
+      x: e.clientX,
+      y: e.clientY
     });
     document.body.style.userSelect = 'none';
   };
@@ -29,9 +24,12 @@ export const useDragBehavior = ({ popupId, initialPosition, onPositionUpdate }: 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
       
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      
       const newPosition = {
-        x: Math.max(0, Math.min(window.innerWidth - 320, e.clientX - dragOffset.x)),
-        y: Math.max(0, Math.min(window.innerHeight - 400, e.clientY - dragOffset.y))
+        x: Math.max(0, Math.min(window.innerWidth - 450, deltaX)),
+        y: Math.max(0, Math.min(window.innerHeight - 550, deltaY))
       };
       
       onPositionUpdate(popupId, newPosition);
@@ -51,7 +49,7 @@ export const useDragBehavior = ({ popupId, initialPosition, onPositionUpdate }: 
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, dragOffset, popupId, onPositionUpdate]);
+  }, [isDragging, dragStart, popupId, onPositionUpdate]);
 
-  return { handleMouseDown };
+  return { dragRef, isDragging, handleMouseDown };
 };

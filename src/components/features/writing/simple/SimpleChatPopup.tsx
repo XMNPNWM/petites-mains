@@ -41,7 +41,7 @@ const SimpleChatPopup = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const { updatePopup, closePopup, sendMessageWithHashVerification } = useSimplePopups();
-  const { dragRef, isDragging } = useDragBehavior(id, updatePopup);
+  const { dragRef, isDragging, handleMouseDown } = useDragBehavior(id, updatePopup);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -165,6 +165,7 @@ const SimpleChatPopup = ({
         <div 
           ref={dragRef}
           className="flex items-center justify-between p-4 border-b bg-blue-50 cursor-move"
+          onMouseDown={handleMouseDown}
         >
           <div className="flex items-center space-x-2">
             <MessageSquare className="w-4 h-4 text-blue-600" />

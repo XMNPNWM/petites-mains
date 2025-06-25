@@ -55,14 +55,21 @@ const SimplePopupRenderer = () => {
           popup.type === 'comment' ? (
             <SimpleCommentBox
               key={popup.id}
-              id={popup.id}
-              position={popup.position}
-              projectId={popup.projectId}
-              chapterId={popup.chapterId}
-              selectedText={popup.selectedText || undefined}
-              lineNumber={popup.lineNumber || undefined}
-              isMinimized={popup.isMinimized}
-              initialMessages={popup.messages}
+              popup={{
+                id: popup.id,
+                type: popup.type,
+                projectId: popup.projectId,
+                chapterId: popup.chapterId,
+                textPosition: popup.textPosition || null,
+                selectedText: popup.selectedText || null,
+                lineNumber: popup.lineNumber || null,
+                position: popup.position,
+                messages: popup.messages,
+                status: popup.status,
+                isMinimized: popup.isMinimized
+              }}
+              onUpdate={handleUpdate}
+              onClose={handleClose}
             />
           ) : (
             <SimpleChatPopup
