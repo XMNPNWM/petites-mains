@@ -1,136 +1,100 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Minus, MessageSquare, MessageCircle, ArrowLeft, Trash2, Brain, GripVertical } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { SimplePopup } from './types/popupTypes';
+import { Send, Minimize2, Maximize2, X, MessageSquare } from 'lucide-react';
 import { useSimplePopups } from './SimplePopupManager';
-import { AIService } from '@/services/AIService';
+import { useDragBehavior } from './hooks/useDragBehavior';
+import ChatBanner from './components/ChatBanner';
 
 interface SimpleChatPopupProps {
-  popup: SimplePopup;
+  id: string;
+  position: { x: number; y: number };
+  projectId: string;
+  chapterId?: string;
+  selectedText?: string;
+  lineNumber?: number;
+  isMinimized: boolean;
+  initialMessages?: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: Date;
+  }>;
 }
 
-const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
-  const [inputValue, setInputValue] = useState('');
+const SimpleChatPopup = ({
+  id,
+  position,
+  projectId,
+  chapterId,
+  selectedText,
+  lineNumber,
+  isMinimized,
+  initialMessages = []
+}: SimpleChatPopupProps) => {
+  const [messages, setMessages] = useState(initialMessages);
+  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const { updatePopup, closePopup, deletePopup, goToLine } = useSimplePopups();
+  const [bannerState, setBannerState] = useState<{ message: string; type: 'success' | 'error' | 'loading' } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  const { updatePopup, closePopup, sendMessageWithHashVerification } = useSimplePopups();
+  const { dragRef, isDragging } = useDragBehavior(id, position, updatePopup);
 
-  const scrollToBottom = () => {
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [popup.messages]);
-
-  // Enhanced dragging functionality with larger drag area
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Only allow dragging from the left portion of the header (grip + title area)
-    const target = e.target as HTMLElement;
-    const isActionButton = target.closest('button');
-    if (isActionButton) return; // Don't drag when clicking action buttons
-    
-    setIsDragging(true);
-    setDragOffset({
-      x: e.clientX - popup.position.x,
-      y: e.clientY - popup.position.y
-    });
-    document.body.style.userSelect = 'none';
-  };
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      
-      const newPosition = {
-        x: Math.max(0, Math.min(window.innerWidth - 450, e.clientX - dragOffset.x)),
-        y: Math.max(0, Math.min(window.innerHeight - 550, e.clientY - dragOffset.y))
-      };
-      
-      updatePopup(popup.id, { position: newPosition });
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-      document.body.style.userSelect = '';
-    };
-
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, dragOffset, popup.id, updatePopup]);
+  }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return;
+    if (!input.trim() || isLoading) return;
 
     const userMessage = {
       role: 'user' as const,
-      content: inputValue.trim(),
+      content: input.trim(),
       timestamp: new Date()
     };
 
     // Add user message immediately
-    updatePopup(popup.id, {
-      messages: [...popup.messages, userMessage]
-    });
-
-    setInputValue('');
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
     setIsLoading(true);
 
     try {
-      if (popup.type === 'comment') {
-        // Simple comment handling
-        const commentResponse = {
-          role: 'assistant' as const,
-          content: `Thank you for your comment about "${popup.selectedText}". I've noted this feedback.`,
-          timestamp: new Date()
-        };
-
-        updatePopup(popup.id, {
-          messages: [...popup.messages, userMessage, commentResponse]
-        });
-      } else if (popup.type === 'chat') {
-        // Enhanced AI chat handling
-        const aiResponse = await AIService.generateResponse(
+      // Perform hash verification before sending to AI (only for chat popups)
+      if (sendMessageWithHashVerification) {
+        const verificationResult = await sendMessageWithHashVerification(
+          id,
           userMessage.content,
-          popup.projectId,
-          popup.messages
+          projectId,
+          chapterId
         );
 
-        const assistantMessage = {
-          role: 'assistant' as const,
-          content: aiResponse.content,
-          timestamp: new Date()
-        };
+        // Show banner if provided
+        if (verificationResult.bannerState) {
+          setBannerState(verificationResult.bannerState);
+        }
 
-        updatePopup(popup.id, {
-          messages: [...popup.messages, userMessage, assistantMessage]
-        });
+        if (!verificationResult.shouldProceed) {
+          setIsLoading(false);
+          return;
+        }
       }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      const errorMessage = {
+
+      // Simulate AI response (replace with actual AI service call)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const aiResponse = {
         role: 'assistant' as const,
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: `I understand you're asking about: "${userMessage.content}". Let me help you with that based on your story context.`,
         timestamp: new Date()
       };
-      
-      updatePopup(popup.id, {
-        messages: [...popup.messages, userMessage, errorMessage]
-      });
+
+      setMessages(prev => [...prev, aiResponse]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setBannerState({ message: 'Failed to send message', type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -143,257 +107,164 @@ const SimpleChatPopup = ({ popup }: SimpleChatPopupProps) => {
     }
   };
 
-  const handleGoToLine = () => {
-    // Enhanced null checking for optional chapterId
-    if (popup.chapterId && popup.lineNumber) {
-      goToLine(popup.chapterId, popup.lineNumber);
-    }
-  };
-
   const handleMinimize = () => {
-    updatePopup(popup.id, { isMinimized: !popup.isMinimized });
+    updatePopup(id, { isMinimized: !isMinimized });
   };
 
   const handleClose = () => {
-    closePopup(popup.id);
+    closePopup(id);
   };
 
-  const handleDelete = () => {
-    if (showDeleteConfirm) {
-      deletePopup(popup.id);
-    } else {
-      setShowDeleteConfirm(true);
-      setTimeout(() => setShowDeleteConfirm(false), 3000);
-    }
+  const dismissBanner = () => {
+    setBannerState(null);
   };
 
-  // Get theme colors based on popup type
-  const getThemeColors = () => {
-    if (popup.type === 'comment') {
-      return {
-        icon: <MessageSquare className="w-4 h-4 text-blue-600" />,
-        headerBg: 'bg-blue-50',
-        title: 'Comment',
-        accentColor: 'text-blue-600'
-      };
-    } else {
-      return {
-        icon: <Brain className="w-4 h-4 text-orange-600" />,
-        headerBg: 'bg-orange-50',
-        title: 'AI Chat',
-        accentColor: 'text-orange-600'
-      };
-    }
-  };
-
-  const theme = getThemeColors();
-
-  if (popup.isMinimized) {
+  if (isMinimized) {
     return (
-      <div
-        className="fixed z-50 bg-white border border-slate-200 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
-        style={{
-          left: popup.position.x,
-          top: popup.position.y,
-          width: '200px',
-          height: '40px'
+      <Card 
+        className="fixed bg-white shadow-lg border-2 border-blue-200 cursor-pointer hover:shadow-xl transition-all duration-200 z-[9999]"
+        style={{ 
+          left: position.x, 
+          top: position.y,
+          transform: isDragging ? 'rotate(2deg)' : 'none'
         }}
         onClick={handleMinimize}
       >
-        <div className="flex items-center justify-between p-2 h-full">
-          <div className="flex items-center gap-2">
-            {theme.icon}
-            <span className="text-sm font-medium">{theme.title}</span>
-          </div>
-          <div className="flex gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete();
-              }}
-              className="h-6 w-6 p-0"
-              title={showDeleteConfirm ? 'Click again to confirm delete' : 'Delete permanently'}
-            >
-              <Trash2 className={`w-3 h-3 ${showDeleteConfirm ? 'text-red-600' : ''}`} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClose();
-              }}
-              className="h-6 w-6 p-0"
-            >
-              <X className="w-3 h-3" />
-            </Button>
-          </div>
+        <div className="flex items-center p-3 space-x-2">
+          <MessageSquare className="w-4 h-4 text-blue-600" />
+          <span className="text-sm font-medium text-slate-700">Chat</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClose();
+            }}
+            className="ml-2 h-6 w-6 p-0 hover:bg-red-100"
+          >
+            <X className="w-3 h-3" />
+          </Button>
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div
-      className="fixed z-50"
-      style={{
-        left: popup.position.x,
-        top: popup.position.y,
+    <Card 
+      className="fixed bg-white shadow-xl border-2 border-blue-200 z-[9999]"
+      style={{ 
+        left: position.x, 
+        top: position.y,
         width: '450px',
-        height: '550px'
+        height: '550px',
+        transform: isDragging ? 'rotate(1deg) scale(1.02)' : 'none'
       }}
     >
-      <Card className="h-full flex flex-col shadow-xl border-slate-300">
-        {/* Enhanced Draggable Header with larger drag area */}
+      <div className="h-full flex flex-col">
+        {/* Header */}
         <div 
-          className={`flex items-center gap-3 p-3 cursor-move border-b ${theme.headerBg} rounded-t-lg hover:bg-orange-100 transition-colors`}
-          onMouseDown={handleMouseDown}
+          ref={dragRef}
+          className="flex items-center justify-between p-4 border-b bg-blue-50 cursor-move"
         >
-          <GripVertical className="w-6 h-6 text-orange-600 flex-shrink-0" />
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {theme.icon}
-            <h3 className="font-semibold text-sm">{theme.title}</h3>
-            {popup.lineNumber && (
-              <span className="text-xs text-slate-500">Line {popup.lineNumber}</span>
+          <div className="flex items-center space-x-2">
+            <MessageSquare className="w-4 h-4 text-blue-600" />
+            <h3 className="font-semibold text-slate-800">AI Chat</h3>
+            {selectedText && (
+              <span className="text-xs text-slate-500 truncate max-w-[200px]">
+                "{selectedText}"
+              </span>
             )}
           </div>
-          <div className="flex gap-1 flex-shrink-0">
-            {/* Enhanced null checking for Go to Line button */}
-            {popup.lineNumber && popup.chapterId && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleGoToLine}
-                className="h-6 w-6 p-0"
-                title="Go to line"
-              >
-                <ArrowLeft className="w-3 h-3" />
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDelete}
-              className="h-6 w-6 p-0"
-              title={showDeleteConfirm ? 'Click again to confirm delete' : 'Delete permanently'}
-            >
-              <Trash2 className={`w-3 h-3 ${showDeleteConfirm ? 'text-red-600' : ''}`} />
-            </Button>
+          
+          <div className="flex items-center space-x-1">
             <Button
               variant="ghost"
               size="sm"
               onClick={handleMinimize}
-              className="h-6 w-6 p-0"
+              className="h-8 w-8 p-0 hover:bg-blue-100"
             >
-              <Minus className="w-3 h-3" />
+              {isMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleClose}
-              className="h-6 w-6 p-0"
+              className="h-8 w-8 p-0 hover:bg-red-100"
             >
-              <X className="w-3 h-3" />
+              <X className="w-4 h-4" />
             </Button>
           </div>
         </div>
 
-        <CardContent className="flex-1 flex flex-col p-4 min-h-0">
-          {/* Delete confirmation message */}
-          {showDeleteConfirm && (
-            <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-800">
-              Click delete again to permanently remove this {popup.type}
-            </div>
-          )}
-
-          {/* Show selected text context for comments */}
-          {popup.type === 'comment' && popup.selectedText && (
-            <div className="mb-3 p-2 bg-blue-50 border-l-4 border-blue-200 rounded text-sm">
-              <div className="text-blue-800 font-medium mb-1">Selected text:</div>
-              <div className="text-blue-700 italic">"{popup.selectedText}"</div>
-            </div>
-          )}
-
-          {/* AI Chat context display */}
-          {popup.type === 'chat' && (
-            <div className="mb-3 p-2 bg-orange-50 border-l-4 border-orange-200 rounded text-sm">
-              <div className="text-orange-800 font-medium mb-1 flex items-center gap-1">
-                <Brain className="w-3 h-3" />
-                AI Assistant
-              </div>
-              <div className="text-orange-700 text-xs">
-                I have access to all your project chapters for context-aware assistance.
-              </div>
-            </div>
-          )}
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto space-y-3 mb-3">
-            {popup.messages.length === 0 && (
-              <div className="text-center text-slate-500 text-sm mt-8">
-                {popup.type === 'comment' 
-                  ? 'Add a comment about the selected text...'
-                  : 'Start a conversation with AI about your story...'
-                }
-              </div>
-            )}
-            
-            {popup.messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[80%] p-3 rounded-lg text-sm ${
-                    message.role === 'user'
-                      ? 'bg-orange-600 text-white'
-                      : 'bg-orange-50 text-orange-900 border border-orange-200'
-                  }`}
-                >
-                  {message.content}
-                </div>
-              </div>
-            ))}
-            
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-orange-50 text-orange-900 border border-orange-200 p-3 rounded-lg text-sm">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
+        {/* Banner */}
+        {bannerState && (
+          <div className="px-4 pt-2">
+            <ChatBanner
+              message={bannerState.message}
+              type={bannerState.type}
+              onDismiss={dismissBanner}
+            />
           </div>
+        )}
 
-          {/* Input */}
-          <div className="flex gap-2">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.length === 0 && (
+            <div className="text-center text-slate-500 mt-8">
+              <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p>Start a conversation with AI about your story</p>
+              {selectedText && (
+                <p className="text-xs mt-1">Context: "{selectedText}"</p>
+              )}
+            </div>
+          )}
+          
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[85%] p-3 rounded-lg ${
+                  message.role === 'user'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-100 text-slate-800'
+                }`}
+              >
+                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                <p className={`text-xs mt-1 opacity-70`}>
+                  {message.timestamp.toLocaleTimeString()}
+                </p>
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div className="border-t p-4">
+          <div className="flex space-x-2">
             <Textarea
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Ask me about your story..."
-              className="flex-1 resize-none"
-              rows={3}
+              placeholder="Ask AI about your story..."
+              className="flex-1 min-h-[40px] max-h-[100px] resize-none"
               disabled={isLoading}
             />
             <Button
               onClick={handleSendMessage}
-              disabled={!inputValue.trim() || isLoading}
+              disabled={!input.trim() || isLoading}
               size="sm"
-              className="bg-orange-600 hover:bg-orange-700"
+              className="h-10 px-3"
             >
               <Send className="w-4 h-4" />
             </Button>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </div>
+    </Card>
   );
 };
 

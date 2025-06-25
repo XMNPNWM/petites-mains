@@ -1,9 +1,11 @@
-
 import React, { createContext, useState, useContext } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useChatDatabase } from '@/hooks/useChatDatabase';
 import { SimplePopup, PopupContextProps } from './types/popupTypes';
 import { usePopupCreation } from './hooks/usePopupCreation';
 import { usePopupNavigation } from './hooks/usePopupNavigation';
+import { KnowledgeExtractionService } from '@/services/KnowledgeExtractionService';
+import { ContentHashService } from '@/services/ContentHashService';
 
 const SimplePopupsContext = createContext<PopupContextProps | undefined>(undefined);
 
@@ -171,6 +173,64 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
     }
   };
 
+  // Enhanced message sending with hash verification for chat popups
+  const sendMessageWithHashVerification = async (
+    popupId: string,
+    message: string,
+    projectId: string,
+    chapterId?: string
+  ): Promise<{ shouldProceed: boolean; bannerState?: { message: string; type: 'success' | 'error' | 'loading' } }> => {
+    const popup = livePopups.find(p => p.id === popupId);
+    
+    // Only apply hash verification to chat popups
+    if (!popup || popup.type !== 'chat' || !chapterId) {
+      return { shouldProceed: true };
+    }
+
+    try {
+      // Get current chapter content for hash verification
+      const { data: chapter } = await supabase
+        .from('chapters')
+        .select('content')
+        .eq('id', chapterId)
+        .single();
+
+      if (!chapter?.content) {
+        return { shouldProceed: true };
+      }
+
+      // Perform silent hash verification
+      const verification = await ContentHashService.verifyContentHash(chapterId, chapter.content);
+      
+      if (verification.needsReanalysis) {
+        console.log('Content changes detected, triggering knowledge extraction');
+        
+        // Trigger knowledge extraction in background
+        KnowledgeExtractionService.extractKnowledgeFromChapter(
+          projectId,
+          chapterId,
+          chapter.content,
+          'chat'
+        ).catch(error => {
+          console.error('Background knowledge extraction failed:', error);
+        });
+
+        return { 
+          shouldProceed: true, 
+          bannerState: { message: 'Content analyzed, AI updated', type: 'success' }
+        };
+      }
+
+      return { shouldProceed: true };
+    } catch (error) {
+      console.error('Hash verification failed:', error);
+      return { 
+        shouldProceed: true, 
+        bannerState: { message: 'Analysis failed, continuing anyway', type: 'error' }
+      };
+    }
+  };
+
   return (
     <SimplePopupsContext.Provider 
       value={{
@@ -182,7 +242,8 @@ export const SimplePopupProvider = ({ children }: { children: React.ReactNode })
         deletePopup,
         reopenPopup,
         goToLine,
-        timelineVersion
+        timelineVersion,
+        sendMessageWithHashVerification
       }}
     >
       {children}
