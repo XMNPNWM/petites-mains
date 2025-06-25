@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Save, Loader2, Sparkles, Check } from 'lucide-react';
 import ChronologicalTimeline from './ChronologicalTimeline';
+import AnalysisStatusIndicator from './AnalysisStatusIndicator';
 
 interface Chapter {
   id: string;
@@ -71,8 +72,11 @@ const WritingSpaceHeader = ({
           </div>
         </div>
 
-        {/* Timeline Component */}
-        <ChronologicalTimeline projectId={project.id} />
+        {/* Timeline Component with Status Indicator */}
+        <div className="flex items-center space-x-3">
+          <ChronologicalTimeline projectId={project.id} />
+          <AnalysisStatusIndicator projectId={project.id} />
+        </div>
 
         <div className="flex items-center space-x-4">
           <Button

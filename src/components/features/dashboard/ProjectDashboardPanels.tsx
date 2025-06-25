@@ -2,6 +2,7 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import ReadOnlyStorylineViewer from './ReadOnlyStorylineViewer';
 import UnifiedWorldbuildingPanel from './UnifiedWorldbuildingPanel';
+import AIBrainPanel from './AIBrainPanel';
 import WritingTrendsChart from '../analytics/WritingTrendsChart';
 import WritingHeatmap from '../analytics/WritingHeatmap';
 import ContentBreakdownChart from '../analytics/ContentBreakdownChart';
@@ -97,6 +98,12 @@ const ProjectDashboardPanels = ({
     </div>
   );
 
+  const renderAIBrainPanel = () => (
+    <div className="h-full overflow-y-auto">
+      <AIBrainPanel projectId={projectId} />
+    </div>
+  );
+
   const renderAnalyticsPanel = () => {
     const totalWords = chapters.reduce((sum, chapter) => sum + (chapter.word_count || 0), 0);
     
@@ -150,7 +157,8 @@ const ProjectDashboardPanels = ({
       case 0: return renderStorylinePanel();
       case 1: return renderWorldbuildingPanel();
       case 2: return renderChaptersPanel();
-      case 3: return renderAnalyticsPanel();
+      case 3: return renderAIBrainPanel();
+      case 4: return renderAnalyticsPanel();
       default: return renderStorylinePanel();
     }
   };

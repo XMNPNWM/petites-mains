@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BookOpen, Globe, Edit3, BarChart3 } from 'lucide-react';
+import { BookOpen, Globe, Edit3, BarChart3, Brain } from 'lucide-react';
 
 interface Panel {
   id: string;
@@ -18,7 +18,8 @@ const iconComponents = {
   BookOpen,
   Globe,
   Edit3,
-  BarChart3
+  BarChart3,
+  Brain
 };
 
 const ProjectDashboardNavigation = ({

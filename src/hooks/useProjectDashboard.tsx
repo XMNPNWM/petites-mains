@@ -35,6 +35,7 @@ export const useProjectDashboard = (projectId: string | undefined) => {
     { id: 'storyline', title: 'Storyline', icon: 'BookOpen' },
     { id: 'worldbuilding', title: 'World Elements', icon: 'Globe' },
     { id: 'chapters', title: 'Chapters', icon: 'Edit3' },
+    { id: 'ai-brain', title: 'AI Brain', icon: 'Brain' },
     { id: 'analytics', title: 'Analytics', icon: 'BarChart3' }
   ];
 
