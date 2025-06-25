@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,11 +35,11 @@ const SimpleCommentBox = ({ popup, onUpdate, onClose }: SimpleCommentBoxProps) =
   const [navigationError, setNavigationError] = useState<string | null>(null);
   const { updatePopup, closePopup, deletePopup, goToLine } = useSimplePopups();
 
-  const { handleMouseDown } = useDragBehavior({
-    popupId: popup.id,
-    initialPosition: popup.position,
-    onPositionUpdate: (id, position) => updatePopup(id, { position })
-  });
+  const handlePositionUpdate = (popupId: string, newPosition: { x: number; y: number }) => {
+    updatePopup(popupId, { position: newPosition });
+  };
+
+  const { handleMouseDown } = useDragBehavior(popup.id, handlePositionUpdate);
 
   useEffect(() => {
     setMessages(popup.messages || []);

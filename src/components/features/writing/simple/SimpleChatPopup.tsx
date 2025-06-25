@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,7 +40,12 @@ const SimpleChatPopup = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const { updatePopup, closePopup, sendMessageWithHashVerification } = useSimplePopups();
-  const { dragRef, isDragging, handleMouseDown } = useDragBehavior(id, updatePopup);
+  
+  const handlePositionUpdate = (popupId: string, newPosition: { x: number; y: number }) => {
+    updatePopup(popupId, { position: newPosition });
+  };
+  
+  const { dragRef, isDragging, handleMouseDown } = useDragBehavior(id, handlePositionUpdate);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
