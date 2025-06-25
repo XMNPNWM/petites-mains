@@ -31,9 +31,10 @@ export class ProcessingJobService {
     if (error) throw error;
     console.log('Created processing job:', data.id);
     
-    // Convert the database response to match our interface
+    // Convert the database response to match our interface with proper type casting
     return {
       ...data,
+      job_type: data.job_type as ProcessingJob['job_type'],
       processing_options: typeof data.processing_options === 'string' 
         ? JSON.parse(data.processing_options) 
         : data.processing_options || {},
@@ -102,9 +103,10 @@ export class ProcessingJobService {
 
     let currentJob: ProcessingJob | undefined;
     if (latestJob) {
-      // Convert the database response to match our interface
+      // Convert the database response to match our interface with proper type casting
       currentJob = {
         ...latestJob,
+        job_type: latestJob.job_type as ProcessingJob['job_type'],
         processing_options: typeof latestJob.processing_options === 'string' 
           ? JSON.parse(latestJob.processing_options) 
           : latestJob.processing_options || {},
