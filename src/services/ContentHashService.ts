@@ -58,7 +58,14 @@ export class ContentHashService {
         .single();
 
       if (error) throw error;
-      return data;
+      
+      // Convert the database response to match our interface
+      return {
+        ...data,
+        paragraph_hashes: Array.isArray(data.paragraph_hashes) 
+          ? data.paragraph_hashes as string[]
+          : JSON.parse(data.paragraph_hashes as string)
+      };
     } else {
       // Create new hash record
       const { data, error } = await supabase
@@ -71,7 +78,14 @@ export class ContentHashService {
         .single();
 
       if (error) throw error;
-      return data;
+      
+      // Convert the database response to match our interface
+      return {
+        ...data,
+        paragraph_hashes: Array.isArray(data.paragraph_hashes) 
+          ? data.paragraph_hashes as string[]
+          : JSON.parse(data.paragraph_hashes as string)
+      };
     }
   }
 
@@ -111,10 +125,18 @@ export class ContentHashService {
         currentHash: currentHash.substring(0, 8) + '...'
       });
 
+      // Convert the database response to match our interface
+      const convertedHashRecord: ContentHash = {
+        ...hashRecord,
+        paragraph_hashes: Array.isArray(hashRecord.paragraph_hashes) 
+          ? hashRecord.paragraph_hashes as string[]
+          : JSON.parse(hashRecord.paragraph_hashes as string)
+      };
+
       return {
         hasChanges,
         needsReanalysis: hasChanges || hashRecord.has_changes,
-        hashRecord
+        hashRecord: convertedHashRecord
       };
     } catch (error) {
       console.error('Hash verification failed:', error);

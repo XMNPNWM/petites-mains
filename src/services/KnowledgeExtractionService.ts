@@ -151,7 +151,12 @@ export class KnowledgeExtractionService {
         confidence_score: 0.85,
         extraction_method: 'llm_direct' as const,
         evidence: 'Referenced multiple times throughout the chapter',
-        details: { role: 'protagonist', traits: ['mysterious', 'determined'] }
+        details: { role: 'protagonist', traits: ['mysterious', 'determined'] },
+        is_flagged: false,
+        is_verified: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_seen_at: new Date().toISOString()
       },
       {
         project_id: projectId,
@@ -162,7 +167,12 @@ export class KnowledgeExtractionService {
         confidence_score: 0.72,
         extraction_method: 'llm_inferred' as const,
         evidence: 'Implied through character actions and dialogue',
-        details: { type: 'internal_conflict', intensity: 'high' }
+        details: { type: 'internal_conflict', intensity: 'high' },
+        is_flagged: false,
+        is_verified: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_seen_at: new Date().toISOString()
       }
     ];
 
@@ -185,7 +195,14 @@ export class KnowledgeExtractionService {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    
+    // Convert the database response to match our interface
+    return (data || []).map(item => ({
+      ...item,
+      details: typeof item.details === 'string' 
+        ? JSON.parse(item.details) 
+        : item.details || {}
+    }));
   }
 
   static async getFlaggedKnowledge(projectId: string): Promise<KnowledgeBase[]> {
@@ -197,6 +214,13 @@ export class KnowledgeExtractionService {
       .order('confidence_score', { ascending: true });
 
     if (error) throw error;
-    return data || [];
+    
+    // Convert the database response to match our interface
+    return (data || []).map(item => ({
+      ...item,
+      details: typeof item.details === 'string' 
+        ? JSON.parse(item.details) 
+        : item.details || {}
+    }));
   }
 }

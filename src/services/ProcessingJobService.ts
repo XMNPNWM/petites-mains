@@ -30,7 +30,20 @@ export class ProcessingJobService {
 
     if (error) throw error;
     console.log('Created processing job:', data.id);
-    return data;
+    
+    // Convert the database response to match our interface
+    return {
+      ...data,
+      processing_options: typeof data.processing_options === 'string' 
+        ? JSON.parse(data.processing_options) 
+        : data.processing_options || {},
+      results_summary: typeof data.results_summary === 'string' 
+        ? JSON.parse(data.results_summary) 
+        : data.results_summary || {},
+      error_details: typeof data.error_details === 'string' 
+        ? JSON.parse(data.error_details) 
+        : data.error_details
+    };
   }
 
   static async updateJobProgress(
@@ -40,12 +53,13 @@ export class ProcessingJobService {
       progress_percentage?: number;
       current_step?: string;
       completed_steps?: number;
+      total_steps?: number;
       error_message?: string;
       error_details?: Record<string, any>;
       results_summary?: Record<string, any>;
     }
   ): Promise<void> {
-    const updateData = {
+    const updateData: any = {
       ...updates,
       updated_at: new Date().toISOString()
     };
@@ -86,12 +100,29 @@ export class ProcessingJobService {
     const errorCount = flaggedFacts?.filter(fact => fact.is_flagged).length || 0;
     const lowConfidenceFactsCount = flaggedFacts?.filter(fact => fact.confidence_score < 0.5).length || 0;
 
+    let currentJob: ProcessingJob | undefined;
+    if (latestJob) {
+      // Convert the database response to match our interface
+      currentJob = {
+        ...latestJob,
+        processing_options: typeof latestJob.processing_options === 'string' 
+          ? JSON.parse(latestJob.processing_options) 
+          : latestJob.processing_options || {},
+        results_summary: typeof latestJob.results_summary === 'string' 
+          ? JSON.parse(latestJob.results_summary) 
+          : latestJob.results_summary || {},
+        error_details: typeof latestJob.error_details === 'string' 
+          ? JSON.parse(latestJob.error_details) 
+          : latestJob.error_details
+      };
+    }
+
     return {
       isProcessing: latestJob?.state === 'pending' || latestJob?.state === 'thinking' || 
                    latestJob?.state === 'analyzing' || latestJob?.state === 'extracting',
       hasErrors: latestJob?.state === 'failed' || errorCount > 0,
       lastProcessedAt: latestJob?.completed_at,
-      currentJob: latestJob || undefined,
+      currentJob,
       errorCount,
       lowConfidenceFactsCount
     };
