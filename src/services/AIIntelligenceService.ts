@@ -19,7 +19,7 @@ export class AIIntelligenceService {
       .order('relationship_strength', { ascending: false });
 
     if (error) throw error;
-    return (data || []) as CharacterRelationship[];
+    return (data || []) as unknown as CharacterRelationship[];
   }
 
   static async createCharacterRelationship(
@@ -32,7 +32,7 @@ export class AIIntelligenceService {
       .single();
 
     if (error) throw error;
-    return data as CharacterRelationship;
+    return data as unknown as CharacterRelationship;
   }
 
   static async updateCharacterRelationship(
@@ -56,7 +56,7 @@ export class AIIntelligenceService {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return (data || []) as PlotThread[];
+    return (data || []) as unknown as PlotThread[];
   }
 
   static async createPlotThread(
@@ -69,7 +69,7 @@ export class AIIntelligenceService {
       .single();
 
     if (error) throw error;
-    return data as PlotThread;
+    return data as unknown as PlotThread;
   }
 
   static async updatePlotThread(id: string, updates: Partial<PlotThread>): Promise<void> {
@@ -90,7 +90,7 @@ export class AIIntelligenceService {
       .order('chronological_order', { ascending: true });
 
     if (error) throw error;
-    return (data || []) as TimelineEvent[];
+    return (data || []) as unknown as TimelineEvent[];
   }
 
   static async createTimelineEvent(
@@ -103,7 +103,7 @@ export class AIIntelligenceService {
       .single();
 
     if (error) throw error;
-    return data as TimelineEvent;
+    return data as unknown as TimelineEvent;
   }
 
   static async updateTimelineEvent(id: string, updates: Partial<TimelineEvent>): Promise<void> {
@@ -124,7 +124,7 @@ export class AIIntelligenceService {
       .order('current_intensity', { ascending: false });
 
     if (error) throw error;
-    return (data || []) as ConflictTracking[];
+    return (data || []) as unknown as ConflictTracking[];
   }
 
   static async createConflictTracking(
@@ -137,7 +137,7 @@ export class AIIntelligenceService {
       .single();
 
     if (error) throw error;
-    return data as ConflictTracking;
+    return data as unknown as ConflictTracking;
   }
 
   static async updateConflictTracking(id: string, updates: Partial<ConflictTracking>): Promise<void> {

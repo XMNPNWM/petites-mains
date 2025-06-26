@@ -356,7 +356,7 @@ export class KnowledgeExtractionService {
 
         // Check if relationship already exists
         const { data: existingRelation } = await supabase
-          .from('character_relationships')
+          .from('character_relationships' as any)
           .select('*')
           .eq('project_id', projectId)
           .or(`and(character_a_name.eq.${charA.name},character_b_name.eq.${charB.name}),and(character_a_name.eq.${charB.name},character_b_name.eq.${charA.name})`)

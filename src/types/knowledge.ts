@@ -1,3 +1,4 @@
+
 export interface KnowledgeBase {
   id: string;
   project_id: string;
@@ -81,7 +82,7 @@ export interface AnalysisStatus {
   lowConfidenceFactsCount: number;
 }
 
-// Add new extended knowledge categories
+// Add new extended knowledge categories (union type)
 export type ExtendedKnowledgeCategory = 
   | 'character' 
   | 'plot_point' 
@@ -96,7 +97,7 @@ export type ExtendedKnowledgeCategory =
   | 'dialogue_pattern'
   | 'pacing_analysis'
   | 'narrative_perspective'
-  | 'conflict_architecture'
+  | 'conflict_architecture'  
   | 'timeline_event'
   | 'character_arc'
   | 'plot_thread'
@@ -106,8 +107,29 @@ export type ExtendedKnowledgeCategory =
   | 'callback';
 
 // Enhanced Knowledge Base interface with new temporal fields
-export interface EnhancedKnowledgeBase extends KnowledgeBase {
+export interface EnhancedKnowledgeBase {
+  id: string;
+  project_id: string;
+  name: string;
   category: ExtendedKnowledgeCategory;
+  subcategory?: string;
+  description?: string;
+  details: Record<string, any>;
+  confidence_score: number;
+  extraction_method: 'llm_direct' | 'llm_inferred' | 'user_input' | 'user_correction';
+  evidence?: string;
+  reasoning?: string;
+  source_chapter_id?: string;
+  source_paragraph_hash?: string;
+  source_text_excerpt?: string;
+  is_flagged: boolean;
+  is_verified: boolean;
+  review_notes?: string;
+  created_at: string;
+  updated_at: string;
+  last_seen_at: string;
+  
+  // Enhanced temporal fields
   arc_progression?: Record<string, any>;
   first_appearance_chapter_id?: string;
   last_appearance_chapter_id?: string;

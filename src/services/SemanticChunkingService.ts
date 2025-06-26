@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { SemanticChunk, ChunkingConfig, ChunkingResult } from '@/types/aiIntelligence';
 
@@ -62,7 +61,7 @@ export class SemanticChunkingService {
       return [];
     }
 
-    return (data || []) as SemanticChunk[];
+    return (data || []) as unknown as SemanticChunk[];
   }
 
   private static async performChunking(
@@ -251,7 +250,7 @@ export class SemanticChunkingService {
       total_tokens: Math.round(totalTokens),
       avg_chunk_size: Math.round(avgChunkSize),
       overlap_ratio: Math.round(overlapRatio * 100) / 100,
-      breakpoint_distribution
+      breakpoint_distribution: breakpointDistribution
     };
   }
 
