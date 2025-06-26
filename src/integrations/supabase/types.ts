@@ -226,6 +226,107 @@ export type Database = {
           },
         ]
       }
+      character_relationships: {
+        Row: {
+          character_a_id: string | null
+          character_a_name: string
+          character_b_id: string | null
+          character_b_name: string
+          confidence_score: number | null
+          created_at: string | null
+          evidence: string | null
+          extraction_method:
+            | Database["public"]["Enums"]["extraction_method"]
+            | null
+          id: string
+          is_flagged: boolean | null
+          is_verified: boolean | null
+          key_interactions: Json | null
+          project_id: string
+          relationship_current_status: string | null
+          relationship_start_chapter_id: string | null
+          relationship_strength: number
+          relationship_type: string
+          strength_history: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          character_a_id?: string | null
+          character_a_name: string
+          character_b_id?: string | null
+          character_b_name: string
+          confidence_score?: number | null
+          created_at?: string | null
+          evidence?: string | null
+          extraction_method?:
+            | Database["public"]["Enums"]["extraction_method"]
+            | null
+          id?: string
+          is_flagged?: boolean | null
+          is_verified?: boolean | null
+          key_interactions?: Json | null
+          project_id: string
+          relationship_current_status?: string | null
+          relationship_start_chapter_id?: string | null
+          relationship_strength?: number
+          relationship_type: string
+          strength_history?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          character_a_id?: string | null
+          character_a_name?: string
+          character_b_id?: string | null
+          character_b_name?: string
+          confidence_score?: number | null
+          created_at?: string | null
+          evidence?: string | null
+          extraction_method?:
+            | Database["public"]["Enums"]["extraction_method"]
+            | null
+          id?: string
+          is_flagged?: boolean | null
+          is_verified?: boolean | null
+          key_interactions?: Json | null
+          project_id?: string
+          relationship_current_status?: string | null
+          relationship_start_chapter_id?: string | null
+          relationship_strength?: number
+          relationship_type?: string
+          strength_history?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_relationships_character_a_id_fkey"
+            columns: ["character_a_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "character_relationships_character_b_id_fkey"
+            columns: ["character_b_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "character_relationships_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "character_relationships_relationship_start_chapter_id_fkey"
+            columns: ["relationship_start_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       characters: {
         Row: {
           created_at: string | null
@@ -317,6 +418,100 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      conflict_tracking: {
+        Row: {
+          characters_involved: Json | null
+          confidence_score: number | null
+          conflict_description: string | null
+          conflict_name: string
+          conflict_type: string
+          created_at: string | null
+          current_intensity: number | null
+          escalation_points: Json | null
+          evidence: string | null
+          extraction_method:
+            | Database["public"]["Enums"]["extraction_method"]
+            | null
+          id: string
+          intensity_history: Json | null
+          is_flagged: boolean | null
+          is_verified: boolean | null
+          project_id: string
+          resolution_chapter_id: string | null
+          resolution_status: string | null
+          start_chapter_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          characters_involved?: Json | null
+          confidence_score?: number | null
+          conflict_description?: string | null
+          conflict_name: string
+          conflict_type: string
+          created_at?: string | null
+          current_intensity?: number | null
+          escalation_points?: Json | null
+          evidence?: string | null
+          extraction_method?:
+            | Database["public"]["Enums"]["extraction_method"]
+            | null
+          id?: string
+          intensity_history?: Json | null
+          is_flagged?: boolean | null
+          is_verified?: boolean | null
+          project_id: string
+          resolution_chapter_id?: string | null
+          resolution_status?: string | null
+          start_chapter_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          characters_involved?: Json | null
+          confidence_score?: number | null
+          conflict_description?: string | null
+          conflict_name?: string
+          conflict_type?: string
+          created_at?: string | null
+          current_intensity?: number | null
+          escalation_points?: Json | null
+          evidence?: string | null
+          extraction_method?:
+            | Database["public"]["Enums"]["extraction_method"]
+            | null
+          id?: string
+          intensity_history?: Json | null
+          is_flagged?: boolean | null
+          is_verified?: boolean | null
+          project_id?: string
+          resolution_chapter_id?: string | null
+          resolution_status?: string | null
+          start_chapter_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conflict_tracking_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conflict_tracking_resolution_chapter_id_fkey"
+            columns: ["resolution_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conflict_tracking_start_chapter_id_fkey"
+            columns: ["start_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       content_hashes: {
         Row: {
@@ -665,6 +860,91 @@ export type Database = {
           },
         ]
       }
+      plot_threads: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          end_chapter_id: string | null
+          evidence: string | null
+          extraction_method:
+            | Database["public"]["Enums"]["extraction_method"]
+            | null
+          id: string
+          is_flagged: boolean | null
+          is_verified: boolean | null
+          key_events: Json | null
+          project_id: string
+          resolution_status: string | null
+          start_chapter_id: string | null
+          thread_name: string
+          thread_status: string | null
+          thread_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          end_chapter_id?: string | null
+          evidence?: string | null
+          extraction_method?:
+            | Database["public"]["Enums"]["extraction_method"]
+            | null
+          id?: string
+          is_flagged?: boolean | null
+          is_verified?: boolean | null
+          key_events?: Json | null
+          project_id: string
+          resolution_status?: string | null
+          start_chapter_id?: string | null
+          thread_name: string
+          thread_status?: string | null
+          thread_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          end_chapter_id?: string | null
+          evidence?: string | null
+          extraction_method?:
+            | Database["public"]["Enums"]["extraction_method"]
+            | null
+          id?: string
+          is_flagged?: boolean | null
+          is_verified?: boolean | null
+          key_events?: Json | null
+          project_id?: string
+          resolution_status?: string | null
+          start_chapter_id?: string | null
+          thread_name?: string
+          thread_status?: string | null
+          thread_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plot_threads_end_chapter_id_fkey"
+            columns: ["end_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plot_threads_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plot_threads_start_chapter_id_fkey"
+            columns: ["start_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -729,6 +1009,96 @@ export type Database = {
             columns: ["last_active_chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      semantic_chunks: {
+        Row: {
+          breakpoint_reasons: Json | null
+          breakpoint_score: number
+          chapter_id: string
+          chunk_index: number
+          content: string
+          created_at: string | null
+          dialogue_present: boolean | null
+          dialogue_speakers: Json | null
+          discourse_markers: Json | null
+          embeddings: string | null
+          embeddings_model: string | null
+          end_position: number
+          entity_types: Json | null
+          id: string
+          named_entities: Json | null
+          overlap_with_next: boolean | null
+          overlap_with_previous: boolean | null
+          processed_at: string | null
+          processing_version: string | null
+          project_id: string
+          start_position: number
+          updated_at: string | null
+        }
+        Insert: {
+          breakpoint_reasons?: Json | null
+          breakpoint_score: number
+          chapter_id: string
+          chunk_index: number
+          content: string
+          created_at?: string | null
+          dialogue_present?: boolean | null
+          dialogue_speakers?: Json | null
+          discourse_markers?: Json | null
+          embeddings?: string | null
+          embeddings_model?: string | null
+          end_position: number
+          entity_types?: Json | null
+          id?: string
+          named_entities?: Json | null
+          overlap_with_next?: boolean | null
+          overlap_with_previous?: boolean | null
+          processed_at?: string | null
+          processing_version?: string | null
+          project_id: string
+          start_position: number
+          updated_at?: string | null
+        }
+        Update: {
+          breakpoint_reasons?: Json | null
+          breakpoint_score?: number
+          chapter_id?: string
+          chunk_index?: number
+          content?: string
+          created_at?: string | null
+          dialogue_present?: boolean | null
+          dialogue_speakers?: Json | null
+          discourse_markers?: Json | null
+          embeddings?: string | null
+          embeddings_model?: string | null
+          end_position?: number
+          entity_types?: Json | null
+          id?: string
+          named_entities?: Json | null
+          overlap_with_next?: boolean | null
+          overlap_with_previous?: boolean | null
+          processed_at?: string | null
+          processing_version?: string | null
+          project_id?: string
+          start_position?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "semantic_chunks_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semantic_chunks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -865,6 +1235,96 @@ export type Database = {
         }
         Relationships: []
       }
+      timeline_events: {
+        Row: {
+          chapter_id: string | null
+          characters_involved: Json | null
+          chronological_order: number
+          confidence_score: number | null
+          created_at: string | null
+          duration_description: string | null
+          event_date_in_story: string | null
+          event_description: string | null
+          event_importance: string | null
+          event_name: string
+          event_type: string
+          evidence: string | null
+          extraction_method:
+            | Database["public"]["Enums"]["extraction_method"]
+            | null
+          id: string
+          is_flagged: boolean | null
+          is_verified: boolean | null
+          locations_involved: Json | null
+          plot_threads_affected: Json | null
+          project_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          chapter_id?: string | null
+          characters_involved?: Json | null
+          chronological_order: number
+          confidence_score?: number | null
+          created_at?: string | null
+          duration_description?: string | null
+          event_date_in_story?: string | null
+          event_description?: string | null
+          event_importance?: string | null
+          event_name: string
+          event_type: string
+          evidence?: string | null
+          extraction_method?:
+            | Database["public"]["Enums"]["extraction_method"]
+            | null
+          id?: string
+          is_flagged?: boolean | null
+          is_verified?: boolean | null
+          locations_involved?: Json | null
+          plot_threads_affected?: Json | null
+          project_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          chapter_id?: string | null
+          characters_involved?: Json | null
+          chronological_order?: number
+          confidence_score?: number | null
+          created_at?: string | null
+          duration_description?: string | null
+          event_date_in_story?: string | null
+          event_description?: string | null
+          event_importance?: string | null
+          event_name?: string
+          event_type?: string
+          evidence?: string | null
+          extraction_method?:
+            | Database["public"]["Enums"]["extraction_method"]
+            | null
+          id?: string
+          is_flagged?: boolean | null
+          is_verified?: boolean | null
+          locations_involved?: Json | null
+          plot_threads_affected?: Json | null
+          project_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timeline_events_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timeline_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usage_tracking: {
         Row: {
           ai_credits_limit: number
@@ -960,7 +1420,98 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      binary_quantize: {
+        Args: { "": string } | { "": unknown }
+        Returns: unknown
+      }
+      halfvec_avg: {
+        Args: { "": number[] }
+        Returns: unknown
+      }
+      halfvec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      halfvec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      halfvec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
+      hnsw_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_sparsevec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnswhandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflathandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      l2_norm: {
+        Args: { "": unknown } | { "": unknown }
+        Returns: number
+      }
+      l2_normalize: {
+        Args: { "": string } | { "": unknown } | { "": unknown }
+        Returns: string
+      }
+      sparsevec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      sparsevec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      sparsevec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
+      vector_avg: {
+        Args: { "": number[] }
+        Returns: string
+      }
+      vector_dims: {
+        Args: { "": string } | { "": unknown }
+        Returns: number
+      }
+      vector_norm: {
+        Args: { "": string }
+        Returns: number
+      }
+      vector_out: {
+        Args: { "": string }
+        Returns: unknown
+      }
+      vector_send: {
+        Args: { "": string }
+        Returns: string
+      }
+      vector_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
     }
     Enums: {
       change_type:
