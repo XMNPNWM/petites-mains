@@ -13,26 +13,26 @@ export class AIIntelligenceService {
   // Character Relationships
   static async getCharacterRelationships(projectId: string): Promise<CharacterRelationship[]> {
     const { data, error } = await supabase
-      .from('character_relationships')
+      .from('character_relationships' as any)
       .select('*')
       .eq('project_id', projectId)
       .order('relationship_strength', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as CharacterRelationship[];
   }
 
   static async createCharacterRelationship(
     relationship: Omit<CharacterRelationship, 'id' | 'created_at' | 'updated_at'>
   ): Promise<CharacterRelationship> {
     const { data, error } = await supabase
-      .from('character_relationships')
+      .from('character_relationships' as any)
       .insert(relationship)
       .select()
       .single();
 
     if (error) throw error;
-    return data;
+    return data as CharacterRelationship;
   }
 
   static async updateCharacterRelationship(
@@ -40,7 +40,7 @@ export class AIIntelligenceService {
     updates: Partial<CharacterRelationship>
   ): Promise<void> {
     const { error } = await supabase
-      .from('character_relationships')
+      .from('character_relationships' as any)
       .update(updates)
       .eq('id', id);
 
@@ -50,31 +50,31 @@ export class AIIntelligenceService {
   // Plot Threads
   static async getPlotThreads(projectId: string): Promise<PlotThread[]> {
     const { data, error } = await supabase
-      .from('plot_threads')
+      .from('plot_threads' as any)
       .select('*')
       .eq('project_id', projectId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as PlotThread[];
   }
 
   static async createPlotThread(
     thread: Omit<PlotThread, 'id' | 'created_at' | 'updated_at'>
   ): Promise<PlotThread> {
     const { data, error } = await supabase
-      .from('plot_threads')
+      .from('plot_threads' as any)
       .insert(thread)
       .select()
       .single();
 
     if (error) throw error;
-    return data;
+    return data as PlotThread;
   }
 
   static async updatePlotThread(id: string, updates: Partial<PlotThread>): Promise<void> {
     const { error } = await supabase
-      .from('plot_threads')
+      .from('plot_threads' as any)
       .update(updates)
       .eq('id', id);
 
@@ -84,31 +84,31 @@ export class AIIntelligenceService {
   // Timeline Events
   static async getTimelineEvents(projectId: string): Promise<TimelineEvent[]> {
     const { data, error } = await supabase
-      .from('timeline_events')
+      .from('timeline_events' as any)
       .select('*')
       .eq('project_id', projectId)
       .order('chronological_order', { ascending: true });
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as TimelineEvent[];
   }
 
   static async createTimelineEvent(
     event: Omit<TimelineEvent, 'id' | 'created_at' | 'updated_at'>
   ): Promise<TimelineEvent> {
     const { data, error } = await supabase
-      .from('timeline_events')
+      .from('timeline_events' as any)
       .insert(event)
       .select()
       .single();
 
     if (error) throw error;
-    return data;
+    return data as TimelineEvent;
   }
 
   static async updateTimelineEvent(id: string, updates: Partial<TimelineEvent>): Promise<void> {
     const { error } = await supabase
-      .from('timeline_events')
+      .from('timeline_events' as any)
       .update(updates)
       .eq('id', id);
 
@@ -118,31 +118,31 @@ export class AIIntelligenceService {
   // Conflict Tracking
   static async getConflictTracking(projectId: string): Promise<ConflictTracking[]> {
     const { data, error } = await supabase
-      .from('conflict_tracking')
+      .from('conflict_tracking' as any)
       .select('*')
       .eq('project_id', projectId)
       .order('current_intensity', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as ConflictTracking[];
   }
 
   static async createConflictTracking(
     conflict: Omit<ConflictTracking, 'id' | 'created_at' | 'updated_at'>
   ): Promise<ConflictTracking> {
     const { data, error } = await supabase
-      .from('conflict_tracking')
+      .from('conflict_tracking' as any)
       .insert(conflict)
       .select()
       .single();
 
     if (error) throw error;
-    return data;
+    return data as ConflictTracking;
   }
 
   static async updateConflictTracking(id: string, updates: Partial<ConflictTracking>): Promise<void> {
     const { error } = await supabase
-      .from('conflict_tracking')
+      .from('conflict_tracking' as any)
       .update(updates)
       .eq('id', id);
 

@@ -52,7 +52,7 @@ export class SemanticChunkingService {
 
   private static async getExistingChunks(chapterId: string): Promise<SemanticChunk[]> {
     const { data, error } = await supabase
-      .from('semantic_chunks')
+      .from('semantic_chunks' as any)
       .select('*')
       .eq('chapter_id', chapterId)
       .order('chunk_index');
@@ -62,7 +62,7 @@ export class SemanticChunkingService {
       return [];
     }
 
-    return data || [];
+    return (data || []) as SemanticChunk[];
   }
 
   private static async performChunking(
@@ -201,7 +201,7 @@ export class SemanticChunkingService {
   private static async storeChunks(chunks: SemanticChunk[]): Promise<void> {
     for (const chunk of chunks) {
       const { error } = await supabase
-        .from('semantic_chunks')
+        .from('semantic_chunks' as any)
         .insert({
           chapter_id: chunk.chapter_id,
           project_id: chunk.project_id,
@@ -261,7 +261,7 @@ export class SemanticChunkingService {
 
   static async deleteChunksForChapter(chapterId: string): Promise<void> {
     const { error } = await supabase
-      .from('semantic_chunks')
+      .from('semantic_chunks' as any)
       .delete()
       .eq('chapter_id', chapterId);
 
