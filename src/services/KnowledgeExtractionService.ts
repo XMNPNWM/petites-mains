@@ -1,7 +1,8 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { ContentHashService } from './ContentHashService';
 import { ProcessingJobService } from './ProcessingJobService';
+import { SemanticChunkingService } from './SemanticChunkingService';
+import { AIIntelligenceService } from './AIIntelligenceService';
 import { KnowledgeBase } from '@/types/knowledge';
 
 export class KnowledgeExtractionService {
@@ -52,6 +53,43 @@ export class KnowledgeExtractionService {
     this.performFullProjectAnalysis(job.id, projectId, chapters || []);
 
     return { jobId: job.id };
+  }
+
+  static async extractKnowledgeFromChapterWithChunking(
+    projectId: string,
+    chapterId: string,
+    content: string,
+    triggerContext: 'chat' | 'enhancement' | 'manual'
+  ): Promise<{ jobId: string; needsAnalysis: boolean; chunksCreated: number }> {
+    console.log('Starting enhanced knowledge extraction with chunking for chapter:', chapterId);
+
+    // Verify content hash to check if analysis is needed
+    const verification = await ContentHashService.verifyContentHash(chapterId, content);
+    
+    if (!verification.needsReanalysis) {
+      console.log('Chapter content unchanged, checking existing chunks...');
+      const existingChunks = await SemanticChunkingService.getChunksForChapter(chapterId);
+      return { jobId: '', needsAnalysis: false, chunksCreated: existingChunks.length };
+    }
+
+    // Perform semantic chunking
+    const chunkingResult = await SemanticChunkingService.processChapter(chapterId, content);
+    console.log(`Created ${chunkingResult.total_chunks} semantic chunks`);
+
+    // Update content hash
+    await ContentHashService.updateContentHash(chapterId, content);
+
+    // Create processing job for AI extraction from chunks
+    const job = await ProcessingJobService.createJob(projectId, chapterId, 'fact_extraction');
+
+    // Start enhanced analysis in background
+    this.performEnhancedAnalysis(job.id, projectId, chapterId, chunkingResult.chunks);
+
+    return { 
+      jobId: job.id, 
+      needsAnalysis: true, 
+      chunksCreated: chunkingResult.total_chunks 
+    };
   }
 
   private static async performAnalysis(
@@ -133,6 +171,226 @@ export class KnowledgeExtractionService {
         error_message: 'Full project analysis failed',
         error_details: { error: error instanceof Error ? error.message : 'Unknown error' }
       });
+    }
+  }
+
+  private static async performEnhancedAnalysis(
+    jobId: string,
+    projectId: string,
+    chapterId: string,
+    chunks: any[]
+  ): Promise<void> {
+    try {
+      await ProcessingJobService.updateJobProgress(jobId, {
+        state: 'analyzing',
+        current_step: `Analyzing ${chunks.length} semantic chunks...`,
+        total_steps: chunks.length + 2,
+        completed_steps: 0
+      });
+
+      // Analyze each chunk for knowledge extraction
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        
+        await ProcessingJobService.updateJobProgress(jobId, {
+          state: 'extracting',
+          current_step: `Extracting knowledge from chunk ${i + 1}/${chunks.length}...`,
+          completed_steps: i + 1
+        });
+
+        // Extract knowledge from this chunk
+        await this.extractKnowledgeFromChunk(projectId, chapterId, chunk);
+        
+        // Small delay to prevent overwhelming the system
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Build relationships and connections
+      await ProcessingJobService.updateJobProgress(jobId, {
+        state: 'analyzing',
+        current_step: 'Building character relationships and plot connections...',
+        completed_steps: chunks.length + 1
+      });
+
+      await this.buildRelationshipsAndConnections(projectId, chapterId);
+
+      // Complete the job
+      await ProcessingJobService.updateJobProgress(jobId, {
+        state: 'done',
+        current_step: 'Enhanced analysis complete',
+        completed_steps: chunks.length + 2,
+        progress_percentage: 100,
+        results_summary: {
+          chunks_processed: chunks.length,
+          relationships_analyzed: true,
+          knowledge_enhanced: true
+        }
+      });
+
+      console.log('Enhanced analysis completed for chapter:', chapterId);
+    } catch (error) {
+      console.error('Enhanced analysis failed:', error);
+      await ProcessingJobService.updateJobProgress(jobId, {
+        state: 'failed',
+        error_message: 'Enhanced knowledge extraction failed',
+        error_details: { error: error instanceof Error ? error.message : 'Unknown error' }
+      });
+    }
+  }
+
+  private static async extractKnowledgeFromChunk(
+    projectId: string,
+    chapterId: string,
+    chunk: any
+  ): Promise<void> {
+    // For now, create sample knowledge entries based on chunk analysis
+    // This will be replaced with actual AI processing in Sub-Phase 1D.3
+    
+    if (chunk.dialogue_present && chunk.dialogue_speakers.length > 0) {
+      // Create character entries for speakers
+      for (const speaker of chunk.dialogue_speakers) {
+        await this.createOrUpdateCharacterKnowledge(projectId, chapterId, speaker, chunk);
+      }
+    }
+
+    // Analyze discourse markers for plot events
+    if (chunk.discourse_markers.length > 0) {
+      await this.createPlotEventKnowledge(projectId, chapterId, chunk);
+    }
+  }
+
+  private static async createOrUpdateCharacterKnowledge(
+    projectId: string,
+    chapterId: string,
+    characterName: string,
+    chunk: any
+  ): Promise<void> {
+    // Check if character already exists
+    const { data: existing } = await supabase
+      .from('knowledge_base')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('category', 'character')
+      .eq('name', characterName)
+      .single();
+
+    if (existing) {
+      // Update last appearance
+      await supabase
+        .from('knowledge_base')
+        .update({
+          last_appearance_chapter_id: chapterId,
+          last_seen_at: new Date().toISOString()
+        })
+        .eq('id', existing.id);
+    } else {
+      // Create new character entry
+      await supabase
+        .from('knowledge_base')
+        .insert({
+          project_id: projectId,
+          source_chapter_id: chapterId,
+          first_appearance_chapter_id: chapterId,
+          last_appearance_chapter_id: chapterId,
+          name: characterName,
+          category: 'character',
+          description: `Character identified in chapter through dialogue`,
+          confidence_score: 0.75,
+          extraction_method: 'llm_inferred',
+          evidence: `Found in semantic chunk ${chunk.chunk_index}`,
+          details: {
+            first_appearance_context: chunk.content.substring(0, 200),
+            dialogue_patterns: ['speaks_in_chapter']
+          }
+        });
+    }
+  }
+
+  private static async createPlotEventKnowledge(
+    projectId: string,
+    chapterId: string,
+    chunk: any
+  ): Promise<void> {
+    // Create plot event based on discourse markers
+    const eventDescription = `Plot event identified by discourse markers: ${
+      chunk.discourse_markers.map((m: any) => m.text).join(', ')
+    }`;
+
+    await supabase
+      .from('knowledge_base')
+      .insert({
+        project_id: projectId,
+        source_chapter_id: chapterId,
+        name: `Event in Chunk ${chunk.chunk_index}`,
+        category: 'event',
+        description: eventDescription,
+        confidence_score: 0.65,
+        extraction_method: 'llm_inferred',
+        evidence: `Discourse markers detected: ${JSON.stringify(chunk.discourse_markers)}`,
+        details: {
+          chunk_context: chunk.content.substring(0, 300),
+          discourse_markers: chunk.discourse_markers
+        }
+      });
+  }
+
+  private static async buildRelationshipsAndConnections(
+    projectId: string,
+    chapterId: string
+  ): Promise<void> {
+    // Get characters from this chapter
+    const { data: chapterCharacters } = await supabase
+      .from('knowledge_base')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('category', 'character')
+      .or(`source_chapter_id.eq.${chapterId},last_appearance_chapter_id.eq.${chapterId}`);
+
+    if (!chapterCharacters || chapterCharacters.length < 2) return;
+
+    // Create basic relationships between characters who appear in the same chapter
+    for (let i = 0; i < chapterCharacters.length; i++) {
+      for (let j = i + 1; j < chapterCharacters.length; j++) {
+        const charA = chapterCharacters[i];
+        const charB = chapterCharacters[j];
+
+        // Check if relationship already exists
+        const { data: existingRelation } = await supabase
+          .from('character_relationships')
+          .select('*')
+          .eq('project_id', projectId)
+          .or(`and(character_a_name.eq.${charA.name},character_b_name.eq.${charB.name}),and(character_a_name.eq.${charB.name},character_b_name.eq.${charA.name})`)
+          .single();
+
+        if (!existingRelation) {
+          // Create new relationship
+          await AIIntelligenceService.createCharacterRelationship({
+            project_id: projectId,
+            character_a_id: charA.id,
+            character_b_id: charB.id,
+            character_a_name: charA.name,
+            character_b_name: charB.name,
+            relationship_type: 'co_occurrence',
+            relationship_strength: 3, // Base strength for co-occurrence
+            strength_history: [
+              {
+                chapter_id: chapterId,
+                strength: 3,
+                timestamp: new Date().toISOString(),
+                change_reason: 'Characters appear in same chapter'
+              }
+            ],
+            key_interactions: [],
+            relationship_start_chapter_id: chapterId,
+            relationship_current_status: 'active',
+            confidence_score: 0.60,
+            extraction_method: 'llm_inferred',
+            evidence: `Both characters appear in chapter ${chapterId}`,
+            is_flagged: false,
+            is_verified: false
+          });
+        }
+      }
     }
   }
 

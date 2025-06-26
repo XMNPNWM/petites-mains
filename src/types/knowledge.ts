@@ -1,4 +1,3 @@
-
 export interface KnowledgeBase {
   id: string;
   project_id: string;
@@ -80,4 +79,41 @@ export interface AnalysisStatus {
   currentJob?: ProcessingJob;
   errorCount: number;
   lowConfidenceFactsCount: number;
+}
+
+// Add new extended knowledge categories
+export type ExtendedKnowledgeCategory = 
+  | 'character' 
+  | 'plot_point' 
+  | 'world_building' 
+  | 'theme' 
+  | 'setting' 
+  | 'object' 
+  | 'event' 
+  | 'relationship' 
+  | 'other'
+  | 'writing_style'
+  | 'dialogue_pattern'
+  | 'pacing_analysis'
+  | 'narrative_perspective'
+  | 'conflict_architecture'
+  | 'timeline_event'
+  | 'character_arc'
+  | 'plot_thread'
+  | 'world_rule'
+  | 'consistency_marker'
+  | 'foreshadowing'
+  | 'callback';
+
+// Enhanced Knowledge Base interface with new temporal fields
+export interface EnhancedKnowledgeBase extends KnowledgeBase {
+  category: ExtendedKnowledgeCategory;
+  arc_progression?: Record<string, any>;
+  first_appearance_chapter_id?: string;
+  last_appearance_chapter_id?: string;
+  chapter_progression?: Array<{
+    chapter_id: string;
+    changes: string[];
+    timestamp: string;
+  }>;
 }
