@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { SemanticChunk } from '@/types/aiIntelligence';
 import { EmbeddingsService } from './EmbeddingsService';
+import { GoogleAIService } from './GoogleAIService';
 
 export interface KnowledgeExtractionConfig {
   batchSize: number;
@@ -199,7 +200,7 @@ export class AIIntelligenceService {
   }
 
   /**
-   * Process a batch of semantic chunks
+   * Process a batch of semantic chunks using Google AI
    */
   private static async processBatch(
     chunks: SemanticChunk[],
@@ -209,43 +210,30 @@ export class AIIntelligenceService {
     // Get existing knowledge for context
     const existingKnowledge = await this.getExistingKnowledge(projectId);
 
-    // Prepare chunks for API call
-    const chunkData = chunks.map(chunk => ({
-      id: chunk.id,
-      content: chunk.content,
-      chunk_index: chunk.chunk_index,
-      chapter_id: chunk.chapter_id
-    }));
+    // Combine chunk content for analysis
+    const combinedContent = chunks.map(chunk => chunk.content).join('\n\n');
 
     let totalExtractions = 0;
     let totalConfidence = 0;
 
-    // Process each extraction type
+    // Process each extraction type using Google AI
     for (const extractionType of config.extractionTypes) {
       try {
-        const response = await fetch('/functions/v1/openrouter-ai', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            chunks: chunkData,
-            projectId,
-            extractionType,
-            existingKnowledge
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`API request failed: ${response.status}`);
-        }
-
-        const result = await response.json();
+        console.log(`Processing ${extractionType} extraction for ${chunks.length} chunks`);
+        
+        const extractedData = await GoogleAIService.extractKnowledge(
+          combinedContent,
+          extractionType,
+          existingKnowledge
+        );
         
         // Store extracted knowledge in database
-        const storedCount = await this.storeExtractedKnowledge(result, projectId, chunks);
+        const storedCount = await this.storeExtractedKnowledge(extractedData, projectId, chunks);
         totalExtractions += storedCount;
-        totalConfidence += result.processingStats.confidenceAverage * storedCount;
+        
+        // Calculate average confidence from extracted data
+        const confidenceSum = this.calculateConfidenceSum(extractedData);
+        totalConfidence += confidenceSum;
 
       } catch (error) {
         console.error(`Error processing ${extractionType}:`, error);
@@ -254,6 +242,27 @@ export class AIIntelligenceService {
     }
 
     return { extractionsCount: totalExtractions, totalConfidence };
+  }
+
+  /**
+   * Calculate total confidence from extracted data
+   */
+  private static calculateConfidenceSum(extractedData: any): number {
+    let sum = 0;
+    let count = 0;
+
+    ['characters', 'relationships', 'plotThreads', 'timelineEvents'].forEach(key => {
+      if (extractedData[key] && Array.isArray(extractedData[key])) {
+        extractedData[key].forEach((item: any) => {
+          if (item.confidence_score) {
+            sum += item.confidence_score;
+            count++;
+          }
+        });
+      }
+    });
+
+    return count > 0 ? sum : 0;
   }
 
   /**
