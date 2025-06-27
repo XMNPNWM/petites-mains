@@ -1,9 +1,7 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { SemanticChunk, ChunkingConfig, ChunkingResult } from '@/types/aiIntelligence';
 import { EmbeddingsService } from './EmbeddingsService';
-import { NERService } from './NERService';
-import { DiscourseMarkersService } from './DiscourseMarkersService';
-import { DialogueAnalysisService } from './DialogueAnalysisService';
 
 export class SemanticChunkingService {
   private static defaultConfig: ChunkingConfig = {
@@ -21,7 +19,7 @@ export class SemanticChunkingService {
     content: string,
     config?: Partial<ChunkingConfig>
   ): Promise<ChunkingResult> {
-    console.log('Starting enhanced semantic chunking for chapter:', chapterId);
+    console.log('Starting simplified semantic chunking for chapter:', chapterId);
     
     const chunkingConfig = { ...this.defaultConfig, ...config };
     
@@ -30,7 +28,6 @@ export class SemanticChunkingService {
     
     if (existingChunks.length > 0) {
       console.log('Found existing chunks, checking if reprocessing needed...');
-      // For now, return existing chunks - we'll add hash comparison later
       return {
         chunks: existingChunks,
         total_chunks: existingChunks.length,
@@ -38,13 +35,13 @@ export class SemanticChunkingService {
       };
     }
 
-    // Perform enhanced chunking pipeline
-    const chunks = await this.performEnhancedChunking(chapterId, content, chunkingConfig);
+    // Perform simplified chunking pipeline
+    const chunks = await this.performSimplifiedChunking(chapterId, content, chunkingConfig);
     
     // Store chunks in database
     await this.storeChunks(chunks);
     
-    console.log(`Enhanced chunking completed: ${chunks.length} chunks created`);
+    console.log(`Simplified chunking completed: ${chunks.length} chunks created`);
     
     return {
       chunks,
@@ -55,7 +52,7 @@ export class SemanticChunkingService {
 
   private static async getExistingChunks(chapterId: string): Promise<SemanticChunk[]> {
     const { data, error } = await supabase
-      .from('semantic_chunks' as any)
+      .from('semantic_chunks')
       .select('*')
       .eq('chapter_id', chapterId)
       .order('chunk_index');
@@ -68,7 +65,7 @@ export class SemanticChunkingService {
     return (data || []) as unknown as SemanticChunk[];
   }
 
-  private static async performEnhancedChunking(
+  private static async performSimplifiedChunking(
     chapterId: string,
     content: string,
     config: ChunkingConfig
@@ -84,363 +81,147 @@ export class SemanticChunkingService {
       throw new Error('Failed to fetch chapter information');
     }
 
-    console.log('Performing enhanced semantic analysis...');
+    console.log('Performing simplified text chunking...');
 
-    // Step 1: Initial sentence segmentation
-    const sentences = this.splitIntoSentences(content);
-    console.log(`Split into ${sentences.length} sentences`);
+    // Step 1: Split content into paragraphs
+    const paragraphs = this.splitIntoParagraphs(content);
+    console.log(`Split into ${paragraphs.length} paragraphs`);
 
-    // Step 2: Analyze each sentence for various features
-    const sentenceAnalyses = await Promise.all(
-      sentences.map(async (sentence, index) => {
-        const position = this.getSentencePosition(sentences, index, content);
-        
-        return {
-          text: sentence,
-          index,
-          position,
-          entities: await NERService.extractEntities(sentence),
-          discourseMarkers: DiscourseMarkersService.detectDiscourseMarkers(sentence),
-          dialogueAnalysis: DialogueAnalysisService.analyzeConversationFlow(sentence),
-          embedding: null as number[] | null // Will be populated for chunk boundaries
-        };
-      })
-    );
-
-    console.log('Completed sentence-level analysis');
-
-    // Step 3: Determine chunk boundaries using hierarchical scoring
-    const chunkBoundaries = await this.determineChunkBoundaries(
-      sentenceAnalyses, 
-      config
-    );
-
-    console.log(`Identified ${chunkBoundaries.length} chunk boundaries`);
-
-    // Step 4: Create chunks with overlap and metadata
-    const chunks = await this.createEnhancedChunks(
+    // Step 2: Create chunks based on token limits
+    const chunks = await this.createChunksFromParagraphs(
       chapterId,
       chapter.project_id,
-      sentenceAnalyses,
-      chunkBoundaries,
+      paragraphs,
       config
     );
 
-    console.log(`Created ${chunks.length} enhanced semantic chunks`);
+    console.log(`Created ${chunks.length} simplified semantic chunks`);
 
     return chunks;
   }
 
-  private static splitIntoSentences(text: string): string[] {
-    // Enhanced sentence splitting that preserves dialogue
-    const sentences: string[] = [];
-    
-    // Split on sentence boundaries but keep dialogue intact
-    const parts = text.split(/([.!?]+\s+)/);
-    let currentSentence = '';
-    
-    for (let i = 0; i < parts.length; i++) {
-      currentSentence += parts[i];
-      
-      // Check if this is a sentence boundary
-      if (i % 2 === 1 && parts[i].match(/[.!?]+\s+/)) {
-        const trimmed = currentSentence.trim();
-        if (trimmed.length > 0) {
-          sentences.push(trimmed);
-        }
-        currentSentence = '';
-      }
-    }
-    
-    // Add any remaining content
-    if (currentSentence.trim().length > 0) {
-      sentences.push(currentSentence.trim());
-    }
-    
-    return sentences.filter(s => s.length > 0);
+  private static splitIntoParagraphs(text: string): string[] {
+    // Split on double newlines (paragraph breaks) and filter empty ones
+    return text.split(/\n\s*\n/).filter(paragraph => paragraph.trim().length > 0);
   }
 
-  private static getSentencePosition(
-    sentences: string[], 
-    index: number, 
-    fullText: string
-  ): { start: number; end: number } {
-    let position = 0;
-    for (let i = 0; i < index; i++) {
-      position += sentences[i].length;
-    }
-    
-    return {
-      start: position,
-      end: position + sentences[index].length
-    };
-  }
-
-  private static async determineChunkBoundaries(
-    analyses: any[],
-    config: ChunkingConfig
-  ): Promise<number[]> {
-    const boundaries: Array<{ index: number; score: number; reasons: any[] }> = [];
-    let currentTokens = 0;
-    let previousEmbedding: number[] | null = null;
-
-    for (let i = 0; i < analyses.length; i++) {
-      const analysis = analyses[i];
-      const tokenCount = this.estimateTokens(analysis.text);
-      currentTokens += tokenCount;
-
-      // Calculate breakpoint score
-      let breakpointScore = 0;
-      const reasons: any[] = [];
-
-      // 1. Token-based constraints
-      if (currentTokens >= config.max_tokens) {
-        breakpointScore += 10;
-        reasons.push({ type: 'max_tokens', score: 10, description: 'Maximum token limit reached' });
-      } else if (currentTokens >= config.min_tokens) {
-        // 2. Discourse markers analysis
-        const discourseScore = this.calculateDiscourseScore(analysis, config);
-        breakpointScore += discourseScore.score;
-        reasons.push(...discourseScore.reasons);
-
-        // 3. Entity shift analysis
-        if (i > 0) {
-          const entityShift = NERService.calculateEntityShift(
-            analyses[i - 1].entities,
-            analysis.entities
-          );
-          const entityScore = entityShift.entityChangeScore * config.ner_shift_weight;
-          if (entityScore > 1) {
-            breakpointScore += entityScore;
-            reasons.push({
-              type: 'entity_shift',
-              score: entityScore,
-              description: `Entity shift detected: ${entityShift.newEntities.length} new, ${entityShift.removedEntities.length} removed`
-            });
-          }
-        }
-
-        // 4. Dialogue transition analysis
-        if (i > 0) {
-          const dialogueScore = DialogueAnalysisService.detectDialogueTransitions(
-            analyses[i - 1].text,
-            analysis.text
-          ) * config.dialogue_shift_weight;
-          
-          if (dialogueScore > 1) {
-            breakpointScore += dialogueScore;
-            reasons.push({
-              type: 'dialogue_transition',
-              score: dialogueScore,
-              description: 'Dialogue transition detected'
-            });
-          }
-        }
-
-        // 5. Embedding similarity (when available)
-        if (breakpointScore > 3) { // Only compute embeddings for potential boundaries
-          try {
-            const embedding = await EmbeddingsService.generateEmbedding(analysis.text);
-            analysis.embedding = embedding.embedding;
-
-            if (previousEmbedding) {
-              const similarity = EmbeddingsService.calculateCosineSimilarity(
-                previousEmbedding,
-                embedding.embedding
-              );
-              
-              if (similarity < config.embedding_threshold) {
-                const embeddingScore = (1 - similarity) * 5;
-                breakpointScore += embeddingScore;
-                reasons.push({
-                  type: 'embedding_similarity',
-                  score: embeddingScore,
-                  description: `Low semantic similarity: ${similarity.toFixed(3)}`
-                });
-              }
-            }
-            previousEmbedding = embedding.embedding;
-          } catch (error) {
-            console.warn('Failed to generate embedding for boundary detection:', error);
-          }
-        }
-      }
-
-      // Record potential boundary
-      if (breakpointScore > 2 || currentTokens >= config.max_tokens) {
-        boundaries.push({
-          index: i,
-          score: breakpointScore,
-          reasons
-        });
-      }
-
-      // Reset token count if we've marked a boundary
-      if (boundaries.length > 0 && boundaries[boundaries.length - 1].index === i) {
-        currentTokens = 0;
-        previousEmbedding = analysis.embedding;
-      }
-    }
-    
-    // Ensure we don't have too many small chunks
-    const filteredBoundaries = this.filterBoundaries(boundaries, analyses, config);
-    
-    return filteredBoundaries.map(b => b.index);
-  }
-
-  private static calculateDiscourseScore(analysis: any, config: ChunkingConfig): {
-    score: number;
-    reasons: any[];
-  } {
-    let score = 0;
-    const reasons: any[] = [];
-
-    for (const marker of analysis.discourseMarkers) {
-      const markerScore = marker.score * config.discourse_marker_weight;
-      score += markerScore;
-      
-      reasons.push({
-        type: 'discourse_marker',
-        score: markerScore,
-        description: `${marker.strength} ${marker.type} marker: "${marker.text}"`
-      });
-    }
-
-    // Check for scene breaks
-    if (DiscourseMarkersService.indicatesSceneBreak(analysis.discourseMarkers)) {
-      score += 5;
-      reasons.push({
-        type: 'scene_break',
-        score: 5,
-        description: 'Scene break indicators detected'
-      });
-    }
-
-    return { score: Math.min(score, 10), reasons };
-  }
-
-  private static filterBoundaries(
-    boundaries: Array<{ index: number; score: number; reasons: any[] }>,
-    analyses: any[],
-    config: ChunkingConfig
-  ): Array<{ index: number; score: number; reasons: any[] }> {
-    // Sort by score (highest first)
-    boundaries.sort((a, b) => b.score - a.score);
-    
-    const filtered: Array<{ index: number; score: number; reasons: any[] }> = [];
-    let lastBoundary = -1;
-    
-    for (const boundary of boundaries) {
-      // Ensure minimum chunk size
-      const tokensSinceLastBoundary = this.calculateTokensBetween(
-        analyses, lastBoundary + 1, boundary.index
-      );
-      
-      if (tokensSinceLastBoundary >= config.min_tokens || boundary.score >= 8) {
-        filtered.push(boundary);
-        lastBoundary = boundary.index;
-      }
-    }
-    
-    // Sort back by index
-    return filtered.sort((a, b) => a.index - b.index);
-  }
-
-  private static calculateTokensBetween(
-    analyses: any[],
-    start: number,
-    end: number
-  ): number {
-    let tokens = 0;
-    for (let i = start; i <= end && i < analyses.length; i++) {
-      tokens += this.estimateTokens(analyses[i].text);
-    }
-    return tokens;
-  }
-
-  private static async createEnhancedChunks(
+  private static async createChunksFromParagraphs(
     chapterId: string,
     projectId: string,
-    analyses: any[],
-    boundaries: number[],
+    paragraphs: string[],
     config: ChunkingConfig
   ): Promise<SemanticChunk[]> {
     const chunks: SemanticChunk[] = [];
-    let chunkStart = 0;
+    let currentChunk = '';
+    let currentTokens = 0;
+    let chunkIndex = 0;
+    let startPosition = 0;
 
-    // Add final boundary if not present
-    if (boundaries.length === 0 || boundaries[boundaries.length - 1] !== analyses.length - 1) {
-      boundaries.push(analyses.length - 1);
+    for (let i = 0; i < paragraphs.length; i++) {
+      const paragraph = paragraphs[i];
+      const paragraphTokens = this.estimateTokens(paragraph);
+
+      // If adding this paragraph would exceed max tokens, finalize current chunk
+      if (currentTokens + paragraphTokens > config.max_tokens && currentChunk.length > 0) {
+        const chunk = await this.createChunk(
+          chapterId,
+          projectId,
+          currentChunk,
+          chunkIndex,
+          startPosition,
+          config
+        );
+        chunks.push(chunk);
+        
+        // Start new chunk with overlap
+        const overlapText = this.getOverlapText(currentChunk, config.overlap_sentences);
+        currentChunk = overlapText + (overlapText ? '\n\n' : '') + paragraph;
+        currentTokens = this.estimateTokens(currentChunk);
+        chunkIndex++;
+        startPosition = startPosition + currentChunk.length - overlapText.length;
+      } else {
+        // Add paragraph to current chunk
+        if (currentChunk.length > 0) {
+          currentChunk += '\n\n';
+        }
+        currentChunk += paragraph;
+        currentTokens += paragraphTokens;
+      }
     }
 
-    for (let i = 0; i < boundaries.length; i++) {
-      const chunkEnd = boundaries[i];
-      const chunkAnalyses = analyses.slice(chunkStart, chunkEnd + 1);
-      
-      // Build chunk content with overlap
-      const overlapStart = Math.max(0, chunkStart - config.overlap_sentences);
-      const overlapAnalyses = analyses.slice(overlapStart, chunkEnd + 1);
-      
-      const content = overlapAnalyses.map(a => a.text).join(' ');
-      const coreContent = chunkAnalyses.map(a => a.text).join(' ');
-      
-      // Aggregate metadata
-      const allEntities = chunkAnalyses.flatMap(a => a.entities);
-      const allDiscourseMarkers = chunkAnalyses.flatMap(a => a.discourseMarkers);
-      const dialogueAnalyses = chunkAnalyses.map(a => a.dialogueAnalysis);
-      
-      // Generate embedding for the chunk
-      let embedding: number[] | null = null;
-      try {
-        const embeddingResult = await EmbeddingsService.generateEmbedding(coreContent);
-        embedding = embeddingResult.embedding;
-      } catch (error) {
-        console.warn('Failed to generate embedding for chunk:', error);
-      }
-
-      // Find breakpoint reasons
-      const boundaryInfo = boundaries.find((_, idx) => boundaries[idx] === chunkEnd);
-      const breakpointReasons = boundaryInfo ? [] : []; // This would be populated by the boundary detection
-
-      const chunk: SemanticChunk = {
-        id: '', // Will be generated by database
-        chapter_id: chapterId,
-        project_id: projectId,
-        content: content.trim(),
-        chunk_index: i,
-        start_position: chunkAnalyses[0]?.position?.start || 0,
-        end_position: chunkAnalyses[chunkAnalyses.length - 1]?.position?.end || content.length,
-        embeddings: embedding,
-        embeddings_model: 'text-embedding-3-small',
-        named_entities: allEntities,
-        entity_types: NERService.getEntityTypes(allEntities),
-        discourse_markers: allDiscourseMarkers,
-        dialogue_present: dialogueAnalyses.some(d => d.hasDialogue),
-        dialogue_speakers: [
-          ...new Set(
-            dialogueAnalyses.flatMap(d => d.primarySpeakers)
-          )
-        ],
-        breakpoint_score: 1, // This would be calculated during boundary detection
-        breakpoint_reasons: breakpointReasons,
-        overlap_with_previous: overlapStart < chunkStart,
-        overlap_with_next: false, // Will be set when processing next chunk
-        processed_at: new Date().toISOString(),
-        processing_version: '2.0',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      // Set overlap flag for previous chunk
-      if (chunks.length > 0 && chunk.overlap_with_previous) {
-        chunks[chunks.length - 1].overlap_with_next = true;
-      }
-
+    // Add final chunk if it exists and meets minimum requirements
+    if (currentChunk.length > 0 && currentTokens >= config.min_tokens) {
+      const chunk = await this.createChunk(
+        chapterId,
+        projectId,
+        currentChunk,
+        chunkIndex,
+        startPosition,
+        config
+      );
       chunks.push(chunk);
-      chunkStart = chunkEnd + 1;
     }
 
     return chunks;
+  }
+
+  private static async createChunk(
+    chapterId: string,
+    projectId: string,
+    content: string,
+    chunkIndex: number,
+    startPosition: number,
+    config: ChunkingConfig
+  ): Promise<SemanticChunk> {
+    // Generate embedding for the chunk
+    let embedding: number[] | null = null;
+    try {
+      const embeddingResult = await EmbeddingsService.generateEmbedding(content);
+      embedding = embeddingResult.embedding;
+    } catch (error) {
+      console.warn('Failed to generate embedding for chunk:', error);
+    }
+
+    const chunk: SemanticChunk = {
+      id: '', // Will be generated by database
+      chapter_id: chapterId,
+      project_id: projectId,
+      content: content.trim(),
+      chunk_index: chunkIndex,
+      start_position: startPosition,
+      end_position: startPosition + content.length,
+      embeddings: embedding,
+      embeddings_model: 'text-embedding-3-small',
+      named_entities: [], // Will be populated by Gemini 2.5 Flash later
+      entity_types: [], // Will be populated by Gemini 2.5 Flash later
+      discourse_markers: [], // Will be populated by Gemini 2.5 Flash later
+      dialogue_present: false, // Will be populated by Gemini 2.5 Flash later
+      dialogue_speakers: [], // Will be populated by Gemini 2.5 Flash later
+      breakpoint_score: 1,
+      breakpoint_reasons: [{
+        type: 'max_tokens',
+        score: 1,
+        description: 'Simplified paragraph-based chunking'
+      }],
+      overlap_with_previous: chunkIndex > 0,
+      overlap_with_next: false, // Will be set when processing next chunk
+      processed_at: new Date().toISOString(),
+      processing_version: '2.1-simplified',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    return chunk;
+  }
+
+  private static getOverlapText(text: string, overlapSentences: number): string {
+    // Get last few sentences for overlap
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    if (sentences.length <= overlapSentences) {
+      return text;
+    }
+    
+    return sentences.slice(-overlapSentences).join('. ') + '.';
   }
 
   private static estimateTokens(text: string): number {
@@ -451,7 +232,7 @@ export class SemanticChunkingService {
   private static async storeChunks(chunks: SemanticChunk[]): Promise<void> {
     for (const chunk of chunks) {
       const { error } = await supabase
-        .from('semantic_chunks' as any)
+        .from('semantic_chunks')
         .insert({
           chapter_id: chunk.chapter_id,
           project_id: chunk.project_id,
@@ -491,33 +272,18 @@ export class SemanticChunkingService {
       chunk.overlap_with_previous || chunk.overlap_with_next
     ).length / chunks.length;
     
-    const breakpointDistribution: Record<string, number> = {};
-    chunks.forEach(chunk => {
-      chunk.breakpoint_reasons.forEach(reason => {
-        breakpointDistribution[reason.type] = (breakpointDistribution[reason.type] || 0) + 1;
-      });
-    });
-
-    const entityTypes = new Set();
-    const totalEntities = chunks.reduce((sum, chunk) => {
-      chunk.entity_types.forEach(type => entityTypes.add(type));
-      return sum + chunk.named_entities.length;
-    }, 0);
-
-    const dialogueRatio = chunks.filter(chunk => chunk.dialogue_present).length / chunks.length;
-
     return {
       total_tokens: Math.round(totalTokens),
       avg_chunk_size: Math.round(avgChunkSize),
       overlap_ratio: Math.round(overlapRatio * 100) / 100,
-      breakpoint_distribution: breakpointDistribution,
+      breakpoint_distribution: { 'max_tokens': chunks.length },
       entity_stats: {
-        total_entities: totalEntities,
-        unique_entity_types: entityTypes.size,
-        avg_entities_per_chunk: Math.round(totalEntities / chunks.length)
+        total_entities: 0, // Will be populated by Gemini 2.5 Flash later
+        unique_entity_types: 0, // Will be populated by Gemini 2.5 Flash later
+        avg_entities_per_chunk: 0 // Will be populated by Gemini 2.5 Flash later
       },
-      dialogue_ratio: Math.round(dialogueRatio * 100) / 100,
-      processing_version: '2.0'
+      dialogue_ratio: 0, // Will be populated by Gemini 2.5 Flash later
+      processing_version: '2.1-simplified'
     };
   }
 
@@ -527,7 +293,7 @@ export class SemanticChunkingService {
 
   static async deleteChunksForChapter(chapterId: string): Promise<void> {
     const { error } = await supabase
-      .from('semantic_chunks' as any)
+      .from('semantic_chunks')
       .delete()
       .eq('chapter_id', chapterId);
 

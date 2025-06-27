@@ -1,4 +1,3 @@
-
 // Enhanced AI Intelligence Types for Sub-Phase 1D.1
 
 // Extend existing knowledge types
@@ -14,9 +13,10 @@ export interface SemanticChunk {
   end_position: number;
   
   // Chunking analysis data (embeddings will be added later)
+  embeddings?: number[];
   embeddings_model?: string;
   
-  // NER and entity data
+  // NER and entity data (will be populated by Gemini 2.5 Flash)
   named_entities: Array<{
     text: string;
     label: string;
@@ -26,7 +26,7 @@ export interface SemanticChunk {
   }>;
   entity_types: string[];
   
-  // Discourse and dialogue markers
+  // Discourse and dialogue markers (will be populated by Gemini 2.5 Flash)
   discourse_markers: Array<{
     text: string;
     type: string;
@@ -44,8 +44,8 @@ export interface SemanticChunk {
   }>;
   
   // Overlap management
-  overlap_with_previous?: string;
-  overlap_with_next?: string;
+  overlap_with_previous: boolean;
+  overlap_with_next: boolean;
   
   // Processing metadata
   processed_at: string;

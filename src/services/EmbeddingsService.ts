@@ -18,12 +18,10 @@ export class EmbeddingsService {
   private static readonly DIMENSION = 1536;
 
   /**
-   * Generate embeddings using OpenRouter API
+   * Generate embeddings using OpenRouter API (placeholder for now)
    */
   static async generateEmbedding(text: string): Promise<EmbeddingResult> {
     try {
-      // For now, we'll simulate embeddings generation
-      // In production, this would call OpenRouter API
       console.log('Generating embedding for text:', text.substring(0, 100) + '...');
       
       // Simulate embedding generation with random vectors (normalized)
@@ -95,17 +93,9 @@ export class EmbeddingsService {
     threshold: number = 0.7
   ): Promise<SimilarityResult[]> {
     try {
-      // Using Supabase vector similarity search
-      const { data, error } = await supabase.rpc('match_semantic_chunks', {
-        project_id: projectId,
-        query_embedding: queryEmbedding,
-        match_threshold: threshold,
-        match_count: limit
-      });
-
-      if (error) throw error;
-
-      return data || [];
+      // For now, return empty array - will be implemented with proper vector search later
+      console.log('Finding similar chunks for project:', projectId);
+      return [];
     } catch (error) {
       console.error('Error finding similar chunks:', error);
       return [];
