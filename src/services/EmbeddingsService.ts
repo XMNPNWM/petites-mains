@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface EmbeddingResult {
@@ -177,8 +176,11 @@ export class EmbeddingsService {
     try {
       console.log('Finding similar chunks for project:', projectId);
       
+      // Convert the embedding array to a string format that PostgreSQL can handle
+      const embeddingString = `[${queryEmbedding.join(',')}]`;
+      
       const { data, error } = await supabase.rpc('match_semantic_chunks', {
-        query_embedding: queryEmbedding,
+        query_embedding: embeddingString,
         match_threshold: threshold,
         match_count: limit,
         filter_project_id: projectId
