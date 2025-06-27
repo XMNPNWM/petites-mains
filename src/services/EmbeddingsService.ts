@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export interface EmbeddingResult {
@@ -212,7 +213,7 @@ export class EmbeddingsService {
       const { error } = await supabase
         .from('semantic_chunks')
         .update({ 
-          embeddings: JSON.stringify(embedding), // Convert to JSON string
+          embeddings: JSON.stringify(embedding),
           embeddings_model: this.MODEL 
         })
         .eq('id', chunkId);
