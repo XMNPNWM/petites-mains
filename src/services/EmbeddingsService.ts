@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface EmbeddingResult {
@@ -16,24 +15,24 @@ export interface SimilarityResult {
 }
 
 export class EmbeddingsService {
-  private static readonly MODEL = 'google/text-embedding-004';
+  private static readonly MODEL = 'text-embedding-004';
   private static readonly DIMENSION = 768;
-  private static readonly OPENROUTER_URL = 'https://openrouter.ai/api/v1/embeddings';
+  private static readonly GOOGLE_AI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent';
   
-  // Rate limiting for OpenRouter (30 requests/minute for free tier)
+  // Rate limiting for Google AI (60 requests/minute for free tier)
   private static requestQueue: Array<() => Promise<any>> = [];
   private static isProcessingQueue = false;
   private static lastRequestTime = 0;
-  private static readonly MIN_REQUEST_INTERVAL = 2000; // 2 seconds between requests
+  private static readonly MIN_REQUEST_INTERVAL = 1000; // 1 second between requests
 
   /**
-   * Generate embeddings using OpenRouter API with Google's text-embedding-004
+   * Generate embeddings using Google AI API with text-embedding-004
    */
   static async generateEmbedding(text: string): Promise<EmbeddingResult> {
     try {
       console.log('Generating embedding for text:', text.substring(0, 100) + '...');
       
-      const embedding = await this.callOpenRouterEmbedding(text);
+      const embedding = await this.callGoogleAIEmbedding(text);
       
       return {
         embedding,
@@ -57,17 +56,13 @@ export class EmbeddingsService {
   static async generateBatchEmbeddings(texts: string[]): Promise<EmbeddingResult[]> {
     const results: EmbeddingResult[] = [];
     
-    // Process in small batches to respect rate limits
-    const batchSize = 3;
-    for (let i = 0; i < texts.length; i += batchSize) {
-      const batch = texts.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(text => this.generateEmbedding(text))
-      );
-      results.push(...batchResults);
+    // Process individually to respect rate limits
+    for (const text of texts) {
+      const result = await this.generateEmbedding(text);
+      results.push(result);
       
-      // Delay between batches to respect rate limits
-      if (i + batchSize < texts.length) {
+      // Delay between requests to respect rate limits
+      if (texts.indexOf(text) < texts.length - 1) {
         await new Promise(resolve => setTimeout(resolve, this.MIN_REQUEST_INTERVAL));
       }
     }
@@ -76,9 +71,9 @@ export class EmbeddingsService {
   }
 
   /**
-   * Call OpenRouter API for embeddings with rate limiting
+   * Call Google AI API for embeddings with rate limiting
    */
-  private static async callOpenRouterEmbedding(text: string): Promise<number[]> {
+  private static async callGoogleAIEmbedding(text: string): Promise<number[]> {
     return new Promise((resolve, reject) => {
       this.requestQueue.push(async () => {
         try {
@@ -90,29 +85,28 @@ export class EmbeddingsService {
             );
           }
 
-          const response = await fetch(this.OPENROUTER_URL, {
+          const response = await fetch(`${this.GOOGLE_AI_URL}?key=${process.env.GOOGLE_AI_API_KEY}`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
               'Content-Type': 'application/json',
-              'HTTP-Referer': window.location.origin,
-              'X-Title': 'StoryLoom AI'
             },
             body: JSON.stringify({
-              model: this.MODEL,
-              input: text
+              model: `models/${this.MODEL}`,
+              content: {
+                parts: [{ text }]
+              }
             })
           });
 
           if (!response.ok) {
-            throw new Error(`OpenRouter API error: ${response.status} ${response.statusText}`);
+            throw new Error(`Google AI API error: ${response.status} ${response.statusText}`);
           }
 
           const data = await response.json();
           this.lastRequestTime = Date.now();
           
-          if (data.data && data.data[0] && data.data[0].embedding) {
-            resolve(data.data[0].embedding);
+          if (data.embedding && data.embedding.values) {
+            resolve(data.embedding.values);
           } else {
             throw new Error('Invalid embedding response format');
           }
@@ -208,7 +202,7 @@ export class EmbeddingsService {
   }
 
   /**
-   * Store embedding in database
+   * Store embedding in database (convert to JSON string)
    */
   static async storeEmbedding(
     chunkId: string,
@@ -218,7 +212,7 @@ export class EmbeddingsService {
       const { error } = await supabase
         .from('semantic_chunks')
         .update({ 
-          embeddings: embedding,
+          embeddings: JSON.stringify(embedding), // Convert to JSON string
           embeddings_model: this.MODEL 
         })
         .eq('id', chunkId);
@@ -228,6 +222,28 @@ export class EmbeddingsService {
       console.error('Error storing embedding:', error);
       throw error;
     }
+  }
+
+  /**
+   * Parse embedding from database (convert from JSON string)
+   */
+  static parseEmbedding(embeddingData: any): number[] | null {
+    if (!embeddingData) return null;
+    
+    if (typeof embeddingData === 'string') {
+      try {
+        return JSON.parse(embeddingData);
+      } catch (error) {
+        console.error('Error parsing embedding:', error);
+        return null;
+      }
+    }
+    
+    if (Array.isArray(embeddingData)) {
+      return embeddingData;
+    }
+    
+    return null;
   }
 
   /**

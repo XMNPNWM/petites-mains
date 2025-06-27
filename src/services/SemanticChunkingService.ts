@@ -63,10 +63,13 @@ export class SemanticChunkingService {
 
     return (data || []).map(chunk => ({
       ...chunk,
-      embeddings: chunk.embeddings ? 
-        (typeof chunk.embeddings === 'string' ? JSON.parse(chunk.embeddings) : chunk.embeddings) : 
-        null
-    })) as unknown as SemanticChunk[];
+      embeddings: EmbeddingsService.parseEmbedding(chunk.embeddings),
+      named_entities: Array.isArray(chunk.named_entities) ? chunk.named_entities : [],
+      entity_types: Array.isArray(chunk.entity_types) ? chunk.entity_types : [],
+      discourse_markers: Array.isArray(chunk.discourse_markers) ? chunk.discourse_markers : [],
+      dialogue_speakers: Array.isArray(chunk.dialogue_speakers) ? chunk.dialogue_speakers : [],
+      breakpoint_reasons: Array.isArray(chunk.breakpoint_reasons) ? chunk.breakpoint_reasons : []
+    })) as SemanticChunk[];
   }
 
   private static async performSemanticChunking(
@@ -242,7 +245,7 @@ export class SemanticChunkingService {
       start_position: startPosition,
       end_position: startPosition + content.length,
       embeddings: chunkEmbedding,
-      embeddings_model: 'google/text-embedding-004',
+      embeddings_model: 'text-embedding-004',
       named_entities: [],
       entity_types: [],
       discourse_markers: [],
@@ -289,7 +292,7 @@ export class SemanticChunkingService {
           chunk_index: chunk.chunk_index,
           start_position: chunk.start_position,
           end_position: chunk.end_position,
-          embeddings: chunk.embeddings,
+          embeddings: chunk.embeddings ? JSON.stringify(chunk.embeddings) : null, // Convert to JSON string
           embeddings_model: chunk.embeddings_model,
           named_entities: chunk.named_entities,
           entity_types: chunk.entity_types,

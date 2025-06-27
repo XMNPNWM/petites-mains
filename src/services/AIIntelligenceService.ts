@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { SemanticChunk } from '@/types/aiIntelligence';
 import { EmbeddingsService } from './EmbeddingsService';
@@ -25,6 +24,21 @@ export class AIIntelligenceService {
     extractionTypes: ['comprehensive'],
     enableCrossChapterConsistency: true
   };
+
+  /**
+   * Convert database chunks to SemanticChunk objects with proper embedding parsing
+   */
+  private static convertDbChunksToSemanticChunks(dbChunks: any[]): SemanticChunk[] {
+    return dbChunks.map(chunk => ({
+      ...chunk,
+      embeddings: EmbeddingsService.parseEmbedding(chunk.embeddings),
+      named_entities: Array.isArray(chunk.named_entities) ? chunk.named_entities : [],
+      entity_types: Array.isArray(chunk.entity_types) ? chunk.entity_types : [],
+      discourse_markers: Array.isArray(chunk.discourse_markers) ? chunk.discourse_markers : [],
+      dialogue_speakers: Array.isArray(chunk.dialogue_speakers) ? chunk.dialogue_speakers : [],
+      breakpoint_reasons: Array.isArray(chunk.breakpoint_reasons) ? chunk.breakpoint_reasons : []
+    })) as SemanticChunk[];
+  }
 
   /**
    * Extract knowledge from all chunks in a project
@@ -60,9 +74,12 @@ export class AIIntelligenceService {
       let totalConfidence = 0;
       const errors: string[] = [];
 
+      // Convert database chunks to proper SemanticChunk objects
+      const semanticChunks = this.convertDbChunksToSemanticChunks(chunks);
+
       // Process chunks in batches
-      for (let i = 0; i < chunks.length; i += finalConfig.batchSize) {
-        const batch = chunks.slice(i, i + finalConfig.batchSize);
+      for (let i = 0; i < semanticChunks.length; i += finalConfig.batchSize) {
+        const batch = semanticChunks.slice(i, i + finalConfig.batchSize);
         
         try {
           const batchResult = await this.processBatch(batch, projectId, finalConfig);
@@ -140,7 +157,8 @@ export class AIIntelligenceService {
       }
 
       const startTime = Date.now();
-      const batchResult = await this.processBatch(chunks, chunks[0].project_id, finalConfig);
+      const semanticChunks = this.convertDbChunksToSemanticChunks(chunks);
+      const batchResult = await this.processBatch(semanticChunks, chunks[0].project_id, finalConfig);
       const processingTime = Date.now() - startTime;
 
       return {
@@ -161,6 +179,22 @@ export class AIIntelligenceService {
         averageConfidence: 0,
         errors: [error.message]
       };
+    }
+  }
+
+  /**
+   * Create character relationship
+   */
+  static async createCharacterRelationship(relationshipData: any): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('character_relationships')
+        .insert(relationshipData);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error creating character relationship:', error);
+      throw error;
     }
   }
 
