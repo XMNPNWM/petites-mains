@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { SemanticChunk, ChunkingConfig, ChunkingResult } from '@/types/aiIntelligence';
 import { EmbeddingsService } from './EmbeddingsService';
@@ -240,7 +239,7 @@ export class SemanticChunkingService {
           chunk_index: chunk.chunk_index,
           start_position: chunk.start_position,
           end_position: chunk.end_position,
-          embeddings: chunk.embeddings,
+          embeddings: chunk.embeddings ? JSON.stringify(chunk.embeddings) : null,
           embeddings_model: chunk.embeddings_model,
           named_entities: chunk.named_entities,
           entity_types: chunk.entity_types,
