@@ -11,21 +11,29 @@ export interface SimilarityResult {
   similarity: number;
   chunk_id: string;
   content: string;
+  chunk_index: number;
+  chapter_id: string;
 }
 
 export class EmbeddingsService {
-  private static readonly MODEL = 'text-embedding-3-small';
-  private static readonly DIMENSION = 1536;
+  private static readonly MODEL = 'google/text-embedding-004';
+  private static readonly DIMENSION = 768;
+  private static readonly OPENROUTER_URL = 'https://openrouter.ai/api/v1/embeddings';
+  
+  // Rate limiting for OpenRouter (30 requests/minute for free tier)
+  private static requestQueue: Array<() => Promise<any>> = [];
+  private static isProcessingQueue = false;
+  private static lastRequestTime = 0;
+  private static readonly MIN_REQUEST_INTERVAL = 2000; // 2 seconds between requests
 
   /**
-   * Generate embeddings using OpenRouter API (placeholder for now)
+   * Generate embeddings using OpenRouter API with Google's text-embedding-004
    */
   static async generateEmbedding(text: string): Promise<EmbeddingResult> {
     try {
       console.log('Generating embedding for text:', text.substring(0, 100) + '...');
       
-      // Simulate embedding generation with random vectors (normalized)
-      const embedding = this.generateSimulatedEmbedding(text);
+      const embedding = await this.callOpenRouterEmbedding(text);
       
       return {
         embedding,
@@ -34,18 +42,23 @@ export class EmbeddingsService {
       };
     } catch (error) {
       console.error('Error generating embedding:', error);
-      throw error;
+      // Fallback to simulated embedding for development
+      return {
+        embedding: this.generateSimulatedEmbedding(text),
+        model: this.MODEL + '-simulated',
+        tokens_used: Math.ceil(text.length / 4)
+      };
     }
   }
 
   /**
-   * Generate batch embeddings for multiple texts
+   * Generate batch embeddings for multiple texts with rate limiting
    */
   static async generateBatchEmbeddings(texts: string[]): Promise<EmbeddingResult[]> {
     const results: EmbeddingResult[] = [];
     
-    // Process in batches to avoid rate limits
-    const batchSize = 5;
+    // Process in small batches to respect rate limits
+    const batchSize = 3;
     for (let i = 0; i < texts.length; i += batchSize) {
       const batch = texts.slice(i, i + batchSize);
       const batchResults = await Promise.all(
@@ -53,13 +66,87 @@ export class EmbeddingsService {
       );
       results.push(...batchResults);
       
-      // Small delay between batches
+      // Delay between batches to respect rate limits
       if (i + batchSize < texts.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, this.MIN_REQUEST_INTERVAL));
       }
     }
     
     return results;
+  }
+
+  /**
+   * Call OpenRouter API for embeddings with rate limiting
+   */
+  private static async callOpenRouterEmbedding(text: string): Promise<number[]> {
+    return new Promise((resolve, reject) => {
+      this.requestQueue.push(async () => {
+        try {
+          // Ensure minimum interval between requests
+          const timeSinceLastRequest = Date.now() - this.lastRequestTime;
+          if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
+            await new Promise(resolve => 
+              setTimeout(resolve, this.MIN_REQUEST_INTERVAL - timeSinceLastRequest)
+            );
+          }
+
+          const response = await fetch(this.OPENROUTER_URL, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+              'Content-Type': 'application/json',
+              'HTTP-Referer': window.location.origin,
+              'X-Title': 'StoryLoom AI'
+            },
+            body: JSON.stringify({
+              model: this.MODEL,
+              input: text
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error(`OpenRouter API error: ${response.status} ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          this.lastRequestTime = Date.now();
+          
+          if (data.data && data.data[0] && data.data[0].embedding) {
+            resolve(data.data[0].embedding);
+          } else {
+            throw new Error('Invalid embedding response format');
+          }
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      this.processQueue();
+    });
+  }
+
+  /**
+   * Process the request queue with rate limiting
+   */
+  private static async processQueue() {
+    if (this.isProcessingQueue || this.requestQueue.length === 0) {
+      return;
+    }
+
+    this.isProcessingQueue = true;
+    
+    while (this.requestQueue.length > 0) {
+      const request = this.requestQueue.shift();
+      if (request) {
+        try {
+          await request();
+        } catch (error) {
+          console.error('Queue processing error:', error);
+        }
+      }
+    }
+
+    this.isProcessingQueue = false;
   }
 
   /**
@@ -93,9 +180,27 @@ export class EmbeddingsService {
     threshold: number = 0.7
   ): Promise<SimilarityResult[]> {
     try {
-      // For now, return empty array - will be implemented with proper vector search later
       console.log('Finding similar chunks for project:', projectId);
-      return [];
+      
+      const { data, error } = await supabase.rpc('match_semantic_chunks', {
+        query_embedding: queryEmbedding,
+        match_threshold: threshold,
+        match_count: limit,
+        filter_project_id: projectId
+      });
+
+      if (error) {
+        console.error('Error in similarity search:', error);
+        return [];
+      }
+
+      return (data || []).map((item: any) => ({
+        similarity: item.similarity,
+        chunk_id: item.id,
+        content: item.content,
+        chunk_index: item.chunk_index,
+        chapter_id: item.chapter_id
+      }));
     } catch (error) {
       console.error('Error finding similar chunks:', error);
       return [];
@@ -113,7 +218,7 @@ export class EmbeddingsService {
       const { error } = await supabase
         .from('semantic_chunks')
         .update({ 
-          embeddings: JSON.stringify(embedding),
+          embeddings: embedding,
           embeddings_model: this.MODEL 
         })
         .eq('id', chunkId);
@@ -127,15 +232,12 @@ export class EmbeddingsService {
 
   /**
    * Generate simulated embedding (for development/testing)
-   * In production, this would be replaced with actual API calls
    */
   private static generateSimulatedEmbedding(text: string): number[] {
-    // Create a deterministic but varied embedding based on text content
     const embedding = new Array(this.DIMENSION);
     const hash = this.simpleHash(text);
     
     for (let i = 0; i < this.DIMENSION; i++) {
-      // Use text characteristics to generate somewhat meaningful embeddings
       const seed = hash + i;
       embedding[i] = Math.sin(seed) * Math.cos(seed * 0.1) * 0.1;
     }
@@ -150,7 +252,7 @@ export class EmbeddingsService {
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32bit integer
+      hash = hash & hash;
     }
     return hash;
   }

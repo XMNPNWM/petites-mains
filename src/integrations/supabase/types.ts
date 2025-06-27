@@ -1424,6 +1424,23 @@ export type Database = {
         Args: { "": string } | { "": unknown }
         Returns: unknown
       }
+      check_cross_chapter_consistency: {
+        Args: { p_project_id: string }
+        Returns: {
+          inconsistencies_found: number
+          characters_checked: number
+          relationships_checked: number
+          plot_threads_checked: number
+        }[]
+      }
+      extract_knowledge_from_chunks: {
+        Args: { p_project_id: string; p_chapter_id?: string }
+        Returns: {
+          chunks_processed: number
+          knowledge_extracted: number
+          processing_time: unknown
+        }[]
+      }
       halfvec_avg: {
         Args: { "": number[] }
         Returns: unknown
@@ -1476,6 +1493,22 @@ export type Database = {
         Args: { "": string } | { "": unknown } | { "": unknown }
         Returns: string
       }
+      match_semantic_chunks: {
+        Args: {
+          query_embedding: string
+          match_threshold?: number
+          match_count?: number
+          filter_project_id?: string
+        }
+        Returns: {
+          id: string
+          content: string
+          similarity: number
+          chunk_index: number
+          chapter_id: string
+          project_id: string
+        }[]
+      }
       sparsevec_out: {
         Args: { "": unknown }
         Returns: unknown
@@ -1487,6 +1520,14 @@ export type Database = {
       sparsevec_typmod_in: {
         Args: { "": unknown[] }
         Returns: number
+      }
+      update_knowledge_confidence_scores: {
+        Args: { p_project_id: string }
+        Returns: {
+          knowledge_updated: number
+          avg_confidence_before: number
+          avg_confidence_after: number
+        }[]
       }
       vector_avg: {
         Args: { "": number[] }

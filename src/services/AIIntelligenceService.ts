@@ -1,235 +1,380 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  CharacterRelationship, 
-  PlotThread, 
-  TimelineEvent, 
-  ConflictTracking,
-  AIAnalysisStatus 
-} from '@/types/aiIntelligence';
+import { SemanticChunk } from '@/types/aiIntelligence';
+import { EmbeddingsService } from './EmbeddingsService';
+
+export interface KnowledgeExtractionConfig {
+  batchSize: number;
+  confidenceThreshold: number;
+  extractionTypes: Array<'characters' | 'relationships' | 'plot_threads' | 'timeline_events' | 'comprehensive'>;
+  enableCrossChapterConsistency: boolean;
+}
+
+export interface ExtractionResult {
+  success: boolean;
+  extractionsCount: number;
+  processingTime: number;
+  averageConfidence: number;
+  errors: string[];
+}
 
 export class AIIntelligenceService {
-  
-  // Character Relationships
-  static async getCharacterRelationships(projectId: string): Promise<CharacterRelationship[]> {
-    const { data, error } = await supabase
-      .from('character_relationships' as any)
-      .select('*')
-      .eq('project_id', projectId)
-      .order('relationship_strength', { ascending: false });
+  private static readonly DEFAULT_CONFIG: KnowledgeExtractionConfig = {
+    batchSize: 5,
+    confidenceThreshold: 0.6,
+    extractionTypes: ['comprehensive'],
+    enableCrossChapterConsistency: true
+  };
 
-    if (error) throw error;
-    return (data || []) as unknown as CharacterRelationship[];
-  }
+  /**
+   * Extract knowledge from all chunks in a project
+   */
+  static async extractProjectKnowledge(
+    projectId: string,
+    config: Partial<KnowledgeExtractionConfig> = {}
+  ): Promise<ExtractionResult> {
+    const finalConfig = { ...this.DEFAULT_CONFIG, ...config };
+    console.log('Starting project knowledge extraction:', projectId);
 
-  static async createCharacterRelationship(
-    relationship: Omit<CharacterRelationship, 'id' | 'created_at' | 'updated_at'>
-  ): Promise<CharacterRelationship> {
-    const { data, error } = await supabase
-      .from('character_relationships' as any)
-      .insert(relationship)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as unknown as CharacterRelationship;
-  }
-
-  static async updateCharacterRelationship(
-    id: string, 
-    updates: Partial<CharacterRelationship>
-  ): Promise<void> {
-    const { error } = await supabase
-      .from('character_relationships' as any)
-      .update(updates)
-      .eq('id', id);
-
-    if (error) throw error;
-  }
-
-  // Plot Threads
-  static async getPlotThreads(projectId: string): Promise<PlotThread[]> {
-    const { data, error } = await supabase
-      .from('plot_threads' as any)
-      .select('*')
-      .eq('project_id', projectId)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    return (data || []) as unknown as PlotThread[];
-  }
-
-  static async createPlotThread(
-    thread: Omit<PlotThread, 'id' | 'created_at' | 'updated_at'>
-  ): Promise<PlotThread> {
-    const { data, error } = await supabase
-      .from('plot_threads' as any)
-      .insert(thread)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as unknown as PlotThread;
-  }
-
-  static async updatePlotThread(id: string, updates: Partial<PlotThread>): Promise<void> {
-    const { error } = await supabase
-      .from('plot_threads' as any)
-      .update(updates)
-      .eq('id', id);
-
-    if (error) throw error;
-  }
-
-  // Timeline Events
-  static async getTimelineEvents(projectId: string): Promise<TimelineEvent[]> {
-    const { data, error } = await supabase
-      .from('timeline_events' as any)
-      .select('*')
-      .eq('project_id', projectId)
-      .order('chronological_order', { ascending: true });
-
-    if (error) throw error;
-    return (data || []) as unknown as TimelineEvent[];
-  }
-
-  static async createTimelineEvent(
-    event: Omit<TimelineEvent, 'id' | 'created_at' | 'updated_at'>
-  ): Promise<TimelineEvent> {
-    const { data, error } = await supabase
-      .from('timeline_events' as any)
-      .insert(event)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as unknown as TimelineEvent;
-  }
-
-  static async updateTimelineEvent(id: string, updates: Partial<TimelineEvent>): Promise<void> {
-    const { error } = await supabase
-      .from('timeline_events' as any)
-      .update(updates)
-      .eq('id', id);
-
-    if (error) throw error;
-  }
-
-  // Conflict Tracking
-  static async getConflictTracking(projectId: string): Promise<ConflictTracking[]> {
-    const { data, error } = await supabase
-      .from('conflict_tracking' as any)
-      .select('*')
-      .eq('project_id', projectId)
-      .order('current_intensity', { ascending: false });
-
-    if (error) throw error;
-    return (data || []) as unknown as ConflictTracking[];
-  }
-
-  static async createConflictTracking(
-    conflict: Omit<ConflictTracking, 'id' | 'created_at' | 'updated_at'>
-  ): Promise<ConflictTracking> {
-    const { data, error } = await supabase
-      .from('conflict_tracking' as any)
-      .insert(conflict)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as unknown as ConflictTracking;
-  }
-
-  static async updateConflictTracking(id: string, updates: Partial<ConflictTracking>): Promise<void> {
-    const { error } = await supabase
-      .from('conflict_tracking' as any)
-      .update(updates)
-      .eq('id', id);
-
-    if (error) throw error;
-  }
-
-  // Analysis Status
-  static async getAnalysisStatus(projectId: string): Promise<AIAnalysisStatus> {
     try {
-      // Get current processing jobs
-      const { data: jobs, error: jobsError } = await supabase
-        .from('knowledge_processing_jobs')
+      // Get all semantic chunks for the project
+      const { data: chunks, error } = await supabase
+        .from('semantic_chunks')
         .select('*')
         .eq('project_id', projectId)
-        .order('started_at', { ascending: false })
-        .limit(1);
+        .order('chapter_id, chunk_index');
 
-      if (jobsError) throw jobsError;
+      if (error) throw error;
+      if (!chunks || chunks.length === 0) {
+        return {
+          success: true,
+          extractionsCount: 0,
+          processingTime: 0,
+          averageConfidence: 0,
+          errors: ['No semantic chunks found for project']
+        };
+      }
 
-      const currentJob = jobs?.[0];
-      const isProcessing = currentJob?.state === 'pending' || 
-                          currentJob?.state === 'thinking' || 
-                          currentJob?.state === 'analyzing' || 
-                          currentJob?.state === 'extracting';
+      const startTime = Date.now();
+      let totalExtractions = 0;
+      let totalConfidence = 0;
+      const errors: string[] = [];
 
-      // Get flagged knowledge count
-      const { count: flaggedCount, error: flaggedError } = await supabase
-        .from('knowledge_base')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', projectId)
-        .eq('is_flagged', true);
+      // Process chunks in batches
+      for (let i = 0; i < chunks.length; i += finalConfig.batchSize) {
+        const batch = chunks.slice(i, i + finalConfig.batchSize);
+        
+        try {
+          const batchResult = await this.processBatch(batch, projectId, finalConfig);
+          totalExtractions += batchResult.extractionsCount;
+          totalConfidence += batchResult.totalConfidence;
+        } catch (error) {
+          console.error(`Error processing batch ${i}-${i + finalConfig.batchSize}:`, error);
+          errors.push(`Batch ${i}-${i + finalConfig.batchSize}: ${error.message}`);
+        }
 
-      if (flaggedError) throw flaggedError;
+        // Rate limiting delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
 
-      // Get error count from failed jobs
-      const { count: errorCount, error: errorCountError } = await supabase
-        .from('knowledge_processing_jobs')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', projectId)
-        .eq('state', 'failed');
+      // Run cross-chapter consistency check if enabled
+      if (finalConfig.enableCrossChapterConsistency) {
+        try {
+          await this.checkCrossChapterConsistency(projectId);
+        } catch (error) {
+          console.error('Cross-chapter consistency check failed:', error);
+          errors.push(`Consistency check: ${error.message}`);
+        }
+      }
 
-      if (errorCountError) throw errorCountError;
+      const processingTime = Date.now() - startTime;
+      const averageConfidence = totalExtractions > 0 ? totalConfidence / totalExtractions : 0;
 
       return {
-        isProcessing,
-        hasErrors: (errorCount || 0) > 0,
-        lastProcessedAt: currentJob?.completed_at || undefined,
-        currentStep: currentJob?.current_step || undefined,
-        progress: currentJob?.progress_percentage || 0,
-        errorCount: errorCount || 0,
-        flaggedItemsCount: flaggedCount || 0
+        success: errors.length === 0,
+        extractionsCount: totalExtractions,
+        processingTime,
+        averageConfidence,
+        errors
       };
+
     } catch (error) {
-      console.error('Error getting analysis status:', error);
+      console.error('Error in project knowledge extraction:', error);
       return {
-        isProcessing: false,
-        hasErrors: true,
-        progress: 0,
-        errorCount: 1,
-        flaggedItemsCount: 0
+        success: false,
+        extractionsCount: 0,
+        processingTime: 0,
+        averageConfidence: 0,
+        errors: [error.message]
       };
     }
   }
 
-  // Flagged Items Management
-  static async getFlaggedItems(projectId: string) {
-    const { data, error } = await supabase
-      .from('knowledge_base')
-      .select('*')
-      .eq('project_id', projectId)
-      .eq('is_flagged', true)
-      .order('confidence_score', { ascending: true });
+  /**
+   * Extract knowledge from a single chapter
+   */
+  static async extractChapterKnowledge(
+    chapterId: string,
+    config: Partial<KnowledgeExtractionConfig> = {}
+  ): Promise<ExtractionResult> {
+    const finalConfig = { ...this.DEFAULT_CONFIG, ...config };
+    console.log('Starting chapter knowledge extraction:', chapterId);
 
-    if (error) throw error;
-    return data || [];
+    try {
+      // Get semantic chunks for the chapter
+      const { data: chunks, error } = await supabase
+        .from('semantic_chunks')
+        .select('*')
+        .eq('chapter_id', chapterId)
+        .order('chunk_index');
+
+      if (error) throw error;
+      if (!chunks || chunks.length === 0) {
+        return {
+          success: true,
+          extractionsCount: 0,
+          processingTime: 0,
+          averageConfidence: 0,
+          errors: ['No semantic chunks found for chapter']
+        };
+      }
+
+      const startTime = Date.now();
+      const batchResult = await this.processBatch(chunks, chunks[0].project_id, finalConfig);
+      const processingTime = Date.now() - startTime;
+
+      return {
+        success: true,
+        extractionsCount: batchResult.extractionsCount,
+        processingTime,
+        averageConfidence: batchResult.extractionsCount > 0 ? 
+          batchResult.totalConfidence / batchResult.extractionsCount : 0,
+        errors: []
+      };
+
+    } catch (error) {
+      console.error('Error in chapter knowledge extraction:', error);
+      return {
+        success: false,
+        extractionsCount: 0,
+        processingTime: 0,
+        averageConfidence: 0,
+        errors: [error.message]
+      };
+    }
   }
 
-  static async reviewFlaggedItem(id: string, approved: boolean, notes?: string): Promise<void> {
-    const { error } = await supabase
-      .from('knowledge_base')
-      .update({
-        is_flagged: false,
-        is_verified: approved,
-        review_notes: notes
-      })
-      .eq('id', id);
+  /**
+   * Process a batch of semantic chunks
+   */
+  private static async processBatch(
+    chunks: SemanticChunk[],
+    projectId: string,
+    config: KnowledgeExtractionConfig
+  ): Promise<{ extractionsCount: number; totalConfidence: number }> {
+    // Get existing knowledge for context
+    const existingKnowledge = await this.getExistingKnowledge(projectId);
 
-    if (error) throw error;
+    // Prepare chunks for API call
+    const chunkData = chunks.map(chunk => ({
+      id: chunk.id,
+      content: chunk.content,
+      chunk_index: chunk.chunk_index,
+      chapter_id: chunk.chapter_id
+    }));
+
+    let totalExtractions = 0;
+    let totalConfidence = 0;
+
+    // Process each extraction type
+    for (const extractionType of config.extractionTypes) {
+      try {
+        const response = await fetch('/functions/v1/openrouter-ai', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            chunks: chunkData,
+            projectId,
+            extractionType,
+            existingKnowledge
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        // Store extracted knowledge in database
+        const storedCount = await this.storeExtractedKnowledge(result, projectId, chunks);
+        totalExtractions += storedCount;
+        totalConfidence += result.processingStats.confidenceAverage * storedCount;
+
+      } catch (error) {
+        console.error(`Error processing ${extractionType}:`, error);
+        throw error;
+      }
+    }
+
+    return { extractionsCount: totalExtractions, totalConfidence };
+  }
+
+  /**
+   * Get existing knowledge for context
+   */
+  private static async getExistingKnowledge(projectId: string): Promise<any> {
+    try {
+      const [characters, relationships, plotThreads, timelineEvents] = await Promise.all([
+        supabase.from('knowledge_base').select('*').eq('project_id', projectId).eq('category', 'character'),
+        supabase.from('character_relationships').select('*').eq('project_id', projectId),
+        supabase.from('plot_threads').select('*').eq('project_id', projectId),
+        supabase.from('timeline_events').select('*').eq('project_id', projectId)
+      ]);
+
+      return {
+        characters: characters.data || [],
+        relationships: relationships.data || [],
+        plotThreads: plotThreads.data || [],
+        timelineEvents: timelineEvents.data || []
+      };
+    } catch (error) {
+      console.error('Error getting existing knowledge:', error);
+      return {};
+    }
+  }
+
+  /**
+   * Store extracted knowledge in database
+   */
+  private static async storeExtractedKnowledge(
+    extractedData: any,
+    projectId: string,
+    sourceChunks: SemanticChunk[]
+  ): Promise<number> {
+    let storedCount = 0;
+
+    try {
+      // Store characters
+      if (extractedData.characters) {
+        for (const character of extractedData.characters) {
+          const { error } = await supabase.from('knowledge_base').insert({
+            project_id: projectId,
+            name: character.name,
+            category: 'character',
+            description: character.description,
+            details: {
+              traits: character.traits,
+              role: character.role
+            },
+            confidence_score: character.confidence_score || 0.5,
+            extraction_method: 'llm_direct',
+            source_chapter_id: sourceChunks[0]?.chapter_id,
+            evidence: `Extracted from chunks: ${sourceChunks.map(c => c.id).join(', ')}`
+          });
+
+          if (!error) storedCount++;
+        }
+      }
+
+      // Store relationships
+      if (extractedData.relationships) {
+        for (const relationship of extractedData.relationships) {
+          const { error } = await supabase.from('character_relationships').insert({
+            project_id: projectId,
+            character_a_name: relationship.character_a_name,
+            character_b_name: relationship.character_b_name,
+            relationship_type: relationship.relationship_type,
+            relationship_strength: relationship.relationship_strength || 5,
+            confidence_score: relationship.confidence_score || 0.5,
+            extraction_method: 'llm_direct',
+            evidence: `Extracted from chunks: ${sourceChunks.map(c => c.id).join(', ')}`
+          });
+
+          if (!error) storedCount++;
+        }
+      }
+
+      // Store plot threads
+      if (extractedData.plotThreads) {
+        for (const plotThread of extractedData.plotThreads) {
+          const { error } = await supabase.from('plot_threads').insert({
+            project_id: projectId,
+            thread_name: plotThread.thread_name,
+            thread_type: plotThread.thread_type,
+            key_events: plotThread.key_events || [],
+            thread_status: plotThread.status || 'active',
+            confidence_score: plotThread.confidence_score || 0.5,
+            extraction_method: 'llm_direct',
+            evidence: `Extracted from chunks: ${sourceChunks.map(c => c.id).join(', ')}`
+          });
+
+          if (!error) storedCount++;
+        }
+      }
+
+      // Store timeline events
+      if (extractedData.timelineEvents) {
+        for (const event of extractedData.timelineEvents) {
+          const { error } = await supabase.from('timeline_events').insert({
+            project_id: projectId,
+            event_name: event.event_name,
+            event_type: event.event_type,
+            event_description: event.description,
+            chronological_order: event.chronological_order || 0,
+            characters_involved: event.characters_involved || [],
+            confidence_score: event.confidence_score || 0.5,
+            extraction_method: 'llm_direct',
+            evidence: `Extracted from chunks: ${sourceChunks.map(c => c.id).join(', ')}`
+          });
+
+          if (!error) storedCount++;
+        }
+      }
+
+    } catch (error) {
+      console.error('Error storing extracted knowledge:', error);
+      throw error;
+    }
+
+    return storedCount;
+  }
+
+  /**
+   * Check cross-chapter consistency
+   */
+  private static async checkCrossChapterConsistency(projectId: string): Promise<void> {
+    try {
+      const { data, error } = await supabase.rpc('check_cross_chapter_consistency', {
+        p_project_id: projectId
+      });
+
+      if (error) throw error;
+      
+      console.log('Cross-chapter consistency check results:', data);
+    } catch (error) {
+      console.error('Error in consistency check:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update confidence scores based on cross-validation
+   */
+  static async updateConfidenceScores(projectId: string): Promise<void> {
+    try {
+      const { data, error } = await supabase.rpc('update_knowledge_confidence_scores', {
+        p_project_id: projectId
+      });
+
+      if (error) throw error;
+      
+      console.log('Confidence scores updated:', data);
+    } catch (error) {
+      console.error('Error updating confidence scores:', error);
+      throw error;
+    }
   }
 }

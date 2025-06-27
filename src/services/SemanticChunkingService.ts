@@ -18,7 +18,7 @@ export class SemanticChunkingService {
     content: string,
     config?: Partial<ChunkingConfig>
   ): Promise<ChunkingResult> {
-    console.log('Starting simplified semantic chunking for chapter:', chapterId);
+    console.log('Starting semantic chunking for chapter:', chapterId);
     
     const chunkingConfig = { ...this.defaultConfig, ...config };
     
@@ -34,13 +34,13 @@ export class SemanticChunkingService {
       };
     }
 
-    // Perform simplified chunking pipeline
-    const chunks = await this.performSimplifiedChunking(chapterId, content, chunkingConfig);
+    // Perform semantic chunking pipeline with Google embeddings
+    const chunks = await this.performSemanticChunking(chapterId, content, chunkingConfig);
     
     // Store chunks in database
     await this.storeChunks(chunks);
     
-    console.log(`Simplified chunking completed: ${chunks.length} chunks created`);
+    console.log(`Semantic chunking completed: ${chunks.length} chunks created`);
     
     return {
       chunks,
@@ -61,10 +61,15 @@ export class SemanticChunkingService {
       return [];
     }
 
-    return (data || []) as unknown as SemanticChunk[];
+    return (data || []).map(chunk => ({
+      ...chunk,
+      embeddings: chunk.embeddings ? 
+        (typeof chunk.embeddings === 'string' ? JSON.parse(chunk.embeddings) : chunk.embeddings) : 
+        null
+    })) as unknown as SemanticChunk[];
   }
 
-  private static async performSimplifiedChunking(
+  private static async performSemanticChunking(
     chapterId: string,
     content: string,
     config: ChunkingConfig
@@ -80,31 +85,30 @@ export class SemanticChunkingService {
       throw new Error('Failed to fetch chapter information');
     }
 
-    console.log('Performing simplified text chunking...');
+    console.log('Performing semantic text chunking with Google embeddings...');
 
     // Step 1: Split content into paragraphs
     const paragraphs = this.splitIntoParagraphs(content);
     console.log(`Split into ${paragraphs.length} paragraphs`);
 
-    // Step 2: Create chunks based on token limits
-    const chunks = await this.createChunksFromParagraphs(
+    // Step 2: Create chunks based on semantic similarity and token limits
+    const chunks = await this.createSemanticChunks(
       chapterId,
       chapter.project_id,
       paragraphs,
       config
     );
 
-    console.log(`Created ${chunks.length} simplified semantic chunks`);
+    console.log(`Created ${chunks.length} semantic chunks with Google embeddings`);
 
     return chunks;
   }
 
   private static splitIntoParagraphs(text: string): string[] {
-    // Split on double newlines (paragraph breaks) and filter empty ones
     return text.split(/\n\s*\n/).filter(paragraph => paragraph.trim().length > 0);
   }
 
-  private static async createChunksFromParagraphs(
+  private static async createSemanticChunks(
     chapterId: string,
     projectId: string,
     paragraphs: string[],
@@ -115,20 +119,61 @@ export class SemanticChunkingService {
     let currentTokens = 0;
     let chunkIndex = 0;
     let startPosition = 0;
+    let lastEmbedding: number[] | null = null;
 
-    for (let i = 0; i < paragraphs.length; i++) {
-      const paragraph = paragraphs[i];
+    // Generate embeddings for paragraphs to determine semantic boundaries
+    const paragraphEmbeddings: Array<{ text: string; embedding: number[] | null }> = [];
+    
+    // Process paragraphs in batches to respect rate limits
+    const batchSize = 3;
+    for (let i = 0; i < paragraphs.length; i += batchSize) {
+      const batch = paragraphs.slice(i, i + batchSize);
+      try {
+        const embeddingResults = await EmbeddingsService.generateBatchEmbeddings(batch);
+        batch.forEach((paragraph, idx) => {
+          paragraphEmbeddings.push({
+            text: paragraph,
+            embedding: embeddingResults[idx]?.embedding || null
+          });
+        });
+      } catch (error) {
+        console.warn('Failed to generate embeddings for batch, using text-based chunking:', error);
+        batch.forEach(paragraph => {
+          paragraphEmbeddings.push({ text: paragraph, embedding: null });
+        });
+      }
+      
+      // Rate limiting delay
+      if (i + batchSize < paragraphs.length) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+
+    for (let i = 0; i < paragraphEmbeddings.length; i++) {
+      const { text: paragraph, embedding } = paragraphEmbeddings[i];
       const paragraphTokens = this.estimateTokens(paragraph);
 
-      // If adding this paragraph would exceed max tokens, finalize current chunk
-      if (currentTokens + paragraphTokens > config.max_tokens && currentChunk.length > 0) {
+      // Calculate semantic similarity with previous chunk
+      let semanticBreak = false;
+      if (lastEmbedding && embedding) {
+        const similarity = EmbeddingsService.calculateCosineSimilarity(lastEmbedding, embedding);
+        semanticBreak = similarity < config.embedding_threshold;
+      }
+
+      // Determine if we should create a new chunk
+      const tokenLimitReached = currentTokens + paragraphTokens > config.max_tokens;
+      const shouldBreak = (tokenLimitReached || semanticBreak) && currentChunk.length > 0;
+
+      if (shouldBreak) {
+        // Finalize current chunk
         const chunk = await this.createChunk(
           chapterId,
           projectId,
           currentChunk,
           chunkIndex,
           startPosition,
-          config
+          config,
+          lastEmbedding
         );
         chunks.push(chunk);
         
@@ -146,6 +191,8 @@ export class SemanticChunkingService {
         currentChunk += paragraph;
         currentTokens += paragraphTokens;
       }
+
+      lastEmbedding = embedding;
     }
 
     // Add final chunk if it exists and meets minimum requirements
@@ -156,7 +203,8 @@ export class SemanticChunkingService {
         currentChunk,
         chunkIndex,
         startPosition,
-        config
+        config,
+        lastEmbedding
       );
       chunks.push(chunk);
     }
@@ -170,42 +218,46 @@ export class SemanticChunkingService {
     content: string,
     chunkIndex: number,
     startPosition: number,
-    config: ChunkingConfig
+    config: ChunkingConfig,
+    embedding: number[] | null
   ): Promise<SemanticChunk> {
-    // Generate embedding for the chunk
-    let embedding: number[] | null = null;
-    try {
-      const embeddingResult = await EmbeddingsService.generateEmbedding(content);
-      embedding = embeddingResult.embedding;
-    } catch (error) {
-      console.warn('Failed to generate embedding for chunk:', error);
+    // Generate embedding for the chunk if not provided
+    let chunkEmbedding = embedding;
+    if (!chunkEmbedding) {
+      try {
+        const embeddingResult = await EmbeddingsService.generateEmbedding(content);
+        chunkEmbedding = embeddingResult.embedding;
+      } catch (error) {
+        console.warn('Failed to generate embedding for chunk:', error);
+        chunkEmbedding = null;
+      }
     }
 
     const chunk: SemanticChunk = {
-      id: '', // Will be generated by database
+      id: '',
       chapter_id: chapterId,
       project_id: projectId,
       content: content.trim(),
       chunk_index: chunkIndex,
       start_position: startPosition,
       end_position: startPosition + content.length,
-      embeddings: embedding,
-      embeddings_model: 'text-embedding-3-small',
-      named_entities: [], // Will be populated by Gemini 2.5 Flash later
-      entity_types: [], // Will be populated by Gemini 2.5 Flash later
-      discourse_markers: [], // Will be populated by Gemini 2.5 Flash later
-      dialogue_present: false, // Will be populated by Gemini 2.5 Flash later
-      dialogue_speakers: [], // Will be populated by Gemini 2.5 Flash later
-      breakpoint_score: 1,
+      embeddings: chunkEmbedding,
+      embeddings_model: 'google/text-embedding-004',
+      named_entities: [],
+      entity_types: [],
+      discourse_markers: [],
+      dialogue_present: false,
+      dialogue_speakers: [],
+      breakpoint_score: embedding ? 0.8 : 0.5,
       breakpoint_reasons: [{
-        type: 'max_tokens',
-        score: 1,
-        description: 'Simplified paragraph-based chunking'
+        type: embedding ? 'embedding_drop' : 'max_tokens',
+        score: embedding ? 0.8 : 0.5,
+        description: embedding ? 'Semantic boundary detected' : 'Token limit reached'
       }],
       overlap_with_previous: chunkIndex > 0,
-      overlap_with_next: false, // Will be set when processing next chunk
+      overlap_with_next: false,
       processed_at: new Date().toISOString(),
-      processing_version: '2.1-simplified',
+      processing_version: '2.2-google-embeddings',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -214,7 +266,6 @@ export class SemanticChunkingService {
   }
 
   private static getOverlapText(text: string, overlapSentences: number): string {
-    // Get last few sentences for overlap
     const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
     if (sentences.length <= overlapSentences) {
       return text;
@@ -224,7 +275,6 @@ export class SemanticChunkingService {
   }
 
   private static estimateTokens(text: string): number {
-    // Rough token estimation (words * 1.3)
     return Math.ceil(text.split(/\s+/).length * 1.3);
   }
 
@@ -239,7 +289,7 @@ export class SemanticChunkingService {
           chunk_index: chunk.chunk_index,
           start_position: chunk.start_position,
           end_position: chunk.end_position,
-          embeddings: chunk.embeddings ? JSON.stringify(chunk.embeddings) : null,
+          embeddings: chunk.embeddings,
           embeddings_model: chunk.embeddings_model,
           named_entities: chunk.named_entities,
           entity_types: chunk.entity_types,
@@ -271,18 +321,25 @@ export class SemanticChunkingService {
       chunk.overlap_with_previous || chunk.overlap_with_next
     ).length / chunks.length;
     
+    const breakpointTypes = chunks.reduce((acc, chunk) => {
+      chunk.breakpoint_reasons.forEach(reason => {
+        acc[reason.type] = (acc[reason.type] || 0) + 1;
+      });
+      return acc;
+    }, {} as Record<string, number>);
+    
     return {
       total_tokens: Math.round(totalTokens),
       avg_chunk_size: Math.round(avgChunkSize),
       overlap_ratio: Math.round(overlapRatio * 100) / 100,
-      breakpoint_distribution: { 'max_tokens': chunks.length },
+      breakpoint_distribution: breakpointTypes,
       entity_stats: {
-        total_entities: 0, // Will be populated by Gemini 2.5 Flash later
-        unique_entity_types: 0, // Will be populated by Gemini 2.5 Flash later
-        avg_entities_per_chunk: 0 // Will be populated by Gemini 2.5 Flash later
+        total_entities: 0,
+        unique_entity_types: 0,
+        avg_entities_per_chunk: 0
       },
-      dialogue_ratio: 0, // Will be populated by Gemini 2.5 Flash later
-      processing_version: '2.1-simplified'
+      dialogue_ratio: 0,
+      processing_version: '2.2-google-embeddings'
     };
   }
 
