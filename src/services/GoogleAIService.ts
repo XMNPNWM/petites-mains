@@ -1,5 +1,4 @@
-
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface GoogleAIResponse {
@@ -59,9 +58,11 @@ export class GoogleAIService {
   /**
    * Get Google AI client instance
    */
-  private static async getClient(): Promise<GoogleGenerativeAI> {
+  private static async getClient(): Promise<GoogleGenAI> {
     const apiKey = await this.getApiKey();
-    return new GoogleGenerativeAI(apiKey);
+    // Set the API key in environment for the GoogleGenAI client
+    (globalThis as any).process = { env: { GEMINI_API_KEY: apiKey } };
+    return new GoogleGenAI({});
   }
 
   /**
@@ -165,6 +166,7 @@ export class GoogleAIService {
     }, `Google AI chat completion (${model})`);
   }
 
+    
   /**
    * Knowledge extraction and analysis with enhanced error handling
    */
