@@ -64,25 +64,36 @@ export class KnowledgeExtractionService {
   }
 
   static async extractKnowledgeFromProject(projectId: string): Promise<{ jobId: string }> {
-    console.log('🚀 Starting full project knowledge extraction with Google AI:', projectId);
+    console.log('🚀 [DEBUG-SERVICE] Starting full project knowledge extraction for:', projectId);
 
     try {
       // Reset any stuck jobs first
+      console.log('🔧 [DEBUG-SERVICE] Checking for stuck jobs...');
       const resetCount = await ProcessingJobService.resetStuckJobs(projectId);
       if (resetCount > 0) {
-        console.log(`✅ Reset ${resetCount} stuck jobs before starting new analysis`);
+        console.log(`✅ [DEBUG-SERVICE] Reset ${resetCount} stuck jobs before starting new analysis`);
       }
 
       // Get all chapters for the project
+      console.log('📚 [DEBUG-SERVICE] Fetching chapters for project...');
       const { data: chapters, error } = await supabase
         .from('chapters')
         .select('*')
         .eq('project_id', projectId)
         .order('order_index');
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [DEBUG-SERVICE] Error fetching chapters:', error);
+        throw error;
+      }
+
+      console.log('📊 [DEBUG-SERVICE] Chapters found:', {
+        count: chapters?.length || 0,
+        chapters: chapters?.map(c => ({ id: c.id, title: c.title, word_count: c.word_count })) || []
+      });
 
       if (!chapters || chapters.length === 0) {
+        console.error('❌ [DEBUG-SERVICE] No chapters found for this project');
         throw new Error('No chapters found for this project');
       }
 
@@ -90,18 +101,31 @@ export class KnowledgeExtractionService {
       const totalWordCount = chapters.reduce((sum, chapter) => sum + (chapter.word_count || 0), 0);
       const estimatedTime = await ProcessingJobService.estimateProcessingTime(totalWordCount);
       
-      console.log(`📊 Processing ${chapters.length} chapters with ${totalWordCount} total words. Estimated time: ${estimatedTime} seconds`);
+      console.log(`📊 [DEBUG-SERVICE] Processing stats:`, {
+        chaptersCount: chapters.length,
+        totalWordCount,
+        estimatedTimeSeconds: estimatedTime
+      });
 
       // Create processing job for full analysis
+      console.log('📝 [DEBUG-SERVICE] Creating processing job...');
       const job = await ProcessingJobService.createJob(projectId, undefined, 'full_analysis');
-      console.log(`📝 Created full project analysis job: ${job.id}`);
+      console.log(`📝 [DEBUG-SERVICE] Created full project analysis job: ${job.id}`);
 
       // Start analysis with proper error handling - PROPERLY AWAIT THE BACKGROUND PROCESS
+      console.log('⚡ [DEBUG-SERVICE] Starting background analysis...');
       try {
         await this.performFullProjectAnalysisWithGoogleAI(job.id, projectId, chapters || [], estimatedTime);
-        console.log(`✅ Full project analysis completed successfully: ${projectId}`);
+        console.log(`✅ [DEBUG-SERVICE] Full project analysis completed successfully: ${projectId}`);
       } catch (error) {
-        console.error('❌ Background full project analysis failed:', error);
+        console.error('❌ [DEBUG-SERVICE] Background full project analysis failed:', error);
+        console.error('❌ [DEBUG-SERVICE] Error details:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : 'No stack',
+          type: typeof error,
+          constructor: error?.constructor?.name
+        });
+        
         await ProcessingJobService.updateJobProgress(job.id, {
           state: 'failed',
           error_message: `Full project analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -110,15 +134,24 @@ export class KnowledgeExtractionService {
             stack: error instanceof Error ? error.stack : undefined,
             timestamp: new Date().toISOString(),
             chapters_count: chapters.length,
-            total_word_count: totalWordCount
+            total_word_count: totalWordCount,
+            error_type: typeof error,
+            error_constructor: error?.constructor?.name
           }
         });
         throw error; // Re-throw to let caller handle
       }
 
+      console.log('🎉 [DEBUG-SERVICE] Returning job ID:', job.id);
       return { jobId: job.id };
     } catch (error) {
-      console.error('❌ Full project analysis setup failed:', error);
+      console.error('❌ [DEBUG-SERVICE] Full project analysis setup failed:', error);
+      console.error('❌ [DEBUG-SERVICE] Setup error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack',
+        type: typeof error,
+        constructor: error?.constructor?.name
+      });
       throw error;
     }
   }
@@ -306,11 +339,11 @@ export class KnowledgeExtractionService {
     estimatedTimeSeconds: number
   ): Promise<void> {
     const startTime = Date.now();
-    console.log(`🚀 Starting full project Google AI analysis for job ${jobId}, ${chapters.length} chapters`);
+    console.log(`🚀 [DEBUG-ANALYSIS] Starting full project Google AI analysis for job ${jobId}, ${chapters.length} chapters`);
     
     // Set up timeout with proper cleanup
     const timeoutId = setTimeout(async () => {
-      console.warn(`⏰ Full project analysis job ${jobId} timed out after 20 minutes`);
+      console.warn(`⏰ [DEBUG-ANALYSIS] Full project analysis job ${jobId} timed out after 20 minutes`);
       await ProcessingJobService.updateJobProgress(jobId, {
         state: 'failed',
         error_message: 'Full project analysis timed out after 20 minutes',
@@ -323,6 +356,7 @@ export class KnowledgeExtractionService {
     }, 20 * 60 * 1000); // 20 minute timeout for full project
 
     try {
+      console.log(`🤔 [DEBUG-ANALYSIS] Job ${jobId}: Starting thinking phase`);
       await ProcessingJobService.updateJobProgress(jobId, {
         state: 'thinking',
         current_step: `Initializing analysis of ${chapters.length} chapters (estimated ${Math.round(estimatedTimeSeconds / 60)} minutes)...`,
@@ -330,16 +364,16 @@ export class KnowledgeExtractionService {
         completed_steps: 0,
         progress_percentage: 5
       });
-      console.log(`🤔 Job ${jobId}: Full project thinking phase started`);
 
       // Validate Google AI service before proceeding
+      console.log(`🔍 [DEBUG-ANALYSIS] Job ${jobId}: Validating Google AI service...`);
       try {
         await GoogleAIService.generateChatResponse([
           { role: 'user', content: 'Test connection' }
         ]);
-        console.log(`✅ Google AI service validated for full project job ${jobId}`);
+        console.log(`✅ [DEBUG-ANALYSIS] Google AI service validated for full project job ${jobId}`);
       } catch (validationError) {
-        console.error(`❌ Google AI service validation failed for job ${jobId}:`, validationError);
+        console.error(`❌ [DEBUG-ANALYSIS] Google AI service validation failed for job ${jobId}:`, validationError);
         throw new Error(`Google AI service unavailable: ${validationError instanceof Error ? validationError.message : 'Unknown error'}`);
       }
 
@@ -355,16 +389,19 @@ export class KnowledgeExtractionService {
         const chapter = chapters[i];
         const progressPercent = Math.round(((i + 1) / (chapters.length + 1)) * 90) + 5;
         
+        console.log(`🔍 [DEBUG-ANALYSIS] Job ${jobId}: Processing chapter ${i + 1}/${chapters.length}: "${chapter.title}"`);
+        
         await ProcessingJobService.updateJobProgress(jobId, {
           state: 'analyzing',
           current_step: `Processing chapter ${i + 1}/${chapters.length}: "${chapter.title}" (${chapter.word_count || 0} words)...`,
           completed_steps: i + 1,
           progress_percentage: progressPercent
         });
-        console.log(`🔍 Job ${jobId}: Processing chapter ${i + 1}: ${chapter.title}`);
 
         if (chapter.content && chapter.content.trim()) {
           try {
+            console.log(`📝 [DEBUG-ANALYSIS] Job ${jobId}: Chapter ${i + 1} has content (${chapter.content.length} chars), starting extraction...`);
+            
             // Use Google AI for extraction with retry logic
             let extractedData;
             let retryCount = 0;
@@ -372,18 +409,24 @@ export class KnowledgeExtractionService {
 
             while (retryCount < maxRetries) {
               try {
+                console.log(`🤖 [DEBUG-ANALYSIS] Job ${jobId}: Chapter ${i + 1} extraction attempt ${retryCount + 1}...`);
                 extractedData = await GoogleAIService.extractKnowledge(
                   chapter.content,
                   'comprehensive'
                 );
-                console.log(`✅ Job ${jobId}: Chapter ${i + 1} extracted successfully on attempt ${retryCount + 1}`);
+                console.log(`✅ [DEBUG-ANALYSIS] Job ${jobId}: Chapter ${i + 1} extracted successfully on attempt ${retryCount + 1}`, {
+                  characters: extractedData.characters?.length || 0,
+                  relationships: extractedData.relationships?.length || 0,
+                  plotThreads: extractedData.plotThreads?.length || 0,
+                  timelineEvents: extractedData.timelineEvents?.length || 0
+                });
                 break;
               } catch (extractionError) {
                 retryCount++;
-                console.warn(`⚠️ Job ${jobId}: Chapter ${i + 1} extraction attempt ${retryCount} failed:`, extractionError);
+                console.warn(`⚠️ [DEBUG-ANALYSIS] Job ${jobId}: Chapter ${i + 1} extraction attempt ${retryCount} failed:`, extractionError);
                 
                 if (retryCount >= maxRetries) {
-                  console.error(`❌ Job ${jobId}: Chapter ${i + 1} extraction failed after ${maxRetries} attempts, skipping`);
+                  console.error(`❌ [DEBUG-ANALYSIS] Job ${jobId}: Chapter ${i + 1} extraction failed after ${maxRetries} attempts, skipping`);
                   extractedData = { characters: [], relationships: [], plotThreads: [], timelineEvents: [] };
                   break;
                 }
@@ -393,6 +436,7 @@ export class KnowledgeExtractionService {
               }
             }
             
+            console.log(`💾 [DEBUG-ANALYSIS] Job ${jobId}: Storing extracted data for chapter ${i + 1}...`);
             await this.storeExtractedKnowledgeFromGoogleAI(extractedData, projectId, chapter.id);
             await ContentHashService.updateContentHash(chapter.id, chapter.content);
             
@@ -403,13 +447,13 @@ export class KnowledgeExtractionService {
             totalTimelineEvents += extractedData.timelineEvents?.length || 0;
             processedChapters++;
             
-            console.log(`✅ Job ${jobId}: Chapter ${i + 1} completed (${extractedData.characters?.length || 0} chars, ${extractedData.relationships?.length || 0} rels)`);
+            console.log(`✅ [DEBUG-ANALYSIS] Job ${jobId}: Chapter ${i + 1} completed successfully`);
           } catch (chapterError) {
-            console.error(`❌ Job ${jobId}: Chapter ${i + 1} failed completely:`, chapterError);
+            console.error(`❌ [DEBUG-ANALYSIS] Job ${jobId}: Chapter ${i + 1} failed completely:`, chapterError);
             skippedChapters++;
           }
         } else {
-          console.log(`⏭️ Job ${jobId}: Skipping chapter ${i + 1}: ${chapter.title} (no content)`);
+          console.log(`⏭️ [DEBUG-ANALYSIS] Job ${jobId}: Skipping chapter ${i + 1}: "${chapter.title}" (no content)`);
           skippedChapters++;
         }
 
@@ -419,6 +463,16 @@ export class KnowledgeExtractionService {
 
       clearTimeout(timeoutId);
       const processingTime = Date.now() - startTime;
+
+      console.log(`🎉 [DEBUG-ANALYSIS] Job ${jobId}: Completing job with results:`, {
+        processedChapters,
+        skippedChapters,
+        totalCharacters,
+        totalRelationships,
+        totalPlotThreads,
+        totalTimelineEvents,
+        processingTimeMs: processingTime
+      });
 
       // Complete the job
       await ProcessingJobService.updateJobProgress(jobId, {
@@ -440,11 +494,18 @@ export class KnowledgeExtractionService {
         }
       });
 
-      console.log(`🎉 Full project analysis with Google AI completed: ${projectId} (${processingTime}ms, ${processedChapters}/${chapters.length} chapters processed)`);
+      console.log(`🎉 [DEBUG-ANALYSIS] Full project analysis with Google AI completed: ${projectId} (${processingTime}ms, ${processedChapters}/${chapters.length} chapters processed)`);
     } catch (error) {
       clearTimeout(timeoutId);
       const processingTime = Date.now() - startTime;
-      console.error(`❌ Full project Google AI analysis failed for job ${jobId}:`, error);
+      console.error(`❌ [DEBUG-ANALYSIS] Full project Google AI analysis failed for job ${jobId}:`, error);
+      console.error(`❌ [DEBUG-ANALYSIS] Analysis error details:`, {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack',
+        type: typeof error,
+        constructor: error?.constructor?.name,
+        processingTimeMs: processingTime
+      });
       
       await ProcessingJobService.updateJobProgress(jobId, {
         state: 'failed',
@@ -454,7 +515,9 @@ export class KnowledgeExtractionService {
           stack: error instanceof Error ? error.stack : undefined,
           timestamp: new Date().toISOString(),
           processing_time_ms: processingTime,
-          chapters_count: chapters.length
+          chapters_count: chapters.length,
+          error_type: typeof error,
+          error_constructor: error?.constructor?.name
         }
       });
       throw error;

@@ -7,6 +7,8 @@ export class ProcessingJobService {
     chapterId?: string,
     jobType: 'full_analysis' | 'incremental_update' | 'fact_extraction' = 'full_analysis'
   ): Promise<ProcessingJob> {
+    console.log('📝 [DEBUG-JOB] Creating job:', { projectId, chapterId, jobType });
+    
     const jobData = {
       project_id: projectId,
       chapter_id: chapterId,
@@ -21,17 +23,23 @@ export class ProcessingJobService {
       created_at: new Date().toISOString()
     };
 
+    console.log('📝 [DEBUG-JOB] Job data prepared:', jobData);
+
     const { data, error } = await supabase
       .from('knowledge_processing_jobs')
       .insert(jobData)
       .select()
       .single();
 
-    if (error) throw error;
-    console.log('Created processing job:', data.id);
+    if (error) {
+      console.error('❌ [DEBUG-JOB] Failed to create job:', error);
+      throw error;
+    }
+    
+    console.log('✅ [DEBUG-JOB] Created processing job:', data.id);
     
     // Convert the database response to match our interface with proper type casting
-    return {
+    const processedJob = {
       ...data,
       job_type: data.job_type as ProcessingJob['job_type'],
       processing_options: typeof data.processing_options === 'string' 
@@ -44,6 +52,9 @@ export class ProcessingJobService {
         ? JSON.parse(data.error_details) 
         : data.error_details
     };
+
+    console.log('📝 [DEBUG-JOB] Processed job object:', processedJob);
+    return processedJob;
   }
 
   static async updateJobProgress(
@@ -59,6 +70,8 @@ export class ProcessingJobService {
       results_summary?: Record<string, any>;
     }
   ): Promise<void> {
+    console.log(`📊 [DEBUG-JOB] Updating job ${jobId}:`, updates);
+
     const updateData: any = {
       ...updates,
       updated_at: new Date().toISOString()
@@ -67,8 +80,6 @@ export class ProcessingJobService {
     if (updates.state === 'done' || updates.state === 'failed') {
       updateData.completed_at = new Date().toISOString();
     }
-
-    console.log(`📊 Updating job ${jobId}:`, updates);
     
     const { error } = await supabase
       .from('knowledge_processing_jobs')
@@ -76,10 +87,10 @@ export class ProcessingJobService {
       .eq('id', jobId);
 
     if (error) {
-      console.error(`❌ Failed to update job ${jobId}:`, error);
+      console.error(`❌ [DEBUG-JOB] Failed to update job ${jobId}:`, error);
       throw error;
     }
-    console.log(`✅ Updated processing job: ${jobId}`, updates);
+    console.log(`✅ [DEBUG-JOB] Updated processing job: ${jobId}`, updates);
   }
 
   static async cancelJob(jobId: string): Promise<void> {
@@ -157,13 +168,14 @@ export class ProcessingJobService {
   }
 
   static async getProjectAnalysisStatus(projectId: string): Promise<AnalysisStatus> {
-    console.log(`📊 Getting analysis status for project ${projectId}`);
+    console.log(`📊 [DEBUG-STATUS] Getting analysis status for project ${projectId}`);
     
     try {
       // Reset stuck jobs before checking status
       await this.resetStuckJobs(projectId);
 
       // Get latest processing job
+      console.log(`🔍 [DEBUG-STATUS] Fetching latest job...`);
       const { data: latestJob, error: jobError } = await supabase
         .from('knowledge_processing_jobs')
         .select('*')
@@ -173,21 +185,36 @@ export class ProcessingJobService {
         .single();
 
       if (jobError && jobError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-        console.error('❌ Error fetching latest job:', jobError);
+        console.error('❌ [DEBUG-STATUS] Error fetching latest job:', jobError);
       }
 
+      console.log(`📋 [DEBUG-STATUS] Latest job:`, latestJob ? {
+        id: latestJob.id,
+        state: latestJob.state,
+        progress: latestJob.progress_percentage,
+        currentStep: latestJob.current_step,
+        errorMessage: latestJob.error_message
+      } : 'No job found');
+
       // Get error counts from knowledge base
+      console.log(`🔍 [DEBUG-STATUS] Fetching knowledge facts...`);
       const { data: flaggedFacts, error: factsError } = await supabase
         .from('knowledge_base')
         .select('id, confidence_score, is_flagged')
         .eq('project_id', projectId);
 
       if (factsError) {
-        console.error('❌ Error fetching analysis status:', factsError);
+        console.error('❌ [DEBUG-STATUS] Error fetching analysis status:', factsError);
       }
 
       const errorCount = flaggedFacts?.filter(fact => fact.is_flagged).length || 0;
       const lowConfidenceFactsCount = flaggedFacts?.filter(fact => fact.confidence_score < 0.5).length || 0;
+
+      console.log(`📊 [DEBUG-STATUS] Knowledge stats:`, {
+        totalFacts: flaggedFacts?.length || 0,
+        errorCount,
+        lowConfidenceFactsCount
+      });
 
       let currentJob: ProcessingJob | undefined;
       if (latestJob) {
@@ -217,17 +244,18 @@ export class ProcessingJobService {
         lowConfidenceFactsCount
       };
 
-      console.log(`📊 Analysis status for project ${projectId}:`, {
+      console.log(`📊 [DEBUG-STATUS] Final analysis status for project ${projectId}:`, {
         isProcessing: status.isProcessing,
         hasErrors: status.hasErrors,
         jobState: latestJob?.state,
         errorCount,
-        lowConfidenceFactsCount
+        lowConfidenceFactsCount,
+        currentJobId: currentJob?.id
       });
 
       return status;
     } catch (error) {
-      console.error(`❌ Error getting analysis status for project ${projectId}:`, error);
+      console.error(`❌ [DEBUG-STATUS] Error getting analysis status for project ${projectId}:`, error);
       // Return default status on error
       return {
         isProcessing: false,

@@ -45,28 +45,31 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
 
   const fetchKnowledge = async () => {
     try {
-      console.log('🔄 Fetching knowledge data for project:', projectId);
+      console.log('🔄 [DEBUG] fetchKnowledge called for project:', projectId);
+      
       const [allKnowledge, flagged, status] = await Promise.all([
         KnowledgeExtractionService.getProjectKnowledge(projectId),
         KnowledgeExtractionService.getFlaggedKnowledge(projectId),
         ProcessingJobService.getProjectAnalysisStatus(projectId)
       ]);
 
+      console.log('📊 [DEBUG] fetchKnowledge results:', {
+        allKnowledgeCount: allKnowledge.length,
+        flaggedCount: flagged.length,
+        statusIsProcessing: status.isProcessing,
+        statusHasErrors: status.hasErrors,
+        statusCurrentJobId: status.currentJob?.id,
+        statusCurrentJobState: status.currentJob?.state
+      });
+
       setKnowledge(allKnowledge);
       setFlaggedKnowledge(flagged);
       setAnalysisStatus(status);
       
-      console.log('📊 Knowledge data fetched:', {
-        total: allKnowledge.length,
-        flagged: flagged.length,
-        isProcessing: status.isProcessing,
-        hasErrors: status.hasErrors
-      });
-      
       // Apply initial filtering
       applyFilters(allKnowledge);
     } catch (error) {
-      console.error('❌ Error fetching knowledge:', error);
+      console.error('❌ [DEBUG] Error in fetchKnowledge:', error);
       toast({
         title: "Error",
         description: "Failed to load knowledge data",
@@ -108,6 +111,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   };
 
   useEffect(() => {
+    console.log('🔄 [DEBUG] Initial useEffect triggered, calling fetchKnowledge');
     fetchKnowledge();
     
     // Set up real-time subscription
@@ -115,14 +119,15 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       .channel('knowledge_changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'knowledge_base', filter: `project_id=eq.${projectId}` },
-        () => {
-          console.log('Knowledge data changed, refreshing...');
+        (payload) => {
+          console.log('📡 [DEBUG] Real-time knowledge change detected:', payload);
           fetchKnowledge();
         }
       )
       .subscribe();
 
     return () => {
+      console.log('🧹 [DEBUG] Cleaning up subscription');
       supabase.removeChannel(subscription);
     };
   }, [projectId]);
@@ -145,31 +150,50 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   }, [analysisStatus.isProcessing]);
 
   const handleAnalyzeProject = async () => {
+    console.log('🚀 [DEBUG] handleAnalyzeProject called for project:', projectId);
+    
     try {
       setIsAnalyzing(true);
       setAnalysisStatus(prev => ({ ...prev, isProcessing: true }));
       
-      console.log('🚀 Starting project analysis for:', projectId);
+      console.log('🔍 [DEBUG] About to call KnowledgeExtractionService.extractKnowledgeFromProject');
+      console.log('🔍 [DEBUG] Project ID:', projectId);
+      console.log('🔍 [DEBUG] Current analysis status before call:', analysisStatus);
+      
       const result = await KnowledgeExtractionService.extractKnowledgeFromProject(projectId);
+      
+      console.log('✅ [DEBUG] KnowledgeExtractionService.extractKnowledgeFromProject returned:', result);
       
       toast({
         title: "Analysis Started",
         description: "Project analysis has been initiated. You can monitor progress below.",
       });
       
-      console.log('✅ Analysis job created:', result.jobId);
+      console.log('📝 [DEBUG] Toast notification sent, job ID:', result.jobId);
       
-      // Start polling for updates
-      setTimeout(fetchKnowledge, 1000);
+      // Start polling for updates immediately
+      console.log('🔄 [DEBUG] Starting immediate status fetch...');
+      setTimeout(() => {
+        console.log('⏰ [DEBUG] Executing delayed fetchKnowledge call');
+        fetchKnowledge();
+      }, 1000);
+      
     } catch (error) {
-      console.error('❌ Error starting project analysis:', error);
+      console.error('❌ [DEBUG] Error in handleAnalyzeProject:', error);
+      console.error('❌ [DEBUG] Error type:', typeof error);
+      console.error('❌ [DEBUG] Error constructor:', error?.constructor?.name);
+      console.error('❌ [DEBUG] Error message:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('❌ [DEBUG] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      
       setAnalysisStatus(prev => ({ ...prev, isProcessing: false }));
+      
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to start project analysis",
         variant: "destructive"
       });
     } finally {
+      console.log('🏁 [DEBUG] handleAnalyzeProject finally block executed');
       setIsAnalyzing(false);
     }
   };
