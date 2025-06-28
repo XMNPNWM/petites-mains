@@ -1,3 +1,5 @@
+
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface GoogleAIResponse {
@@ -14,9 +16,8 @@ export interface GoogleAIStreamResponse {
 }
 
 export class GoogleAIService {
-  private static readonly BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
   private static readonly MODELS = {
-    CHAT: 'gemini-2.5-flash-lite',
+    CHAT: 'gemini-2.5-flash',
     ANALYSIS: 'gemini-2.5-flash',
     CONTENT_ENHANCEMENT: 'gemini-1.5-pro',
     EMBEDDINGS: 'text-embedding-004'
@@ -53,6 +54,14 @@ export class GoogleAIService {
       'Google AI API key not found. Please configure GOOGLE_AI_API_KEY in your Supabase project secrets. ' +
       'Go to your Supabase dashboard > Settings > Edge Functions > Secrets to add the key.'
     );
+  }
+
+  /**
+   * Get Google AI client instance
+   */
+  private static async getClient(): Promise<GoogleGenerativeAI> {
+    const apiKey = await this.getApiKey();
+    return new GoogleGenerativeAI(apiKey);
   }
 
   /**
@@ -108,63 +117,45 @@ export class GoogleAIService {
     const startTime = Date.now();
     
     return this.withRetry(async () => {
-      const apiKey = await this.getApiKey();
+      const genAI = await this.getClient();
       
       // Validate input
       if (!messages || messages.length === 0) {
         throw new Error('No messages provided for chat completion');
       }
 
-      // Format messages for Gemini API
-      const formattedMessages = messages.map(msg => ({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }]
-      }));
-
-      // Add context as system instruction if provided
-      const systemInstruction = context ? {
-        role: 'user',
-        parts: [{ text: `Context: ${context}\n\nPlease use this context to provide more accurate and relevant responses.` }]
-      } : null;
-
-      const requestBody = {
-        contents: systemInstruction ? [systemInstruction, ...formattedMessages] : formattedMessages,
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
-        }
-      };
+      // Format messages for Gemini API - combine all messages into a single prompt
+      let combinedContent = '';
+      
+      // Add context if provided
+      if (context) {
+        combinedContent += `Context: ${context}\n\n`;
+      }
+      
+      // Add system message if present
+      const systemMessage = messages.find(msg => msg.role === 'system');
+      if (systemMessage) {
+        combinedContent += `Instructions: ${systemMessage.content}\n\n`;
+      }
+      
+      // Add conversation history
+      messages.filter(msg => msg.role !== 'system').forEach(msg => {
+        const roleLabel = msg.role === 'user' ? 'User' : 'Assistant';
+        combinedContent += `${roleLabel}: ${msg.content}\n\n`;
+      });
 
       console.log(`🚀 Making request to Google AI with model ${model}`);
       
-      const response = await fetch(`${this.BASE_URL}/models/${model}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        const errorMessage = `Google AI API error: ${response.status} ${response.statusText} - ${errorText}`;
-        console.error('❌', errorMessage);
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
+      const generativeModel = genAI.getGenerativeModel({ model });
+      const result = await generativeModel.generateContent(combinedContent);
+      const response = await result.response;
       
-      if (!data.candidates || data.candidates.length === 0) {
-        console.error('❌ No response generated from Google AI:', data);
-        throw new Error('No response generated from Google AI');
-      }
-
-      const content = data.candidates[0].content.parts[0].text;
-      const usage = data.usageMetadata ? {
-        inputTokens: data.usageMetadata.promptTokenCount || 0,
-        outputTokens: data.usageMetadata.candidatesTokenCount || 0
+      const content = response.text();
+      
+      // Extract usage metadata if available
+      const usage = response.usageMetadata ? {
+        inputTokens: response.usageMetadata.promptTokenCount || 0,
+        outputTokens: response.usageMetadata.candidatesTokenCount || 0
       } : undefined;
 
       const processingTime = Date.now() - startTime;
@@ -278,37 +269,19 @@ export class GoogleAIService {
     text: string,
     model: string = this.MODELS.EMBEDDINGS
   ): Promise<number[]> {
-    try {
-      const apiKey = await this.getApiKey();
+    return this.withRetry(async () => {
+      const genAI = await this.getClient();
       
-      const response = await fetch(`${this.BASE_URL}/models/${model}:embedContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: `models/${model}`,
-          content: {
-            parts: [{ text }]
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Google AI Embeddings API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      // Use the embedding model
+      const embeddingModel = genAI.getGenerativeModel({ model });
+      const result = await embeddingModel.embedContent(text);
       
-      if (!data.embedding || !data.embedding.values) {
+      if (!result.embedding || !result.embedding.values) {
         throw new Error('No embedding generated');
       }
 
-      return data.embedding.values;
-    } catch (error) {
-      console.error('Error generating embeddings:', error);
-      throw error;
-    }
+      return result.embedding.values;
+    }, `Generate embeddings (${model})`);
   }
 
   /**
