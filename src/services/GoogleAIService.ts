@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export interface GoogleAIResponse {
@@ -24,11 +25,14 @@ export class GoogleAIService {
   
   private static readonly MAX_RETRIES = 3;
   private static readonly RETRY_DELAY = 1000; // 1 second
+  private static readonly RATE_LIMIT_DELAY = 2000; // 2 seconds between requests
 
   /**
    * Get API key from environment
    */
   private static async getApiKey(): Promise<string> {
+    console.log('🔑 Fetching Google AI API key...');
+    
     // Try to get from Supabase secrets first
     try {
       const { data, error } = await supabase.functions.invoke('get-secret', {
@@ -36,22 +40,26 @@ export class GoogleAIService {
       });
       
       if (!error && data?.value) {
+        console.log('✅ API key retrieved from Supabase secrets');
         return data.value;
       }
     } catch (error) {
-      console.warn('Could not fetch API key from Supabase secrets:', error);
+      console.warn('⚠️ Could not fetch API key from Supabase secrets:', error);
     }
 
     // Fallback to environment variable
     const apiKey = process.env.GOOGLE_AI_API_KEY;
     if (!apiKey) {
+      console.error('❌ Google AI API key not configured');
       throw new Error('Google AI API key not configured. Please add GOOGLE_AI_API_KEY to your environment or Supabase secrets.');
     }
+    
+    console.log('✅ API key retrieved from environment');
     return apiKey;
   }
 
   /**
-   * Retry wrapper for API calls
+   * Retry wrapper for API calls with exponential backoff
    */
   private static async withRetry<T>(
     operation: () => Promise<T>,
@@ -61,34 +69,55 @@ export class GoogleAIService {
     
     for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
       try {
-        console.log(`${context} - Attempt ${attempt}/${this.MAX_RETRIES}`);
-        return await operation();
+        console.log(`🔄 ${context} - Attempt ${attempt}/${this.MAX_RETRIES}`);
+        const result = await operation();
+        
+        if (attempt > 1) {
+          console.log(`✅ ${context} succeeded on attempt ${attempt}`);
+        }
+        
+        return result;
       } catch (error) {
         lastError = error as Error;
-        console.warn(`${context} failed on attempt ${attempt}:`, error);
+        console.warn(`⚠️ ${context} failed on attempt ${attempt}:`, error);
         
-        if (attempt < this.MAX_RETRIES) {
-          const delay = this.RETRY_DELAY * attempt;
-          console.log(`Retrying in ${delay}ms...`);
+        // Check if it's a rate limit error
+        if (error instanceof Error && error.message.includes('429')) {
+          console.log(`⏰ Rate limit detected, using longer delay`);
+          const delay = this.RATE_LIMIT_DELAY * attempt;
+          console.log(`⏳ Waiting ${delay}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else if (attempt < this.MAX_RETRIES) {
+          // Exponential backoff for other errors
+          const delay = this.RETRY_DELAY * Math.pow(2, attempt - 1);
+          console.log(`⏳ Retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
     }
     
+    console.error(`❌ ${context} failed after ${this.MAX_RETRIES} attempts`);
     throw new Error(`${context} failed after ${this.MAX_RETRIES} attempts. Last error: ${lastError?.message}`);
   }
 
   /**
-   * General purpose chat completion
+   * General purpose chat completion with enhanced error handling
    */
   static async generateChatResponse(
     messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
     context?: string,
     model: string = this.MODELS.CHAT
   ): Promise<GoogleAIResponse> {
+    const startTime = Date.now();
+    
     return this.withRetry(async () => {
       const apiKey = await this.getApiKey();
       
+      // Validate input
+      if (!messages || messages.length === 0) {
+        throw new Error('No messages provided for chat completion');
+      }
+
       // Format messages for Gemini API
       const formattedMessages = messages.map(msg => ({
         role: msg.role === 'assistant' ? 'model' : 'user',
@@ -111,7 +140,7 @@ export class GoogleAIService {
         }
       };
 
-      console.log(`Making request to Google AI with model ${model}`);
+      console.log(`🚀 Making request to Google AI with model ${model}`);
       
       const response = await fetch(`${this.BASE_URL}/models/${model}:generateContent?key=${apiKey}`, {
         method: 'POST',
@@ -123,12 +152,15 @@ export class GoogleAIService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Google AI API error: ${response.status} ${response.statusText} - ${errorText}`);
+        const errorMessage = `Google AI API error: ${response.status} ${response.statusText} - ${errorText}`;
+        console.error('❌', errorMessage);
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
       
       if (!data.candidates || data.candidates.length === 0) {
+        console.error('❌ No response generated from Google AI:', data);
         throw new Error('No response generated from Google AI');
       }
 
@@ -138,29 +170,41 @@ export class GoogleAIService {
         outputTokens: data.usageMetadata.candidatesTokenCount || 0
       } : undefined;
 
-      console.log(`Google AI response generated successfully. Tokens used: ${usage?.inputTokens || 0} input, ${usage?.outputTokens || 0} output`);
+      const processingTime = Date.now() - startTime;
+      console.log(`✅ Google AI response generated successfully in ${processingTime}ms. Tokens used: ${usage?.inputTokens || 0} input, ${usage?.outputTokens || 0} output`);
       
       return { content, usage };
-    }, 'Google AI chat completion');
+    }, `Google AI chat completion (${model})`);
   }
 
   /**
-   * Knowledge extraction and analysis using gemini-2.5-flash
+   * Knowledge extraction and analysis with enhanced error handling
    */
   static async extractKnowledge(
     content: string,
     extractionType: 'characters' | 'relationships' | 'plot_threads' | 'timeline_events' | 'comprehensive',
     existingKnowledge?: any
   ): Promise<any> {
+    const startTime = Date.now();
+    
     return this.withRetry(async () => {
-      console.log(`Starting knowledge extraction: ${extractionType}, content length: ${content.length} chars`);
+      console.log(`🔍 Starting knowledge extraction: ${extractionType}, content length: ${content.length} chars`);
+      
+      // Validate input
+      if (!content || content.trim().length === 0) {
+        throw new Error('No content provided for knowledge extraction');
+      }
+
+      if (content.length > 50000) {
+        console.warn(`⚠️ Content is very long (${content.length} chars), this may take time`);
+      }
       
       const prompts = {
         characters: `Analyze the following text and extract character information. Return a JSON object with an array of characters, each having: name, description, traits (array), role, confidence_score (0-1).`,
         relationships: `Analyze the following text and extract character relationships. Return a JSON object with an array of relationships, each having: character_a_name, character_b_name, relationship_type, relationship_strength (1-10), confidence_score (0-1).`,
         plot_threads: `Analyze the following text and extract plot threads. Return a JSON object with an array of plot threads, each having: thread_name, thread_type, key_events (array), status, confidence_score (0-1).`,
         timeline_events: `Analyze the following text and extract timeline events. Return a JSON object with an array of events, each having: event_name, event_type, description, chronological_order, characters_involved (array), confidence_score (0-1).`,
-        comprehensive: `Analyze the following text and extract comprehensive knowledge including characters, relationships, plot threads, and timeline events. Return a JSON object with separate arrays for each category.`
+        comprehensive: `Analyze the following text and extract comprehensive knowledge including characters, relationships, plot threads, and timeline events. Return a JSON object with separate arrays for each category: characters, relationships, plotThreads, timelineEvents.`
       };
 
       const contextPrompt = existingKnowledge ? 
@@ -175,12 +219,26 @@ export class GoogleAIService {
       // Try to parse JSON response
       try {
         const result = JSON.parse(response.content);
-        console.log(`Knowledge extraction completed: ${extractionType}`);
+        const processingTime = Date.now() - startTime;
+        console.log(`✅ Knowledge extraction completed: ${extractionType} in ${processingTime}ms`);
+        
+        // Validate the structure
+        if (extractionType === 'comprehensive') {
+          const validatedResult = {
+            characters: Array.isArray(result.characters) ? result.characters : [],
+            relationships: Array.isArray(result.relationships) ? result.relationships : [],
+            plotThreads: Array.isArray(result.plotThreads) ? result.plotThreads : [],
+            timelineEvents: Array.isArray(result.timelineEvents) ? result.timelineEvents : []
+          };
+          console.log(`📊 Extracted: ${validatedResult.characters.length} chars, ${validatedResult.relationships.length} rels, ${validatedResult.plotThreads.length} plots, ${validatedResult.timelineEvents.length} events`);
+          return validatedResult;
+        }
+        
         return result;
       } catch (parseError) {
-        console.error('Failed to parse knowledge extraction response:', parseError);
-        console.error('Raw response:', response.content);
-        throw new Error('Invalid JSON response from knowledge extraction');
+        console.error('❌ Failed to parse knowledge extraction response:', parseError);
+        console.error('🔍 Raw response:', response.content.substring(0, 500) + '...');
+        throw new Error(`Invalid JSON response from knowledge extraction: ${parseError instanceof Error ? parseError.message : 'Unknown parsing error'}`);
       }
     }, `Knowledge extraction (${extractionType})`);
   }

@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Brain, AlertTriangle, CheckCircle, Loader2, RefreshCw, Edit3, Save, X, Filter, Search, Flag, Trash2, Clock, XCircle } from 'lucide-react';
+import { Brain, AlertTriangle, CheckCircle, Loader2, RefreshCw, Edit3, Save, X, Filter, Search, Flag, Trash2, Clock, XCircle, RotateCcw } from 'lucide-react';
 import { KnowledgeExtractionService } from '@/services/KnowledgeExtractionService';
 import { ProcessingJobService } from '@/services/ProcessingJobService';
 import { KnowledgeBase, AnalysisStatus } from '@/types/knowledge';
@@ -41,10 +40,12 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   const [confidenceFilter, setConfidenceFilter] = useState<string>('all');
   const [showFlagged, setShowFlagged] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const { toast } = useToast();
 
   const fetchKnowledge = async () => {
     try {
+      console.log('🔄 Fetching knowledge data for project:', projectId);
       const [allKnowledge, flagged, status] = await Promise.all([
         KnowledgeExtractionService.getProjectKnowledge(projectId),
         KnowledgeExtractionService.getFlaggedKnowledge(projectId),
@@ -55,10 +56,17 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       setFlaggedKnowledge(flagged);
       setAnalysisStatus(status);
       
+      console.log('📊 Knowledge data fetched:', {
+        total: allKnowledge.length,
+        flagged: flagged.length,
+        isProcessing: status.isProcessing,
+        hasErrors: status.hasErrors
+      });
+      
       // Apply initial filtering
       applyFilters(allKnowledge);
     } catch (error) {
-      console.error('Error fetching knowledge:', error);
+      console.error('❌ Error fetching knowledge:', error);
       toast({
         title: "Error",
         description: "Failed to load knowledge data",
@@ -141,6 +149,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       setIsAnalyzing(true);
       setAnalysisStatus(prev => ({ ...prev, isProcessing: true }));
       
+      console.log('🚀 Starting project analysis for:', projectId);
       const result = await KnowledgeExtractionService.extractKnowledgeFromProject(projectId);
       
       toast({
@@ -148,10 +157,12 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         description: "Project analysis has been initiated. You can monitor progress below.",
       });
       
+      console.log('✅ Analysis job created:', result.jobId);
+      
       // Start polling for updates
       setTimeout(fetchKnowledge, 1000);
     } catch (error) {
-      console.error('Error starting project analysis:', error);
+      console.error('❌ Error starting project analysis:', error);
       setAnalysisStatus(prev => ({ ...prev, isProcessing: false }));
       toast({
         title: "Error",
@@ -163,10 +174,40 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     }
   };
 
+  const handleRetryAnalysis = async () => {
+    try {
+      setIsRetrying(true);
+      console.log('🔄 Retrying analysis for project:', projectId);
+      
+      // Reset any stuck jobs first
+      const resetCount = await ProcessingJobService.resetStuckJobs(projectId);
+      if (resetCount > 0) {
+        console.log(`✅ Reset ${resetCount} stuck jobs before retry`);
+      }
+      
+      await handleAnalyzeProject();
+      
+      toast({
+        title: "Retry Started",
+        description: "Analysis has been restarted. Previous errors have been cleared.",
+      });
+    } catch (error) {
+      console.error('❌ Error retrying analysis:', error);
+      toast({
+        title: "Retry Failed",
+        description: error instanceof Error ? error.message : "Failed to retry analysis",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   const handleCancelAnalysis = async () => {
     if (!analysisStatus.currentJob?.id) return;
     
     try {
+      console.log('🚫 Cancelling analysis job:', analysisStatus.currentJob.id);
       await ProcessingJobService.cancelJob(analysisStatus.currentJob.id);
       
       toast({
@@ -176,7 +217,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       
       setTimeout(fetchKnowledge, 1000);
     } catch (error) {
-      console.error('Error cancelling analysis:', error);
+      console.error('❌ Error cancelling analysis:', error);
       toast({
         title: "Error",
         description: "Failed to cancel analysis",
@@ -340,12 +381,29 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
           <div>
             <h3 className="text-lg font-semibold text-slate-900">Enhanced AI Brain</h3>
             <p className="text-sm text-slate-600">
-              Interactive knowledge management and curation
+              Intelligent knowledge extraction and management system
             </p>
           </div>
         </div>
         
         <div className="flex items-center space-x-2">
+          {analysisStatus.hasErrors && analysisStatus.currentJob?.state === 'failed' && (
+            <Button 
+              onClick={handleRetryAnalysis}
+              disabled={isRetrying || analysisStatus.isProcessing}
+              variant="outline"
+              size="sm"
+              className="text-orange-600 hover:text-orange-700"
+            >
+              {isRetrying ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RotateCcw className="w-4 h-4 mr-2" />
+              )}
+              Retry
+            </Button>
+          )}
+          
           {analysisStatus.isProcessing && (
             <Button 
               onClick={handleCancelAnalysis}
@@ -360,7 +418,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
           
           <Button
             onClick={handleAnalyzeProject}
-            disabled={analysisStatus.isProcessing || isAnalyzing}
+            disabled={analysisStatus.isProcessing || isAnalyzing || isRetrying}
             className="flex items-center space-x-2"
           >
             {(analysisStatus.isProcessing || isAnalyzing) ? (
@@ -370,19 +428,23 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
             )}
             <span>
               {analysisStatus.isProcessing ? 'Analyzing...' : 
-               isAnalyzing ? 'Starting...' : 'Analyze Project'}
+               isAnalyzing ? 'Starting...' : 
+               isRetrying ? 'Retrying...' : 'Analyze Project'}
             </span>
           </Button>
         </div>
       </div>
 
-      {/* Processing Status */}
+      {/* Enhanced Processing Status */}
       {analysisStatus.isProcessing && analysisStatus.currentJob && (
         <Card className="p-4 bg-blue-50 border-blue-200">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-2">
               <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
               <span className="font-medium text-blue-900">Analysis in Progress</span>
+              <Badge variant="secondary" className="text-xs">
+                {analysisStatus.currentJob.job_type.replace('_', ' ')}
+              </Badge>
             </div>
             <div className="flex items-center space-x-2 text-sm text-blue-700">
               <Clock className="w-4 h-4" />
@@ -412,25 +474,69 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         </Card>
       )}
 
-      {/* Error Status */}
+      {/* Enhanced Error Status */}
       {analysisStatus.hasErrors && analysisStatus.currentJob?.state === 'failed' && (
         <Card className="p-4 bg-red-50 border-red-200">
           <div className="flex items-center space-x-2 mb-2">
             <AlertTriangle className="w-5 h-5 text-red-600" />
             <span className="font-medium text-red-900">Analysis Failed</span>
+            <Badge variant="destructive" className="text-xs">
+              {analysisStatus.currentJob.job_type.replace('_', ' ')}
+            </Badge>
           </div>
-          <p className="text-sm text-red-700">
+          <p className="text-sm text-red-700 mb-3">
             {analysisStatus.currentJob.error_message || 'An error occurred during analysis'}
           </p>
-          <Button 
-            onClick={handleAnalyzeProject}
-            variant="outline"
-            size="sm"
-            className="mt-3"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Retry Analysis
-          </Button>
+          {analysisStatus.currentJob.error_details && (
+            <details className="text-xs text-red-600 mb-3">
+              <summary className="cursor-pointer hover:text-red-700">Technical Details</summary>
+              <pre className="mt-1 p-2 bg-red-100 rounded text-xs overflow-auto">
+                {JSON.stringify(analysisStatus.currentJob.error_details, null, 2)}
+              </pre>
+            </details>
+          )}
+          <div className="flex space-x-2">
+            <Button 
+              onClick={handleRetryAnalysis}
+              disabled={isRetrying}
+              variant="outline"
+              size="sm"
+            >
+              {isRetrying ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RotateCcw className="w-4 h-4 mr-2" />
+              )}
+              Retry Analysis
+            </Button>
+            <Button 
+              onClick={handleAnalyzeProject}
+              disabled={isAnalyzing}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Start New Analysis
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Success Status */}
+      {!analysisStatus.isProcessing && !analysisStatus.hasErrors && knowledge.length > 0 && (
+        <Card className="p-4 bg-green-50 border-green-200">
+          <div className="flex items-center space-x-2 mb-2">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <span className="font-medium text-green-900">Analysis Complete</span>
+          </div>
+          <p className="text-sm text-green-700">
+            Successfully extracted {knowledge.length} knowledge items
+            {analysisStatus.lastProcessedAt && (
+              <span className="ml-2">
+                • Last updated: {new Date(analysisStatus.lastProcessedAt).toLocaleString()}
+              </span>
+            )}
+          </p>
         </Card>
       )}
 

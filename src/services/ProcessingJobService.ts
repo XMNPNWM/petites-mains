@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { ProcessingJob, AnalysisStatus } from '@/types/knowledge';
 
@@ -69,113 +68,174 @@ export class ProcessingJobService {
       updateData.completed_at = new Date().toISOString();
     }
 
-    console.log(`Updating job ${jobId}:`, updates);
+    console.log(`📊 Updating job ${jobId}:`, updates);
     
     const { error } = await supabase
       .from('knowledge_processing_jobs')
       .update(updateData)
       .eq('id', jobId);
 
-    if (error) throw error;
-    console.log('Updated processing job:', jobId, updates);
+    if (error) {
+      console.error(`❌ Failed to update job ${jobId}:`, error);
+      throw error;
+    }
+    console.log(`✅ Updated processing job: ${jobId}`, updates);
   }
 
   static async cancelJob(jobId: string): Promise<void> {
-    console.log(`Cancelling job ${jobId}`);
+    console.log(`🚫 Cancelling job ${jobId}`);
     
-    await this.updateJobProgress(jobId, {
-      state: 'failed',
-      error_message: 'Job cancelled by user',
-      error_details: { cancelled: true, cancelled_at: new Date().toISOString() }
-    });
+    try {
+      await this.updateJobProgress(jobId, {
+        state: 'failed',
+        error_message: 'Job cancelled by user',
+        error_details: { 
+          cancelled: true, 
+          cancelled_at: new Date().toISOString(),
+          cancelled_by: 'user_action'
+        }
+      });
+      console.log(`✅ Job ${jobId} cancelled successfully`);
+    } catch (error) {
+      console.error(`❌ Failed to cancel job ${jobId}:`, error);
+      throw error;
+    }
   }
 
   static async resetStuckJobs(projectId: string): Promise<number> {
-    console.log(`Resetting stuck jobs for project ${projectId}`);
+    console.log(`🔄 Checking for stuck jobs in project ${projectId}`);
     
-    // Find jobs that have been in pending/thinking/analyzing state for more than 10 minutes
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    
-    const { data: stuckJobs, error: fetchError } = await supabase
-      .from('knowledge_processing_jobs')
-      .select('id')
-      .eq('project_id', projectId)
-      .in('state', ['pending', 'thinking', 'analyzing', 'extracting'])
-      .lt('started_at', tenMinutesAgo);
-
-    if (fetchError) throw fetchError;
-
-    if (stuckJobs && stuckJobs.length > 0) {
-      console.log(`Found ${stuckJobs.length} stuck jobs, resetting...`);
+    try {
+      // Find jobs that have been in pending/thinking/analyzing state for more than 5 minutes
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       
-      const { error: updateError } = await supabase
+      const { data: stuckJobs, error: fetchError } = await supabase
         .from('knowledge_processing_jobs')
-        .update({
-          state: 'failed',
-          error_message: 'Job timed out - exceeded processing time limit',
-          error_details: { timeout: true, reset_at: new Date().toISOString() },
-          completed_at: new Date().toISOString()
-        })
-        .in('id', stuckJobs.map(job => job.id));
+        .select('id, job_type, state, started_at')
+        .eq('project_id', projectId)
+        .in('state', ['pending', 'thinking', 'analyzing', 'extracting'])
+        .lt('started_at', fiveMinutesAgo);
 
-      if (updateError) throw updateError;
+      if (fetchError) {
+        console.error('❌ Error fetching stuck jobs:', fetchError);
+        throw fetchError;
+      }
+
+      if (stuckJobs && stuckJobs.length > 0) {
+        console.log(`🔧 Found ${stuckJobs.length} stuck jobs, resetting...`, stuckJobs.map(j => ({ id: j.id, type: j.job_type, state: j.state })));
+        
+        const { error: updateError } = await supabase
+          .from('knowledge_processing_jobs')
+          .update({
+            state: 'failed',
+            error_message: 'Job timed out - exceeded processing time limit (5 minutes)',
+            error_details: { 
+              timeout: true, 
+              reset_at: new Date().toISOString(),
+              timeout_threshold: '5 minutes',
+              original_state: stuckJobs[0]?.state
+            },
+            completed_at: new Date().toISOString()
+          })
+          .in('id', stuckJobs.map(job => job.id));
+
+        if (updateError) {
+          console.error('❌ Error resetting stuck jobs:', updateError);
+          throw updateError;
+        }
+        
+        console.log(`✅ Reset ${stuckJobs.length} stuck jobs successfully`);
+        return stuckJobs.length;
+      }
       
-      return stuckJobs.length;
+      console.log('✅ No stuck jobs found');
+      return 0;
+    } catch (error) {
+      console.error(`❌ Error in resetStuckJobs for project ${projectId}:`, error);
+      throw error;
     }
-    
-    return 0;
   }
 
   static async getProjectAnalysisStatus(projectId: string): Promise<AnalysisStatus> {
-    // Get latest processing job
-    const { data: latestJob } = await supabase
-      .from('knowledge_processing_jobs')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+    console.log(`📊 Getting analysis status for project ${projectId}`);
+    
+    try {
+      // Reset stuck jobs before checking status
+      await this.resetStuckJobs(projectId);
 
-    // Get error counts from knowledge base
-    const { data: flaggedFacts, error } = await supabase
-      .from('knowledge_base')
-      .select('id, confidence_score, is_flagged')
-      .eq('project_id', projectId);
+      // Get latest processing job
+      const { data: latestJob, error: jobError } = await supabase
+        .from('knowledge_processing_jobs')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
 
-    if (error) {
-      console.error('Error fetching analysis status:', error);
-    }
+      if (jobError && jobError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        console.error('❌ Error fetching latest job:', jobError);
+      }
 
-    const errorCount = flaggedFacts?.filter(fact => fact.is_flagged).length || 0;
-    const lowConfidenceFactsCount = flaggedFacts?.filter(fact => fact.confidence_score < 0.5).length || 0;
+      // Get error counts from knowledge base
+      const { data: flaggedFacts, error: factsError } = await supabase
+        .from('knowledge_base')
+        .select('id, confidence_score, is_flagged')
+        .eq('project_id', projectId);
 
-    let currentJob: ProcessingJob | undefined;
-    if (latestJob) {
-      // Convert the database response to match our interface with proper type casting
-      currentJob = {
-        ...latestJob,
-        job_type: latestJob.job_type as ProcessingJob['job_type'],
-        processing_options: typeof latestJob.processing_options === 'string' 
-          ? JSON.parse(latestJob.processing_options) 
-          : latestJob.processing_options || {},
-        results_summary: typeof latestJob.results_summary === 'string' 
-          ? JSON.parse(latestJob.results_summary) 
-          : latestJob.results_summary || {},
-        error_details: typeof latestJob.error_details === 'string' 
-          ? JSON.parse(latestJob.error_details) 
-          : latestJob.error_details
+      if (factsError) {
+        console.error('❌ Error fetching analysis status:', factsError);
+      }
+
+      const errorCount = flaggedFacts?.filter(fact => fact.is_flagged).length || 0;
+      const lowConfidenceFactsCount = flaggedFacts?.filter(fact => fact.confidence_score < 0.5).length || 0;
+
+      let currentJob: ProcessingJob | undefined;
+      if (latestJob) {
+        // Convert the database response to match our interface with proper type casting
+        currentJob = {
+          ...latestJob,
+          job_type: latestJob.job_type as ProcessingJob['job_type'],
+          processing_options: typeof latestJob.processing_options === 'string' 
+            ? JSON.parse(latestJob.processing_options) 
+            : latestJob.processing_options || {},
+          results_summary: typeof latestJob.results_summary === 'string' 
+            ? JSON.parse(latestJob.results_summary) 
+            : latestJob.results_summary || {},
+          error_details: typeof latestJob.error_details === 'string' 
+            ? JSON.parse(latestJob.error_details) 
+            : latestJob.error_details
+        };
+      }
+
+      const status = {
+        isProcessing: latestJob?.state === 'pending' || latestJob?.state === 'thinking' || 
+                     latestJob?.state === 'analyzing' || latestJob?.state === 'extracting',
+        hasErrors: latestJob?.state === 'failed' || errorCount > 0,
+        lastProcessedAt: latestJob?.completed_at,
+        currentJob,
+        errorCount,
+        lowConfidenceFactsCount
+      };
+
+      console.log(`📊 Analysis status for project ${projectId}:`, {
+        isProcessing: status.isProcessing,
+        hasErrors: status.hasErrors,
+        jobState: latestJob?.state,
+        errorCount,
+        lowConfidenceFactsCount
+      });
+
+      return status;
+    } catch (error) {
+      console.error(`❌ Error getting analysis status for project ${projectId}:`, error);
+      // Return default status on error
+      return {
+        isProcessing: false,
+        hasErrors: true,
+        errorCount: 0,
+        lowConfidenceFactsCount: 0
       };
     }
-
-    return {
-      isProcessing: latestJob?.state === 'pending' || latestJob?.state === 'thinking' || 
-                   latestJob?.state === 'analyzing' || latestJob?.state === 'extracting',
-      hasErrors: latestJob?.state === 'failed' || errorCount > 0,
-      lastProcessedAt: latestJob?.completed_at,
-      currentJob,
-      errorCount,
-      lowConfidenceFactsCount
-    };
   }
 
   static async simulateAnalysisJob(jobId: string, chapterId?: string): Promise<void> {

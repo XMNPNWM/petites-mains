@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, AlertCircle, Loader2, Clock, XCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, Clock, XCircle, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ProcessingJobService } from '@/services/ProcessingJobService';
+import { KnowledgeExtractionService } from '@/services/KnowledgeExtractionService';
 import { AnalysisStatus } from '@/types/knowledge';
+import { useToast } from '@/hooks/use-toast';
 
 interface AnalysisStatusIndicatorProps {
   projectId: string;
@@ -12,6 +14,7 @@ interface AnalysisStatusIndicatorProps {
 
 const AnalysisStatusIndicator = ({ projectId }: AnalysisStatusIndicatorProps) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [status, setStatus] = useState<AnalysisStatus>({
     isProcessing: false,
     hasErrors: false,
@@ -19,25 +22,32 @@ const AnalysisStatusIndicator = ({ projectId }: AnalysisStatusIndicatorProps) =>
     lowConfidenceFactsCount: 0
   });
   const [showTooltip, setShowTooltip] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const fetchStatus = async () => {
     try {
+      console.log('🔄 Fetching analysis status for project:', projectId);
       const analysisStatus = await ProcessingJobService.getProjectAnalysisStatus(projectId);
       setStatus(analysisStatus);
+      console.log('📊 Status updated:', {
+        isProcessing: analysisStatus.isProcessing,
+        hasErrors: analysisStatus.hasErrors,
+        errorCount: analysisStatus.errorCount
+      });
     } catch (error) {
-      console.error('Error fetching analysis status:', error);
+      console.error('❌ Error fetching analysis status:', error);
     }
   };
 
   useEffect(() => {
     fetchStatus();
     
-    // Poll for updates if processing
+    // Poll for updates if processing - more frequent polling
     const interval = setInterval(() => {
       if (status.isProcessing) {
         fetchStatus();
       }
-    }, 3000); // Poll every 3 seconds when processing
+    }, 2000); // Poll every 2 seconds when processing
 
     return () => clearInterval(interval);
   }, [projectId, status.isProcessing]);
@@ -53,10 +63,56 @@ const AnalysisStatusIndicator = ({ projectId }: AnalysisStatusIndicatorProps) =>
     if (!status.currentJob?.id) return;
     
     try {
+      console.log('🚫 Cancelling analysis from indicator:', status.currentJob.id);
       await ProcessingJobService.cancelJob(status.currentJob.id);
+      
+      toast({
+        title: "Analysis Cancelled",
+        description: "The analysis job has been cancelled.",
+      });
+      
       setTimeout(fetchStatus, 1000);
     } catch (error) {
-      console.error('Error cancelling analysis:', error);
+      console.error('❌ Error cancelling analysis:', error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel analysis",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRetryAnalysis = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    try {
+      setIsRetrying(true);
+      console.log('🔄 Retrying analysis from indicator for project:', projectId);
+      
+      // Reset stuck jobs first
+      const resetCount = await ProcessingJobService.resetStuckJobs(projectId);
+      if (resetCount > 0) {
+        console.log(`✅ Reset ${resetCount} stuck jobs before retry`);
+      }
+      
+      // Start new analysis
+      await KnowledgeExtractionService.extractKnowledgeFromProject(projectId);
+      
+      toast({
+        title: "Analysis Restarted",
+        description: "Project analysis has been restarted.",
+      });
+      
+      setTimeout(fetchStatus, 1000);
+    } catch (error) {
+      console.error('❌ Error retrying analysis:', error);
+      toast({
+        title: "Retry Failed",
+        description: error instanceof Error ? error.message : "Failed to retry analysis",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRetrying(false);
     }
   };
 
@@ -99,7 +155,7 @@ const AnalysisStatusIndicator = ({ projectId }: AnalysisStatusIndicatorProps) =>
             <p className="text-blue-700 mb-2">{status.currentJob.current_step}</p>
           )}
           {status.currentJob?.progress_percentage !== undefined && (
-            <div className="space-y-1">
+            <div className="space-y-1 mb-2">
               <div className="flex justify-between text-xs">
                 <span>Progress</span>
                 <span>{status.currentJob.progress_percentage}%</span>
@@ -112,13 +168,15 @@ const AnalysisStatusIndicator = ({ projectId }: AnalysisStatusIndicatorProps) =>
               </div>
             </div>
           )}
-          <button
-            onClick={handleCancelAnalysis}
-            className="mt-2 flex items-center space-x-1 text-xs text-red-600 hover:text-red-700"
-          >
-            <XCircle className="w-3 h-3" />
-            <span>Cancel</span>
-          </button>
+          <div className="flex space-x-1">
+            <button
+              onClick={handleCancelAnalysis}
+              className="flex items-center space-x-1 text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded"
+            >
+              <XCircle className="w-3 h-3" />
+              <span>Cancel</span>
+            </button>
+          </div>
         </div>
       );
     }
@@ -127,12 +185,26 @@ const AnalysisStatusIndicator = ({ projectId }: AnalysisStatusIndicatorProps) =>
       return (
         <div className="text-sm">
           <p className="font-medium text-red-900">Issues Found</p>
-          <p className="text-red-700">
+          <p className="text-red-700 mb-2">
             {status.errorCount} flagged facts, {status.lowConfidenceFactsCount} low confidence
           </p>
           {status.currentJob?.state === 'failed' && status.currentJob.error_message && (
-            <p className="text-xs text-red-600 mt-1">{status.currentJob.error_message}</p>
+            <p className="text-xs text-red-600 mb-2">{status.currentJob.error_message}</p>
           )}
+          <div className="flex space-x-1">
+            <button
+              onClick={handleRetryAnalysis}
+              disabled={isRetrying}
+              className="flex items-center space-x-1 text-xs text-orange-600 hover:text-orange-700 px-2 py-1 rounded disabled:opacity-50"
+            >
+              {isRetrying ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <RotateCcw className="w-3 h-3" />
+              )}
+              <span>Retry</span>
+            </button>
+          </div>
           <p className="text-xs text-red-600 mt-1">Click to review in AI Brain</p>
         </div>
       );
@@ -167,7 +239,7 @@ const AnalysisStatusIndicator = ({ projectId }: AnalysisStatusIndicatorProps) =>
       </Button>
       
       {showTooltip && (
-        <div className="absolute top-full right-0 mt-2 w-72 bg-white border border-slate-200 rounded-lg shadow-lg p-3 z-50">
+        <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-slate-200 rounded-lg shadow-lg p-3 z-50">
           {getTooltipContent()}
         </div>
       )}
