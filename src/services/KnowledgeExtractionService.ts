@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { ContentHashService } from './ContentHashService';
 import { ProcessingJobService } from './ProcessingJobService';
@@ -113,7 +114,7 @@ export class KnowledgeExtractionService {
       );
 
       await ProcessingJobService.updateJobProgress(jobId, {
-        state: 'storing',
+        state: 'extracting',
         current_step: 'Storing extracted knowledge...',
         progress_percentage: 75
       });
