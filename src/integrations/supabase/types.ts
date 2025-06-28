@@ -801,6 +801,7 @@ export type Database = {
           started_at: string | null
           state: Database["public"]["Enums"]["processing_state"] | null
           total_steps: number | null
+          updated_at: string | null
           word_count: number | null
         }
         Insert: {
@@ -821,6 +822,7 @@ export type Database = {
           started_at?: string | null
           state?: Database["public"]["Enums"]["processing_state"] | null
           total_steps?: number | null
+          updated_at?: string | null
           word_count?: number | null
         }
         Update: {
@@ -841,6 +843,7 @@ export type Database = {
           started_at?: string | null
           state?: Database["public"]["Enums"]["processing_state"] | null
           total_steps?: number | null
+          updated_at?: string | null
           word_count?: number | null
         }
         Relationships: [
