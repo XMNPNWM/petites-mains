@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface GoogleAIResponse {
@@ -22,16 +21,61 @@ export class GoogleAIService {
     CONTENT_ENHANCEMENT: 'gemini-1.5-pro',
     EMBEDDINGS: 'text-embedding-004'
   };
+  
+  private static readonly MAX_RETRIES = 3;
+  private static readonly RETRY_DELAY = 1000; // 1 second
 
   /**
    * Get API key from environment
    */
   private static async getApiKey(): Promise<string> {
+    // Try to get from Supabase secrets first
+    try {
+      const { data, error } = await supabase.functions.invoke('get-secret', {
+        body: { name: 'GOOGLE_AI_API_KEY' }
+      });
+      
+      if (!error && data?.value) {
+        return data.value;
+      }
+    } catch (error) {
+      console.warn('Could not fetch API key from Supabase secrets:', error);
+    }
+
+    // Fallback to environment variable
     const apiKey = process.env.GOOGLE_AI_API_KEY;
     if (!apiKey) {
-      throw new Error('Google AI API key not configured');
+      throw new Error('Google AI API key not configured. Please add GOOGLE_AI_API_KEY to your environment or Supabase secrets.');
     }
     return apiKey;
+  }
+
+  /**
+   * Retry wrapper for API calls
+   */
+  private static async withRetry<T>(
+    operation: () => Promise<T>,
+    context: string = 'API call'
+  ): Promise<T> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
+      try {
+        console.log(`${context} - Attempt ${attempt}/${this.MAX_RETRIES}`);
+        return await operation();
+      } catch (error) {
+        lastError = error as Error;
+        console.warn(`${context} failed on attempt ${attempt}:`, error);
+        
+        if (attempt < this.MAX_RETRIES) {
+          const delay = this.RETRY_DELAY * attempt;
+          console.log(`Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    throw new Error(`${context} failed after ${this.MAX_RETRIES} attempts. Last error: ${lastError?.message}`);
   }
 
   /**
@@ -42,7 +86,7 @@ export class GoogleAIService {
     context?: string,
     model: string = this.MODELS.CHAT
   ): Promise<GoogleAIResponse> {
-    try {
+    return this.withRetry(async () => {
       const apiKey = await this.getApiKey();
       
       // Format messages for Gemini API
@@ -67,6 +111,8 @@ export class GoogleAIService {
         }
       };
 
+      console.log(`Making request to Google AI with model ${model}`);
+      
       const response = await fetch(`${this.BASE_URL}/models/${model}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
@@ -76,13 +122,14 @@ export class GoogleAIService {
       });
 
       if (!response.ok) {
-        throw new Error(`Google AI API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Google AI API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const data = await response.json();
       
       if (!data.candidates || data.candidates.length === 0) {
-        throw new Error('No response generated');
+        throw new Error('No response generated from Google AI');
       }
 
       const content = data.candidates[0].content.parts[0].text;
@@ -91,11 +138,10 @@ export class GoogleAIService {
         outputTokens: data.usageMetadata.candidatesTokenCount || 0
       } : undefined;
 
+      console.log(`Google AI response generated successfully. Tokens used: ${usage?.inputTokens || 0} input, ${usage?.outputTokens || 0} output`);
+      
       return { content, usage };
-    } catch (error) {
-      console.error('Error generating chat response:', error);
-      throw error;
-    }
+    }, 'Google AI chat completion');
   }
 
   /**
@@ -106,7 +152,9 @@ export class GoogleAIService {
     extractionType: 'characters' | 'relationships' | 'plot_threads' | 'timeline_events' | 'comprehensive',
     existingKnowledge?: any
   ): Promise<any> {
-    try {
+    return this.withRetry(async () => {
+      console.log(`Starting knowledge extraction: ${extractionType}, content length: ${content.length} chars`);
+      
       const prompts = {
         characters: `Analyze the following text and extract character information. Return a JSON object with an array of characters, each having: name, description, traits (array), role, confidence_score (0-1).`,
         relationships: `Analyze the following text and extract character relationships. Return a JSON object with an array of relationships, each having: character_a_name, character_b_name, relationship_type, relationship_strength (1-10), confidence_score (0-1).`,
@@ -126,15 +174,15 @@ export class GoogleAIService {
 
       // Try to parse JSON response
       try {
-        return JSON.parse(response.content);
+        const result = JSON.parse(response.content);
+        console.log(`Knowledge extraction completed: ${extractionType}`);
+        return result;
       } catch (parseError) {
         console.error('Failed to parse knowledge extraction response:', parseError);
+        console.error('Raw response:', response.content);
         throw new Error('Invalid JSON response from knowledge extraction');
       }
-    } catch (error) {
-      console.error('Error extracting knowledge:', error);
-      throw error;
-    }
+    }, `Knowledge extraction (${extractionType})`);
   }
 
   /**

@@ -69,6 +69,8 @@ export class ProcessingJobService {
       updateData.completed_at = new Date().toISOString();
     }
 
+    console.log(`Updating job ${jobId}:`, updates);
+    
     const { error } = await supabase
       .from('knowledge_processing_jobs')
       .update(updateData)
@@ -76,6 +78,52 @@ export class ProcessingJobService {
 
     if (error) throw error;
     console.log('Updated processing job:', jobId, updates);
+  }
+
+  static async cancelJob(jobId: string): Promise<void> {
+    console.log(`Cancelling job ${jobId}`);
+    
+    await this.updateJobProgress(jobId, {
+      state: 'failed',
+      error_message: 'Job cancelled by user',
+      error_details: { cancelled: true, cancelled_at: new Date().toISOString() }
+    });
+  }
+
+  static async resetStuckJobs(projectId: string): Promise<number> {
+    console.log(`Resetting stuck jobs for project ${projectId}`);
+    
+    // Find jobs that have been in pending/thinking/analyzing state for more than 10 minutes
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    
+    const { data: stuckJobs, error: fetchError } = await supabase
+      .from('knowledge_processing_jobs')
+      .select('id')
+      .eq('project_id', projectId)
+      .in('state', ['pending', 'thinking', 'analyzing', 'extracting'])
+      .lt('started_at', tenMinutesAgo);
+
+    if (fetchError) throw fetchError;
+
+    if (stuckJobs && stuckJobs.length > 0) {
+      console.log(`Found ${stuckJobs.length} stuck jobs, resetting...`);
+      
+      const { error: updateError } = await supabase
+        .from('knowledge_processing_jobs')
+        .update({
+          state: 'failed',
+          error_message: 'Job timed out - exceeded processing time limit',
+          error_details: { timeout: true, reset_at: new Date().toISOString() },
+          completed_at: new Date().toISOString()
+        })
+        .in('id', stuckJobs.map(job => job.id));
+
+      if (updateError) throw updateError;
+      
+      return stuckJobs.length;
+    }
+    
+    return 0;
   }
 
   static async getProjectAnalysisStatus(projectId: string): Promise<AnalysisStatus> {
@@ -183,5 +231,11 @@ export class ProcessingJobService {
         error_details: { error: error instanceof Error ? error.message : 'Unknown error' }
       });
     }
+  }
+
+  static async estimateProcessingTime(wordCount: number): Promise<number> {
+    // Estimate processing time based on word count
+    // Roughly 1-2 seconds per 100 words for analysis
+    return Math.max(10, Math.ceil(wordCount / 100) * 1.5);
   }
 }
