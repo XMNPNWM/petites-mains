@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface GoogleAIResponse {
@@ -28,12 +27,11 @@ export class GoogleAIService {
   private static readonly RATE_LIMIT_DELAY = 2000; // 2 seconds between requests
 
   /**
-   * Get API key from environment
+   * Get API key from Supabase secrets
    */
   private static async getApiKey(): Promise<string> {
-    console.log('🔑 Fetching Google AI API key...');
+    console.log('🔑 Fetching Google AI API key from Supabase secrets...');
     
-    // Try to get from Supabase secrets first
     try {
       const { data, error } = await supabase.functions.invoke('get-secret', {
         body: { name: 'GOOGLE_AI_API_KEY' }
@@ -43,19 +41,18 @@ export class GoogleAIService {
         console.log('✅ API key retrieved from Supabase secrets');
         return data.value;
       }
+      
+      console.error('❌ Failed to retrieve API key from Supabase secrets:', error);
     } catch (error) {
-      console.warn('⚠️ Could not fetch API key from Supabase secrets:', error);
+      console.error('❌ Error calling Supabase secrets function:', error);
     }
 
-    // Fallback to environment variable
-    const apiKey = process.env.GOOGLE_AI_API_KEY;
-    if (!apiKey) {
-      console.error('❌ Google AI API key not configured');
-      throw new Error('Google AI API key not configured. Please add GOOGLE_AI_API_KEY to your environment or Supabase secrets.');
-    }
-    
-    console.log('✅ API key retrieved from environment');
-    return apiKey;
+    // Provide clear error message to guide user
+    console.error('❌ Google AI API key not configured in Supabase secrets');
+    throw new Error(
+      'Google AI API key not found. Please configure GOOGLE_AI_API_KEY in your Supabase project secrets. ' +
+      'Go to your Supabase dashboard > Settings > Edge Functions > Secrets to add the key.'
+    );
   }
 
   /**
