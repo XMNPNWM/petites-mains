@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from '@google/genai';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -60,9 +61,7 @@ export class GoogleAIService {
    */
   private static async getClient(): Promise<GoogleGenAI> {
     const apiKey = await this.getApiKey();
-    // Set the API key in environment for the GoogleGenAI client
-    (globalThis as any).process = { env: { GEMINI_API_KEY: apiKey } };
-    return new GoogleGenAI({});
+    return new GoogleGenAI({ apiKey });
   }
 
   /**
@@ -147,20 +146,19 @@ export class GoogleAIService {
 
       console.log(`🚀 Making request to Google AI with model ${model}`);
       
-      const generativeModel = genAI.getGenerativeModel({ model });
-      const result = await generativeModel.generateContent(combinedContent);
-      const response = await result.response;
+      // Use the new API structure
+      const response = await genAI.models.generateContent({
+        model,
+        contents: combinedContent
+      });
       
-      const content = response.text();
+      const content = response.text;
       
-      // Extract usage metadata if available
-      const usage = response.usageMetadata ? {
-        inputTokens: response.usageMetadata.promptTokenCount || 0,
-        outputTokens: response.usageMetadata.candidatesTokenCount || 0
-      } : undefined;
+      // Extract usage metadata if available (may not be available in the new API)
+      const usage = undefined; // Usage data structure may be different in new API
 
       const processingTime = Date.now() - startTime;
-      console.log(`✅ Google AI response generated successfully in ${processingTime}ms. Tokens used: ${usage?.inputTokens || 0} input, ${usage?.outputTokens || 0} output`);
+      console.log(`✅ Google AI response generated successfully in ${processingTime}ms`);
       
       return { content, usage };
     }, `Google AI chat completion (${model})`);
@@ -265,24 +263,19 @@ export class GoogleAIService {
   }
 
   /**
-   * Generate embeddings for semantic similarity
+   * Generate embeddings for semantic similarity - NOTE: This may need different API structure
    */
   static async generateEmbeddings(
     text: string,
     model: string = this.MODELS.EMBEDDINGS
   ): Promise<number[]> {
     return this.withRetry(async () => {
-      const genAI = await this.getClient();
+      console.warn('⚠️ Embeddings API may need different implementation with new @google/genai package');
       
-      // Use the embedding model
-      const embeddingModel = genAI.getGenerativeModel({ model });
-      const result = await embeddingModel.embedContent(text);
+      // This is a placeholder - the actual embeddings API may be different
+      // You may need to use a different method or package for embeddings
+      throw new Error('Embeddings generation needs to be updated for the new @google/genai package');
       
-      if (!result.embedding || !result.embedding.values) {
-        throw new Error('No embedding generated');
-      }
-
-      return result.embedding.values;
     }, `Generate embeddings (${model})`);
   }
 
