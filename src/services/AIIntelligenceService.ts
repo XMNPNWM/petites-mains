@@ -42,14 +42,14 @@ export class AIIntelligenceService {
   }
 
   /**
-   * Extract knowledge from all chunks in a project
+   * Extract knowledge from all chunks in a project using Google AI
    */
   static async extractProjectKnowledge(
     projectId: string,
     config: Partial<KnowledgeExtractionConfig> = {}
   ): Promise<ExtractionResult> {
     const finalConfig = { ...this.DEFAULT_CONFIG, ...config };
-    console.log('Starting project knowledge extraction:', projectId);
+    console.log('Starting project knowledge extraction with Google AI:', projectId);
 
     try {
       // Get all semantic chunks for the project
@@ -78,12 +78,12 @@ export class AIIntelligenceService {
       // Convert database chunks to proper SemanticChunk objects
       const semanticChunks = this.convertDbChunksToSemanticChunks(chunks);
 
-      // Process chunks in batches
+      // Process chunks in batches using Google AI
       for (let i = 0; i < semanticChunks.length; i += finalConfig.batchSize) {
         const batch = semanticChunks.slice(i, i + finalConfig.batchSize);
         
         try {
-          const batchResult = await this.processBatch(batch, projectId, finalConfig);
+          const batchResult = await this.processBatchWithGoogleAI(batch, projectId, finalConfig);
           totalExtractions += batchResult.extractionsCount;
           totalConfidence += batchResult.totalConfidence;
         } catch (error) {
@@ -129,14 +129,14 @@ export class AIIntelligenceService {
   }
 
   /**
-   * Extract knowledge from a single chapter
+   * Extract knowledge from a single chapter using Google AI
    */
   static async extractChapterKnowledge(
     chapterId: string,
     config: Partial<KnowledgeExtractionConfig> = {}
   ): Promise<ExtractionResult> {
     const finalConfig = { ...this.DEFAULT_CONFIG, ...config };
-    console.log('Starting chapter knowledge extraction:', chapterId);
+    console.log('Starting chapter knowledge extraction with Google AI:', chapterId);
 
     try {
       // Get semantic chunks for the chapter
@@ -159,7 +159,7 @@ export class AIIntelligenceService {
 
       const startTime = Date.now();
       const semanticChunks = this.convertDbChunksToSemanticChunks(chunks);
-      const batchResult = await this.processBatch(semanticChunks, chunks[0].project_id, finalConfig);
+      const batchResult = await this.processBatchWithGoogleAI(semanticChunks, chunks[0].project_id, finalConfig);
       const processingTime = Date.now() - startTime;
 
       return {
@@ -202,7 +202,7 @@ export class AIIntelligenceService {
   /**
    * Process a batch of semantic chunks using Google AI
    */
-  private static async processBatch(
+  private static async processBatchWithGoogleAI(
     chunks: SemanticChunk[],
     projectId: string,
     config: KnowledgeExtractionConfig
@@ -216,11 +216,12 @@ export class AIIntelligenceService {
     let totalExtractions = 0;
     let totalConfidence = 0;
 
-    // Process each extraction type using Google AI
+    // Process each extraction type using Google AI Service
     for (const extractionType of config.extractionTypes) {
       try {
-        console.log(`Processing ${extractionType} extraction for ${chunks.length} chunks`);
+        console.log(`Processing ${extractionType} extraction with Google AI for ${chunks.length} chunks`);
         
+        // Use GoogleAIService for extraction
         const extractedData = await GoogleAIService.extractKnowledge(
           combinedContent,
           extractionType,
@@ -236,7 +237,7 @@ export class AIIntelligenceService {
         totalConfidence += confidenceSum;
 
       } catch (error) {
-        console.error(`Error processing ${extractionType}:`, error);
+        console.error(`Error processing ${extractionType} with Google AI:`, error);
         throw error;
       }
     }

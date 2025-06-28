@@ -17,14 +17,14 @@ export interface GoogleAIStreamResponse {
 export class GoogleAIService {
   private static readonly BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
   private static readonly MODELS = {
-    CHAT: 'gemini-2.0-flash-exp',
-    ANALYSIS: 'gemini-1.5-pro',
+    CHAT: 'gemini-2.5-flash-lite',
+    ANALYSIS: 'gemini-2.5-flash',
     CONTENT_ENHANCEMENT: 'gemini-1.5-pro',
     EMBEDDINGS: 'text-embedding-004'
   };
 
   /**
-   * Get API key from Supabase secrets
+   * Get API key from environment
    */
   private static async getApiKey(): Promise<string> {
     const apiKey = process.env.GOOGLE_AI_API_KEY;
@@ -99,7 +99,7 @@ export class GoogleAIService {
   }
 
   /**
-   * Knowledge extraction and analysis
+   * Knowledge extraction and analysis using gemini-2.5-flash
    */
   static async extractKnowledge(
     content: string,
@@ -138,7 +138,7 @@ export class GoogleAIService {
   }
 
   /**
-   * Content enhancement
+   * Content enhancement using gemini-1.5-pro
    */
   static async enhanceContent(
     originalContent: string,
@@ -166,5 +166,84 @@ export class GoogleAIService {
       console.error('Error enhancing content:', error);
       throw error;
     }
+  }
+
+  /**
+   * Generate embeddings for semantic similarity
+   */
+  static async generateEmbeddings(
+    text: string,
+    model: string = this.MODELS.EMBEDDINGS
+  ): Promise<number[]> {
+    try {
+      const apiKey = await this.getApiKey();
+      
+      const response = await fetch(`${this.BASE_URL}/models/${model}:embedContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: `models/${model}`,
+          content: {
+            parts: [{ text }]
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Google AI Embeddings API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.embedding || !data.embedding.values) {
+        throw new Error('No embedding generated');
+      }
+
+      return data.embedding.values;
+    } catch (error) {
+      console.error('Error generating embeddings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Batch processing for multiple texts
+   */
+  static async batchProcessTexts(
+    texts: string[],
+    operation: 'extract' | 'enhance' | 'embed',
+    options?: any
+  ): Promise<any[]> {
+    const results = [];
+    
+    for (const text of texts) {
+      try {
+        let result;
+        switch (operation) {
+          case 'extract':
+            result = await this.extractKnowledge(text, options?.extractionType || 'comprehensive', options?.existingKnowledge);
+            break;
+          case 'enhance':
+            result = await this.enhanceContent(text, options?.enhancementType || 'comprehensive', options?.userPreferences);
+            break;
+          case 'embed':
+            result = await this.generateEmbeddings(text);
+            break;
+          default:
+            throw new Error(`Unknown operation: ${operation}`);
+        }
+        results.push({ success: true, data: result });
+      } catch (error) {
+        console.error(`Error processing text in batch:`, error);
+        results.push({ success: false, error: error.message });
+      }
+      
+      // Rate limiting delay
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    return results;
   }
 }
