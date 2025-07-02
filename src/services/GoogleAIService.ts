@@ -1,132 +1,80 @@
-import { AIClient } from './ai/core/AIClient';
-import { AIConfigManager } from './ai/core/AIConfigManager';
-import { AIErrorHandler } from './ai/core/AIErrorHandler';
 
-// Re-export types for backward compatibility
-export interface GoogleAIResponse {
-  content: string;
-  usage?: {
-    inputTokens: number;
-    outputTokens: number;
-  };
-}
+import { GoogleGenerativeAI } from '@google/genai';
 
-export interface GoogleAIStreamResponse {
-  content: string;
-  isComplete: boolean;
-}
+class GoogleAIServiceClass {
+  private client: GoogleGenerativeAI | null = null;
+  private model: any = null;
 
-/**
- * Legacy GoogleAIService - now acts as a facade over the new AI architecture
- * @deprecated Use AIChatService or AIKnowledgeService directly
- */
-export class GoogleAIService {
-  private static aiClient = AIClient.getInstance();
+  private async initialize() {
+    if (this.client) return;
 
-  // Keep model constants for backward compatibility
-  static readonly MODELS = AIConfigManager.MODELS;
-
-  /**
-   * @deprecated Use AIChatService.generateResponse instead
-   */
-  static async generateChatResponse(
-    messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
-    context?: string,
-    model: string = AIConfigManager.MODELS.CHAT
-  ): Promise<GoogleAIResponse> {
-    console.warn('⚠️ GoogleAIService.generateChatResponse is deprecated. Use AIChatService.generateResponse instead.');
-    
-    return AIErrorHandler.withRetry(async () => {
-      // Validate input
-      if (!messages || messages.length === 0) {
-        throw new Error('No messages provided for chat completion');
-      }
-
-      // Format messages for Gemini API - combine all messages into a single prompt
-      let combinedContent = '';
-      
-      // Add context if provided
-      if (context) {
-        combinedContent += `Context: ${context}\n\n`;
-      }
-      
-      // Add system message if present
-      const systemMessage = messages.find(msg => msg.role === 'system');
-      if (systemMessage) {
-        combinedContent += `Instructions: ${systemMessage.content}\n\n`;
-      }
-      
-      // Add conversation history
-      messages.filter(msg => msg.role !== 'system').forEach(msg => {
-        const roleLabel = msg.role === 'user' ? 'User' : 'Assistant';
-        combinedContent += `${roleLabel}: ${msg.content}\n\n`;
+    try {
+      // Get API key from Supabase edge function
+      const response = await fetch('/api/get-secret', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: 'GOOGLE_AI_API_KEY' })
       });
 
-      const response = await this.aiClient.generateContent(model, combinedContent);
+      if (!response.ok) {
+        throw new Error('Failed to get Google AI API key');
+      }
+
+      const { value: apiKey } = await response.json();
       
-      return { content: response.content, usage: response.usage };
-    }, `Google AI chat completion (${model})`);
-  }
+      if (!apiKey) {
+        throw new Error('Google AI API key not configured');
+      }
 
-  /**
-   * @deprecated Use AIKnowledgeService.extractKnowledge instead
-   */
-  static async extractKnowledge(
-    content: string,
-    extractionType: 'characters' | 'relationships' | 'plot_threads' | 'timeline_events' | 'comprehensive',
-    existingKnowledge?: any
-  ): Promise<any> {
-    console.warn('⚠️ GoogleAIService.extractKnowledge is deprecated. Use AIKnowledgeService.extractKnowledge instead.');
-    
-    // Import here to avoid circular dependency
-    const { AIKnowledgeService } = await import('./ai/knowledge/AIKnowledgeService');
-    return AIKnowledgeService.extractKnowledge(content, extractionType, existingKnowledge);
-  }
-
-  /**
-   * @deprecated Use AIKnowledgeService.enhanceContent instead
-   */
-  static async enhanceContent(
-    originalContent: string,
-    enhancementType: 'grammar' | 'style' | 'clarity' | 'engagement' | 'comprehensive',
-    userPreferences?: any
-  ): Promise<GoogleAIResponse> {
-    console.warn('⚠️ GoogleAIService.enhanceContent is deprecated. Use AIKnowledgeService.enhanceContent instead.');
-    
-    // Import here to avoid circular dependency
-    const { AIKnowledgeService } = await import('./ai/knowledge/AIKnowledgeService');
-    const result = await AIKnowledgeService.enhanceContent(originalContent, enhancementType, userPreferences);
-    
-    return { content: result.content, usage: result.usage };
-  }
-
-  /**
-   * @deprecated Embeddings generation needs to be updated for the new @google/genai package
-   */
-  static async generateEmbeddings(
-    text: string,
-    model: string = AIConfigManager.MODELS.EMBEDDINGS
-  ): Promise<number[]> {
-    console.warn('⚠️ Embeddings API may need different implementation with new @google/genai package');
-    throw new Error('Embeddings generation needs to be updated for the new @google/genai package');
-  }
-
-  /**
-   * @deprecated Use AIKnowledgeService.batchProcessTexts instead
-   */
-  static async batchProcessTexts(
-    texts: string[],
-    operation: 'extract' | 'enhance' | 'embed',
-    options?: any
-  ): Promise<any[]> {
-    console.warn('⚠️ GoogleAIService.batchProcessTexts is deprecated. Use AIKnowledgeService.batchProcessTexts instead.');
-    
-    if (operation === 'embed') {
-      throw new Error('Embeddings generation is not yet supported');
+      this.client = new GoogleGenerativeAI(apiKey);
+      this.model = this.client.getGenerativeModel({ model: 'gemini-pro' });
+      
+      console.log('Google AI Service initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize Google AI Service:', error);
+      throw error;
     }
+  }
 
-    // Import here to avoid circular dependency
-    const { AIKnowledgeService } = await import('./ai/knowledge/AIKnowledgeService');
-    return AIKnowledgeService.batchProcessTexts(texts, operation, options);
+  async enhanceContent(content: string): Promise<string> {
+    try {
+      await this.initialize();
+
+      if (!this.model) {
+        throw new Error('Google AI model not initialized');
+      }
+
+      const prompt = `Please enhance the following text by improving grammar, style, and readability while preserving the original meaning and tone. Make the text more engaging and polished:
+
+${content}
+
+Enhanced version:`;
+
+      const result = await this.model.generateContent([prompt]);
+      const response = await result.response;
+      const enhancedText = response.text();
+
+      if (!enhancedText || enhancedText.trim().length === 0) {
+        throw new Error('Empty response from AI service');
+      }
+
+      return enhancedText.trim();
+    } catch (error) {
+      console.error('Error enhancing content with Google AI:', error);
+      throw new Error('Content enhancement failed: ' + (error as Error).message);
+    }
+  }
+
+  async isAvailable(): Promise<boolean> {
+    try {
+      await this.initialize();
+      return this.model !== null;
+    } catch {
+      return false;
+    }
   }
 }
+
+export const GoogleAIService = new GoogleAIServiceClass();

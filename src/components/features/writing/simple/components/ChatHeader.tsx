@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, Minimize2, Maximize2, X } from 'lucide-react';
+import { MessageSquare, Minimize2, Maximize2, X, Trash2 } from 'lucide-react';
 
 interface ChatHeaderProps {
   selectedText?: string;
@@ -9,6 +9,7 @@ interface ChatHeaderProps {
   onMouseDown: (e: React.MouseEvent) => void;
   onMinimize: () => void;
   onClose: () => void;
+  onDelete?: () => void;
 }
 
 const ChatHeader = ({ 
@@ -16,7 +17,8 @@ const ChatHeader = ({
   isMinimized, 
   onMouseDown, 
   onMinimize, 
-  onClose 
+  onClose,
+  onDelete
 }: ChatHeaderProps) => {
   return (
     <div 
@@ -34,10 +36,28 @@ const ChatHeader = ({
       </div>
       
       <div className="flex items-center space-x-1">
+        {onDelete && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="h-8 w-8 p-0 hover:bg-red-100"
+          >
+            <Trash2 className="w-4 h-4 text-red-600" />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"
-          onClick={onMinimize}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onMinimize();
+          }}
           className="h-8 w-8 p-0 hover:bg-blue-100"
         >
           {isMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
@@ -45,7 +65,11 @@ const ChatHeader = ({
         <Button
           variant="ghost"
           size="sm"
-          onClick={onClose}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+          }}
           className="h-8 w-8 p-0 hover:bg-red-100"
         >
           <X className="w-4 h-4" />

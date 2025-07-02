@@ -35,7 +35,7 @@ const SimpleChatPopup = ({
   isMinimized,
   initialMessages = []
 }: SimpleChatPopupProps) => {
-  const { updatePopup, closePopup } = useSimplePopups();
+  const { updatePopup, closePopup, deletePopup } = useSimplePopups();
   
   const handlePositionUpdate = (popupId: string, newPosition: { x: number; y: number }) => {
     updatePopup(popupId, { position: newPosition });
@@ -62,6 +62,10 @@ const SimpleChatPopup = ({
 
   const handleClose = () => {
     closePopup(id);
+  };
+
+  const handleDelete = () => {
+    deletePopup(id);
   };
 
   if (isMinimized) {
@@ -94,6 +98,7 @@ const SimpleChatPopup = ({
             onMouseDown={handleMouseDown}
             onMinimize={handleMinimize}
             onClose={handleClose}
+            onDelete={handleDelete}
           />
         </div>
 

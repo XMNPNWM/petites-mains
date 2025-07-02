@@ -5,6 +5,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import RefinementSpaceHeader from './RefinementSpaceHeader';
 import RefinementMainPanels from './components/RefinementMainPanels';
 import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator';
+import { useRefinementSpace } from '@/hooks/useRefinementSpace';
 
 interface RefinementSpaceLayoutProps {
   projectId: string;
@@ -14,17 +15,40 @@ interface RefinementSpaceLayoutProps {
 
 const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpaceLayoutProps) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const {
+    project,
+    chapters,
+    currentChapter,
+    refinementData,
+    handleChapterSelect,
+    handleContentChange,
+    handleChangeDecision
+  } = useRefinementSpace(projectId);
 
   const handleAnalyzeChapter = useCallback(async () => {
+    if (!currentChapter) return;
+    
     try {
       setIsAnalyzing(true);
-      await SmartAnalysisOrchestrator.analyzeChapter(projectId, chapterId);
+      await SmartAnalysisOrchestrator.analyzeChapter(projectId, currentChapter.id);
     } catch (error) {
       console.error('Error analyzing chapter:', error);
     } finally {
       setIsAnalyzing(false);
     }
-  }, [projectId, chapterId]);
+  }, [projectId, currentChapter]);
+
+  // Set initial chapter if available
+  useEffect(() => {
+    if (chapters.length > 0 && chapterId && !currentChapter) {
+      const targetChapter = chapters.find(c => c.id === chapterId);
+      if (targetChapter) {
+        handleChapterSelect(targetChapter);
+      } else if (chapters.length > 0) {
+        handleChapterSelect(chapters[0]);
+      }
+    }
+  }, [chapters, chapterId, currentChapter, handleChapterSelect]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -42,6 +66,15 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
             <RefinementMainPanels 
               projectId={projectId}
               chapterId={chapterId}
+              chapters={chapters}
+              currentChapter={currentChapter}
+              refinementData={refinementData}
+              onChapterSelect={handleChapterSelect}
+              onContentChange={handleContentChange}
+              onChangeDecision={handleChangeDecision}
+              isEnhancing={isAnalyzing}
+              onEnhanceChapter={handleAnalyzeChapter}
+              hasEnhancedContent={!!refinementData?.enhanced_content && refinementData.enhanced_content !== refinementData.original_content}
             />
           </ResizablePanel>
         </ResizablePanelGroup>

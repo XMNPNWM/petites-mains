@@ -52,7 +52,7 @@ const SimplePopupContext = createContext<{
 export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [livePopups, setLivePopups] = useState<SimplePopup[]>([]);
   const [timelineVersion, setTimelineVersion] = useState(0);
-  const { saveChat } = useChatDatabase();
+  const { saveChat, loadChatById } = useChatDatabase();
   const { goToLine } = usePopupNavigation();
   const { createPopupData } = usePopupCreation();
 
@@ -121,20 +121,51 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
     chapterId?: string,
     selectedText?: string
   ) => {
-    // Check if already open
-    const existingPopup = livePopups.find(popup => popup.id === id);
-    if (existingPopup && existingPopup.status === 'open') {
-      return;
-    }
+    try {
+      // Check if already open to prevent duplication
+      const existingPopup = livePopups.find(popup => popup.id === id && popup.status === 'open');
+      if (existingPopup) {
+        console.log('Popup already open:', id);
+        return;
+      }
 
-    // Create or reopen popup
-    if (existingPopup) {
-      updatePopup(id, { status: 'open', position });
-    } else {
-      // This would typically load from database, but for now create new
-      await createPopup(type, position, projectId, chapterId, selectedText);
+      // Load existing popup from database
+      const dbPopup = await loadChatById(id);
+      if (dbPopup) {
+        console.log('Loaded popup from database:', dbPopup);
+        
+        // Convert database popup to SimplePopup format
+        const reopenedPopup: SimplePopup = {
+          id: dbPopup.id,
+          type: dbPopup.type as 'comment' | 'chat',
+          position: dbPopup.position,
+          projectId: dbPopup.projectId,
+          chapterId: dbPopup.chapterId,
+          selectedText: dbPopup.selectedText?.text || null,
+          lineNumber: dbPopup.lineNumber || null,
+          textPosition: dbPopup.selectedText?.startOffset || null,
+          isMinimized: dbPopup.isMinimized,
+          createdAt: new Date(dbPopup.createdAt),
+          messages: dbPopup.messages || [],
+          status: 'open'
+        };
+
+        // Remove any existing closed version and add the reopened one
+        setLivePopups(prev => {
+          const filtered = prev.filter(popup => popup.id !== id);
+          return [...filtered, reopenedPopup];
+        });
+        
+        setTimelineVersion(prev => prev + 1);
+      } else {
+        console.log('Popup not found in database, creating new one');
+        // If not found in database, create a new popup
+        await createPopup(type, position, projectId, chapterId, selectedText);
+      }
+    } catch (error) {
+      console.error('Error reopening popup:', error);
     }
-  }, [livePopups, updatePopup, createPopup]);
+  }, [livePopups, createPopup, loadChatById]);
 
   const sendMessageWithHashVerification = useCallback(async (
     popupId: string,
