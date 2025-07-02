@@ -81,7 +81,7 @@ export class ContextAssembler {
     return (data || []).map(char => ({
       name: char.name,
       description: char.description,
-      traits: char.details?.traits || [],
+      traits: this.extractTraitsFromDetails(char.details),
       lastSeen: char.last_seen_at
     }));
   }
@@ -101,7 +101,7 @@ export class ContextAssembler {
     return (data || []).map(thread => ({
       name: thread.thread_name,
       status: thread.thread_status || 'active',
-      keyEvents: Array.isArray(thread.key_events) ? thread.key_events : []
+      keyEvents: this.extractKeyEventsFromJson(thread.key_events)
     }));
   }
 
@@ -163,5 +163,19 @@ export class ContextAssembler {
       nextChapter: nextChapter?.title,
       chapterNumber: chapter.order_index + 1
     };
+  }
+
+  private extractTraitsFromDetails(details: any): string[] {
+    if (!details || typeof details !== 'object') return [];
+    if (Array.isArray(details.traits)) return details.traits;
+    return [];
+  }
+
+  private extractKeyEventsFromJson(keyEvents: any): string[] {
+    if (!keyEvents) return [];
+    if (Array.isArray(keyEvents)) {
+      return keyEvents.map(event => typeof event === 'string' ? event : String(event));
+    }
+    return [];
   }
 }

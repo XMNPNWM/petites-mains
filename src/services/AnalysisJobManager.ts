@@ -38,9 +38,9 @@ export class AnalysisJobManager {
     return {
       ...data,
       job_type: data.job_type as ProcessingJob['job_type'],
-      processing_options: data.processing_options || {},
-      results_summary: data.results_summary || {},
-      error_details: data.error_details
+      processing_options: (data.processing_options as Record<string, any>) || {},
+      results_summary: (data.results_summary as Record<string, any>) || {},
+      error_details: data.error_details as Record<string, any> | undefined
     };
   }
 
@@ -106,9 +106,9 @@ export class AnalysisJobManager {
         currentJob = {
           ...latestJob,
           job_type: latestJob.job_type as ProcessingJob['job_type'],
-          processing_options: latestJob.processing_options || {},
-          results_summary: latestJob.results_summary || {},
-          error_details: latestJob.error_details
+          processing_options: (latestJob.processing_options as Record<string, any>) || {},
+          results_summary: (latestJob.results_summary as Record<string, any>) || {},
+          error_details: latestJob.error_details as Record<string, any> | undefined
         };
       }
 

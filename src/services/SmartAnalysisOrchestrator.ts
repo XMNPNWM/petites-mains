@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { AIKnowledgeService } from './ai/knowledge/AIKnowledgeService';
 import { EnhancedContentHashService } from './EnhancedContentHashService';
@@ -217,7 +218,11 @@ export class SmartAnalysisOrchestrator {
       .order('confidence_score', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    
+    return (data || []).map(item => ({
+      ...item,
+      details: (item.details as Record<string, any>) || {}
+    }));
   }
 
   /**
@@ -232,7 +237,11 @@ export class SmartAnalysisOrchestrator {
       .order('confidence_score', { ascending: true });
 
     if (error) throw error;
-    return data || [];
+    
+    return (data || []).map(item => ({
+      ...item,
+      details: (item.details as Record<string, any>) || {}
+    }));
   }
 
   // Private helper methods
@@ -283,8 +292,7 @@ export class SmartAnalysisOrchestrator {
       const confidenceScore = char.confidence_score || 0.5;
       const isLowConfidence = confidenceScore < 0.6;
       
-      const knowledgeItem: KnowledgeBase = {
-        id: '',
+      const knowledgeItem: Omit<KnowledgeBase, 'id'> = {
         project_id: projectId,
         name: char.name,
         category: 'character',
@@ -317,7 +325,10 @@ export class SmartAnalysisOrchestrator {
         continue;
       }
 
-      knowledge.push(data);
+      knowledge.push({
+        ...data,
+        details: (data.details as Record<string, any>) || {}
+      });
       totalConfidence += confidenceScore;
       dependenciesFound++;
     }

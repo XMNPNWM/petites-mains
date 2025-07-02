@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Brain, AlertTriangle, CheckCircle, Loader2, RefreshCw } from 'lucide-react';
-import { KnowledgeExtractionService } from '@/services/KnowledgeExtractionService';
-import { ProcessingJobService } from '@/services/ProcessingJobService';
+import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator';
+import { AnalysisJobManager } from '@/services/AnalysisJobManager';
 import { KnowledgeBase, AnalysisStatus } from '@/types/knowledge';
 
 interface AIBrainPanelProps {
@@ -22,13 +21,15 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
     lowConfidenceFactsCount: 0
   });
   const [isLoading, setIsLoading] = useState(true);
+  
+  const jobManager = new AnalysisJobManager();
 
   const fetchKnowledge = async () => {
     try {
       const [allKnowledge, flagged, status] = await Promise.all([
-        KnowledgeExtractionService.getProjectKnowledge(projectId),
-        KnowledgeExtractionService.getFlaggedKnowledge(projectId),
-        ProcessingJobService.getProjectAnalysisStatus(projectId)
+        SmartAnalysisOrchestrator.getProjectKnowledge(projectId),
+        SmartAnalysisOrchestrator.getFlaggedKnowledge(projectId),
+        jobManager.getProjectAnalysisStatus(projectId)
       ]);
 
       setKnowledge(allKnowledge);
@@ -44,7 +45,7 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
   const handleAnalyzeProject = async () => {
     try {
       setAnalysisStatus(prev => ({ ...prev, isProcessing: true }));
-      await KnowledgeExtractionService.extractKnowledgeFromProject(projectId);
+      await SmartAnalysisOrchestrator.analyzeProject(projectId);
       
       // Refresh data after a short delay
       setTimeout(fetchKnowledge, 1000);

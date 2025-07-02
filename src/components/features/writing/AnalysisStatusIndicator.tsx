@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, AlertCircle, Loader2, Clock, XCircle, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { ProcessingJobService } from '@/services/ProcessingJobService';
-import { KnowledgeExtractionService } from '@/services/KnowledgeExtractionService';
+import { AnalysisJobManager } from '@/services/AnalysisJobManager';
+import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator';
 import { AnalysisStatus } from '@/types/knowledge';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,11 +22,13 @@ const AnalysisStatusIndicator = ({ projectId }: AnalysisStatusIndicatorProps) =>
   });
   const [showTooltip, setShowTooltip] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  
+  const jobManager = new AnalysisJobManager();
 
   const fetchStatus = async () => {
     try {
       console.log('🔄 Fetching analysis status for project:', projectId);
-      const analysisStatus = await ProcessingJobService.getProjectAnalysisStatus(projectId);
+      const analysisStatus = await jobManager.getProjectAnalysisStatus(projectId);
       setStatus(analysisStatus);
       console.log('📊 Status updated:', {
         isProcessing: analysisStatus.isProcessing,
@@ -64,7 +65,7 @@ const AnalysisStatusIndicator = ({ projectId }: AnalysisStatusIndicatorProps) =>
     
     try {
       console.log('🚫 Cancelling analysis from indicator:', status.currentJob.id);
-      await ProcessingJobService.cancelJob(status.currentJob.id);
+      await jobManager.cancelJob(status.currentJob.id);
       
       toast({
         title: "Analysis Cancelled",
@@ -89,14 +90,8 @@ const AnalysisStatusIndicator = ({ projectId }: AnalysisStatusIndicatorProps) =>
       setIsRetrying(true);
       console.log('🔄 Retrying analysis from indicator for project:', projectId);
       
-      // Reset stuck jobs first
-      const resetCount = await ProcessingJobService.resetStuckJobs(projectId);
-      if (resetCount > 0) {
-        console.log(`✅ Reset ${resetCount} stuck jobs before retry`);
-      }
-      
       // Start new analysis
-      await KnowledgeExtractionService.extractKnowledgeFromProject(projectId);
+      await SmartAnalysisOrchestrator.analyzeProject(projectId);
       
       toast({
         title: "Analysis Restarted",
