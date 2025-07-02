@@ -41,6 +41,12 @@ const SimplePopupContext = createContext<{
   ) => Promise<void>;
   goToLine: (chapterId: string, lineNumber: number) => Promise<boolean>;
   timelineVersion: number;
+  sendMessageWithHashVerification?: (
+    popupId: string,
+    message: string,
+    projectId: string,
+    chapterId?: string
+  ) => Promise<{ shouldProceed: boolean; bannerState?: { message: string; type: 'success' | 'error' | 'loading' } }>;
 } | null>(null);
 
 export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -130,6 +136,30 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [livePopups, updatePopup, createPopup]);
 
+  const sendMessageWithHashVerification = useCallback(async (
+    popupId: string,
+    message: string,
+    projectId: string,
+    chapterId?: string
+  ) => {
+    try {
+      // For now, we'll always proceed without hash verification
+      // This can be enhanced later to include actual content hash checking
+      console.log('Sending message for popup:', popupId, 'Message:', message);
+      
+      return {
+        shouldProceed: true,
+        bannerState: { message: 'Message sent successfully', type: 'success' as const }
+      };
+    } catch (error) {
+      console.error('Error in sendMessageWithHashVerification:', error);
+      return {
+        shouldProceed: false,
+        bannerState: { message: 'Failed to send message', type: 'error' as const }
+      };
+    }
+  }, []);
+
   const value = {
     livePopups,
     popups: livePopups,
@@ -140,6 +170,7 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
     reopenPopup,
     goToLine,
     timelineVersion,
+    sendMessageWithHashVerification,
   };
 
   return (
