@@ -3,14 +3,13 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useRefinementSpace } from '@/hooks/useRefinementSpace';
 import { useNotifications } from '@/hooks/useNotifications';
-import RefinementSpaceHeader from '@/components/features/refinement/RefinementSpaceHeader';
 import RefinementSpaceLayout from '@/components/features/refinement/RefinementSpaceLayout';
 import FloatingNotificationContainer from '@/components/features/refinement/components/FloatingNotificationContainer';
 import { SimplePopupProvider } from '@/components/features/writing/simple/SimplePopupManager';
 import SimplePopupRenderer from '@/components/features/writing/simple/SimplePopupRenderer';
 
 const RefinementSpace = () => {
-  const { projectId } = useParams();
+  const { projectId, chapterId } = useParams();
   const { notifications, addNotification, removeNotification } = useNotifications();
   const {
     project,
@@ -27,7 +26,7 @@ const RefinementSpace = () => {
     refreshData
   } = useRefinementSpace(projectId);
 
-  if (!project) {
+  if (!project || !projectId || !chapterId) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
@@ -41,24 +40,10 @@ const RefinementSpace = () => {
   return (
     <SimplePopupProvider>
       <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
-        <RefinementSpaceHeader
-          project={project}
-          currentChapter={currentChapter}
-          onBackClick={handleBackClick}
-          onSave={handleSave}
-          isSaving={isSaving}
-          lastSaved={lastSaved}
-        />
         <RefinementSpaceLayout
-          projectId={projectId!}
-          chapters={chapters}
-          currentChapter={currentChapter}
-          refinementData={refinementData}
-          onChapterSelect={handleChapterSelect}
-          onContentChange={handleContentChange}
-          onChangeDecision={handleChangeDecision}
-          onRefresh={refreshData}
-          addNotification={addNotification}
+          projectId={projectId}
+          chapterId={chapterId}
+          onClose={handleBackClick}
         />
         <SimplePopupRenderer />
         <FloatingNotificationContainer 

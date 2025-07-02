@@ -24,12 +24,14 @@ interface Project {
 }
 
 interface RefinementSpaceHeaderProps {
-  project: Project;
-  currentChapter: Chapter | null;
+  project?: Project;
+  currentChapter?: Chapter | null;
   onBackClick: () => void;
   onSave?: () => void;
   isSaving?: boolean;
   lastSaved?: Date | null;
+  isAnalyzing?: boolean;
+  onAnalyze?: () => Promise<void>;
 }
 
 const RefinementSpaceHeader = ({ 
@@ -38,10 +40,12 @@ const RefinementSpaceHeader = ({
   onBackClick,
   onSave,
   isSaving = false,
-  lastSaved
+  lastSaved,
+  isAnalyzing = false,
+  onAnalyze
 }: RefinementSpaceHeaderProps) => {
   const [showExportDialog, setShowExportDialog] = React.useState(false);
-  const { chapters } = useProjectData(project.id);
+  const { chapters } = useProjectData(project?.id || '');
 
   return (
     <div className="bg-white border-b border-slate-200 px-6 py-4 flex-shrink-0 relative">
@@ -66,9 +70,31 @@ const RefinementSpaceHeader = ({
         </div>
 
         {/* Timeline Component */}
-        <ChronologicalTimeline projectId={project.id} />
+        {project && <ChronologicalTimeline projectId={project.id} />}
 
         <div className="flex items-center space-x-3">
+          {/* Analysis functionality */}
+          {onAnalyze && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onAnalyze}
+                disabled={isAnalyzing}
+                className="flex items-center space-x-2"
+              >
+                {isAnalyzing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                <span>{isAnalyzing ? 'Analyzing...' : 'Analyze'}</span>
+              </Button>
+              
+              <div className="h-6 w-px bg-slate-200" />
+            </>
+          )}
+
           {/* Save functionality */}
           {onSave && (
             <>
@@ -98,19 +124,21 @@ const RefinementSpaceHeader = ({
             </>
           )}
           
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowExportDialog(true)}
-            className="flex items-center space-x-2"
-          >
-            <Download className="w-4 h-4" />
-            <span>Export</span>
-          </Button>
+          {project && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowExportDialog(true)}
+              className="flex items-center space-x-2"
+            >
+              <Download className="w-4 h-4" />
+              <span>Export</span>
+            </Button>
+          )}
         </div>
       </div>
 
-      {showExportDialog && (
+      {showExportDialog && project && (
         <ExportDialog
           project={project}
           chapters={chapters}

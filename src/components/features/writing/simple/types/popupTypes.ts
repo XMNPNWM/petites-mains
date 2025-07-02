@@ -18,6 +18,9 @@ export interface SimplePopup {
   status: 'open' | 'closed' | 'minimized';
 }
 
+// Legacy type alias for backward compatibility
+export type Popup = SimplePopup;
+
 export interface PopupContextProps {
   livePopups: SimplePopup[];
   popups: SimplePopup[];

@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
@@ -28,7 +29,7 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
   return (
     <div className="h-screen flex flex-col bg-background">
       <RefinementSpaceHeader 
-        onClose={onClose}
+        onBackClick={onClose}
         isAnalyzing={isAnalyzing}
         onAnalyze={handleAnalyzeChapter}
       />

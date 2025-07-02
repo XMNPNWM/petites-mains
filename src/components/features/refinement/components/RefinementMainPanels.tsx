@@ -44,51 +44,55 @@ interface AIChange {
 type ChatType = 'comment' | 'chat';
 
 interface RefinementMainPanelsProps {
-  chapters: Chapter[];
-  currentChapter: Chapter | null;
-  refinementData: RefinementData | null;
-  onChapterSelect: (chapter: Chapter) => void;
-  onContentChange: (content: string) => void;
-  onChangeDecision: (changeId: string, decision: 'accepted' | 'rejected') => void;
-  onChangeClick: (change: AIChange) => void;
-  onImportToCreation: () => void;
-  scrollPositions: {
+  projectId: string;
+  chapterId: string;
+  chapters?: Chapter[];
+  currentChapter?: Chapter | null;
+  refinementData?: RefinementData | null;
+  onChapterSelect?: (chapter: Chapter) => void;
+  onContentChange?: (content: string) => void;
+  onChangeDecision?: (changeId: string, decision: 'accepted' | 'rejected') => void;
+  onChangeClick?: (change: AIChange) => void;
+  onImportToCreation?: () => void;
+  scrollPositions?: {
     original: number;
     enhanced: number;
     changeTracking: number;
   };
-  handleScrollSync: (
+  handleScrollSync?: (
     panelType: 'original' | 'enhanced' | 'changeTracking',
     scrollTop: number,
     scrollHeight: number,
     clientHeight: number
   ) => void;
-  highlightedRange: { start: number; end: number } | null;
-  onRightClickMenuClick: (type: ChatType, position: { x: number; y: number }, selectedText?: string, lineNumber?: number) => void;
-  metricsExpanded: boolean;
-  onMetricsToggle: () => void;
+  highlightedRange?: { start: number; end: number } | null;
+  onRightClickMenuClick?: (type: ChatType, position: { x: number; y: number }, selectedText?: string, lineNumber?: number) => void;
+  metricsExpanded?: boolean;
+  onMetricsToggle?: () => void;
   isEnhancing?: boolean;
   onEnhanceChapter?: () => void;
   hasEnhancedContent?: boolean;
 }
 
 const RefinementMainPanels = ({
-  chapters,
-  currentChapter,
-  refinementData,
-  onChapterSelect,
-  onContentChange,
-  onChangeDecision,
-  onChangeClick,
-  onImportToCreation,
-  scrollPositions,
-  handleScrollSync,
-  highlightedRange,
-  onRightClickMenuClick,
-  metricsExpanded,
-  onMetricsToggle,
+  projectId,
+  chapterId,
+  chapters = [],
+  currentChapter = null,
+  refinementData = null,
+  onChapterSelect = () => {},
+  onContentChange = () => {},
+  onChangeDecision = () => {},
+  onChangeClick = () => {},
+  onImportToCreation = () => {},
+  scrollPositions = { original: 0, enhanced: 0, changeTracking: 0 },
+  handleScrollSync = () => {},
+  highlightedRange = null,
+  onRightClickMenuClick = () => {},
+  metricsExpanded = false,
+  onMetricsToggle = () => {},
   isEnhancing = false,
-  onEnhanceChapter,
+  onEnhanceChapter = () => {},
   hasEnhancedContent = false
 }: RefinementMainPanelsProps) => {
   return (
