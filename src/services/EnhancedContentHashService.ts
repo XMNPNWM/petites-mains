@@ -34,41 +34,39 @@ export class EnhancedContentHashService {
 
     console.log(`🔄 Updating content hash for chapter ${chapterId}`);
 
-    // Try to use the new enhanced table first, fall back to old table
+    // Try to use the existing content_hashes table structure
     try {
-      // Check if enhanced hash record exists (new schema)
+      // Check if hash record exists
       const { data: existingHash } = await supabase
         .from('content_hashes')
         .select('*')
         .eq('chapter_id', chapterId)
         .single();
 
-      const enhancedHashData = {
+      const hashData = {
         chapter_id: chapterId,
-        original_content_hash: contentHash, // Map to old column name
-        dependencies: JSON.stringify(dependencies), // Store as JSON string for compatibility
-        affects: JSON.stringify(affects),
-        analysis_version: this.ANALYSIS_VERSION,
-        last_processed_at: new Date().toISOString(), // Map to old column name
+        original_content_hash: contentHash,
+        processing_version: this.ANALYSIS_VERSION,
+        last_processed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
 
       if (existingHash) {
         const { data, error } = await supabase
           .from('content_hashes')
-          .update(enhancedHashData)
+          .update(hashData)
           .eq('id', existingHash.id)
           .select()
           .single();
 
         if (error) throw error;
         
-        // Convert back to our interface format
+        // Convert to our interface format
         return {
           id: data.id,
           chapter_id: data.chapter_id,
           content_hash: data.original_content_hash,
-          dependencies: dependencies,
+          dependencies: dependencies, // Store locally for now
           affects: affects,
           last_processed: data.last_processed_at || new Date().toISOString(),
           analysis_version: data.processing_version || this.ANALYSIS_VERSION,
@@ -79,7 +77,7 @@ export class EnhancedContentHashService {
         const { data, error } = await supabase
           .from('content_hashes')
           .insert({
-            ...enhancedHashData,
+            ...hashData,
             created_at: new Date().toISOString()
           })
           .select()
@@ -87,7 +85,7 @@ export class EnhancedContentHashService {
 
         if (error) throw error;
         
-        // Convert back to our interface format
+        // Convert to our interface format
         return {
           id: data.id,
           chapter_id: data.chapter_id,
@@ -125,8 +123,8 @@ export class EnhancedContentHashService {
       id: data.id,
       chapter_id: data.chapter_id,
       content_hash: data.original_content_hash,
-      dependencies: data.dependencies ? JSON.parse(data.dependencies) : [],
-      affects: data.affects ? JSON.parse(data.affects) : [],
+      dependencies: [], // Initialize empty for now
+      affects: [],
       last_processed: data.last_processed_at || new Date().toISOString(),
       analysis_version: data.processing_version || '1.0',
       created_at: data.created_at,
