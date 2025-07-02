@@ -136,7 +136,11 @@ export class SmartAnalysisOrchestrator {
         throw error;
       }
 
-      return data || [];
+      // Convert database result to KnowledgeBase type with proper type casting
+      return (data || []).map(item => ({
+        ...item,
+        details: (item.details as Record<string, any>) || {}
+      })) as KnowledgeBase[];
     } catch (error) {
       console.error('Error in getProjectKnowledge:', error);
       return [];
@@ -157,7 +161,11 @@ export class SmartAnalysisOrchestrator {
         throw error;
       }
 
-      return data || [];
+      // Convert database result to KnowledgeBase type with proper type casting
+      return (data || []).map(item => ({
+        ...item,
+        details: (item.details as Record<string, any>) || {}
+      })) as KnowledgeBase[];
     } catch (error) {
       console.error('Error in getFlaggedKnowledge:', error);
       return [];
