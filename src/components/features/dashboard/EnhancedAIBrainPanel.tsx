@@ -5,8 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Brain, AlertTriangle, CheckCircle, Loader2, RefreshCw, Edit3, Save, X, Filter, Search, Flag, Trash2, Clock, XCircle, RotateCcw } from 'lucide-react';
-import { KnowledgeExtractionService } from '@/services/KnowledgeExtractionService';
-import { ProcessingJobService } from '@/services/ProcessingJobService';
+import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator';
+import { AnalysisJobManager } from '@/services/AnalysisJobManager';
 import { KnowledgeBase, AnalysisStatus } from '@/types/knowledge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -43,33 +43,32 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   const [isRetrying, setIsRetrying] = useState(false);
   const { toast } = useToast();
 
+  const jobManager = new AnalysisJobManager();
+
   const fetchKnowledge = async () => {
     try {
-      console.log('🔄 [DEBUG] fetchKnowledge called for project:', projectId);
+      console.log('🔄 [SMART] fetchKnowledge called for project:', projectId);
       
       const [allKnowledge, flagged, status] = await Promise.all([
-        KnowledgeExtractionService.getProjectKnowledge(projectId),
-        KnowledgeExtractionService.getFlaggedKnowledge(projectId),
-        ProcessingJobService.getProjectAnalysisStatus(projectId)
+        SmartAnalysisOrchestrator.getProjectKnowledge(projectId),
+        SmartAnalysisOrchestrator.getFlaggedKnowledge(projectId),
+        jobManager.getProjectAnalysisStatus(projectId)
       ]);
 
-      console.log('📊 [DEBUG] fetchKnowledge results:', {
+      console.log('📊 [SMART] fetchKnowledge results:', {
         allKnowledgeCount: allKnowledge.length,
         flaggedCount: flagged.length,
         statusIsProcessing: status.isProcessing,
-        statusHasErrors: status.hasErrors,
-        statusCurrentJobId: status.currentJob?.id,
-        statusCurrentJobState: status.currentJob?.state
+        statusHasErrors: status.hasErrors
       });
 
       setKnowledge(allKnowledge);
       setFlaggedKnowledge(flagged);
       setAnalysisStatus(status);
       
-      // Apply initial filtering
       applyFilters(allKnowledge);
     } catch (error) {
-      console.error('❌ [DEBUG] Error in fetchKnowledge:', error);
+      console.error('❌ [SMART] Error in fetchKnowledge:', error);
       toast({
         title: "Error",
         description: "Failed to load knowledge data",
@@ -150,50 +149,36 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   }, [analysisStatus.isProcessing]);
 
   const handleAnalyzeProject = async () => {
-    console.log('🚀 [DEBUG] handleAnalyzeProject called for project:', projectId);
+    console.log('🚀 [SMART] handleAnalyzeProject called for project:', projectId);
     
     try {
       setIsAnalyzing(true);
       setAnalysisStatus(prev => ({ ...prev, isProcessing: true }));
       
-      console.log('🔍 [DEBUG] About to call KnowledgeExtractionService.extractKnowledgeFromProject');
-      console.log('🔍 [DEBUG] Project ID:', projectId);
-      console.log('🔍 [DEBUG] Current analysis status before call:', analysisStatus);
+      console.log('🧠 [SMART] Starting SmartAnalysisOrchestrator.analyzeProject');
       
-      const result = await KnowledgeExtractionService.extractKnowledgeFromProject(projectId);
+      const result = await SmartAnalysisOrchestrator.analyzeProject(projectId);
       
-      console.log('✅ [DEBUG] KnowledgeExtractionService.extractKnowledgeFromProject returned:', result);
+      console.log('✅ [SMART] SmartAnalysisOrchestrator completed:', result);
       
       toast({
-        title: "Analysis Started",
-        description: "Project analysis has been initiated. You can monitor progress below.",
+        title: "Smart Analysis Complete",
+        description: `Analyzed ${result.processingStats.contentAnalyzed} items. Credits used: ${result.processingStats.creditsUsed}`,
       });
       
-      console.log('📝 [DEBUG] Toast notification sent, job ID:', result.jobId);
-      
-      // Start polling for updates immediately
-      console.log('🔄 [DEBUG] Starting immediate status fetch...');
-      setTimeout(() => {
-        console.log('⏰ [DEBUG] Executing delayed fetchKnowledge call');
-        fetchKnowledge();
-      }, 1000);
+      setTimeout(fetchKnowledge, 1000);
       
     } catch (error) {
-      console.error('❌ [DEBUG] Error in handleAnalyzeProject:', error);
-      console.error('❌ [DEBUG] Error type:', typeof error);
-      console.error('❌ [DEBUG] Error constructor:', error?.constructor?.name);
-      console.error('❌ [DEBUG] Error message:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('❌ [DEBUG] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('❌ [SMART] Error in handleAnalyzeProject:', error);
       
       setAnalysisStatus(prev => ({ ...prev, isProcessing: false }));
       
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to start project analysis",
+        title: "Analysis Error",
+        description: error instanceof Error ? error.message : "Smart analysis failed",
         variant: "destructive"
       });
     } finally {
-      console.log('🏁 [DEBUG] handleAnalyzeProject finally block executed');
       setIsAnalyzing(false);
     }
   };
@@ -201,22 +186,16 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   const handleRetryAnalysis = async () => {
     try {
       setIsRetrying(true);
-      console.log('🔄 Retrying analysis for project:', projectId);
-      
-      // Reset any stuck jobs first
-      const resetCount = await ProcessingJobService.resetStuckJobs(projectId);
-      if (resetCount > 0) {
-        console.log(`✅ Reset ${resetCount} stuck jobs before retry`);
-      }
+      console.log('🔄 [SMART] Retrying analysis for project:', projectId);
       
       await handleAnalyzeProject();
       
       toast({
-        title: "Retry Started",
-        description: "Analysis has been restarted. Previous errors have been cleared.",
+        title: "Smart Retry Started",
+        description: "Analysis has been restarted with smart dependency tracking.",
       });
     } catch (error) {
-      console.error('❌ Error retrying analysis:', error);
+      console.error('❌ [SMART] Error retrying analysis:', error);
       toast({
         title: "Retry Failed",
         description: error instanceof Error ? error.message : "Failed to retry analysis",
@@ -231,17 +210,17 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     if (!analysisStatus.currentJob?.id) return;
     
     try {
-      console.log('🚫 Cancelling analysis job:', analysisStatus.currentJob.id);
-      await ProcessingJobService.cancelJob(analysisStatus.currentJob.id);
+      console.log('🚫 [SMART] Cancelling analysis job:', analysisStatus.currentJob.id);
+      await jobManager.cancelJob(analysisStatus.currentJob.id);
       
       toast({
         title: "Analysis Cancelled",
-        description: "The analysis job has been cancelled.",
+        description: "The smart analysis job has been cancelled.",
       });
       
       setTimeout(fetchKnowledge, 1000);
     } catch (error) {
-      console.error('❌ Error cancelling analysis:', error);
+      console.error('❌ [SMART] Error cancelling analysis:', error);
       toast({
         title: "Error",
         description: "Failed to cancel analysis",
@@ -390,7 +369,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-purple-600" />
-          <p className="text-slate-600">Loading AI Brain...</p>
+          <p className="text-slate-600">Loading Smart AI Brain...</p>
         </div>
       </div>
     );
@@ -398,14 +377,14 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Header with Analysis Button */}
+      {/* Header with Smart Analysis Button */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <Brain className="w-6 h-6 text-purple-600" />
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">Enhanced AI Brain</h3>
+            <h3 className="text-lg font-semibold text-slate-900">Smart AI Brain</h3>
             <p className="text-sm text-slate-600">
-              Intelligent knowledge extraction and management system
+              Intelligent dependency-aware analysis with user learning
             </p>
           </div>
         </div>
@@ -424,7 +403,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
               ) : (
                 <RotateCcw className="w-4 h-4 mr-2" />
               )}
-              Retry
+              Smart Retry
             </Button>
           )}
           
@@ -448,31 +427,31 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
             {(analysisStatus.isProcessing || isAnalyzing) ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <RefreshCw className="w-4 h-4" />
+              <Brain className="w-4 h-4" />
             )}
             <span>
-              {analysisStatus.isProcessing ? 'Analyzing...' : 
+              {analysisStatus.isProcessing ? 'Smart Analyzing...' : 
                isAnalyzing ? 'Starting...' : 
-               isRetrying ? 'Retrying...' : 'Analyze Project'}
+               isRetrying ? 'Retrying...' : 'Smart Analyze'}
             </span>
           </Button>
         </div>
       </div>
 
-      {/* Enhanced Processing Status */}
+      {/* Enhanced Processing Status with Smart Features */}
       {analysisStatus.isProcessing && analysisStatus.currentJob && (
         <Card className="p-4 bg-blue-50 border-blue-200">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-2">
-              <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-              <span className="font-medium text-blue-900">Analysis in Progress</span>
+              <Brain className="w-5 h-5 animate-pulse text-blue-600" />
+              <span className="font-medium text-blue-900">Smart Analysis in Progress</span>
               <Badge variant="secondary" className="text-xs">
-                {analysisStatus.currentJob.job_type.replace('_', ' ')}
+                Dependency-Aware
               </Badge>
             </div>
             <div className="flex items-center space-x-2 text-sm text-blue-700">
               <Clock className="w-4 h-4" />
-              <span>{formatProcessingTime(analysisStatus.currentJob.started_at || '')}</span>
+              <span>Saving Credits: Only Changed Content</span>
             </div>
           </div>
           
@@ -484,77 +463,37 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
             
             <div className="w-full bg-blue-200 rounded-full h-2">
               <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300" 
                 style={{ width: `${analysisStatus.currentJob.progress_percentage || 0}%` }}
               />
             </div>
             
-            {analysisStatus.currentJob.completed_steps !== undefined && analysisStatus.currentJob.total_steps && (
-              <div className="text-xs text-blue-600">
-                Step {analysisStatus.currentJob.completed_steps} of {analysisStatus.currentJob.total_steps}
+            {analysisStatus.currentJob.results_summary && (
+              <div className="text-xs text-blue-600 grid grid-cols-2 gap-2 mt-2">
+                {analysisStatus.currentJob.results_summary.contentAnalyzed && (
+                  <span>Content: {analysisStatus.currentJob.results_summary.contentAnalyzed}</span>
+                )}
+                {analysisStatus.currentJob.results_summary.creditsUsed && (
+                  <span>Credits: {analysisStatus.currentJob.results_summary.creditsUsed}</span>
+                )}
               </div>
             )}
           </div>
         </Card>
       )}
 
-      {/* Enhanced Error Status */}
-      {analysisStatus.hasErrors && analysisStatus.currentJob?.state === 'failed' && (
-        <Card className="p-4 bg-red-50 border-red-200">
-          <div className="flex items-center space-x-2 mb-2">
-            <AlertTriangle className="w-5 h-5 text-red-600" />
-            <span className="font-medium text-red-900">Analysis Failed</span>
-            <Badge variant="destructive" className="text-xs">
-              {analysisStatus.currentJob.job_type.replace('_', ' ')}
-            </Badge>
-          </div>
-          <p className="text-sm text-red-700 mb-3">
-            {analysisStatus.currentJob.error_message || 'An error occurred during analysis'}
-          </p>
-          {analysisStatus.currentJob.error_details && (
-            <details className="text-xs text-red-600 mb-3">
-              <summary className="cursor-pointer hover:text-red-700">Technical Details</summary>
-              <pre className="mt-1 p-2 bg-red-100 rounded text-xs overflow-auto">
-                {JSON.stringify(analysisStatus.currentJob.error_details, null, 2)}
-              </pre>
-            </details>
-          )}
-          <div className="flex space-x-2">
-            <Button 
-              onClick={handleRetryAnalysis}
-              disabled={isRetrying}
-              variant="outline"
-              size="sm"
-            >
-              {isRetrying ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <RotateCcw className="w-4 h-4 mr-2" />
-              )}
-              Retry Analysis
-            </Button>
-            <Button 
-              onClick={handleAnalyzeProject}
-              disabled={isAnalyzing}
-              variant="outline"
-              size="sm"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Start New Analysis
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      {/* Success Status */}
+      {/* Success Status with Smart Stats */}
       {!analysisStatus.isProcessing && !analysisStatus.hasErrors && knowledge.length > 0 && (
         <Card className="p-4 bg-green-50 border-green-200">
           <div className="flex items-center space-x-2 mb-2">
             <CheckCircle className="w-5 h-5 text-green-600" />
-            <span className="font-medium text-green-900">Analysis Complete</span>
+            <span className="font-medium text-green-900">Smart Analysis Complete</span>
+            <Badge className="bg-green-100 text-green-800">
+              Credit-Efficient
+            </Badge>
           </div>
           <p className="text-sm text-green-700">
-            Successfully extracted {knowledge.length} knowledge items
+            Intelligently extracted {knowledge.length} knowledge items using dependency tracking
             {analysisStatus.lastProcessedAt && (
               <span className="ml-2">
                 • Last updated: {new Date(analysisStatus.lastProcessedAt).toLocaleString()}
@@ -681,7 +620,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
             </p>
             {knowledge.length === 0 && (
               <p className="text-sm text-slate-500">
-                Click "Analyze Project" to start extracting insights from your story
+                Click "Smart Analyze" to start extracting insights from your story
               </p>
             )}
           </Card>

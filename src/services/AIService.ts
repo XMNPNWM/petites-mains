@@ -1,14 +1,14 @@
 
 import { AIChatService, AIMessage, AIChatResponse } from './ai/chat/AIChatService';
-import { KnowledgeExtractionService } from './KnowledgeExtractionService';
+import { SmartAnalysisOrchestrator } from './SmartAnalysisOrchestrator';
 
 // Re-export types for backward compatibility
 export type { AIMessage };
 export type { AIChatResponse as AIResponse };
 
 /**
- * Legacy AIService - now acts as a facade over the new AI architecture
- * @deprecated Use AIChatService directly
+ * Legacy AIService - now acts as a facade over the new Smart AI architecture
+ * @deprecated Use AIChatService or SmartAnalysisOrchestrator directly
  */
 export class AIService {
   /**
@@ -35,5 +35,13 @@ export class AIService {
   ): Promise<AIChatResponse> {
     console.warn('⚠️ AIService.generateKnowledgeResponse is deprecated. Use AIChatService.generateKnowledgeResponse instead.');
     return AIChatService.generateKnowledgeResponse(message, projectId, domain, conversationHistory);
+  }
+
+  /**
+   * @deprecated Use SmartAnalysisOrchestrator.analyzeProject instead
+   */
+  static async extractKnowledgeFromProject(projectId: string) {
+    console.warn('⚠️ AIService.extractKnowledgeFromProject is deprecated. Use SmartAnalysisOrchestrator.analyzeProject instead.');
+    return SmartAnalysisOrchestrator.analyzeProject(projectId);
   }
 }
