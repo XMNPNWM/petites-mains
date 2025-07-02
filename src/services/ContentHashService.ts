@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { ContentHash } from '@/types/knowledge';
 import { EnhancedContentHashService } from './EnhancedContentHashService';
@@ -21,7 +22,7 @@ export class ContentHashService {
     const contentHash = await this.generateContentHash(content);
     const paragraphHashes = await this.generateParagraphHashes(content);
 
-    // Check if hash record exists in the old table
+    // Check if hash record exists in the old table format
     const { data: existingHash } = await supabase
       .from('content_hashes')
       .select('*')
@@ -40,13 +41,13 @@ export class ContentHashService {
 
     if (existingHash) {
       // Check for changes
-      const hasChanges = existingHash.content_hash !== contentHash;
+      const hasChanges = existingHash.original_content_hash !== contentHash;
       
       const { data, error } = await supabase
         .from('content_hashes')
         .update({
-          content_hash: contentHash,
-          last_processed: new Date().toISOString(),
+          original_content_hash: contentHash,
+          last_processed_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq('id', existingHash.id)
@@ -59,10 +60,10 @@ export class ContentHashService {
       return {
         id: data.id,
         chapter_id: data.chapter_id,
-        original_content_hash: data.content_hash,
+        original_content_hash: data.original_content_hash,
         enhanced_content_hash: null,
         paragraph_hashes: paragraphHashes,
-        last_processed_at: data.last_processed,
+        last_processed_at: data.last_processed_at,
         processing_version: this.PROCESSING_VERSION,
         has_changes: hasChanges,
         change_summary: hasChanges ? 'Content modified since last analysis' : undefined,
@@ -145,7 +146,7 @@ export class ContentHashService {
     await supabase
       .from('content_hashes')
       .update({
-        last_processed: new Date().toISOString(),
+        last_processed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('chapter_id', chapterId);

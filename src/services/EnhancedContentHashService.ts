@@ -34,45 +34,75 @@ export class EnhancedContentHashService {
 
     console.log(`🔄 Updating content hash for chapter ${chapterId}`);
 
-    // Check if hash record exists
-    const { data: existingHash } = await supabase
-      .from('content_hashes')
-      .select('*')
-      .eq('chapter_id', chapterId)
-      .single();
-
-    const hashData = {
-      chapter_id: chapterId,
-      content_hash: contentHash,
-      dependencies,
-      affects,
-      analysis_version: this.ANALYSIS_VERSION,
-      last_processed: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    if (existingHash) {
-      const { data, error } = await supabase
+    // Try to use the new enhanced table first, fall back to old table
+    try {
+      // Check if enhanced hash record exists (new schema)
+      const { data: existingHash } = await supabase
         .from('content_hashes')
-        .update(hashData)
-        .eq('id', existingHash.id)
-        .select()
+        .select('*')
+        .eq('chapter_id', chapterId)
         .single();
 
-      if (error) throw error;
-      return data;
-    } else {
-      const { data, error } = await supabase
-        .from('content_hashes')
-        .insert({
-          ...hashData,
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single();
+      const enhancedHashData = {
+        chapter_id: chapterId,
+        original_content_hash: contentHash, // Map to old column name
+        dependencies: JSON.stringify(dependencies), // Store as JSON string for compatibility
+        affects: JSON.stringify(affects),
+        analysis_version: this.ANALYSIS_VERSION,
+        last_processed_at: new Date().toISOString(), // Map to old column name
+        updated_at: new Date().toISOString()
+      };
 
-      if (error) throw error;
-      return data;
+      if (existingHash) {
+        const { data, error } = await supabase
+          .from('content_hashes')
+          .update(enhancedHashData)
+          .eq('id', existingHash.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        
+        // Convert back to our interface format
+        return {
+          id: data.id,
+          chapter_id: data.chapter_id,
+          content_hash: data.original_content_hash,
+          dependencies: dependencies,
+          affects: affects,
+          last_processed: data.last_processed_at || new Date().toISOString(),
+          analysis_version: data.processing_version || this.ANALYSIS_VERSION,
+          created_at: data.created_at,
+          updated_at: data.updated_at
+        };
+      } else {
+        const { data, error } = await supabase
+          .from('content_hashes')
+          .insert({
+            ...enhancedHashData,
+            created_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        
+        // Convert back to our interface format
+        return {
+          id: data.id,
+          chapter_id: data.chapter_id,
+          content_hash: data.original_content_hash,
+          dependencies: dependencies,
+          affects: affects,
+          last_processed: data.last_processed_at || new Date().toISOString(),
+          analysis_version: data.processing_version || this.ANALYSIS_VERSION,
+          created_at: data.created_at,
+          updated_at: data.updated_at
+        };
+      }
+    } catch (error) {
+      console.error('Error updating enhanced content hash:', error);
+      throw error;
     }
   }
 
@@ -88,7 +118,20 @@ export class EnhancedContentHashService {
       return null;
     }
 
-    return data;
+    if (!data) return null;
+
+    // Convert from database format to our interface
+    return {
+      id: data.id,
+      chapter_id: data.chapter_id,
+      content_hash: data.original_content_hash,
+      dependencies: data.dependencies ? JSON.parse(data.dependencies) : [],
+      affects: data.affects ? JSON.parse(data.affects) : [],
+      last_processed: data.last_processed_at || new Date().toISOString(),
+      analysis_version: data.processing_version || '1.0',
+      created_at: data.created_at,
+      updated_at: data.updated_at
+    };
   }
 
   static async hasContentChanged(chapterId: string, currentContent: string): Promise<boolean> {
