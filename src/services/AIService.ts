@@ -3,7 +3,8 @@ import { AIChatService, AIMessage, AIChatResponse } from './ai/chat/AIChatServic
 import { KnowledgeExtractionService } from './KnowledgeExtractionService';
 
 // Re-export types for backward compatibility
-export { AIMessage, AIChatResponse as AIResponse };
+export type { AIMessage };
+export type { AIChatResponse as AIResponse };
 
 /**
  * Legacy AIService - now acts as a facade over the new AI architecture

@@ -56,6 +56,51 @@ export type Database = {
           },
         ]
       }
+      analysis_results: {
+        Row: {
+          ai_data: Json
+          analysis_type: string
+          confidence_score: number | null
+          content_id: string
+          content_type: string
+          created_at: string | null
+          id: string
+          is_flagged: boolean | null
+          last_human_review: string | null
+          low_confidence_flags: string[] | null
+          updated_at: string | null
+          version: string
+        }
+        Insert: {
+          ai_data?: Json
+          analysis_type: string
+          confidence_score?: number | null
+          content_id: string
+          content_type?: string
+          created_at?: string | null
+          id?: string
+          is_flagged?: boolean | null
+          last_human_review?: string | null
+          low_confidence_flags?: string[] | null
+          updated_at?: string | null
+          version?: string
+        }
+        Update: {
+          ai_data?: Json
+          analysis_type?: string
+          confidence_score?: number | null
+          content_id?: string
+          content_type?: string
+          created_at?: string | null
+          id?: string
+          is_flagged?: boolean | null
+          last_human_review?: string | null
+          low_confidence_flags?: string[] | null
+          updated_at?: string | null
+          version?: string
+        }
+        Relationships: []
+      }
       author_styles: {
         Row: {
           author: string
@@ -562,6 +607,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      dependency_graph: {
+        Row: {
+          created_at: string | null
+          dependency_type: string
+          dependent_content_id: string
+          dependent_content_type: string
+          id: string
+          source_content_id: string
+          source_content_type: string
+          strength: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          dependency_type: string
+          dependent_content_id: string
+          dependent_content_type: string
+          id?: string
+          source_content_id: string
+          source_content_type: string
+          strength?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          dependency_type?: string
+          dependent_content_id?: string
+          dependent_content_type?: string
+          id?: string
+          source_content_id?: string
+          source_content_type?: string
+          strength?: number | null
+        }
+        Relationships: []
       }
       knowledge_base: {
         Row: {
@@ -1363,6 +1441,47 @@ export type Database = {
           worldbuilding_elements_count?: number
         }
         Relationships: []
+      }
+      user_overrides: {
+        Row: {
+          analysis_result_id: string | null
+          created_at: string | null
+          field_path: string
+          id: string
+          original_ai_value: Json | null
+          override_reason: string | null
+          updated_at: string | null
+          user_value: Json
+        }
+        Insert: {
+          analysis_result_id?: string | null
+          created_at?: string | null
+          field_path: string
+          id?: string
+          original_ai_value?: Json | null
+          override_reason?: string | null
+          updated_at?: string | null
+          user_value: Json
+        }
+        Update: {
+          analysis_result_id?: string | null
+          created_at?: string | null
+          field_path?: string
+          id?: string
+          original_ai_value?: Json | null
+          override_reason?: string | null
+          updated_at?: string | null
+          user_value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_overrides_analysis_result_id_fkey"
+            columns: ["analysis_result_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_results"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       worldbuilding_elements: {
         Row: {
