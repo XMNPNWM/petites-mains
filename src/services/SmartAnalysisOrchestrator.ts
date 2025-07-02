@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { GoogleAIService } from './GoogleAIService';
 import { RefinementService } from './RefinementService';
+import { KnowledgeBase } from '@/types/knowledge';
 
 export class SmartAnalysisOrchestrator {
   static async analyzeChapter(projectId: string, chapterId: string): Promise<void> {
@@ -65,6 +66,101 @@ export class SmartAnalysisOrchestrator {
       } else {
         throw new Error('An unexpected error occurred during analysis. Please try again.');
       }
+    }
+  }
+
+  static async analyzeProject(projectId: string): Promise<any> {
+    try {
+      console.log('🚀 [SMART] Starting project analysis:', projectId);
+
+      // Get all chapters for the project
+      const { data: chapters, error: chaptersError } = await supabase
+        .from('chapters')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at');
+
+      if (chaptersError) {
+        throw new Error(`Failed to fetch chapters: ${chaptersError.message}`);
+      }
+
+      if (!chapters || chapters.length === 0) {
+        return {
+          success: true,
+          processingStats: {
+            contentAnalyzed: 0,
+            creditsUsed: 0
+          }
+        };
+      }
+
+      let totalContentAnalyzed = 0;
+      let totalCreditsUsed = 0;
+
+      // Analyze each chapter
+      for (const chapter of chapters) {
+        try {
+          await this.analyzeChapter(projectId, chapter.id);
+          totalContentAnalyzed++;
+          totalCreditsUsed += 1; // Simplified credit counting
+        } catch (error) {
+          console.error(`Failed to analyze chapter ${chapter.id}:`, error);
+          // Continue with other chapters
+        }
+      }
+
+      return {
+        success: true,
+        processingStats: {
+          contentAnalyzed: totalContentAnalyzed,
+          creditsUsed: totalCreditsUsed
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ [SMART] Project analysis failed:', error);
+      throw error;
+    }
+  }
+
+  static async getProjectKnowledge(projectId: string): Promise<KnowledgeBase[]> {
+    try {
+      const { data, error } = await supabase
+        .from('knowledge_base')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching project knowledge:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getProjectKnowledge:', error);
+      return [];
+    }
+  }
+
+  static async getFlaggedKnowledge(projectId: string): Promise<KnowledgeBase[]> {
+    try {
+      const { data, error } = await supabase
+        .from('knowledge_base')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('is_flagged', true)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching flagged knowledge:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getFlaggedKnowledge:', error);
+      return [];
     }
   }
 
