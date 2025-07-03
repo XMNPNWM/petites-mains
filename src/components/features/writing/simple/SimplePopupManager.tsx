@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { usePopupNavigation } from './hooks/usePopupNavigation';
@@ -198,8 +197,15 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       let shouldAnalyze = false;
       
-      // Step 1: Hash verification if we have a chapter
-      if (chapterId) {
+      // Step 1: Check if project has ever been analyzed
+      const existingKnowledge = await SmartAnalysisOrchestrator.getProjectKnowledge(projectId);
+      const hasNeverAnalyzed = existingKnowledge.length === 0;
+      
+      if (hasNeverAnalyzed) {
+        console.log('🆕 Project has never been analyzed - triggering initial analysis');
+        shouldAnalyze = true;
+      } else if (chapterId) {
+        // Step 2: Hash verification if we have a chapter and project was analyzed before
         console.log('📋 Checking content hash for chapter:', chapterId);
         
         try {
@@ -225,27 +231,31 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
       }
 
-      // Step 2: Show analyzing banner if needed
+      // Step 3: Show analyzing banner if needed
       if (shouldAnalyze) {
-        console.log('🧠 Starting content analysis before AI chat');
+        const analysisType = hasNeverAnalyzed ? 'initial analysis' : 'content re-analysis';
+        console.log(`🧠 Starting ${analysisType} before AI chat`);
         
         // Trigger analysis in background
         try {
-          await SmartAnalysisOrchestrator.analyzeProject(projectId);
+          const result = await SmartAnalysisOrchestrator.analyzeProject(projectId);
+          console.log('✅ Analysis completed:', result);
         } catch (analysisError) {
-          console.error('Analysis failed:', analysisError);
+          console.error('❌ Analysis failed:', analysisError);
         }
         
         return {
           success: false,
           bannerState: { 
-            message: 'Analyzing latest content changes before responding...', 
+            message: hasNeverAnalyzed 
+              ? 'Performing initial analysis of your project before responding...'
+              : 'Analyzing latest content changes before responding...', 
             type: 'loading' as const 
           }
         };
       }
 
-      // Step 3: Add user message to popup immediately
+      // Step 4: Add user message to popup immediately
       const userMessage = {
         role: 'user' as const,
         content: message,
@@ -258,7 +268,7 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
           : popup
       ));
 
-      // Step 4: Save user message to database (convert Date to ISO string)
+      // Step 5: Save user message to database (convert Date to ISO string)
       try {
         const messageForDb = {
           role: userMessage.role,
@@ -286,7 +296,7 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
         console.error('Database error saving user message:', dbError);
       }
 
-      // Step 5: Call AI service
+      // Step 6: Call AI service
       console.log('🤖 Calling AI service with:', { message, projectId, chapterId });
       
       const { data, error } = await supabase.functions.invoke('chat-with-ai', {
@@ -309,7 +319,7 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
         throw new Error(data?.error || 'AI service returned invalid response');
       }
 
-      // Step 6: Add AI response to popup
+      // Step 7: Add AI response to popup
       const aiMessage = {
         role: 'assistant' as const,
         content: data.response,
@@ -322,7 +332,7 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
           : popup
       ));
 
-      // Step 7: Save AI message to database (convert Date to ISO string)
+      // Step 8: Save AI message to database (convert Date to ISO string)
       try {
         const userMessageForDb = {
           role: userMessage.role,

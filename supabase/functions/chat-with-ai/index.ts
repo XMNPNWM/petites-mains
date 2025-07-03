@@ -35,12 +35,13 @@ serve(async (req) => {
       });
     }
 
-    // Get API key from environment
+    // Get Google AI API key from environment
     const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
     if (!apiKey) {
       console.error('Google AI API key not configured');
       return new Response(JSON.stringify({ 
-        error: 'Google AI API key not configured',
+        error: 'Google AI API key not configured. Please check your Supabase Edge Function secrets.',
+        details: 'GOOGLE_AI_API_KEY environment variable is missing',
         success: false 
       }), {
         status: 500,
@@ -117,7 +118,7 @@ Please respond to the user's message in a helpful, creative, and encouraging man
 
     console.log('Calling Google AI API with system prompt length:', systemPrompt.length);
 
-    // Call Google AI API
+    // Call Google AI API (Gemini)
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + apiKey, {
       method: 'POST',
       headers: {
@@ -141,6 +142,8 @@ Please respond to the user's message in a helpful, creative, and encouraging man
       }),
     });
 
+    console.log('Google AI API response status:', response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Google AI API error response:', {
@@ -151,6 +154,7 @@ Please respond to the user's message in a helpful, creative, and encouraging man
       
       return new Response(JSON.stringify({ 
         error: `Google AI API error: ${response.status} - ${response.statusText}`,
+        details: errorText,
         success: false 
       }), {
         status: 500,
@@ -165,6 +169,7 @@ Please respond to the user's message in a helpful, creative, and encouraging man
       console.error('Invalid response structure from Google AI API:', data);
       return new Response(JSON.stringify({ 
         error: 'Invalid response from Google AI API',
+        details: 'Response does not contain expected candidates structure',
         success: false 
       }), {
         status: 500,
@@ -186,6 +191,7 @@ Please respond to the user's message in a helpful, creative, and encouraging man
     console.error('Unexpected error in chat-with-ai function:', error);
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : 'An unexpected error occurred',
+      details: 'Check the edge function logs for more information',
       success: false 
     }), {
       status: 500,

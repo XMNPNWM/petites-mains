@@ -82,22 +82,19 @@ const RefinementSpaceHeader = ({
               </div>
             </div>
           )}
-
-          {/* Analysis Status Indicator positioned after project info */}
-          {project && (
-            <>
-              <div className="h-6 w-px bg-slate-200" />
-              <AnalysisStatusIndicator projectId={project.id} />
-            </>
-          )}
         </div>
 
-        {/* Timeline Component - centered */}
+        {/* Centered Timeline Component */}
         <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
           {project && <ChronologicalTimeline projectId={project.id} />}
         </div>
 
         <div className="flex items-center space-x-3">
+          {/* Analysis Status Indicator positioned between timeline and action buttons */}
+          {project && <AnalysisStatusIndicator projectId={project.id} />}
+          
+          <div className="h-6 w-px bg-slate-200" />
+
           {/* Analysis functionality */}
           {onAnalyze && (
             <>

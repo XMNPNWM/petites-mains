@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +30,7 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
     chaptersNeedingAnalysis: 0
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [hasNeverAnalyzed, setHasNeverAnalyzed] = useState(false);
   
   const jobManager = new AnalysisJobManager();
 
@@ -45,6 +45,18 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
       setKnowledge(allKnowledge);
       setFlaggedKnowledge(flagged);
       setAnalysisStatus(status);
+      
+      // Check if this project has never been analyzed
+      const hasKnowledge = allKnowledge.length > 0;
+      const hasProcessingJobs = status.isProcessing || status.lastProcessedAt;
+      setHasNeverAnalyzed(!hasKnowledge && !hasProcessingJobs);
+      
+      console.log('Knowledge analysis state:', {
+        knowledgeCount: allKnowledge.length,
+        hasProcessingJobs,
+        hasNeverAnalyzed: !hasKnowledge && !hasProcessingJobs
+      });
+      
     } catch (error) {
       console.error('Error fetching knowledge:', error);
     } finally {
@@ -99,7 +111,13 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
   const handleAnalyzeProject = async () => {
     try {
       setAnalysisStatus(prev => ({ ...prev, isProcessing: true }));
-      await SmartAnalysisOrchestrator.analyzeProject(projectId);
+      console.log('Starting project analysis for:', projectId);
+      
+      const result = await SmartAnalysisOrchestrator.analyzeProject(projectId);
+      console.log('Analysis completed:', result);
+      
+      // Update the never analyzed flag
+      setHasNeverAnalyzed(false);
       
       // Refresh data after a short delay
       setTimeout(() => {
@@ -109,6 +127,14 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
     } catch (error) {
       console.error('Error starting project analysis:', error);
       setAnalysisStatus(prev => ({ ...prev, isProcessing: false }));
+    }
+  };
+
+  // Automatic initial analysis trigger
+  const triggerInitialAnalysisIfNeeded = async () => {
+    if (hasNeverAnalyzed && !analysisStatus.isProcessing) {
+      console.log('Triggering initial analysis automatically');
+      await handleAnalyzeProject();
     }
   };
 
@@ -126,6 +152,13 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
 
     return () => clearInterval(interval);
   }, [projectId]);
+
+  // Trigger initial analysis when detected as never analyzed
+  useEffect(() => {
+    if (hasNeverAnalyzed) {
+      triggerInitialAnalysisIfNeeded();
+    }
+  }, [hasNeverAnalyzed]);
 
   const getCategoryColor = (category: string) => {
     const colors = {
@@ -181,10 +214,28 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
             <RefreshCw className="w-4 h-4" />
           )}
           <span>
-            {analysisStatus.isProcessing ? 'Analyzing...' : 'Analyze Project'}
+            {analysisStatus.isProcessing ? 'Analyzing...' : 
+             hasNeverAnalyzed ? 'Start Initial Analysis' : 'Analyze Project'}
           </span>
         </Button>
       </div>
+
+      {/* Initial Analysis Prompt */}
+      {hasNeverAnalyzed && !analysisStatus.isProcessing && (
+        <Card className="p-4 bg-blue-50 border-blue-200">
+          <div className="flex items-center space-x-3">
+            <Brain className="w-5 h-5 text-blue-600" />
+            <div>
+              <p className="font-medium text-blue-900">
+                Initial Analysis Starting
+              </p>
+              <p className="text-sm text-blue-700">
+                No analysis has been performed on this project yet. Initial analysis will begin automatically to extract knowledge from your content.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Content Hash Status */}
       {contentHashStatus.hasOutdatedContent && (
@@ -310,9 +361,14 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
         {knowledge.length === 0 ? (
           <Card className="p-8 text-center">
             <Brain className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-            <p className="text-slate-600 mb-4">No knowledge extracted yet</p>
+            <p className="text-slate-600 mb-4">
+              {hasNeverAnalyzed ? 'Initial analysis will start automatically' : 'No knowledge extracted yet'}
+            </p>
             <p className="text-sm text-slate-500">
-              Click "Analyze Project" to start extracting insights from your story with hash verification
+              {hasNeverAnalyzed 
+                ? 'Your project content will be analyzed to extract insights automatically'
+                : 'Click "Analyze Project" to start extracting insights from your story with hash verification'
+              }
             </p>
           </Card>
         ) : (
