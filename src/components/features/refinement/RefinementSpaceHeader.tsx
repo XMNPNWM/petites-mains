@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Sparkles, Download, Save, Loader2, Check } from 'lucide-react';
 import ChronologicalTimeline from '../writing/ChronologicalTimeline';
+import AnalysisStatusIndicator from '../writing/AnalysisStatusIndicator';
 import ExportDialog from '../writing/ExportDialog';
 import { useProjectData } from '@/hooks/useProjectData';
 
@@ -67,9 +68,17 @@ const RefinementSpaceHeader = ({
             <Sparkles className="w-5 h-5" />
             <span className="font-semibold">Refinement Space</span>
           </div>
+
+          {/* Analysis Status Indicator positioned after title */}
+          {project && (
+            <>
+              <div className="h-6 w-px bg-slate-200" />
+              <AnalysisStatusIndicator projectId={project.id} />
+            </>
+          )}
         </div>
 
-        {/* Timeline Component */}
+        {/* Timeline Component - centered */}
         {project && <ChronologicalTimeline projectId={project.id} />}
 
         <div className="flex items-center space-x-3">

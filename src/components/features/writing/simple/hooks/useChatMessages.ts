@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useSimplePopups } from '../SimplePopupManager';
 
@@ -26,36 +27,41 @@ export const useChatMessages = ({
   const sendMessage = useCallback(async (message: string) => {
     if (!sendMessageWithHashVerification) {
       console.warn('sendMessageWithHashVerification is not available');
+      setBannerState({ message: 'Chat service not available', type: 'error' });
       return;
     }
 
     setIsLoading(true);
-    setBannerState({ message: 'Sending...', type: 'loading' });
+    setBannerState({ message: 'Processing...', type: 'loading' });
 
     try {
-      const { shouldProceed, bannerState: verificationBannerState } = await sendMessageWithHashVerification(
+      const result = await sendMessageWithHashVerification(
         id,
         message,
         projectId,
         chapterId
       );
 
-      if (verificationBannerState) {
-        setBannerState(verificationBannerState);
+      if (result.bannerState) {
+        setBannerState(result.bannerState);
       }
 
-      if (shouldProceed) {
-        const newMessage = {
-          role: 'user' as const,
-          content: message,
-          timestamp: new Date()
-        };
-        setMessages(prevMessages => [...prevMessages, newMessage]);
+      // The messages are updated directly in the SimplePopupManager
+      // so we don't need to update local state here
+      
+      // Clear loading state
+      setIsLoading(false);
+      
+      // Clear banner after 3 seconds for success messages
+      if (result.bannerState?.type === 'success') {
+        setTimeout(() => {
+          setBannerState(null);
+        }, 3000);
       }
+
     } catch (error) {
       console.error('Failed to send message:', error);
       setBannerState({ message: 'Failed to send message', type: 'error' });
-    } finally {
       setIsLoading(false);
     }
   }, [id, projectId, chapterId, sendMessageWithHashVerification]);

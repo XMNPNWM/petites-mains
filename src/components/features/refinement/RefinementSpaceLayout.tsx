@@ -53,6 +53,8 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
   return (
     <div className="h-screen flex flex-col bg-background">
       <RefinementSpaceHeader 
+        project={project}
+        currentChapter={currentChapter}
         onBackClick={onClose}
         isAnalyzing={isAnalyzing}
         onAnalyze={handleAnalyzeChapter}
