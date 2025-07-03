@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { useSimplePopups } from './SimplePopupManager';
 import { useDragBehavior } from './hooks/useDragBehavior';
@@ -36,6 +36,7 @@ const SimpleChatPopup = ({
   initialMessages = []
 }: SimpleChatPopupProps) => {
   const { updatePopup, closePopup, deletePopup } = useSimplePopups();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   const handlePositionUpdate = (popupId: string, newPosition: { x: number; y: number }) => {
     updatePopup(popupId, { position: newPosition });
@@ -65,7 +66,13 @@ const SimpleChatPopup = ({
   };
 
   const handleDelete = () => {
-    deletePopup(id);
+    if (showDeleteConfirm) {
+      deletePopup(id);
+    } else {
+      setShowDeleteConfirm(true);
+      // Auto-reset after 3 seconds
+      setTimeout(() => setShowDeleteConfirm(false), 3000);
+    }
   };
 
   if (isMinimized) {
@@ -95,6 +102,7 @@ const SimpleChatPopup = ({
           <ChatHeader
             selectedText={selectedText}
             isMinimized={isMinimized}
+            showDeleteConfirm={showDeleteConfirm}
             onMouseDown={handleMouseDown}
             onMinimize={handleMinimize}
             onClose={handleClose}

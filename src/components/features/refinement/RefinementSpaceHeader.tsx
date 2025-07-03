@@ -69,7 +69,21 @@ const RefinementSpaceHeader = ({
             <span className="font-semibold">Refinement Space</span>
           </div>
 
-          {/* Analysis Status Indicator positioned after title */}
+          <div className="h-6 w-px bg-slate-200" />
+
+          {/* Project Info Display */}
+          {project && (
+            <div className="flex items-center space-x-2">
+              <div className="text-sm">
+                <span className="font-medium text-slate-900">{project.title}</span>
+                {chapters.length > 0 && (
+                  <span className="text-slate-600 ml-2">• {chapters.length} chapters</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Analysis Status Indicator positioned after project info */}
           {project && (
             <>
               <div className="h-6 w-px bg-slate-200" />
@@ -79,7 +93,9 @@ const RefinementSpaceHeader = ({
         </div>
 
         {/* Timeline Component - centered */}
-        {project && <ChronologicalTimeline projectId={project.id} />}
+        <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
+          {project && <ChronologicalTimeline projectId={project.id} />}
+        </div>
 
         <div className="flex items-center space-x-3">
           {/* Analysis functionality */}

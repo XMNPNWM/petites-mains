@@ -6,6 +6,7 @@ import { MessageSquare, Minimize2, Maximize2, X, Trash2 } from 'lucide-react';
 interface ChatHeaderProps {
   selectedText?: string;
   isMinimized: boolean;
+  showDeleteConfirm?: boolean;
   onMouseDown: (e: React.MouseEvent) => void;
   onMinimize: () => void;
   onClose: () => void;
@@ -15,6 +16,7 @@ interface ChatHeaderProps {
 const ChatHeader = ({ 
   selectedText, 
   isMinimized, 
+  showDeleteConfirm = false,
   onMouseDown, 
   onMinimize, 
   onClose,
@@ -45,7 +47,12 @@ const ChatHeader = ({
               e.stopPropagation();
               onDelete();
             }}
-            className="h-8 w-8 p-0 hover:bg-red-100"
+            className={`h-8 w-8 p-0 ${
+              showDeleteConfirm 
+                ? 'bg-red-100 hover:bg-red-200 text-red-700' 
+                : 'hover:bg-red-100'
+            }`}
+            title={showDeleteConfirm ? "Click again to confirm deletion" : "Delete chat"}
           >
             <Trash2 className="w-4 h-4 text-red-600" />
           </Button>

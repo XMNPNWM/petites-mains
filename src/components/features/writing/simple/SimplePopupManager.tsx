@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { usePopupNavigation } from './hooks/usePopupNavigation';
 import { usePopupCreation } from './hooks/usePopupCreation';
@@ -10,17 +9,7 @@ import { SimplePopup } from './types/popupTypes';
 import { useChatDatabase } from '@/hooks/useChatDatabase';
 import { supabase } from '@/integrations/supabase/client';
 
-interface SimplePopupManagerProps {
-  projectId: string;
-  chapterId?: string;
-  textContent: string;
-  popups: SimplePopup[];
-  setPopups: React.Dispatch<React.SetStateAction<SimplePopup[]>>;
-  onTextSelect?: (selection: { text: string; range: Range }) => void;
-}
-
-const SimplePopupContext = createContext<{
-  livePopups: SimplePopup[];
+interface SimplePopupState {
   popups: SimplePopup[];
   createPopup: (
     type: 'comment' | 'chat',
@@ -42,17 +31,56 @@ const SimplePopupContext = createContext<{
     selectedText?: string
   ) => Promise<void>;
   goToLine: (chapterId: string, lineNumber: number) => Promise<boolean>;
-  timelineVersion: number;
   sendMessageWithHashVerification?: (
     popupId: string,
     message: string,
     projectId: string,
     chapterId?: string
-  ) => Promise<{ shouldProceed: boolean; bannerState?: { message: string; type: 'success' | 'error' | 'loading' } }>;
-} | null>(null);
+  ) => Promise<{ success: boolean; bannerState?: { message: string; type: 'success' | 'error' | 'loading' } }>;
+}
+
+interface SimplePopupContextType {
+  popups: SimplePopup[];
+  createPopup: (
+    type: 'comment' | 'chat',
+    position: { x: number; y: number },
+    projectId: string,
+    chapterId?: string,
+    selectedText?: string,
+    lineNumber?: number
+  ) => Promise<void>;
+  updatePopup: (id: string, updates: Partial<SimplePopup>) => void;
+  closePopup: (id: string) => Promise<void>;
+  deletePopup: (id: string) => Promise<void>;
+  reopenPopup: (
+    id: string,
+    type: 'comment' | 'chat',
+    position: { x: number; y: number },
+    projectId: string,
+    chapterId?: string,
+    selectedText?: string
+  ) => Promise<void>;
+  goToLine: (chapterId: string, lineNumber: number) => Promise<boolean>;
+  sendMessageWithHashVerification?: (
+    popupId: string,
+    message: string,
+    projectId: string,
+    chapterId?: string
+  ) => Promise<{ success: boolean; bannerState?: { message: string; type: 'success' | 'error' | 'loading' } }>;
+}
+
+const SimplePopupContext = createContext<SimplePopupContextType | undefined>(undefined);
+
+export const useSimplePopups = () => {
+  const context = useContext(SimplePopupContext);
+  if (!context) {
+    throw new Error('useSimplePopups must be used within a SimplePopupProvider');
+  }
+  return context;
+};
 
 export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [livePopups, setLivePopups] = useState<SimplePopup[]>([]);
+  const [popups, setPopups] = useState<SimplePopup[]>([]);
   const [timelineVersion, setTimelineVersion] = useState(0);
   const { saveChat, loadChatById, deleteChat } = useChatDatabase();
   const { goToLine } = usePopupNavigation();
@@ -67,7 +95,7 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
     lineNumber?: number
   ) => {
     const newPopup = createPopupData(type, position, projectId, chapterId, selectedText, lineNumber);
-    setLivePopups(prev => [...prev, newPopup]);
+    setPopups(prev => [...prev, newPopup]);
     setTimelineVersion(prev => prev + 1);
 
     // Save to database
@@ -98,33 +126,43 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [createPopupData, saveChat]);
 
   const updatePopup = useCallback((id: string, updates: Partial<SimplePopup>) => {
-    setLivePopups(prev => prev.map(popup => 
+    setPopups(prev => prev.map(popup => 
       popup.id === id ? { ...popup, ...updates } : popup
     ));
   }, []);
 
   const closePopup = useCallback(async (id: string) => {
-    setLivePopups(prev => prev.map(popup => 
+    setPopups(prev => prev.map(popup => 
       popup.id === id ? { ...popup, status: 'closed' } : popup
     ));
     setTimelineVersion(prev => prev + 1);
   }, []);
 
   const deletePopup = useCallback(async (id: string) => {
-    console.log('Deleting popup:', id);
+    console.log('🗑️ Deleting popup with database cleanup:', id);
     
-    // Remove from live state
-    setLivePopups(prev => prev.filter(popup => popup.id !== id));
-    setTimelineVersion(prev => prev + 1);
-    
-    // Delete from database
     try {
-      await deleteChat(id);
-      console.log('Popup successfully deleted from database:', id);
+      // Remove from state immediately
+      setPopups(prev => prev.filter(popup => popup.id !== id));
+      
+      // Clean up from database
+      const { error } = await supabase
+        .from('chat_sessions')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Failed to delete from database:', error);
+        // Don't re-add to state even if database deletion fails
+        // The popup should remain deleted from UI
+      } else {
+        console.log('✅ Popup deleted from database successfully');
+      }
     } catch (error) {
-      console.error('Failed to delete popup from database:', error);
+      console.error('Error during popup deletion:', error);
+      // Popup stays deleted from UI regardless of database errors
     }
-  }, [deleteChat]);
+  }, []);
 
   const reopenPopup = useCallback(async (
     id: string,
@@ -136,7 +174,7 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
   ) => {
     try {
       // Check if already open to prevent duplication
-      const existingPopup = livePopups.find(popup => popup.id === id && popup.status === 'open');
+      const existingPopup = popups.find(popup => popup.id === id && popup.status === 'open');
       if (existingPopup) {
         console.log('Popup already open:', id);
         return;
@@ -164,7 +202,7 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
         };
 
         // Remove any existing closed version and add the reopened one
-        setLivePopups(prev => {
+        setPopups(prev => {
           const filtered = prev.filter(popup => popup.id !== id);
           return [...filtered, reopenedPopup];
         });
@@ -178,155 +216,175 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } catch (error) {
       console.error('Error reopening popup:', error);
     }
-  }, [livePopups, createPopup, loadChatById]);
+  }, [popups, createPopup, loadChatById]);
 
   const sendMessageWithHashVerification = useCallback(async (
-    popupId: string,
-    message: string,
-    projectId: string,
+    popupId: string, 
+    message: string, 
+    projectId: string, 
     chapterId?: string
   ) => {
+    console.log('🔄 Starting hash verification workflow:', { popupId, projectId, chapterId });
+    
     try {
-      console.log('Starting hash verification workflow for:', { popupId, projectId, chapterId });
+      let shouldAnalyze = false;
       
-      // Step 1: Check if content has changed and needs analysis
+      // Step 1: Hash verification if we have a chapter
       if (chapterId) {
-        // Get current chapter content
-        const { data: chapter, error: chapterError } = await supabase
-          .from('chapters')
-          .select('content')
-          .eq('id', chapterId)
-          .single();
-
-        if (chapterError) {
-          console.error('Error fetching chapter:', chapterError);
-          return {
-            shouldProceed: false,
-            bannerState: { message: 'Failed to verify content', type: 'error' as const }
-          };
-        }
-
-        if (chapter?.content) {
-          console.log('Verifying content hash...');
-          const hashVerification = await ContentHashService.verifyContentHash(chapterId, chapter.content);
+        console.log('📋 Checking content hash for chapter:', chapterId);
+        
+        try {
+          const hashResult = await ContentHashService.verifyContentHash(chapterId);
+          console.log('🔍 Hash verification result:', hashResult);
           
-          if (hashVerification.hasChanges || hashVerification.needsReanalysis) {
-            console.log('Content has changed, triggering analysis...');
-            
-            // Step 2: Trigger analysis if content has changed
-            try {
-              await SmartAnalysisOrchestrator.analyzeChapter(projectId, chapterId);
-              console.log('Analysis completed successfully');
-            } catch (analysisError) {
-              console.error('Analysis failed:', analysisError);
-              // Continue with chat even if analysis fails
-            }
-          } else {
-            console.log('Content is up to date, proceeding with chat');
+          if (!hashResult.isValid) {
+            console.log('🚨 Content hash mismatch - analysis needed');
+            shouldAnalyze = true;
           }
+        } catch (hashError) {
+          console.error('❌ Hash verification failed:', hashError);
+          // Continue without hash verification rather than blocking
+          console.log('⚠️ Continuing without hash verification');
         }
       }
 
-      // Step 3: Send message to AI chat service
-      console.log('Sending message to AI service...');
-      const { data: aiResponse, error: aiError } = await supabase.functions.invoke('chat-with-ai', {
-        body: {
-          message,
-          projectId,
-          chapterId
-        }
-      });
-
-      if (aiError) {
-        console.error('AI service error:', aiError);
+      // Step 2: Show analyzing banner if needed
+      if (shouldAnalyze) {
+        console.log('🧠 Starting content analysis before AI chat');
+        
         return {
-          shouldProceed: false,
-          bannerState: { message: 'AI service failed', type: 'error' as const }
+          success: false,
+          bannerState: { 
+            message: 'Analyzing latest content changes before responding...', 
+            type: 'loading' as const 
+          }
         };
       }
 
-      if (!aiResponse?.success) {
-        console.error('AI response error:', aiResponse?.error);
-        return {
-          shouldProceed: false,
-          bannerState: { message: aiResponse?.error || 'AI response failed', type: 'error' as const }
-        };
-      }
-
-      // Step 4: Add both user message and AI response to popup
+      // Step 3: Add user message to popup immediately
       const userMessage = {
         role: 'user' as const,
         content: message,
         timestamp: new Date()
       };
 
-      const assistantMessage = {
+      setPopups(prev => prev.map(popup => 
+        popup.id === popupId 
+          ? { ...popup, messages: [...(popup.messages || []), userMessage] }
+          : popup
+      ));
+
+      // Step 4: Save user message to database
+      try {
+        const { error: saveError } = await supabase
+          .from('chat_sessions')
+          .upsert({
+            id: popupId,
+            project_id: projectId,
+            chapter_id: chapterId,
+            chat_type: 'chat',
+            messages: [userMessage],
+            position: { x: 100, y: 100 },
+            status: 'active',
+            selected_text: null
+          });
+
+        if (saveError) {
+          console.error('Failed to save user message:', saveError);
+        }
+      } catch (dbError) {
+        console.error('Database error saving user message:', dbError);
+      }
+
+      // Step 5: Call AI service
+      console.log('🤖 Calling AI service with:', { message, projectId, chapterId });
+      
+      const { data, error } = await supabase.functions.invoke('chat-with-ai', {
+        body: { 
+          message, 
+          projectId, 
+          chapterId 
+        }
+      });
+
+      console.log('🤖 AI service response:', { data, error });
+
+      if (error) {
+        console.error('❌ AI service error:', error);
+        throw new Error(`AI service failed: ${error.message}`);
+      }
+
+      if (!data?.success || !data?.response) {
+        console.error('❌ Invalid AI response:', data);
+        throw new Error(data?.error || 'AI service returned invalid response');
+      }
+
+      // Step 6: Add AI response to popup
+      const aiMessage = {
         role: 'assistant' as const,
-        content: aiResponse.response,
+        content: data.response,
         timestamp: new Date()
       };
 
-      // Update popup with both messages
-      setLivePopups(prev => prev.map(popup => {
-        if (popup.id === popupId) {
-          const updatedMessages = [...(popup.messages || []), userMessage, assistantMessage];
-          const updatedPopup = { ...popup, messages: updatedMessages };
-          
-          // Save updated popup to database
-          const chatSession = {
-            id: popup.id,
-            type: popup.type,
-            position: popup.position,
-            isMinimized: popup.isMinimized,
-            createdAt: popup.createdAt,
-            projectId: popup.projectId,
-            chapterId: popup.chapterId,
-            selectedText: popup.selectedText ? {
-              text: popup.selectedText,
-              startOffset: popup.textPosition || 0,
-              endOffset: (popup.textPosition || 0) + popup.selectedText.length,
-              lineNumber: popup.lineNumber
-            } : undefined,
-            lineNumber: popup.lineNumber,
-            messages: updatedMessages,
-            status: 'active' as const
-          };
-          
-          saveChat(chatSession).catch(error => {
-            console.error('Failed to save chat session:', error);
-          });
-          
-          return updatedPopup;
-        }
-        return popup;
-      }));
+      setPopups(prev => prev.map(popup => 
+        popup.id === popupId 
+          ? { ...popup, messages: [...(popup.messages || []), aiMessage] }
+          : popup
+      ));
 
-      console.log('Chat interaction completed successfully');
+      // Step 7: Save AI message to database
+      try {
+        const { error: saveAiError } = await supabase
+          .from('chat_sessions')
+          .upsert({
+            id: popupId,
+            project_id: projectId,
+            chapter_id: chapterId,
+            chat_type: 'chat',
+            messages: [userMessage, aiMessage],
+            position: { x: 100, y: 100 },
+            status: 'active',
+            selected_text: null
+          });
+
+        if (saveAiError) {
+          console.error('Failed to save AI message:', saveAiError);
+        }
+      } catch (dbError) {
+        console.error('Database error saving AI message:', dbError);
+      }
+
+      console.log('✅ Hash verification workflow completed successfully');
+      
       return {
-        shouldProceed: true,
-        bannerState: { message: 'Message sent successfully', type: 'success' as const }
+        success: true,
+        bannerState: { 
+          message: 'Message sent successfully!', 
+          type: 'success' as const 
+        }
       };
 
     } catch (error) {
-      console.error('Error in sendMessageWithHashVerification:', error);
+      console.error('❌ Hash verification workflow failed:', error);
+      
       return {
-        shouldProceed: false,
-        bannerState: { message: 'Failed to send message', type: 'error' as const }
+        success: false,
+        bannerState: { 
+          message: error instanceof Error ? error.message : 'Failed to send message', 
+          type: 'error' as const 
+        }
       };
     }
-  }, [saveChat]);
+  }, []);
 
   const value = {
-    livePopups,
-    popups: livePopups,
+    popups,
     createPopup,
     updatePopup,
     closePopup,
     deletePopup,
     reopenPopup,
-    goToLine,
-    timelineVersion,
-    sendMessageWithHashVerification,
+    sendMessageWithHashVerification
   };
 
   return (
@@ -334,14 +392,6 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
       {children}
     </SimplePopupContext.Provider>
   );
-};
-
-export const useSimplePopups = () => {
-  const context = useContext(SimplePopupContext);
-  if (!context) {
-    throw new Error('useSimplePopups must be used within a SimplePopupProvider');
-  }
-  return context;
 };
 
 // Legacy component for backward compatibility

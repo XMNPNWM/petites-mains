@@ -1,10 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Brain, AlertTriangle, CheckCircle, Loader2, RefreshCw } from 'lucide-react';
+import { Brain, AlertTriangle, CheckCircle, Loader2, RefreshCw, Hash } from 'lucide-react';
 import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator';
 import { AnalysisJobManager } from '@/services/AnalysisJobManager';
+import { ContentHashService } from '@/services/ContentHashService';
 import { KnowledgeBase, AnalysisStatus } from '@/types/knowledge';
 
 interface AIBrainPanelProps {
@@ -19,6 +21,13 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
     hasErrors: false,
     errorCount: 0,
     lowConfidenceFactsCount: 0
+  });
+  const [contentHashStatus, setContentHashStatus] = useState<{
+    hasOutdatedContent: boolean;
+    chaptersNeedingAnalysis: number;
+  }>({
+    hasOutdatedContent: false,
+    chaptersNeedingAnalysis: 0
   });
   const [isLoading, setIsLoading] = useState(true);
   
@@ -42,13 +51,58 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
     }
   };
 
+  const checkContentHashStatus = async () => {
+    try {
+      // Get all project chapters
+      const { data: chapters } = await supabase
+        .from('chapters')
+        .select('id, title')
+        .eq('project_id', projectId);
+
+      if (!chapters || chapters.length === 0) {
+        setContentHashStatus({
+          hasOutdatedContent: false,
+          chaptersNeedingAnalysis: 0
+        });
+        return;
+      }
+
+      let outdatedCount = 0;
+
+      // Check hash status for each chapter
+      for (const chapter of chapters) {
+        try {
+          const hashResult = await ContentHashService.verifyContentHash(chapter.id);
+          if (!hashResult.isValid) {
+            outdatedCount++;
+          }
+        } catch (error) {
+          console.error(`Hash check failed for chapter ${chapter.id}:`, error);
+          // Assume it needs analysis if we can't verify
+          outdatedCount++;
+        }
+      }
+
+      setContentHashStatus({
+        hasOutdatedContent: outdatedCount > 0,
+        chaptersNeedingAnalysis: outdatedCount
+      });
+
+    } catch (error) {
+      console.error('Error checking content hash status:', error);
+    }
+  };
+
   const handleAnalyzeProject = async () => {
     try {
       setAnalysisStatus(prev => ({ ...prev, isProcessing: true }));
       await SmartAnalysisOrchestrator.analyzeProject(projectId);
       
       // Refresh data after a short delay
-      setTimeout(fetchKnowledge, 1000);
+      setTimeout(() => {
+        fetchKnowledge();
+        checkContentHashStatus();
+      }, 1000);
     } catch (error) {
       console.error('Error starting project analysis:', error);
       setAnalysisStatus(prev => ({ ...prev, isProcessing: false }));
@@ -57,11 +111,13 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
 
   useEffect(() => {
     fetchKnowledge();
+    checkContentHashStatus();
     
     // Set up polling for status updates during processing
     const interval = setInterval(() => {
       if (analysisStatus.isProcessing) {
         fetchKnowledge();
+        checkContentHashStatus();
       }
     }, 2000);
 
@@ -127,8 +183,25 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
         </Button>
       </div>
 
+      {/* Content Hash Status */}
+      {contentHashStatus.hasOutdatedContent && (
+        <Card className="p-4 bg-yellow-50 border-yellow-200">
+          <div className="flex items-center space-x-3">
+            <Hash className="w-5 h-5 text-yellow-600" />
+            <div>
+              <p className="font-medium text-yellow-900">
+                Content Analysis Needed
+              </p>
+              <p className="text-sm text-yellow-700">
+                {contentHashStatus.chaptersNeedingAnalysis} chapter(s) have been modified and need re-analysis for up-to-date AI insights.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Status Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="flex items-center space-x-3">
             <CheckCircle className="w-5 h-5 text-green-500" />
@@ -158,6 +231,16 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
             </div>
           </div>
         </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center space-x-3">
+            <Hash className="w-5 h-5 text-blue-500" />
+            <div>
+              <p className="text-sm font-medium text-slate-900">Needs Analysis</p>
+              <p className="text-2xl font-bold text-blue-600">{contentHashStatus.chaptersNeedingAnalysis}</p>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Processing Status */}
@@ -167,7 +250,7 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
             <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
             <div>
               <p className="font-medium text-blue-900">
-                {analysisStatus.currentJob.current_step || 'Processing...'}
+                {analysisStatus.currentJob.current_step || 'Processing with hash verification...'}
               </p>
               <div className="flex items-center space-x-2 mt-1">
                 <div className="w-32 bg-blue-200 rounded-full h-2">
@@ -226,7 +309,7 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
             <Brain className="w-12 h-12 text-slate-400 mx-auto mb-3" />
             <p className="text-slate-600 mb-4">No knowledge extracted yet</p>
             <p className="text-sm text-slate-500">
-              Click "Analyze Project" to start extracting insights from your story
+              Click "Analyze Project" to start extracting insights from your story with hash verification
             </p>
           </Card>
         ) : (
