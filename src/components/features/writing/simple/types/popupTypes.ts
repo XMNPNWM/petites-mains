@@ -18,8 +18,19 @@ export interface SimplePopup {
   status: 'open' | 'closed' | 'minimized';
 }
 
+// Export SimplePopupSession as an alias for backward compatibility
+export type SimplePopupSession = SimplePopup;
+
 // Legacy type alias for backward compatibility
 export type Popup = SimplePopup;
+
+// Re-export SelectedTextContext from comments types
+export interface SelectedTextContext {
+  text: string;
+  startOffset: number;
+  endOffset: number;
+  lineNumber?: number;
+}
 
 export interface PopupContextProps {
   livePopups: SimplePopup[];

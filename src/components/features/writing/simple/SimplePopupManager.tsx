@@ -8,6 +8,12 @@ interface SimplePopupContextType {
   openPopup: (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => void;
   closePopup: (id: string) => void;
   minimizePopup: (id: string) => void;
+  createPopup: (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string, lineNumber?: number) => Promise<void>;
+  updatePopup: (id: string, updates: Partial<SimplePopupSession>) => void;
+  deletePopup: (id: string) => Promise<void>;
+  reopenPopup: (id: string, type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string) => Promise<void>;
+  goToLine: (chapterId: string, lineNumber: number) => Promise<boolean>;
+  timelineVersion: number;
   sendMessageWithHashVerification?: (popupId: string, message: string, projectId: string, chapterId?: string) => Promise<{
     success: boolean;
     bannerState?: { message: string; type: 'success' | 'error' | 'loading' } | null;
@@ -30,6 +36,11 @@ interface SimplePopupProviderProps {
 
 export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
   const [popups, setPopups] = useState<SimplePopupSession[]>([]);
+  const [timelineVersion, setTimelineVersion] = useState(0);
+
+  const incrementTimelineVersion = useCallback(() => {
+    setTimelineVersion(prev => prev + 1);
+  }, []);
 
   const openPopup = useCallback((type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => {
     console.log('Opening popup:', { type, position, projectId, chapterId, selectedText });
@@ -48,20 +59,135 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       createdAt: new Date(),
       projectId,
       chapterId,
-      selectedText,
+      selectedText: selectedText?.text,
+      lineNumber: selectedText?.lineNumber,
+      textPosition: selectedText?.startOffset,
       messages: type === 'comment' && selectedText ? [{
         role: 'assistant',
         content: `You're commenting on: "${selectedText.text}"\n\nWhat would you like to note about this text?`,
         timestamp: new Date()
-      }] : []
+      }] : [],
+      status: 'open'
     };
     
     setPopups(prev => [...prev, newPopup]);
+    incrementTimelineVersion();
+  }, [incrementTimelineVersion]);
+
+  const createPopup = useCallback(async (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string, lineNumber?: number) => {
+    const selectedTextContext: SelectedTextContext | undefined = selectedText ? {
+      text: selectedText,
+      startOffset: 0,
+      endOffset: selectedText.length,
+      lineNumber
+    } : undefined;
+    
+    openPopup(type, position, projectId, chapterId, selectedTextContext);
+  }, [openPopup]);
+
+  const updatePopup = useCallback((id: string, updates: Partial<SimplePopupSession>) => {
+    console.log('Updating popup:', id, updates);
+    setPopups(prev => prev.map(popup => 
+      popup.id === id ? { ...popup, ...updates } : popup
+    ));
   }, []);
 
   const closePopup = useCallback((id: string) => {
     console.log('Closing popup:', id);
     setPopups(prev => prev.filter(popup => popup.id !== id));
+    incrementTimelineVersion();
+  }, [incrementTimelineVersion]);
+
+  const deletePopup = useCallback(async (id: string) => {
+    console.log('Deleting popup permanently:', id);
+    
+    // Remove from state
+    setPopups(prev => prev.filter(popup => popup.id !== id));
+    
+    // Delete from database
+    try {
+      const { error } = await supabase
+        .from('chat_sessions')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error deleting popup from database:', error);
+      }
+    } catch (error) {
+      console.error('Failed to delete popup from database:', error);
+    }
+    
+    incrementTimelineVersion();
+  }, [incrementTimelineVersion]);
+
+  const reopenPopup = useCallback(async (id: string, type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string) => {
+    console.log('Reopening popup:', id);
+    
+    // Check if already open
+    const existingPopup = popups.find(p => p.id === id);
+    if (existingPopup) {
+      console.log('Popup already open:', id);
+      return;
+    }
+
+    try {
+      // Load from database
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error || !data) {
+        console.error('Error loading popup from database:', error);
+        return;
+      }
+
+      // Convert to popup format
+      const reopenedPopup: SimplePopupSession = {
+        id: data.id,
+        type: data.chat_type as 'comment' | 'chat',
+        position: data.position as { x: number; y: number },
+        isMinimized: data.is_minimized,
+        createdAt: new Date(data.created_at),
+        projectId: data.project_id,
+        chapterId: data.chapter_id,
+        selectedText: data.selected_text,
+        lineNumber: data.line_number,
+        textPosition: data.text_position,
+        messages: (data.messages as any[])?.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        })) || [],
+        status: 'open'
+      };
+
+      setPopups(prev => [...prev, reopenedPopup]);
+    } catch (error) {
+      console.error('Failed to reopen popup:', error);
+    }
+  }, [popups]);
+
+  const goToLine = useCallback(async (chapterId: string, lineNumber: number): Promise<boolean> => {
+    try {
+      console.log('Navigation request:', { chapterId, lineNumber });
+      
+      // For now, just log the navigation request
+      // In a real implementation, this would navigate to the specific line
+      // and return true if successful, false if failed
+      
+      // Simulate navigation logic
+      if (chapterId && lineNumber > 0) {
+        console.log(`Navigating to chapter ${chapterId}, line ${lineNumber}`);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Navigation failed:', error);
+      return false;
+    }
   }, []);
 
   const minimizePopup = useCallback((id: string) => {
@@ -166,6 +292,12 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       openPopup, 
       closePopup, 
       minimizePopup,
+      createPopup,
+      updatePopup,
+      deletePopup,
+      reopenPopup,
+      goToLine,
+      timelineVersion,
       sendMessageWithHashVerification
     }}>
       {children}
