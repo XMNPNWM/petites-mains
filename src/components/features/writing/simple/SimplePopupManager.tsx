@@ -192,10 +192,11 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
     projectId: string, 
     chapterId?: string
   ) => {
-    console.log('🔄 Starting unified AI workflow:', { popupId, projectId, chapterId });
+    console.log('🔄 Starting hash-aware AI workflow:', { popupId, projectId, chapterId });
     
     try {
       let shouldAnalyze = false;
+      let analysisReason = '';
       
       // Step 1: Check if project has ever been analyzed
       const existingKnowledge = await SmartAnalysisOrchestrator.getProjectKnowledge(projectId);
@@ -204,41 +205,54 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (hasNeverAnalyzed) {
         console.log('🆕 Project has never been analyzed - triggering comprehensive analysis');
         shouldAnalyze = true;
-      } else if (chapterId) {
-        // Step 2: Hash verification if we have a chapter and project was analyzed before
-        console.log('📋 Checking content hash for chapter:', chapterId);
+        analysisReason = 'initial comprehensive analysis';
+      } else {
+        // Step 2: Hash verification for existing projects
+        console.log('📋 Performing hash verification to check for content changes');
         
         try {
-          const { data: chapter } = await supabase
+          const { data: chapters } = await supabase
             .from('chapters')
-            .select('content')
-            .eq('id', chapterId)
-            .single();
+            .select('id, content, title')
+            .eq('project_id', projectId);
 
-          if (chapter?.content) {
-            const hashResult = await ContentHashService.verifyContentHash(chapterId, chapter.content);
-            console.log('🔍 Hash verification result:', hashResult);
-            
-            if (hashResult.hasChanges) {
-              console.log('🚨 Content hash mismatch - analysis needed');
-              shouldAnalyze = true;
+          let hasChanges = false;
+          let changedChapters = 0;
+          
+          if (chapters) {
+            for (const chapter of chapters) {
+              if (chapter.content) {
+                const hashResult = await ContentHashService.verifyContentHash(chapter.id, chapter.content);
+                if (hashResult.hasChanges) {
+                  hasChanges = true;
+                  changedChapters++;
+                  console.log(`🚨 Chapter "${chapter.title}" has changes - analysis needed`);
+                }
+              }
             }
+          }
+          
+          if (hasChanges) {
+            shouldAnalyze = true;
+            analysisReason = `content re-analysis (${changedChapters} chapters changed)`;
+            console.log(`🚨 Content changes detected in ${changedChapters} chapters - analysis needed`);
+          } else {
+            console.log('✅ All content is up-to-date - no analysis needed');
           }
         } catch (hashError) {
           console.error('❌ Hash verification failed:', hashError);
-          console.log('⚠️ Continuing without hash verification');
+          console.log('⚠️ Continuing without hash verification due to error');
         }
       }
 
       // Step 3: Run analysis if needed
       if (shouldAnalyze) {
-        const analysisType = hasNeverAnalyzed ? 'initial comprehensive analysis' : 'content re-analysis';
-        console.log(`🧠 Starting ${analysisType} before AI chat`);
+        console.log(`🧠 Starting ${analysisReason} before AI chat`);
         
         // Show analyzing banner
         const analysisMessage = hasNeverAnalyzed 
           ? 'Performing initial analysis of your project before responding...'
-          : 'Analyzing latest content changes before responding...';
+          : `Analyzing latest content changes (${analysisReason}) before responding...`;
         
         // Update popup to show analysis in progress
         setPopups(prev => prev.map(popup => 
@@ -255,18 +269,22 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
         ));
 
         try {
-          // Run the comprehensive analysis using the new architecture
+          // Run the hash-aware comprehensive analysis
           const result = await SmartAnalysisOrchestrator.analyzeProject(projectId);
-          console.log('✅ Analysis completed:', result);
+          console.log('✅ Hash-aware analysis completed:', result);
           
-          // Update the popup to show analysis completion
+          // Update the popup to show analysis completion with hash savings info
+          const completionMessage = result.processingStats?.hashVerificationSaved
+            ? `Analysis completed! Extracted ${result.processingStats?.knowledgeExtracted || 0} knowledge items. Saved costs by skipping ${result.processingStats?.chaptersSkipped || 0} unchanged chapters. Now processing your message...`
+            : `Analysis completed! Extracted ${result.processingStats?.knowledgeExtracted || 0} knowledge items. Now processing your message...`;
+            
           setPopups(prev => prev.map(popup => 
             popup.id === popupId 
               ? { 
                   ...popup, 
                   messages: [...(popup.messages || []).slice(0, -1), {
                     role: 'assistant' as const,
-                    content: `Analysis completed! Extracted ${result.processingStats?.knowledgeExtracted || 0} knowledge items. Now processing your message...`,
+                    content: completionMessage,
                     timestamp: new Date()
                   }]
                 }
@@ -290,6 +308,8 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
               : popup
           ));
         }
+      } else {
+        console.log('✅ Content is up-to-date, proceeding directly to AI response');
       }
 
       // Step 4: Add user message to popup
@@ -306,7 +326,7 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
       ));
 
       // Step 5: Call the chat-with-ai edge function for the actual response
-      console.log('🤖 Calling AI service with:', { message, projectId, chapterId });
+      console.log('🤖 Calling AI service with updated context:', { message, projectId, chapterId });
       
       const { data, error } = await supabase.functions.invoke('chat-with-ai', {
         body: { 
@@ -376,18 +396,20 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
         console.error('Database error saving conversation:', dbError);
       }
 
-      console.log('✅ Unified AI workflow completed successfully');
+      console.log('✅ Hash-aware AI workflow completed successfully');
       
       return {
         success: true,
         bannerState: { 
-          message: 'Message sent successfully!', 
+          message: shouldAnalyze 
+            ? 'Analysis completed and message sent successfully!' 
+            : 'Message sent successfully!', 
           type: 'success' as const 
         }
       };
 
     } catch (error) {
-      console.error('❌ Unified AI workflow failed:', error);
+      console.error('❌ Hash-aware AI workflow failed:', error);
       
       // Add error message to popup
       const errorMessage = {

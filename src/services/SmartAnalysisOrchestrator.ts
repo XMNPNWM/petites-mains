@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { RefinementService } from './RefinementService';
+import { ContentHashService } from './ContentHashService';
 import { KnowledgeBase } from '@/types/knowledge';
 
 export class SmartAnalysisOrchestrator {
@@ -93,9 +94,11 @@ export class SmartAnalysisOrchestrator {
 
   static async analyzeProject(projectId: string): Promise<any> {
     try {
-      console.log('🚀 [SMART] Starting comprehensive project analysis:', projectId);
+      console.log('🚀 [SMART] Starting hash-aware project analysis:', projectId);
 
-      // Get all chapters for the project
+      // PHASE 1: Hash Verification - Check what actually needs analysis
+      console.log('📋 Phase 1: Checking content hashes for all chapters');
+      
       const { data: chapters, error: chaptersError } = await supabase
         .from('chapters')
         .select('*')
@@ -113,27 +116,80 @@ export class SmartAnalysisOrchestrator {
           processingStats: {
             contentAnalyzed: 0,
             creditsUsed: 0,
-            knowledgeExtracted: 0
+            knowledgeExtracted: 0,
+            chaptersSkipped: 0,
+            hashVerificationSaved: true
           }
         };
       }
 
+      // Check which chapters need analysis based on content hashes
+      let chaptersNeedingAnalysis = [];
+      let chaptersSkipped = 0;
+      
+      for (const chapter of chapters) {
+        if (chapter.content && chapter.content.trim().length > 0) {
+          try {
+            const hashResult = await ContentHashService.verifyContentHash(chapter.id, chapter.content);
+            console.log(`🔍 Hash check for chapter "${chapter.title}":`, hashResult);
+            
+            if (hashResult.hasChanges) {
+              console.log(`🚨 Chapter "${chapter.title}" needs analysis - content changed`);
+              chaptersNeedingAnalysis.push(chapter);
+            } else {
+              console.log(`✅ Chapter "${chapter.title}" skipped - no changes detected`);
+              chaptersSkipped++;
+            }
+          } catch (hashError) {
+            console.error(`⚠️ Hash verification failed for chapter ${chapter.id}:`, hashError);
+            // If hash verification fails, include in analysis to be safe
+            chaptersNeedingAnalysis.push(chapter);
+          }
+        }
+      }
+
+      // Check if this is the first analysis (no existing knowledge)
+      const existingKnowledge = await this.getProjectKnowledge(projectId);
+      const isFirstAnalysis = existingKnowledge.length === 0;
+
+      if (isFirstAnalysis) {
+        console.log('🆕 First analysis detected - analyzing all chapters regardless of hash status');
+        chaptersNeedingAnalysis = chapters.filter(c => c.content && c.content.trim().length > 0);
+        chaptersSkipped = 0;
+      }
+
+      console.log(`📊 Analysis plan: ${chaptersNeedingAnalysis.length} chapters to analyze, ${chaptersSkipped} chapters skipped`);
+
+      if (chaptersNeedingAnalysis.length === 0) {
+        console.log('✅ All chapters are up-to-date, no analysis needed');
+        return {
+          success: true,
+          processingStats: {
+            contentAnalyzed: 0,
+            creditsUsed: 0,
+            knowledgeExtracted: existingKnowledge.length,
+            chaptersSkipped: chaptersSkipped,
+            hashVerificationSaved: true,
+            message: 'All content is up-to-date'
+          }
+        };
+      }
+
+      // PHASE 2: Knowledge Extraction from chapters that need analysis
       let totalContentAnalyzed = 0;
       let totalCreditsUsed = 0;
       let totalKnowledgeExtracted = 0;
 
-      // Combine all chapter content for comprehensive analysis
-      const allContent = chapters.map(chapter => 
+      // Combine content from chapters that need analysis
+      const contentToAnalyze = chaptersNeedingAnalysis.map(chapter => 
         `Chapter: ${chapter.title}\n${chapter.content || ''}`
       ).join('\n\n---CHAPTER_BREAK---\n\n');
 
-      console.log('Combined content length:', allContent.length);
+      console.log(`🧠 Phase 2: Extracting knowledge from ${chaptersNeedingAnalysis.length} chapters (${contentToAnalyze.length} chars)`);
 
-      // Extract knowledge from all content at once for better context
-      console.log('Starting comprehensive knowledge extraction');
       const { data: knowledgeResult, error: knowledgeError } = await supabase.functions.invoke('extract-knowledge', {
         body: { 
-          content: allContent,
+          content: contentToAnalyze,
           projectId: projectId,
           extractionType: 'comprehensive'
         }
@@ -146,36 +202,53 @@ export class SmartAnalysisOrchestrator {
 
       if (knowledgeResult?.success) {
         totalKnowledgeExtracted = knowledgeResult.storedCount || 0;
-        console.log(`Knowledge extraction completed: ${totalKnowledgeExtracted} items extracted`);
+        console.log(`✅ Knowledge extraction completed: ${totalKnowledgeExtracted} items extracted`);
       }
 
-      // Analyze each chapter individually for refinement
-      for (const chapter of chapters) {
+      // PHASE 3: Update content hashes for analyzed chapters
+      console.log('🔄 Phase 3: Updating content hashes for analyzed chapters');
+      
+      for (const chapter of chaptersNeedingAnalysis) {
         try {
-          if (chapter.content && chapter.content.trim().length > 0) {
-            await this.analyzeChapter(projectId, chapter.id);
-            totalContentAnalyzed++;
-            totalCreditsUsed += 1; // Simplified credit counting
-          }
+          await ContentHashService.updateContentHash(chapter.id, chapter.content || '');
+          console.log(`✅ Updated hash for chapter "${chapter.title}"`);
+        } catch (hashError) {
+          console.error(`⚠️ Failed to update hash for chapter ${chapter.id}:`, hashError);
+        }
+      }
+
+      // PHASE 4: Analyze individual chapters for refinement
+      console.log('📝 Phase 4: Processing chapters for refinement');
+      
+      for (const chapter of chaptersNeedingAnalysis) {
+        try {
+          await this.analyzeChapter(projectId, chapter.id);
+          totalContentAnalyzed++;
+          totalCreditsUsed += 1; // Simplified credit counting
         } catch (error) {
           console.error(`Failed to analyze chapter ${chapter.id}:`, error);
           // Continue with other chapters
         }
       }
 
-      console.log('✅ [SMART] Project analysis completed successfully');
+      console.log('✅ [SMART] Hash-aware project analysis completed successfully');
 
       return {
         success: true,
         processingStats: {
           contentAnalyzed: totalContentAnalyzed,
           creditsUsed: totalCreditsUsed,
-          knowledgeExtracted: totalKnowledgeExtracted
+          knowledgeExtracted: totalKnowledgeExtracted,
+          chaptersSkipped: chaptersSkipped,
+          hashVerificationSaved: chaptersSkipped > 0,
+          message: chaptersSkipped > 0 
+            ? `Analyzed ${chaptersNeedingAnalysis.length} changed chapters, skipped ${chaptersSkipped} unchanged chapters`
+            : `Analyzed ${chaptersNeedingAnalysis.length} chapters`
         }
       };
 
     } catch (error) {
-      console.error('❌ [SMART] Project analysis failed:', error);
+      console.error('❌ [SMART] Hash-aware project analysis failed:', error);
       throw error;
     }
   }

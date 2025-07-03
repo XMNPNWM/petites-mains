@@ -125,8 +125,8 @@ Return only valid JSON, no additional text.`;
 
     console.log('Calling Google AI API for knowledge extraction');
 
-    // Call Google AI API
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + apiKey, {
+    // Call Google AI API - Updated to use gemini-2.5-flash for analysis
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

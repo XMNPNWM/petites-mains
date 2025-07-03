@@ -1,38 +1,83 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Brain, AlertTriangle, CheckCircle, Loader2, RefreshCw, Hash } from 'lucide-react';
+import {
+  Brain,
+  RefreshCw,
+  Loader2,
+  CheckCircle,
+  AlertTriangle,
+  Hash
+} from 'lucide-react';
+import { Card, Badge, Button } from '@/components/ui';
 import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator';
-import { AnalysisJobManager } from '@/services/AnalysisJobManager';
 import { ContentHashService } from '@/services/ContentHashService';
-import { KnowledgeBase, AnalysisStatus } from '@/types/knowledge';
+import { useJobManager } from '@/hooks/useJobManager';
 import { supabase } from '@/integrations/supabase/client';
 
 interface AIBrainPanelProps {
   projectId: string;
 }
 
+interface AnalysisStatus {
+  isProcessing: boolean;
+  lastProcessedAt: string | null;
+  lowConfidenceFactsCount: number;
+  errorCount: number;
+  currentJob: any | null;
+}
+
+interface ContentHashStatus {
+  hasOutdatedContent: boolean;
+  chaptersNeedingAnalysis: number;
+  statusDetails: { chapterId: string; title: string; reason: string }[];
+}
+
+const getCategoryColor = (category: string) => {
+  switch (category) {
+    case 'character':
+      return 'bg-purple-100 text-purple-800';
+    case 'relationship':
+      return 'bg-pink-100 text-pink-800';
+    case 'plot_thread':
+      return 'bg-orange-100 text-orange-800';
+    case 'timeline_event':
+      return 'bg-blue-100 text-blue-800';
+    case 'world_building':
+      return 'bg-green-100 text-green-800';
+    case 'theme':
+      return 'bg-yellow-100 text-yellow-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const getConfidenceColor = (confidence: number) => {
+  if (confidence > 0.75) {
+    return 'text-green-600';
+  } else if (confidence > 0.5) {
+    return 'text-yellow-600';
+  } else {
+    return 'text-red-600';
+  }
+};
+
 const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
-  const [knowledge, setKnowledge] = useState<KnowledgeBase[]>([]);
-  const [flaggedKnowledge, setFlaggedKnowledge] = useState<KnowledgeBase[]>([]);
+  const [knowledge, setKnowledge] = useState<any[]>([]);
+  const [flaggedKnowledge, setFlaggedKnowledge] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>({
     isProcessing: false,
-    hasErrors: false,
+    lastProcessedAt: null,
+    lowConfidenceFactsCount: 0,
     errorCount: 0,
-    lowConfidenceFactsCount: 0
+    currentJob: null
   });
-  const [contentHashStatus, setContentHashStatus] = useState<{
-    hasOutdatedContent: boolean;
-    chaptersNeedingAnalysis: number;
-  }>({
+  const [contentHashStatus, setContentHashStatus] = useState<ContentHashStatus>({
     hasOutdatedContent: false,
-    chaptersNeedingAnalysis: 0
+    chaptersNeedingAnalysis: 0,
+    statusDetails: []
   });
-  const [isLoading, setIsLoading] = useState(true);
   const [hasNeverAnalyzed, setHasNeverAnalyzed] = useState(false);
-  
-  const jobManager = new AnalysisJobManager();
+  const jobManager = useJobManager();
 
   const fetchKnowledge = async () => {
     try {
@@ -66,43 +111,44 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
 
   const checkContentHashStatus = async () => {
     try {
-      // Get all project chapters
       const { data: chapters } = await supabase
         .from('chapters')
-        .select('id, title, content')
+        .select('id, content, title')
         .eq('project_id', projectId);
 
-      if (!chapters || chapters.length === 0) {
-        setContentHashStatus({
-          hasOutdatedContent: false,
-          chaptersNeedingAnalysis: 0
-        });
-        return;
-      }
+      if (!chapters) return;
 
-      let outdatedCount = 0;
+      let chaptersNeedingAnalysis = 0;
+      const statusDetails = [];
 
-      // Check hash status for each chapter
       for (const chapter of chapters) {
-        try {
-          if (chapter.content) {
+        if (chapter.content) {
+          try {
             const hashResult = await ContentHashService.verifyContentHash(chapter.id, chapter.content);
             if (hashResult.hasChanges) {
-              outdatedCount++;
+              chaptersNeedingAnalysis++;
+              statusDetails.push({
+                chapterId: chapter.id,
+                title: chapter.title,
+                reason: hashResult.reason || 'Content modified'
+              });
             }
+          } catch (error) {
+            console.error(`Hash check failed for chapter ${chapter.id}:`, error);
           }
-        } catch (error) {
-          console.error(`Hash check failed for chapter ${chapter.id}:`, error);
-          // Assume it needs analysis if we can't verify
-          outdatedCount++;
         }
       }
 
       setContentHashStatus({
-        hasOutdatedContent: outdatedCount > 0,
-        chaptersNeedingAnalysis: outdatedCount
+        hasOutdatedContent: chaptersNeedingAnalysis > 0,
+        chaptersNeedingAnalysis,
+        statusDetails
       });
 
+      console.log('Content hash status:', {
+        chaptersNeedingAnalysis,
+        statusDetails
+      });
     } catch (error) {
       console.error('Error checking content hash status:', error);
     }
@@ -111,16 +157,20 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
   const handleAnalyzeProject = async () => {
     try {
       setAnalysisStatus(prev => ({ ...prev, isProcessing: true }));
-      console.log('🚀 Starting unified project analysis for:', projectId);
-      
-      // Use the new unified analysis architecture
+      console.log('🚀 Starting hash-aware unified project analysis for:', projectId);
+
+      // Use the new hash-aware analysis architecture
       const result = await SmartAnalysisOrchestrator.analyzeProject(projectId);
-      console.log('✅ Unified analysis completed:', result);
+      console.log('✅ Hash-aware unified analysis completed:', result);
       
       // Update the never analyzed flag
       setHasNeverAnalyzed(false);
       
-      // Show success message with extracted data count
+      // Show success message with hash verification savings
+      if (result.processingStats?.hashVerificationSaved) {
+        console.log(`💰 Hash verification saved costs by skipping ${result.processingStats.chaptersSkipped} unchanged chapters`);
+      }
+      
       if (result.processingStats?.knowledgeExtracted > 0) {
         console.log(`🎉 Successfully extracted ${result.processingStats.knowledgeExtracted} knowledge items`);
       }
@@ -131,66 +181,44 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
         checkContentHashStatus();
       }, 1000);
     } catch (error) {
-      console.error('❌ Error in unified project analysis:', error);
+      console.error('❌ Error in hash-aware unified project analysis:', error);
       setAnalysisStatus(prev => ({ ...prev, isProcessing: false }));
-    }
-  };
-
-  // Automatic initial analysis trigger
-  const triggerInitialAnalysisIfNeeded = async () => {
-    if (hasNeverAnalyzed && !analysisStatus.isProcessing) {
-      console.log('🔄 Triggering initial analysis automatically');
-      await handleAnalyzeProject();
     }
   };
 
   useEffect(() => {
     fetchKnowledge();
     checkContentHashStatus();
-    
-    // Set up polling for status updates during processing
-    const interval = setInterval(() => {
-      if (analysisStatus.isProcessing) {
-        fetchKnowledge();
-        checkContentHashStatus();
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
   }, [projectId]);
 
-  // Trigger initial analysis when detected as never analyzed
   useEffect(() => {
-    if (hasNeverAnalyzed) {
-      triggerInitialAnalysisIfNeeded();
+    if (projectId) {
+      jobManager.subscribeToProjectAnalysisStatus(projectId, (status) => {
+        setAnalysisStatus(status);
+      });
+
+      return () => {
+        jobManager.unsubscribeFromProjectAnalysisStatus(projectId);
+      };
     }
-  }, [hasNeverAnalyzed]);
-
-  const getCategoryColor = (category: string) => {
-    const colors = {
-      character: 'bg-blue-100 text-blue-800',
-      plot_point: 'bg-green-100 text-green-800',
-      world_building: 'bg-purple-100 text-purple-800',
-      theme: 'bg-orange-100 text-orange-800',
-      setting: 'bg-teal-100 text-teal-800',
-      other: 'bg-gray-100 text-gray-800'
-    };
-    return colors[category as keyof typeof colors] || colors.other;
-  };
-
-  const getConfidenceColor = (score: number) => {
-    if (score >= 0.8) return 'text-green-600';
-    if (score >= 0.6) return 'text-yellow-600';
-    return 'text-red-600';
-  };
+  }, [projectId, jobManager]);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-purple-600" />
-          <p className="text-slate-600">Loading AI Brain...</p>
-        </div>
+      <div className="space-y-6">
+        <Card className="p-4">
+          <div className="flex items-center space-x-3">
+            <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+            <div>
+              <p className="font-medium text-blue-900">
+                Loading Knowledge...
+              </p>
+              <p className="text-sm text-blue-700">
+                Fetching extracted knowledge and analysis status
+              </p>
+            </div>
+          </div>
+        </Card>
       </div>
     );
   }
@@ -208,7 +236,7 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
             </p>
           </div>
         </div>
-        
+
         <Button
           onClick={handleAnalyzeProject}
           disabled={analysisStatus.isProcessing}
@@ -225,6 +253,24 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
           </span>
         </Button>
       </div>
+
+      {/* Hash Verification Status - High Priority */}
+      {contentHashStatus.hasOutdatedContent && (
+        <Card className="p-4 bg-yellow-50 border-yellow-200">
+          <div className="flex items-center space-x-3">
+            <Hash className="w-5 h-5 text-yellow-600" />
+            <div>
+              <p className="font-medium text-yellow-900">
+                Smart Analysis Ready
+              </p>
+              <p className="text-sm text-yellow-700">
+                {contentHashStatus.chaptersNeedingAnalysis} chapter(s) have been modified since last analysis. 
+                Hash verification will save costs by only analyzing changed content.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Initial Analysis Prompt */}
       {hasNeverAnalyzed && !analysisStatus.isProcessing && (
@@ -243,24 +289,35 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
         </Card>
       )}
 
-      {/* Content Hash Status */}
-      {contentHashStatus.hasOutdatedContent && (
-        <Card className="p-4 bg-yellow-50 border-yellow-200">
+      {/* Processing Status */}
+      {analysisStatus.isProcessing && (
+        <Card className="p-4 bg-blue-50 border-blue-200">
           <div className="flex items-center space-x-3">
-            <Hash className="w-5 h-5 text-yellow-600" />
+            <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
             <div>
-              <p className="font-medium text-yellow-900">
-                Content Analysis Needed
+              <p className="font-medium text-blue-900">
+                {analysisStatus.currentJob?.current_step || 'Performing hash-aware analysis...'}
               </p>
-              <p className="text-sm text-yellow-700">
-                {contentHashStatus.chaptersNeedingAnalysis} chapter(s) have been modified and need re-analysis for up-to-date AI insights.
+              <p className="text-sm text-blue-700">
+                Using hash verification to optimize analysis and save costs
               </p>
+              <div className="flex items-center space-x-2 mt-1">
+                <div className="w-32 bg-blue-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${analysisStatus.currentJob?.progress_percentage || 0}%` }}
+                  ></div>
+                </div>
+                <span className="text-sm text-blue-700">
+                  {analysisStatus.currentJob?.progress_percentage || 0}%
+                </span>
+              </div>
             </div>
           </div>
         </Card>
       )}
 
-      {/* Status Overview */}
+      {/* Status Overview - Updated with hash verification info */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="flex items-center space-x-3">
@@ -303,65 +360,7 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
         </Card>
       </div>
 
-      {/* Processing Status */}
-      {analysisStatus.isProcessing && (
-        <Card className="p-4 bg-blue-50 border-blue-200">
-          <div className="flex items-center space-x-3">
-            <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-            <div>
-              <p className="font-medium text-blue-900">
-                {analysisStatus.currentJob?.current_step || 'Analyzing your project...'}
-              </p>
-              <div className="flex items-center space-x-2 mt-1">
-                <div className="w-32 bg-blue-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${analysisStatus.currentJob?.progress_percentage || 0}%` }}
-                  ></div>
-                </div>
-                <span className="text-sm text-blue-700">
-                  {analysisStatus.currentJob?.progress_percentage || 0}%
-                </span>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Flagged Knowledge (High Priority) */}
-      {flaggedKnowledge.length > 0 && (
-        <div>
-          <h4 className="text-md font-semibold text-slate-900 mb-3 flex items-center space-x-2">
-            <AlertTriangle className="w-4 h-4 text-red-500" />
-            <span>Issues Requiring Review</span>
-          </h4>
-          <div className="space-y-3">
-            {flaggedKnowledge.map((item) => (
-              <Card key={item.id} className="p-4 border-red-200 bg-red-50">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <h5 className="font-medium text-slate-900">{item.name}</h5>
-                      <Badge className={getCategoryColor(item.category)}>
-                        {item.category.replace('_', ' ')}
-                      </Badge>
-                      <span className={`text-sm font-medium ${getConfidenceColor(item.confidence_score)}`}>
-                        {Math.round(item.confidence_score * 100)}% confidence
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-600 mb-2">{item.description}</p>
-                    {item.evidence && (
-                      <p className="text-xs text-slate-500 italic">Evidence: {item.evidence}</p>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* All Knowledge */}
+      {/* All Knowledge Display */}
       <div>
         <h4 className="text-md font-semibold text-slate-900 mb-3">Extracted Knowledge</h4>
         {knowledge.length === 0 ? (
@@ -372,7 +371,7 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
             </p>
             <p className="text-sm text-slate-500">
               {hasNeverAnalyzed 
-                ? 'Click "Start Analysis" to extract insights from your story'
+                ? 'Click "Start Analysis" to extract insights from your story using smart hash verification'
                 : 'Click "Analyze Project" to extract insights from your story'
               }
             </p>
