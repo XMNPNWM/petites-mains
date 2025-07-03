@@ -192,7 +192,7 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
     projectId: string, 
     chapterId?: string
   ) => {
-    console.log('🔄 Starting hash verification workflow:', { popupId, projectId, chapterId });
+    console.log('🔄 Starting unified AI workflow:', { popupId, projectId, chapterId });
     
     try {
       let shouldAnalyze = false;
@@ -202,14 +202,13 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const hasNeverAnalyzed = existingKnowledge.length === 0;
       
       if (hasNeverAnalyzed) {
-        console.log('🆕 Project has never been analyzed - triggering initial analysis');
+        console.log('🆕 Project has never been analyzed - triggering comprehensive analysis');
         shouldAnalyze = true;
       } else if (chapterId) {
         // Step 2: Hash verification if we have a chapter and project was analyzed before
         console.log('📋 Checking content hash for chapter:', chapterId);
         
         try {
-          // Get current content from the chapter
           const { data: chapter } = await supabase
             .from('chapters')
             .select('content')
@@ -231,31 +230,69 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
       }
 
-      // Step 3: Show analyzing banner if needed
+      // Step 3: Run analysis if needed
       if (shouldAnalyze) {
-        const analysisType = hasNeverAnalyzed ? 'initial analysis' : 'content re-analysis';
+        const analysisType = hasNeverAnalyzed ? 'initial comprehensive analysis' : 'content re-analysis';
         console.log(`🧠 Starting ${analysisType} before AI chat`);
         
-        // Trigger analysis in background
+        // Show analyzing banner
+        const analysisMessage = hasNeverAnalyzed 
+          ? 'Performing initial analysis of your project before responding...'
+          : 'Analyzing latest content changes before responding...';
+        
+        // Update popup to show analysis in progress
+        setPopups(prev => prev.map(popup => 
+          popup.id === popupId 
+            ? { 
+                ...popup, 
+                messages: [...(popup.messages || []), {
+                  role: 'assistant' as const,
+                  content: analysisMessage,
+                  timestamp: new Date()
+                }]
+              }
+            : popup
+        ));
+
         try {
+          // Run the comprehensive analysis using the new architecture
           const result = await SmartAnalysisOrchestrator.analyzeProject(projectId);
           console.log('✅ Analysis completed:', result);
+          
+          // Update the popup to show analysis completion
+          setPopups(prev => prev.map(popup => 
+            popup.id === popupId 
+              ? { 
+                  ...popup, 
+                  messages: [...(popup.messages || []).slice(0, -1), {
+                    role: 'assistant' as const,
+                    content: `Analysis completed! Extracted ${result.processingStats?.knowledgeExtracted || 0} knowledge items. Now processing your message...`,
+                    timestamp: new Date()
+                  }]
+                }
+              : popup
+          ));
+          
         } catch (analysisError) {
           console.error('❌ Analysis failed:', analysisError);
+          
+          // Update popup to show analysis failure but continue
+          setPopups(prev => prev.map(popup => 
+            popup.id === popupId 
+              ? { 
+                  ...popup, 
+                  messages: [...(popup.messages || []).slice(0, -1), {
+                    role: 'assistant' as const,
+                    content: 'Analysis encountered issues but continuing with your message...',
+                    timestamp: new Date()
+                  }]
+                }
+              : popup
+          ));
         }
-        
-        return {
-          success: false,
-          bannerState: { 
-            message: hasNeverAnalyzed 
-              ? 'Performing initial analysis of your project before responding...'
-              : 'Analyzing latest content changes before responding...', 
-            type: 'loading' as const 
-          }
-        };
       }
 
-      // Step 4: Add user message to popup immediately
+      // Step 4: Add user message to popup
       const userMessage = {
         role: 'user' as const,
         content: message,
@@ -268,35 +305,7 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
           : popup
       ));
 
-      // Step 5: Save user message to database (convert Date to ISO string)
-      try {
-        const messageForDb = {
-          role: userMessage.role,
-          content: userMessage.content,
-          timestamp: userMessage.timestamp.toISOString()
-        };
-
-        const { error: saveError } = await supabase
-          .from('chat_sessions')
-          .upsert({
-            id: popupId,
-            project_id: projectId,
-            chapter_id: chapterId,
-            chat_type: 'chat',
-            messages: [messageForDb],
-            position: { x: 100, y: 100 },
-            status: 'active',
-            selected_text: null
-          });
-
-        if (saveError) {
-          console.error('Failed to save user message:', saveError);
-        }
-      } catch (dbError) {
-        console.error('Database error saving user message:', dbError);
-      }
-
-      // Step 6: Call AI service
+      // Step 5: Call the chat-with-ai edge function for the actual response
       console.log('🤖 Calling AI service with:', { message, projectId, chapterId });
       
       const { data, error } = await supabase.functions.invoke('chat-with-ai', {
@@ -319,7 +328,7 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
         throw new Error(data?.error || 'AI service returned invalid response');
       }
 
-      // Step 7: Add AI response to popup
+      // Step 6: Add AI response to popup
       const aiMessage = {
         role: 'assistant' as const,
         content: data.response,
@@ -332,41 +341,42 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
           : popup
       ));
 
-      // Step 8: Save AI message to database (convert Date to ISO string)
+      // Step 7: Save conversation to database
       try {
-        const userMessageForDb = {
-          role: userMessage.role,
-          content: userMessage.content,
-          timestamp: userMessage.timestamp.toISOString()
-        };
-        
-        const aiMessageForDb = {
-          role: aiMessage.role,
-          content: aiMessage.content,
-          timestamp: aiMessage.timestamp.toISOString()
-        };
+        const conversationMessages = [
+          {
+            role: userMessage.role,
+            content: userMessage.content,
+            timestamp: userMessage.timestamp.toISOString()
+          },
+          {
+            role: aiMessage.role,
+            content: aiMessage.content,
+            timestamp: aiMessage.timestamp.toISOString()
+          }
+        ];
 
-        const { error: saveAiError } = await supabase
+        const { error: saveError } = await supabase
           .from('chat_sessions')
           .upsert({
             id: popupId,
             project_id: projectId,
             chapter_id: chapterId,
             chat_type: 'chat',
-            messages: [userMessageForDb, aiMessageForDb],
+            messages: conversationMessages,
             position: { x: 100, y: 100 },
             status: 'active',
             selected_text: null
           });
 
-        if (saveAiError) {
-          console.error('Failed to save AI message:', saveAiError);
+        if (saveError) {
+          console.error('Failed to save conversation:', saveError);
         }
       } catch (dbError) {
-        console.error('Database error saving AI message:', dbError);
+        console.error('Database error saving conversation:', dbError);
       }
 
-      console.log('✅ Hash verification workflow completed successfully');
+      console.log('✅ Unified AI workflow completed successfully');
       
       return {
         success: true,
@@ -377,7 +387,20 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
       };
 
     } catch (error) {
-      console.error('❌ Hash verification workflow failed:', error);
+      console.error('❌ Unified AI workflow failed:', error);
+      
+      // Add error message to popup
+      const errorMessage = {
+        role: 'assistant' as const,
+        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+        timestamp: new Date()
+      };
+
+      setPopups(prev => prev.map(popup => 
+        popup.id === popupId 
+          ? { ...popup, messages: [...(popup.messages || []), errorMessage] }
+          : popup
+      ));
       
       return {
         success: false,

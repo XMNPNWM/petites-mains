@@ -111,13 +111,19 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
   const handleAnalyzeProject = async () => {
     try {
       setAnalysisStatus(prev => ({ ...prev, isProcessing: true }));
-      console.log('Starting project analysis for:', projectId);
+      console.log('🚀 Starting unified project analysis for:', projectId);
       
+      // Use the new unified analysis architecture
       const result = await SmartAnalysisOrchestrator.analyzeProject(projectId);
-      console.log('Analysis completed:', result);
+      console.log('✅ Unified analysis completed:', result);
       
       // Update the never analyzed flag
       setHasNeverAnalyzed(false);
+      
+      // Show success message with extracted data count
+      if (result.processingStats?.knowledgeExtracted > 0) {
+        console.log(`🎉 Successfully extracted ${result.processingStats.knowledgeExtracted} knowledge items`);
+      }
       
       // Refresh data after a short delay
       setTimeout(() => {
@@ -125,7 +131,7 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
         checkContentHashStatus();
       }, 1000);
     } catch (error) {
-      console.error('Error starting project analysis:', error);
+      console.error('❌ Error in unified project analysis:', error);
       setAnalysisStatus(prev => ({ ...prev, isProcessing: false }));
     }
   };
@@ -133,7 +139,7 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
   // Automatic initial analysis trigger
   const triggerInitialAnalysisIfNeeded = async () => {
     if (hasNeverAnalyzed && !analysisStatus.isProcessing) {
-      console.log('Triggering initial analysis automatically');
+      console.log('🔄 Triggering initial analysis automatically');
       await handleAnalyzeProject();
     }
   };
@@ -215,7 +221,7 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
           )}
           <span>
             {analysisStatus.isProcessing ? 'Analyzing...' : 
-             hasNeverAnalyzed ? 'Start Initial Analysis' : 'Analyze Project'}
+             hasNeverAnalyzed ? 'Start Analysis' : 'Analyze Project'}
           </span>
         </Button>
       </div>
@@ -227,10 +233,10 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
             <Brain className="w-5 h-5 text-blue-600" />
             <div>
               <p className="font-medium text-blue-900">
-                Initial Analysis Starting
+                Ready to Analyze Your Project
               </p>
               <p className="text-sm text-blue-700">
-                No analysis has been performed on this project yet. Initial analysis will begin automatically to extract knowledge from your content.
+                No analysis has been performed yet. Click "Start Analysis" to extract characters, relationships, plot threads, and themes from your story.
               </p>
             </div>
           </div>
@@ -298,23 +304,23 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
       </div>
 
       {/* Processing Status */}
-      {analysisStatus.isProcessing && analysisStatus.currentJob && (
+      {analysisStatus.isProcessing && (
         <Card className="p-4 bg-blue-50 border-blue-200">
           <div className="flex items-center space-x-3">
             <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
             <div>
               <p className="font-medium text-blue-900">
-                {analysisStatus.currentJob.current_step || 'Processing with hash verification...'}
+                {analysisStatus.currentJob?.current_step || 'Analyzing your project...'}
               </p>
               <div className="flex items-center space-x-2 mt-1">
                 <div className="w-32 bg-blue-200 rounded-full h-2">
                   <div 
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${analysisStatus.currentJob.progress_percentage}%` }}
+                    style={{ width: `${analysisStatus.currentJob?.progress_percentage || 0}%` }}
                   ></div>
                 </div>
                 <span className="text-sm text-blue-700">
-                  {analysisStatus.currentJob.progress_percentage}%
+                  {analysisStatus.currentJob?.progress_percentage || 0}%
                 </span>
               </div>
             </div>
@@ -362,12 +368,12 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
           <Card className="p-8 text-center">
             <Brain className="w-12 h-12 text-slate-400 mx-auto mb-3" />
             <p className="text-slate-600 mb-4">
-              {hasNeverAnalyzed ? 'Initial analysis will start automatically' : 'No knowledge extracted yet'}
+              {hasNeverAnalyzed ? 'Ready to analyze your project' : 'No knowledge extracted yet'}
             </p>
             <p className="text-sm text-slate-500">
               {hasNeverAnalyzed 
-                ? 'Your project content will be analyzed to extract insights automatically'
-                : 'Click "Analyze Project" to start extracting insights from your story with hash verification'
+                ? 'Click "Start Analysis" to extract insights from your story'
+                : 'Click "Analyze Project" to extract insights from your story'
               }
             </p>
           </Card>
