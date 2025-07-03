@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface AnalysisJob {
   id: string;
   project_id: string;
-  status: string;
+  state: string;
   current_step: string;
   progress_percentage: number;
   created_at: string;
@@ -25,9 +25,9 @@ export const useJobManager = () => {
 
   const getProjectAnalysisStatus = useCallback(async (projectId: string): Promise<AnalysisStatus> => {
     try {
-      // Get recent analysis jobs for this project
+      // Get recent analysis jobs for this project - using correct table name
       const { data: jobs, error: jobsError } = await supabase
-        .from('analysis_jobs')
+        .from('knowledge_processing_jobs')
         .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
@@ -48,8 +48,8 @@ export const useJobManager = () => {
       }
 
       const currentJob = jobs?.[0] || null;
-      const isProcessing = currentJob?.status === 'processing' || currentJob?.status === 'pending';
-      const lastProcessedAt = jobs?.find(job => job.status === 'completed')?.updated_at || null;
+      const isProcessing = currentJob?.state === 'thinking' || currentJob?.state === 'analyzing' || currentJob?.state === 'extracting' || currentJob?.state === 'pending';
+      const lastProcessedAt = jobs?.find(job => job.state === 'done')?.updated_at || null;
 
       const lowConfidenceFactsCount = knowledge?.filter(k => k.confidence_score < 0.7).length || 0;
       const errorCount = knowledge?.filter(k => k.is_flagged).length || 0;
@@ -82,7 +82,7 @@ export const useJobManager = () => {
         {
           event: '*',
           schema: 'public',
-          table: 'analysis_jobs',
+          table: 'knowledge_processing_jobs',
           filter: `project_id=eq.${projectId}`
         },
         async () => {
@@ -95,8 +95,10 @@ export const useJobManager = () => {
     return channel;
   }, [getProjectAnalysisStatus]);
 
-  const unsubscribeFromProjectAnalysisStatus = useCallback((projectId: string) => {
-    supabase.removeChannel(`analysis-status-${projectId}`);
+  const unsubscribeFromProjectAnalysisStatus = useCallback((channel: any) => {
+    if (channel && typeof channel.unsubscribe === 'function') {
+      channel.unsubscribe();
+    }
   }, []);
 
   return {

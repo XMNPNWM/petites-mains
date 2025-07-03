@@ -196,12 +196,12 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
 
   useEffect(() => {
     if (projectId) {
-      jobManager.subscribeToProjectAnalysisStatus(projectId, (status) => {
+      const channel = jobManager.subscribeToProjectAnalysisStatus(projectId, (status) => {
         setAnalysisStatus(status);
       });
 
       return () => {
-        jobManager.unsubscribeFromProjectAnalysisStatus(projectId);
+        jobManager.unsubscribeFromProjectAnalysisStatus(channel);
       };
     }
   }, [projectId, jobManager]);
