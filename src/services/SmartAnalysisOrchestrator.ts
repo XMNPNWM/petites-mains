@@ -26,23 +26,6 @@ export class SmartAnalysisOrchestrator {
 
       console.log('Chapter loaded, content length:', chapter.content.length);
 
-      // Extract knowledge using the new edge function
-      console.log('Extracting knowledge from chapter content');
-      const { data: knowledgeResult, error: knowledgeError } = await supabase.functions.invoke('extract-knowledge', {
-        body: { 
-          content: chapter.content,
-          projectId: projectId,
-          extractionType: 'comprehensive'
-        }
-      });
-
-      if (knowledgeError) {
-        console.error('Knowledge extraction failed:', knowledgeError);
-        throw new Error(`Knowledge extraction failed: ${knowledgeError.message}`);
-      }
-
-      console.log('Knowledge extraction completed:', knowledgeResult);
-
       // Get or create refinement data for content enhancement
       let refinementData = await RefinementService.fetchRefinementData(chapterId);
       if (!refinementData) {
@@ -54,7 +37,7 @@ export class SmartAnalysisOrchestrator {
 
       console.log('Refinement data ready:', refinementData.id);
 
-      // Enhance content using the chat-with-ai edge function
+      // Enhance content using the chat-with-ai edge function with gemini-2.5-flash-lite-preview-06-17
       try {
         const { data: enhancementResult, error: enhancementError } = await supabase.functions.invoke('chat-with-ai', {
           body: { 
@@ -175,7 +158,7 @@ export class SmartAnalysisOrchestrator {
         };
       }
 
-      // PHASE 2: Knowledge Extraction from chapters that need analysis
+      // PHASE 2: Knowledge Extraction from chapters that need analysis using edge function
       let totalContentAnalyzed = 0;
       let totalCreditsUsed = 0;
       let totalKnowledgeExtracted = 0;
@@ -187,6 +170,7 @@ export class SmartAnalysisOrchestrator {
 
       console.log(`🧠 Phase 2: Extracting knowledge from ${chaptersNeedingAnalysis.length} chapters (${contentToAnalyze.length} chars)`);
 
+      // Use the extract-knowledge edge function with gemini-2.5-flash
       const { data: knowledgeResult, error: knowledgeError } = await supabase.functions.invoke('extract-knowledge', {
         body: { 
           content: contentToAnalyze,
@@ -203,6 +187,10 @@ export class SmartAnalysisOrchestrator {
       if (knowledgeResult?.success) {
         totalKnowledgeExtracted = knowledgeResult.storedCount || 0;
         console.log(`✅ Knowledge extraction completed: ${totalKnowledgeExtracted} items extracted`);
+        
+        if (knowledgeResult.errors && knowledgeResult.errors.length > 0) {
+          console.warn('Some errors occurred during storage:', knowledgeResult.errors);
+        }
       }
 
       // PHASE 3: Update content hashes for analyzed chapters

@@ -118,8 +118,8 @@ Please respond to the user's message in a helpful, creative, and encouraging man
 
     console.log('Calling Google AI API with system prompt length:', systemPrompt.length);
 
-    // Call Google AI API (Gemini) - Updated to use gemini-2.5-flash-lite for chat
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' + apiKey, {
+    // Call Google AI API (Gemini) - Using gemini-2.5-flash-lite-preview-06-17 for chat
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=' + apiKey, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
