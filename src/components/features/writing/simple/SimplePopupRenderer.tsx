@@ -7,11 +7,11 @@ import { useSimplePopups } from './SimplePopupManager';
 import { useChatDatabase } from '@/hooks/useChatDatabase';
 
 const SimplePopupRenderer = () => {
-  const { livePopups, updatePopup, closePopup } = useSimplePopups();
+  const { popups, updatePopup, closePopup } = useSimplePopups();
   const { saveChat } = useChatDatabase();
 
   const handleUpdate = async (id: string, messages: { role: 'user' | 'assistant'; content: string; timestamp: Date }[]) => {
-    const popup = livePopups.find(p => p.id === id);
+    const popup = popups.find(p => p.id === id);
     if (!popup) return;
 
     updatePopup(id, { messages });
@@ -46,7 +46,7 @@ const SimplePopupRenderer = () => {
     closePopup(id);
   };
 
-  const activePopups = livePopups.filter(popup => popup.status === 'open');
+  const activePopups = popups.filter(popup => popup.status === 'open');
 
   return (
     <>

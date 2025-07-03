@@ -50,5 +50,14 @@ export interface PopupContextProps {
     message: string,
     projectId: string,
     chapterId?: string
-  ) => Promise<{ shouldProceed: boolean; bannerState?: { message: string; type: 'success' | 'error' | 'loading' } }>;
+  ) => Promise<{ success: boolean; bannerState?: { message: string; type: 'success' | 'error' | 'loading' } }>;
+}
+
+export interface SimplePopupManagerProps {
+  projectId: string;
+  chapterId?: string;
+  textContent?: string;
+  popups: SimplePopup[];
+  setPopups: (popups: SimplePopup[]) => void;
+  onTextSelect?: (text: string, position: number) => void;
 }

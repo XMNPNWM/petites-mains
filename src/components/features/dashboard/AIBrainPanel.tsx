@@ -8,6 +8,7 @@ import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator'
 import { AnalysisJobManager } from '@/services/AnalysisJobManager';
 import { ContentHashService } from '@/services/ContentHashService';
 import { KnowledgeBase, AnalysisStatus } from '@/types/knowledge';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AIBrainPanelProps {
   projectId: string;
@@ -56,7 +57,7 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
       // Get all project chapters
       const { data: chapters } = await supabase
         .from('chapters')
-        .select('id, title')
+        .select('id, title, content')
         .eq('project_id', projectId);
 
       if (!chapters || chapters.length === 0) {
@@ -72,9 +73,11 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
       // Check hash status for each chapter
       for (const chapter of chapters) {
         try {
-          const hashResult = await ContentHashService.verifyContentHash(chapter.id);
-          if (!hashResult.isValid) {
-            outdatedCount++;
+          if (chapter.content) {
+            const hashResult = await ContentHashService.verifyContentHash(chapter.id, chapter.content);
+            if (hashResult.hasChanges) {
+              outdatedCount++;
+            }
           }
         } catch (error) {
           console.error(`Hash check failed for chapter ${chapter.id}:`, error);

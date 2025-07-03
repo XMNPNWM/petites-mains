@@ -1,45 +1,16 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { usePopupNavigation } from './hooks/usePopupNavigation';
 import { usePopupCreation } from './hooks/usePopupCreation';
-import { useDragBehavior } from './hooks/useDragBehavior';
 import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator';
 import { ContentHashService } from '@/services/ContentHashService';
-import { SimplePopup } from './types/popupTypes';
+import { SimplePopup, SimplePopupManagerProps } from './types/popupTypes';
 import { useChatDatabase } from '@/hooks/useChatDatabase';
 import { supabase } from '@/integrations/supabase/client';
 
-interface SimplePopupState {
-  popups: SimplePopup[];
-  createPopup: (
-    type: 'comment' | 'chat',
-    position: { x: number; y: number },
-    projectId: string,
-    chapterId?: string,
-    selectedText?: string,
-    lineNumber?: number
-  ) => Promise<void>;
-  updatePopup: (id: string, updates: Partial<SimplePopup>) => void;
-  closePopup: (id: string) => Promise<void>;
-  deletePopup: (id: string) => Promise<void>;
-  reopenPopup: (
-    id: string,
-    type: 'comment' | 'chat',
-    position: { x: number; y: number },
-    projectId: string,
-    chapterId?: string,
-    selectedText?: string
-  ) => Promise<void>;
-  goToLine: (chapterId: string, lineNumber: number) => Promise<boolean>;
-  sendMessageWithHashVerification?: (
-    popupId: string,
-    message: string,
-    projectId: string,
-    chapterId?: string
-  ) => Promise<{ success: boolean; bannerState?: { message: string; type: 'success' | 'error' | 'loading' } }>;
-}
-
 interface SimplePopupContextType {
+  livePopups: SimplePopup[];
   popups: SimplePopup[];
   createPopup: (
     type: 'comment' | 'chat',
@@ -61,6 +32,7 @@ interface SimplePopupContextType {
     selectedText?: string
   ) => Promise<void>;
   goToLine: (chapterId: string, lineNumber: number) => Promise<boolean>;
+  timelineVersion: number;
   sendMessageWithHashVerification?: (
     popupId: string,
     message: string,
@@ -153,14 +125,11 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       if (error) {
         console.error('Failed to delete from database:', error);
-        // Don't re-add to state even if database deletion fails
-        // The popup should remain deleted from UI
       } else {
         console.log('✅ Popup deleted from database successfully');
       }
     } catch (error) {
       console.error('Error during popup deletion:', error);
-      // Popup stays deleted from UI regardless of database errors
     }
   }, []);
 
@@ -234,16 +203,24 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
         console.log('📋 Checking content hash for chapter:', chapterId);
         
         try {
-          const hashResult = await ContentHashService.verifyContentHash(chapterId);
-          console.log('🔍 Hash verification result:', hashResult);
-          
-          if (!hashResult.isValid) {
-            console.log('🚨 Content hash mismatch - analysis needed');
-            shouldAnalyze = true;
+          // Get current content from the chapter
+          const { data: chapter } = await supabase
+            .from('chapters')
+            .select('content')
+            .eq('id', chapterId)
+            .single();
+
+          if (chapter?.content) {
+            const hashResult = await ContentHashService.verifyContentHash(chapterId, chapter.content);
+            console.log('🔍 Hash verification result:', hashResult);
+            
+            if (hashResult.hasChanges) {
+              console.log('🚨 Content hash mismatch - analysis needed');
+              shouldAnalyze = true;
+            }
           }
         } catch (hashError) {
           console.error('❌ Hash verification failed:', hashError);
-          // Continue without hash verification rather than blocking
           console.log('⚠️ Continuing without hash verification');
         }
       }
@@ -251,6 +228,13 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
       // Step 2: Show analyzing banner if needed
       if (shouldAnalyze) {
         console.log('🧠 Starting content analysis before AI chat');
+        
+        // Trigger analysis in background
+        try {
+          await SmartAnalysisOrchestrator.analyzeProject(projectId);
+        } catch (analysisError) {
+          console.error('Analysis failed:', analysisError);
+        }
         
         return {
           success: false,
@@ -274,8 +258,14 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
           : popup
       ));
 
-      // Step 4: Save user message to database
+      // Step 4: Save user message to database (convert Date to ISO string)
       try {
+        const messageForDb = {
+          role: userMessage.role,
+          content: userMessage.content,
+          timestamp: userMessage.timestamp.toISOString()
+        };
+
         const { error: saveError } = await supabase
           .from('chat_sessions')
           .upsert({
@@ -283,7 +273,7 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
             project_id: projectId,
             chapter_id: chapterId,
             chat_type: 'chat',
-            messages: [userMessage],
+            messages: [messageForDb],
             position: { x: 100, y: 100 },
             status: 'active',
             selected_text: null
@@ -332,8 +322,20 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
           : popup
       ));
 
-      // Step 7: Save AI message to database
+      // Step 7: Save AI message to database (convert Date to ISO string)
       try {
+        const userMessageForDb = {
+          role: userMessage.role,
+          content: userMessage.content,
+          timestamp: userMessage.timestamp.toISOString()
+        };
+        
+        const aiMessageForDb = {
+          role: aiMessage.role,
+          content: aiMessage.content,
+          timestamp: aiMessage.timestamp.toISOString()
+        };
+
         const { error: saveAiError } = await supabase
           .from('chat_sessions')
           .upsert({
@@ -341,7 +343,7 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
             project_id: projectId,
             chapter_id: chapterId,
             chat_type: 'chat',
-            messages: [userMessage, aiMessage],
+            messages: [userMessageForDb, aiMessageForDb],
             position: { x: 100, y: 100 },
             status: 'active',
             selected_text: null
@@ -378,12 +380,15 @@ export const SimplePopupProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, []);
 
   const value = {
+    livePopups: popups.filter(popup => popup.status === 'open'),
     popups,
     createPopup,
     updatePopup,
     closePopup,
     deletePopup,
     reopenPopup,
+    goToLine,
+    timelineVersion,
     sendMessageWithHashVerification
   };
 
