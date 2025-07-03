@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Brain,
@@ -7,7 +8,9 @@ import {
   AlertTriangle,
   Hash
 } from 'lucide-react';
-import { Card, Badge, Button } from '@/components/ui';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator';
 import { ContentHashService } from '@/services/ContentHashService';
 import { useJobManager } from '@/hooks/useJobManager';
@@ -28,7 +31,7 @@ interface AnalysisStatus {
 interface ContentHashStatus {
   hasOutdatedContent: boolean;
   chaptersNeedingAnalysis: number;
-  statusDetails: { chapterId: string; title: string; reason: string }[];
+  statusDetails: { chapterId: string; title: string; hasChanges: boolean }[];
 }
 
 const getCategoryColor = (category: string) => {
@@ -130,7 +133,7 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
               statusDetails.push({
                 chapterId: chapter.id,
                 title: chapter.title,
-                reason: hashResult.reason || 'Content modified'
+                hasChanges: hashResult.hasChanges
               });
             }
           } catch (error) {
