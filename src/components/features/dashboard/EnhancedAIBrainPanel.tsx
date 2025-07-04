@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -61,7 +62,12 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         throw knowledgeError;
       }
 
-      const allKnowledge = knowledgeData || [];
+      // Convert database Json type to proper KnowledgeBase type
+      const allKnowledge: KnowledgeBase[] = (knowledgeData || []).map(item => ({
+        ...item,
+        details: typeof item.details === 'string' ? JSON.parse(item.details) : (item.details as Record<string, any>) || {}
+      }));
+
       const flagged = allKnowledge.filter(item => item.is_flagged);
 
       console.log('📊 Knowledge fetched:', {
