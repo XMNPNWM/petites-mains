@@ -14,18 +14,22 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  console.log('🚀 Chat-with-AI request started');
+  const startTime = Date.now();
+
   try {
     const { message, projectId, chapterId } = await req.json();
     
-    console.log('Chat request received:', { 
+    console.log('📥 Chat request received:', { 
       projectId, 
       chapterId, 
       messageLength: message?.length || 0,
-      hasMessage: !!message 
+      hasMessage: !!message,
+      messagePreview: message?.substring(0, 100) + '...'
     });
 
     if (!message) {
-      console.error('Message is required but not provided');
+      console.error('❌ Message is required but not provided');
       return new Response(JSON.stringify({ 
         error: 'Message is required',
         success: false 
@@ -35,10 +39,10 @@ serve(async (req) => {
       });
     }
 
-    // Get Google AI API key from environment
+    console.log('🔑 Checking Google AI API key...');
     const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
     if (!apiKey) {
-      console.error('Google AI API key not configured');
+      console.error('❌ Google AI API key not configured');
       return new Response(JSON.stringify({ 
         error: 'Google AI API key not configured. Please check your Supabase Edge Function secrets.',
         details: 'GOOGLE_AI_API_KEY environment variable is missing',
@@ -48,19 +52,22 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    console.log('✅ API key found');
 
-    // Initialize Supabase client
+    console.log('🔗 Initializing Supabase client...');
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+    console.log('✅ Supabase client initialized');
 
     // Get project context if projectId is provided
     let contextPrompt = '';
     if (projectId) {
-      console.log('Fetching project context for:', projectId);
+      console.log('📚 Fetching project context for:', projectId);
       
       try {
         // Get project details
+        console.log('📖 Loading project details...');
         const { data: project } = await supabase
           .from('projects')
           .select('title, description')
@@ -68,6 +75,7 @@ serve(async (req) => {
           .single();
 
         // Get recent knowledge base entries
+        console.log('🧠 Loading knowledge base entries...');
         const { data: knowledge } = await supabase
           .from('knowledge_base')
           .select('name, description, category, confidence_score')
@@ -78,6 +86,7 @@ serve(async (req) => {
         // Get current chapter if provided
         let chapterContext = '';
         if (chapterId) {
+          console.log('📝 Loading chapter context for:', chapterId);
           const { data: chapter } = await supabase
             .from('chapters')
             .select('title, content')
@@ -86,6 +95,9 @@ serve(async (req) => {
 
           if (chapter) {
             chapterContext = `\nCurrent Chapter: "${chapter.title}"\nChapter Content Preview: ${chapter.content?.substring(0, 500) || 'No content'}...`;
+            console.log('✅ Chapter context loaded:', chapter.title);
+          } else {
+            console.log('⚠️ Chapter not found:', chapterId);
           }
         }
 
@@ -101,10 +113,16 @@ ${knowledge?.map(k => `- ${k.name} (${k.category}, confidence: ${k.confidence_sc
 
 Please provide helpful responses about this creative writing project. Use the context above to give relevant advice and insights.
           `;
+          console.log('✅ Project context assembled successfully');
+          console.log('📊 Context stats:', {
+            hasProject: !!project,
+            knowledgeEntries: knowledge?.length || 0,
+            hasChapter: !!chapterContext,
+            contextLength: contextPrompt.length
+          });
         }
       } catch (contextError) {
-        console.error('Error fetching project context:', contextError);
-        // Continue without context rather than failing
+        console.error('❌ Error fetching project context:', contextError);
         contextPrompt = 'Unable to load project context, but I can still help with general writing advice.';
       }
     }
@@ -116,9 +134,10 @@ ${contextPrompt}
 
 Please respond to the user's message in a helpful, creative, and encouraging manner. Keep responses concise but valuable.`;
 
-    console.log('Calling Google AI API with system prompt length:', systemPrompt.length);
+    console.log('🤖 Calling Google AI API...');
+    console.log('📝 System prompt length:', systemPrompt.length);
 
-    // Call Google AI API (Gemini) - Using gemini-2.5-flash-lite-preview-06-17 for chat
+    // Call Google AI API (Gemini)
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=' + apiKey, {
       method: 'POST',
       headers: {
@@ -142,11 +161,11 @@ Please respond to the user's message in a helpful, creative, and encouraging man
       }),
     });
 
-    console.log('Google AI API response status:', response.status);
+    console.log('📡 Google AI API response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Google AI API error response:', {
+      console.error('❌ Google AI API error response:', {
         status: response.status,
         statusText: response.statusText,
         error: errorText
@@ -163,10 +182,15 @@ Please respond to the user's message in a helpful, creative, and encouraging man
     }
 
     const data = await response.json();
-    console.log('Google AI response received, candidates:', data.candidates?.length || 0);
+    console.log('✅ Google AI response received');
+    console.log('📊 Response structure:', {
+      hasCandidates: !!data.candidates,
+      candidatesLength: data.candidates?.length || 0,
+      hasContent: !!data.candidates?.[0]?.content
+    });
 
     if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      console.error('Invalid response structure from Google AI API:', data);
+      console.error('❌ Invalid response structure from Google AI API:', data);
       return new Response(JSON.stringify({ 
         error: 'Invalid response from Google AI API',
         details: 'Response does not contain expected candidates structure',
@@ -178,20 +202,32 @@ Please respond to the user's message in a helpful, creative, and encouraging man
     }
 
     const aiResponse = data.candidates[0].content.parts[0].text;
-    console.log('AI response generated successfully, length:', aiResponse?.length || 0);
+    const processingTime = Date.now() - startTime;
+    
+    console.log('✅ AI response generated successfully');
+    console.log('📊 Response stats:', {
+      responseLength: aiResponse?.length || 0,
+      processingTime: processingTime + 'ms'
+    });
 
     return new Response(JSON.stringify({ 
       response: aiResponse,
-      success: true 
+      success: true,
+      processingTime 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Unexpected error in chat-with-ai function:', error);
+    const processingTime = Date.now() - startTime;
+    console.error('❌ Unexpected error in chat-with-ai function:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.log('⏱️ Failed after:', processingTime, 'ms');
+    
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : 'An unexpected error occurred',
       details: 'Check the edge function logs for more information',
+      processingTime,
       success: false 
     }), {
       status: 500,

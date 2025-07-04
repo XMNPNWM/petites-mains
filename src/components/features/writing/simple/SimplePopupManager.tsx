@@ -207,7 +207,12 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     bannerState?: { message: string; type: 'success' | 'error' | 'loading' } | null;
   }> => {
     try {
-      console.log('🚀 Sending message via edge function:', { popupId, projectId, chapterId, messageLength: message.length });
+      console.log('🚀 SimplePopupManager: Starting message send process', { 
+        popupId, 
+        projectId, 
+        chapterId, 
+        messageLength: message.length 
+      });
 
       // Add user message immediately to UI
       const userMessage = {
@@ -216,6 +221,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
         timestamp: new Date()
       };
 
+      console.log('📝 SimplePopupManager: Adding user message to popup', popupId);
       setPopups(prev => prev.map(popup => 
         popup.id === popupId 
           ? { ...popup, messages: [...(popup.messages || []), userMessage] }
@@ -223,7 +229,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       ));
 
       // Call the chat-with-ai edge function
-      console.log('📡 Calling chat-with-ai edge function...');
+      console.log('📡 SimplePopupManager: Calling chat-with-ai edge function...');
       const { data, error } = await supabase.functions.invoke('chat-with-ai', {
         body: {
           message,
@@ -232,10 +238,15 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
         }
       });
 
-      console.log('📨 Edge function response:', { data, error });
+      console.log('📨 SimplePopupManager: Edge function response received', { 
+        hasData: !!data, 
+        hasError: !!error,
+        dataKeys: data ? Object.keys(data) : [],
+        errorMessage: error?.message
+      });
 
       if (error) {
-        console.error('❌ Edge function error:', error);
+        console.error('❌ SimplePopupManager: Edge function error:', error);
         return {
           success: false,
           bannerState: {
@@ -246,7 +257,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       }
 
       if (!data?.success) {
-        console.error('❌ Edge function returned error:', data);
+        console.error('❌ SimplePopupManager: Edge function returned error:', data);
         return {
           success: false,
           bannerState: {
@@ -256,6 +267,11 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
         };
       }
 
+      console.log('✅ SimplePopupManager: AI response received successfully', {
+        responseLength: data.response?.length || 0,
+        processingTime: data.processingTime
+      });
+
       // Add AI response to UI
       const aiMessage = {
         role: 'assistant' as const,
@@ -263,13 +279,14 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
         timestamp: new Date()
       };
 
+      console.log('📝 SimplePopupManager: Adding AI message to popup', popupId);
       setPopups(prev => prev.map(popup => 
         popup.id === popupId 
           ? { ...popup, messages: [...(popup.messages || []), aiMessage] }
           : popup
       ));
 
-      console.log('✅ Message exchange completed successfully');
+      console.log('✅ SimplePopupManager: Message exchange completed successfully');
 
       return {
         success: true,
@@ -280,7 +297,13 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       };
 
     } catch (error) {
-      console.error('❌ Error in sendMessageWithHashVerification:', error);
+      console.error('❌ SimplePopupManager: Error in sendMessageWithHashVerification:', error);
+      console.error('❌ SimplePopupManager: Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      
       return {
         success: false,
         bannerState: {

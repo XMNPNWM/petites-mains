@@ -25,16 +25,26 @@ export const useChatMessages = ({
   const { sendMessageWithHashVerification } = useSimplePopups();
 
   const sendMessage = useCallback(async (message: string) => {
+    console.log('🚀 useChatMessages: Starting message send process', {
+      id,
+      projectId,
+      chapterId,
+      messageLength: message.length,
+      hasHashVerification: !!sendMessageWithHashVerification
+    });
+
     if (!sendMessageWithHashVerification) {
-      console.warn('sendMessageWithHashVerification is not available');
+      console.warn('❌ useChatMessages: sendMessageWithHashVerification is not available');
       setBannerState({ message: 'Chat service not available', type: 'error' });
       return;
     }
 
     setIsLoading(true);
     setBannerState({ message: 'Processing...', type: 'loading' });
+    console.log('📤 useChatMessages: Set loading state and banner');
 
     try {
+      console.log('📡 useChatMessages: Calling sendMessageWithHashVerification...');
       const result = await sendMessageWithHashVerification(
         id,
         message,
@@ -42,31 +52,48 @@ export const useChatMessages = ({
         chapterId
       );
 
+      console.log('📨 useChatMessages: Received result from sendMessageWithHashVerification:', {
+        success: result.success,
+        hasBannerState: !!result.bannerState,
+        bannerType: result.bannerState?.type
+      });
+
       if (result.bannerState) {
         setBannerState(result.bannerState);
+        console.log('🎌 useChatMessages: Updated banner state:', result.bannerState);
       }
 
       // The messages are updated directly in the SimplePopupManager
       // so we don't need to update local state here
+      console.log('✅ useChatMessages: Message processing completed successfully');
       
       // Clear loading state
       setIsLoading(false);
       
       // Clear banner after 3 seconds for success messages
       if (result.bannerState?.type === 'success') {
+        console.log('⏰ useChatMessages: Setting timer to clear success banner');
         setTimeout(() => {
           setBannerState(null);
+          console.log('🔄 useChatMessages: Cleared success banner after timeout');
         }, 3000);
       }
 
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error('❌ useChatMessages: Failed to send message:', error);
+      console.error('❌ useChatMessages: Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      
       setBannerState({ message: 'Failed to send message', type: 'error' });
       setIsLoading(false);
     }
   }, [id, projectId, chapterId, sendMessageWithHashVerification]);
 
   const dismissBanner = useCallback(() => {
+    console.log('🔄 useChatMessages: Dismissing banner');
     setBannerState(null);
   }, []);
 
