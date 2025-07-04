@@ -92,7 +92,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       console.error('❌ Error in fetchKnowledge:', error);
       toast({
         title: "Error",
-        description: "Failed to load knowledge data",
+        description: "Failed to load knowledge data. Please try refreshing the page.",
         variant: "destructive"
       });
     } finally {
@@ -216,6 +216,12 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
 
       console.log(`📝 Combined content length: ${combinedContent.length} characters`);
 
+      // Show processing toast
+      toast({
+        title: "Analysis Started",
+        description: "Processing your story content. This may take a moment...",
+      });
+
       // Call the extract-knowledge edge function
       console.log('🧠 Calling extract-knowledge edge function...');
       const { data, error } = await supabase.functions.invoke('extract-knowledge', {
@@ -240,10 +246,23 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
 
       console.log('✅ Analysis completed successfully:', data);
       
+      const successMessage = data.storedCount > 0 
+        ? `Successfully extracted ${data.storedCount} knowledge items!`
+        : 'Analysis completed, but no new knowledge was extracted. Your story might need more detailed content.';
+      
       toast({
         title: "Analysis Complete",
-        description: `Successfully extracted ${data.storedCount || 0} knowledge items.`,
+        description: successMessage,
       });
+
+      if (data.errors && data.errors.length > 0) {
+        console.warn('⚠️ Some errors occurred during analysis:', data.errors);
+        toast({
+          title: "Analysis Complete with Warnings",
+          description: `Extracted ${data.storedCount} items, but encountered ${data.errors.length} issues.`,
+          variant: "destructive"
+        });
+      }
       
       // Refresh the knowledge display
       setTimeout(fetchKnowledge, 1000);
@@ -255,7 +274,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       
       toast({
         title: "Analysis Error",
-        description: error instanceof Error ? error.message : "Analysis failed",
+        description: error instanceof Error ? error.message : "Analysis failed. Please try again.",
         variant: "destructive"
       });
     } finally {
