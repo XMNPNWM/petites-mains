@@ -16,13 +16,14 @@ serve(async (req) => {
   try {
     const { content, projectId, extractionType = 'comprehensive' } = await req.json();
     
-    console.log('Knowledge extraction request received:', { 
+    console.log('🔍 Knowledge extraction request received:', { 
       projectId, 
       extractionType, 
       contentLength: content?.length || 0 
     });
 
     if (!content || !projectId) {
+      console.error('❌ Missing required parameters:', { content: !!content, projectId: !!projectId });
       return new Response(JSON.stringify({ 
         error: 'Content and projectId are required',
         success: false 
@@ -35,7 +36,7 @@ serve(async (req) => {
     // Get Google AI API key
     const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
     if (!apiKey) {
-      console.error('Google AI API key not configured');
+      console.error('❌ Google AI API key not configured');
       return new Response(JSON.stringify({ 
         error: 'Google AI API key not configured',
         success: false 
@@ -123,9 +124,9 @@ ${content}
 
 Return only valid JSON, no additional text.`;
 
-    console.log('Calling Google AI API for knowledge extraction with gemini-2.5-flash');
+    console.log('🤖 Calling Google AI API for knowledge extraction');
 
-    // Call Google AI API - Using gemini-2.5-flash for knowledge extraction
+    // Call Google AI API
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
       method: 'POST',
       headers: {
@@ -148,14 +149,15 @@ Return only valid JSON, no additional text.`;
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Google AI API error:', { status: response.status, error: errorText });
+      console.error('❌ Google AI API error:', { status: response.status, error: errorText });
       throw new Error(`Google AI API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('Google AI response received');
+    console.log('✅ Google AI response received');
 
     if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      console.error('❌ Invalid response structure from Google AI API:', data);
       throw new Error('Invalid response from Google AI API');
     }
 
@@ -164,16 +166,16 @@ Return only valid JSON, no additional text.`;
     // Parse the JSON response
     let extractedData;
     try {
-      // Clean the response in case it has markdown formatting
       const cleanedResponse = aiResponse.replace(/```json\n?|\n?```/g, '').trim();
       extractedData = JSON.parse(cleanedResponse);
+      console.log('✅ Successfully parsed AI response');
     } catch (parseError) {
-      console.error('Failed to parse AI response as JSON:', parseError);
-      console.log('Raw AI response:', aiResponse);
+      console.error('❌ Failed to parse AI response as JSON:', parseError);
+      console.log('Raw AI response:', aiResponse.substring(0, 500));
       throw new Error('Failed to parse knowledge extraction response');
     }
 
-    console.log('Knowledge extracted successfully:', {
+    console.log('📊 Knowledge extracted:', {
       characters: extractedData.characters?.length || 0,
       relationships: extractedData.relationships?.length || 0,
       plotThreads: extractedData.plot_threads?.length || 0,
@@ -188,160 +190,69 @@ Return only valid JSON, no additional text.`;
 
     // Store characters
     if (extractedData.characters && extractedData.characters.length > 0) {
+      console.log('💾 Storing characters...');
       for (const character of extractedData.characters) {
         try {
-          const { error } = await supabase
+          console.log(`Storing character: ${character.name}`);
+          const { data: insertedData, error } = await supabase
             .from('knowledge_base')
             .upsert({
               project_id: projectId,
               name: character.name,
               category: 'character',
-              description: character.description,
+              description: character.description || '',
               details: character.details || {},
               confidence_score: character.confidence_score || 0.5,
               extraction_method: 'llm_direct'
             }, {
               onConflict: 'project_id,name,category'
-            });
+            })
+            .select();
           
           if (error) {
-            console.error('Error storing character:', error);
+            console.error('❌ Error storing character:', character.name, error);
             errors.push(`Character ${character.name}: ${error.message}`);
           } else {
             storedCount++;
-            console.log('Stored character:', character.name);
+            console.log('✅ Stored character:', character.name, insertedData);
           }
         } catch (error) {
-          console.error('Error storing character:', error);
+          console.error('❌ Exception storing character:', character.name, error);
           errors.push(`Character ${character.name}: ${error.message}`);
-        }
-      }
-    }
-
-    // Store relationships
-    if (extractedData.relationships && extractedData.relationships.length > 0) {
-      for (const rel of extractedData.relationships) {
-        try {
-          const { error } = await supabase
-            .from('character_relationships')
-            .upsert({
-              project_id: projectId,
-              character_a_name: rel.character_a_name,
-              character_b_name: rel.character_b_name,
-              relationship_type: rel.relationship_type,
-              relationship_strength: rel.relationship_strength || 5,
-              confidence_score: rel.confidence_score || 0.5,
-              extraction_method: 'llm_direct'
-            }, {
-              onConflict: 'project_id,character_a_name,character_b_name'
-            });
-          
-          if (error) {
-            console.error('Error storing relationship:', error);
-            errors.push(`Relationship ${rel.character_a_name}-${rel.character_b_name}: ${error.message}`);
-          } else {
-            storedCount++;
-            console.log('Stored relationship:', `${rel.character_a_name}-${rel.character_b_name}`);
-          }
-        } catch (error) {
-          console.error('Error storing relationship:', error);
-          errors.push(`Relationship ${rel.character_a_name}-${rel.character_b_name}: ${error.message}`);
-        }
-      }
-    }
-
-    // Store plot threads
-    if (extractedData.plot_threads && extractedData.plot_threads.length > 0) {
-      for (const thread of extractedData.plot_threads) {
-        try {
-          const { error } = await supabase
-            .from('plot_threads')
-            .upsert({
-              project_id: projectId,
-              thread_name: thread.thread_name,
-              thread_type: thread.thread_type,
-              key_events: thread.key_events || [],
-              thread_status: thread.thread_status || 'active',
-              confidence_score: thread.confidence_score || 0.5,
-              extraction_method: 'llm_direct'
-            }, {
-              onConflict: 'project_id,thread_name'
-            });
-          
-          if (error) {
-            console.error('Error storing plot thread:', error);
-            errors.push(`Plot thread ${thread.thread_name}: ${error.message}`);
-          } else {
-            storedCount++;
-            console.log('Stored plot thread:', thread.thread_name);
-          }
-        } catch (error) {
-          console.error('Error storing plot thread:', error);
-          errors.push(`Plot thread ${thread.thread_name}: ${error.message}`);
-        }
-      }
-    }
-
-    // Store timeline events
-    if (extractedData.timeline_events && extractedData.timeline_events.length > 0) {
-      for (const event of extractedData.timeline_events) {
-        try {
-          const { error } = await supabase
-            .from('timeline_events')
-            .upsert({
-              project_id: projectId,
-              event_name: event.event_name,
-              event_type: event.event_type,
-              event_description: event.event_description,
-              chronological_order: event.chronological_order || 0,
-              characters_involved: event.characters_involved || [],
-              confidence_score: event.confidence_score || 0.5,
-              extraction_method: 'llm_direct'
-            }, {
-              onConflict: 'project_id,event_name'
-            });
-          
-          if (error) {
-            console.error('Error storing timeline event:', error);
-            errors.push(`Timeline event ${event.event_name}: ${error.message}`);
-          } else {
-            storedCount++;
-            console.log('Stored timeline event:', event.event_name);
-          }
-        } catch (error) {
-          console.error('Error storing timeline event:', error);
-          errors.push(`Timeline event ${event.event_name}: ${error.message}`);
         }
       }
     }
 
     // Store world building elements
     if (extractedData.world_building && extractedData.world_building.length > 0) {
+      console.log('💾 Storing world building elements...');
       for (const element of extractedData.world_building) {
         try {
-          const { error } = await supabase
+          console.log(`Storing world building: ${element.name}`);
+          const { data: insertedData, error } = await supabase
             .from('knowledge_base')
             .upsert({
               project_id: projectId,
               name: element.name,
               category: 'world_building',
-              description: element.description,
+              description: element.description || '',
               details: element.details || {},
               confidence_score: element.confidence_score || 0.5,
               extraction_method: 'llm_direct'
             }, {
               onConflict: 'project_id,name,category'
-            });
+            })
+            .select();
           
           if (error) {
-            console.error('Error storing world building element:', error);
+            console.error('❌ Error storing world building element:', element.name, error);
             errors.push(`World building ${element.name}: ${error.message}`);
           } else {
             storedCount++;
-            console.log('Stored world building element:', element.name);
+            console.log('✅ Stored world building element:', element.name, insertedData);
           }
         } catch (error) {
-          console.error('Error storing world building element:', error);
+          console.error('❌ Exception storing world building element:', element.name, error);
           errors.push(`World building ${element.name}: ${error.message}`);
         }
       }
@@ -349,40 +260,43 @@ Return only valid JSON, no additional text.`;
 
     // Store themes
     if (extractedData.themes && extractedData.themes.length > 0) {
+      console.log('💾 Storing themes...');
       for (const theme of extractedData.themes) {
         try {
-          const { error } = await supabase
+          console.log(`Storing theme: ${theme.name}`);
+          const { data: insertedData, error } = await supabase
             .from('knowledge_base')
             .upsert({
               project_id: projectId,
               name: theme.name,
               category: 'theme',
-              description: theme.description,
+              description: theme.description || '',
               details: {},
               confidence_score: theme.confidence_score || 0.5,
               extraction_method: 'llm_direct'
             }, {
               onConflict: 'project_id,name,category'
-            });
+            })
+            .select();
           
           if (error) {
-            console.error('Error storing theme:', error);
+            console.error('❌ Error storing theme:', theme.name, error);
             errors.push(`Theme ${theme.name}: ${error.message}`);
           } else {
             storedCount++;
-            console.log('Stored theme:', theme.name);
+            console.log('✅ Stored theme:', theme.name, insertedData);
           }
         } catch (error) {
-          console.error('Error storing theme:', error);
+          console.error('❌ Exception storing theme:', theme.name, error);
           errors.push(`Theme ${theme.name}: ${error.message}`);
         }
       }
     }
 
-    console.log(`Knowledge extraction completed: ${storedCount} items stored, ${errors.length} errors`);
+    console.log(`✅ Knowledge extraction completed: ${storedCount} items stored, ${errors.length} errors`);
     
     if (errors.length > 0) {
-      console.error('Storage errors encountered:', errors);
+      console.error('❌ Storage errors encountered:', errors);
     }
 
     return new Response(JSON.stringify({ 
@@ -396,7 +310,7 @@ Return only valid JSON, no additional text.`;
     });
 
   } catch (error) {
-    console.error('Knowledge extraction error:', error);
+    console.error('❌ Knowledge extraction error:', error);
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : 'Knowledge extraction failed',
       success: false 

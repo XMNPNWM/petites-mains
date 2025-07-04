@@ -47,28 +47,43 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
 
   const fetchKnowledge = async () => {
     try {
-      console.log('🔄 [SMART] fetchKnowledge called for project:', projectId);
+      console.log('🔄 Fetching knowledge for project:', projectId);
       
-      const [allKnowledge, flagged, status] = await Promise.all([
-        SmartAnalysisOrchestrator.getProjectKnowledge(projectId),
-        SmartAnalysisOrchestrator.getFlaggedKnowledge(projectId),
-        jobManager.getProjectAnalysisStatus(projectId)
-      ]);
+      // Fetch knowledge from database
+      const { data: knowledgeData, error: knowledgeError } = await supabase
+        .from('knowledge_base')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
 
-      console.log('📊 [SMART] fetchKnowledge results:', {
-        allKnowledgeCount: allKnowledge.length,
-        flaggedCount: flagged.length,
-        statusIsProcessing: status.isProcessing,
-        statusHasErrors: status.hasErrors
+      if (knowledgeError) {
+        console.error('❌ Error fetching knowledge:', knowledgeError);
+        throw knowledgeError;
+      }
+
+      const allKnowledge = knowledgeData || [];
+      const flagged = allKnowledge.filter(item => item.is_flagged);
+
+      console.log('📊 Knowledge fetched:', {
+        total: allKnowledge.length,
+        flagged: flagged.length
       });
 
       setKnowledge(allKnowledge);
       setFlaggedKnowledge(flagged);
-      setAnalysisStatus(status);
+      
+      // Get analysis status
+      try {
+        const status = await jobManager.getProjectAnalysisStatus(projectId);
+        setAnalysisStatus(status);
+      } catch (statusError) {
+        console.error('❌ Error fetching analysis status:', statusError);
+        // Continue with default status
+      }
       
       applyFilters(allKnowledge);
     } catch (error) {
-      console.error('❌ [SMART] Error in fetchKnowledge:', error);
+      console.error('❌ Error in fetchKnowledge:', error);
       toast({
         title: "Error",
         description: "Failed to load knowledge data",
@@ -110,7 +125,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   };
 
   useEffect(() => {
-    console.log('🔄 [DEBUG] Initial useEffect triggered, calling fetchKnowledge');
+    console.log('🔄 Initial useEffect triggered, calling fetchKnowledge');
     fetchKnowledge();
     
     // Set up real-time subscription
@@ -119,14 +134,14 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'knowledge_base', filter: `project_id=eq.${projectId}` },
         (payload) => {
-          console.log('📡 [DEBUG] Real-time knowledge change detected:', payload);
+          console.log('📡 Real-time knowledge change detected:', payload);
           fetchKnowledge();
         }
       )
       .subscribe();
 
     return () => {
-      console.log('🧹 [DEBUG] Cleaning up subscription');
+      console.log('🧹 Cleaning up subscription');
       supabase.removeChannel(subscription);
     };
   }, [projectId]);
@@ -149,33 +164,92 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   }, [analysisStatus.isProcessing]);
 
   const handleAnalyzeProject = async () => {
-    console.log('🚀 [SMART] handleAnalyzeProject called for project:', projectId);
+    console.log('🚀 Starting project analysis for:', projectId);
     
     try {
       setIsAnalyzing(true);
       setAnalysisStatus(prev => ({ ...prev, isProcessing: true }));
       
-      console.log('🧠 [SMART] Starting SmartAnalysisOrchestrator.analyzeProject');
-      
-      const result = await SmartAnalysisOrchestrator.analyzeProject(projectId);
-      
-      console.log('✅ [SMART] SmartAnalysisOrchestrator completed:', result);
+      // Get all chapters for this project
+      const { data: chapters, error: chaptersError } = await supabase
+        .from('chapters')
+        .select('id, title, content')
+        .eq('project_id', projectId)
+        .order('order_index', { ascending: true });
+
+      if (chaptersError) {
+        console.error('❌ Error fetching chapters:', chaptersError);
+        throw new Error('Failed to fetch chapters');
+      }
+
+      if (!chapters || chapters.length === 0) {
+        toast({
+          title: "No Content Found",
+          description: "Please add some chapters to your project before running analysis.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log(`📖 Found ${chapters.length} chapters to analyze`);
+
+      // Combine all chapter content
+      const combinedContent = chapters
+        .filter(chapter => chapter.content && chapter.content.trim().length > 0)
+        .map(chapter => `Chapter: ${chapter.title}\n\n${chapter.content}`)
+        .join('\n\n---\n\n');
+
+      if (!combinedContent || combinedContent.trim().length === 0) {
+        toast({
+          title: "No Content Found",
+          description: "Your chapters appear to be empty. Please add some content before running analysis.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log(`📝 Combined content length: ${combinedContent.length} characters`);
+
+      // Call the extract-knowledge edge function
+      console.log('🧠 Calling extract-knowledge edge function...');
+      const { data, error } = await supabase.functions.invoke('extract-knowledge', {
+        body: {
+          content: combinedContent,
+          projectId: projectId,
+          extractionType: 'comprehensive'
+        }
+      });
+
+      console.log('📨 Extract knowledge response:', { data, error });
+
+      if (error) {
+        console.error('❌ Edge function error:', error);
+        throw new Error(`Analysis failed: ${error.message}`);
+      }
+
+      if (!data?.success) {
+        console.error('❌ Edge function returned error:', data);
+        throw new Error(`Analysis failed: ${data?.error || 'Unknown error'}`);
+      }
+
+      console.log('✅ Analysis completed successfully:', data);
       
       toast({
-        title: "Smart Analysis Complete",
-        description: `Analyzed ${result.processingStats.contentAnalyzed} items. Credits used: ${result.processingStats.creditsUsed}`,
+        title: "Analysis Complete",
+        description: `Successfully extracted ${data.storedCount || 0} knowledge items.`,
       });
       
+      // Refresh the knowledge display
       setTimeout(fetchKnowledge, 1000);
       
     } catch (error) {
-      console.error('❌ [SMART] Error in handleAnalyzeProject:', error);
+      console.error('❌ Error in handleAnalyzeProject:', error);
       
       setAnalysisStatus(prev => ({ ...prev, isProcessing: false }));
       
       toast({
         title: "Analysis Error",
-        description: error instanceof Error ? error.message : "Smart analysis failed",
+        description: error instanceof Error ? error.message : "Analysis failed",
         variant: "destructive"
       });
     } finally {
@@ -186,16 +260,16 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   const handleRetryAnalysis = async () => {
     try {
       setIsRetrying(true);
-      console.log('🔄 [SMART] Retrying analysis for project:', projectId);
+      console.log('🔄 Retrying analysis for project:', projectId);
       
       await handleAnalyzeProject();
       
       toast({
-        title: "Smart Retry Started",
-        description: "Analysis has been restarted with smart dependency tracking.",
+        title: "Retry Started",
+        description: "Analysis has been restarted.",
       });
     } catch (error) {
-      console.error('❌ [SMART] Error retrying analysis:', error);
+      console.error('❌ Error retrying analysis:', error);
       toast({
         title: "Retry Failed",
         description: error instanceof Error ? error.message : "Failed to retry analysis",
@@ -210,17 +284,17 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     if (!analysisStatus.currentJob?.id) return;
     
     try {
-      console.log('🚫 [SMART] Cancelling analysis job:', analysisStatus.currentJob.id);
+      console.log('🚫 Cancelling analysis job:', analysisStatus.currentJob.id);
       await jobManager.cancelJob(analysisStatus.currentJob.id);
       
       toast({
         title: "Analysis Cancelled",
-        description: "The smart analysis job has been cancelled.",
+        description: "The analysis job has been cancelled.",
       });
       
       setTimeout(fetchKnowledge, 1000);
     } catch (error) {
-      console.error('❌ [SMART] Error cancelling analysis:', error);
+      console.error('❌ Error cancelling analysis:', error);
       toast({
         title: "Error",
         description: "Failed to cancel analysis",
@@ -369,7 +443,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-purple-600" />
-          <p className="text-slate-600">Loading Smart AI Brain...</p>
+          <p className="text-slate-600">Loading AI Brain...</p>
         </div>
       </div>
     );
@@ -377,14 +451,14 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Header with Smart Analysis Button */}
+      {/* Header with Analysis Button */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <Brain className="w-6 h-6 text-purple-600" />
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">Smart AI Brain</h3>
+            <h3 className="text-lg font-semibold text-slate-900">AI Brain</h3>
             <p className="text-sm text-slate-600">
-              Intelligent dependency-aware analysis with user learning
+              Intelligent story analysis with knowledge extraction
             </p>
           </div>
         </div>
@@ -403,7 +477,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
               ) : (
                 <RotateCcw className="w-4 h-4 mr-2" />
               )}
-              Smart Retry
+              Retry
             </Button>
           )}
           
@@ -430,28 +504,25 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
               <Brain className="w-4 h-4" />
             )}
             <span>
-              {analysisStatus.isProcessing ? 'Smart Analyzing...' : 
+              {analysisStatus.isProcessing ? 'Analyzing...' : 
                isAnalyzing ? 'Starting...' : 
-               isRetrying ? 'Retrying...' : 'Smart Analyze'}
+               isRetrying ? 'Retrying...' : 'Analyze Project'}
             </span>
           </Button>
         </div>
       </div>
 
-      {/* Enhanced Processing Status with Smart Features */}
+      {/* Processing Status */}
       {analysisStatus.isProcessing && analysisStatus.currentJob && (
         <Card className="p-4 bg-blue-50 border-blue-200">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-2">
               <Brain className="w-5 h-5 animate-pulse text-blue-600" />
-              <span className="font-medium text-blue-900">Smart Analysis in Progress</span>
-              <Badge variant="secondary" className="text-xs">
-                Dependency-Aware
-              </Badge>
+              <span className="font-medium text-blue-900">Analysis in Progress</span>
             </div>
             <div className="flex items-center space-x-2 text-sm text-blue-700">
               <Clock className="w-4 h-4" />
-              <span>Saving Credits: Only Changed Content</span>
+              <span>Processing Your Story</span>
             </div>
           </div>
           
@@ -467,33 +538,19 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                 style={{ width: `${analysisStatus.currentJob.progress_percentage || 0}%` }}
               />
             </div>
-            
-            {analysisStatus.currentJob.results_summary && (
-              <div className="text-xs text-blue-600 grid grid-cols-2 gap-2 mt-2">
-                {analysisStatus.currentJob.results_summary.contentAnalyzed && (
-                  <span>Content: {analysisStatus.currentJob.results_summary.contentAnalyzed}</span>
-                )}
-                {analysisStatus.currentJob.results_summary.creditsUsed && (
-                  <span>Credits: {analysisStatus.currentJob.results_summary.creditsUsed}</span>
-                )}
-              </div>
-            )}
           </div>
         </Card>
       )}
 
-      {/* Success Status with Smart Stats */}
+      {/* Success Status */}
       {!analysisStatus.isProcessing && !analysisStatus.hasErrors && knowledge.length > 0 && (
         <Card className="p-4 bg-green-50 border-green-200">
           <div className="flex items-center space-x-2 mb-2">
             <CheckCircle className="w-5 h-5 text-green-600" />
-            <span className="font-medium text-green-900">Smart Analysis Complete</span>
-            <Badge className="bg-green-100 text-green-800">
-              Credit-Efficient
-            </Badge>
+            <span className="font-medium text-green-900">Analysis Complete</span>
           </div>
           <p className="text-sm text-green-700">
-            Intelligently extracted {knowledge.length} knowledge items using dependency tracking
+            Successfully extracted {knowledge.length} knowledge items from your story
             {analysisStatus.lastProcessedAt && (
               <span className="ml-2">
                 • Last updated: {new Date(analysisStatus.lastProcessedAt).toLocaleString()}
@@ -620,7 +677,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
             </p>
             {knowledge.length === 0 && (
               <p className="text-sm text-slate-500">
-                Click "Smart Analyze" to start extracting insights from your story
+                Click "Analyze Project" to start extracting insights from your story
               </p>
             )}
           </Card>

@@ -207,7 +207,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     bannerState?: { message: string; type: 'success' | 'error' | 'loading' } | null;
   }> => {
     try {
-      console.log('Sending message via edge function:', { popupId, projectId, chapterId });
+      console.log('🚀 Sending message via edge function:', { popupId, projectId, chapterId, messageLength: message.length });
 
       // Add user message immediately to UI
       const userMessage = {
@@ -223,6 +223,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       ));
 
       // Call the chat-with-ai edge function
+      console.log('📡 Calling chat-with-ai edge function...');
       const { data, error } = await supabase.functions.invoke('chat-with-ai', {
         body: {
           message,
@@ -231,8 +232,10 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
         }
       });
 
+      console.log('📨 Edge function response:', { data, error });
+
       if (error) {
-        console.error('Edge function error:', error);
+        console.error('❌ Edge function error:', error);
         return {
           success: false,
           bannerState: {
@@ -243,7 +246,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       }
 
       if (!data?.success) {
-        console.error('Edge function returned error:', data);
+        console.error('❌ Edge function returned error:', data);
         return {
           success: false,
           bannerState: {
@@ -266,6 +269,8 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
           : popup
       ));
 
+      console.log('✅ Message exchange completed successfully');
+
       return {
         success: true,
         bannerState: {
@@ -275,7 +280,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       };
 
     } catch (error) {
-      console.error('Error in sendMessageWithHashVerification:', error);
+      console.error('❌ Error in sendMessageWithHashVerification:', error);
       return {
         success: false,
         bannerState: {
