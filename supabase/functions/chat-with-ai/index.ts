@@ -9,6 +9,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -16,16 +17,17 @@ serve(async (req) => {
   try {
     const { message, projectId, chapterId } = await req.json();
     
-    console.log('🔍 Chat request received:', { 
-      message: message?.substring(0, 100) + '...',
+    console.log('Chat request received:', { 
       projectId, 
-      chapterId 
+      chapterId, 
+      messageLength: message?.length || 0,
+      hasMessage: !!message 
     });
 
-    if (!message || !projectId) {
-      console.error('❌ Missing required parameters:', { message: !!message, projectId: !!projectId });
+    if (!message) {
+      console.error('Message is required but not provided');
       return new Response(JSON.stringify({ 
-        error: 'Message and projectId are required',
+        error: 'Message is required',
         success: false 
       }), {
         status: 400,
@@ -33,12 +35,13 @@ serve(async (req) => {
       });
     }
 
-    // Get Google AI API key
+    // Get Google AI API key from environment
     const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
     if (!apiKey) {
-      console.error('❌ Google AI API key not configured');
+      console.error('Google AI API key not configured');
       return new Response(JSON.stringify({ 
-        error: 'AI service not configured',
+        error: 'Google AI API key not configured. Please check your Supabase Edge Function secrets.',
+        details: 'GOOGLE_AI_API_KEY environment variable is missing',
         success: false 
       }), {
         status: 500,
@@ -51,74 +54,72 @@ serve(async (req) => {
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-    // Get project context
-    let contextInfo = '';
-    
-    try {
-      // Get project details
-      const { data: project } = await supabase
-        .from('projects')
-        .select('title, description')
-        .eq('id', projectId)
-        .single();
-
-      if (project) {
-        contextInfo += `Project: ${project.title}\n`;
-        if (project.description) {
-          contextInfo += `Description: ${project.description}\n`;
-        }
-      }
-
-      // Get chapter context if provided
-      if (chapterId) {
-        const { data: chapter } = await supabase
-          .from('chapters')
-          .select('title, content')
-          .eq('id', chapterId)
+    // Get project context if projectId is provided
+    let contextPrompt = '';
+    if (projectId) {
+      console.log('Fetching project context for:', projectId);
+      
+      try {
+        // Get project details
+        const { data: project } = await supabase
+          .from('projects')
+          .select('title, description')
+          .eq('id', projectId)
           .single();
 
-        if (chapter) {
-          contextInfo += `Chapter: ${chapter.title}\n`;
-          if (chapter.content) {
-            contextInfo += `Chapter excerpt: ${chapter.content.substring(0, 500)}...\n`;
+        // Get recent knowledge base entries
+        const { data: knowledge } = await supabase
+          .from('knowledge_base')
+          .select('name, description, category, confidence_score')
+          .eq('project_id', projectId)
+          .order('updated_at', { ascending: false })
+          .limit(20);
+
+        // Get current chapter if provided
+        let chapterContext = '';
+        if (chapterId) {
+          const { data: chapter } = await supabase
+            .from('chapters')
+            .select('title, content')
+            .eq('id', chapterId)
+            .single();
+
+          if (chapter) {
+            chapterContext = `\nCurrent Chapter: "${chapter.title}"\nChapter Content Preview: ${chapter.content?.substring(0, 500) || 'No content'}...`;
           }
         }
+
+        if (project) {
+          contextPrompt = `
+Project Context:
+- Title: ${project.title}
+- Description: ${project.description}
+${chapterContext}
+
+Recent Knowledge Base (${knowledge?.length || 0} entries):
+${knowledge?.map(k => `- ${k.name} (${k.category}, confidence: ${k.confidence_score}): ${k.description}`).join('\n') || 'No knowledge entries available'}
+
+Please provide helpful responses about this creative writing project. Use the context above to give relevant advice and insights.
+          `;
+        }
+      } catch (contextError) {
+        console.error('Error fetching project context:', contextError);
+        // Continue without context rather than failing
+        contextPrompt = 'Unable to load project context, but I can still help with general writing advice.';
       }
-
-      // Get some knowledge base context
-      const { data: knowledge } = await supabase
-        .from('knowledge_base')
-        .select('name, category, description')
-        .eq('project_id', projectId)
-        .limit(5);
-
-      if (knowledge && knowledge.length > 0) {
-        contextInfo += '\nKey story elements:\n';
-        knowledge.forEach(item => {
-          contextInfo += `- ${item.name} (${item.category}): ${item.description}\n`;
-        });
-      }
-
-    } catch (contextError) {
-      console.warn('⚠️ Could not load context:', contextError);
     }
 
-    // Create system prompt
-    const systemPrompt = `You are a helpful AI writing assistant for creative writers. You help with story development, character analysis, plot suggestions, and writing advice.
+    // Prepare the prompt for Google AI
+    const systemPrompt = `You are a helpful AI assistant specializing in creative writing and storytelling. You help authors with their writing projects by providing feedback, suggestions, and creative ideas.
 
-${contextInfo ? `Context about the current story:\n${contextInfo}\n` : ''}
+${contextPrompt}
 
-Guidelines:
-- Be helpful and supportive
-- Provide specific, actionable advice when possible
-- Ask clarifying questions if needed
-- Keep responses concise but informative
-- Focus on creative writing and storytelling aspects`;
+Please respond to the user's message in a helpful, creative, and encouraging manner. Keep responses concise but valuable.`;
 
-    console.log('🤖 Calling Google AI API for chat response');
+    console.log('Calling Google AI API with system prompt length:', systemPrompt.length);
 
-    // Call Google AI API
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
+    // Call Google AI API (Gemini) - Using gemini-2.5-flash-lite-preview-06-17 for chat
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=' + apiKey, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -141,35 +142,56 @@ Guidelines:
       }),
     });
 
+    console.log('Google AI API response status:', response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Google AI API error:', { status: response.status, error: errorText });
-      throw new Error(`AI API error: ${response.status}`);
+      console.error('Google AI API error response:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      
+      return new Response(JSON.stringify({ 
+        error: `Google AI API error: ${response.status} - ${response.statusText}`,
+        details: errorText,
+        success: false 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const data = await response.json();
-    console.log('✅ Google AI response received');
+    console.log('Google AI response received, candidates:', data.candidates?.length || 0);
 
     if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      console.error('❌ Invalid response structure from Google AI API:', data);
-      throw new Error('Invalid response from AI API');
+      console.error('Invalid response structure from Google AI API:', data);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid response from Google AI API',
+        details: 'Response does not contain expected candidates structure',
+        success: false 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const aiResponse = data.candidates[0].content.parts[0].text;
-    console.log('🤖 AI Response generated:', aiResponse.substring(0, 100) + '...');
+    console.log('AI response generated successfully, length:', aiResponse?.length || 0);
 
     return new Response(JSON.stringify({ 
-      success: true,
       response: aiResponse,
-      message: 'Chat response generated successfully'
+      success: true 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('❌ Chat AI error:', error);
+    console.error('Unexpected error in chat-with-ai function:', error);
     return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : 'Chat AI failed',
+      error: error instanceof Error ? error.message : 'An unexpected error occurred',
+      details: 'Check the edge function logs for more information',
       success: false 
     }), {
       status: 500,

@@ -1,463 +1,311 @@
-import React, { useState, useCallback, useRef, useEffect, useContext } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { SelectedTextContext, SimplePopupSession } from './types/popupTypes';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
-export interface PopupPosition {
-  x: number;
-  y: number;
+interface SimplePopupContextType {
+  popups: SimplePopupSession[];
+  openPopup: (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => void;
+  closePopup: (id: string) => void;
+  minimizePopup: (id: string) => void;
+  createPopup: (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string, lineNumber?: number) => Promise<void>;
+  updatePopup: (id: string, updates: Partial<SimplePopupSession>) => void;
+  deletePopup: (id: string) => Promise<void>;
+  reopenPopup: (id: string, type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string) => Promise<void>;
+  goToLine: (chapterId: string, lineNumber: number) => Promise<boolean>;
+  timelineVersion: number;
+  sendMessageWithHashVerification?: (popupId: string, message: string, projectId: string, chapterId?: string) => Promise<{
+    success: boolean;
+    bannerState?: { message: string; type: 'success' | 'error' | 'loading' } | null;
+  }>;
 }
 
-export type ChatType = 'comment' | 'coherence' | 'next-steps' | 'chat';
-
-export interface ChatPopupState {
-  id: string;
-  type: ChatType;
-  position: PopupPosition;
-  isMinimized: boolean;
-  messages: Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date }>;
-}
-
-export interface CommentBoxState {
-  id: string;
-  position: PopupPosition;
-  isMinimized: boolean;
-  selectedText?: {
-    text: string;
-    lineNumber: number;
-  };
-}
-
-interface SimplePopupContextProps {
-  chatPopups: ChatPopupState[];
-  commentBoxes: CommentBoxState[];
-  createChatPopup: (type: ChatType, initialPosition: PopupPosition, selectedText?: { text: string; lineNumber: number }) => string;
-  createCommentBox: (initialPosition: PopupPosition, selectedText?: { text: string; lineNumber: number }) => string;
-  closeChatPopup: (id: string) => void;
-  minimizeChatPopup: (id: string) => void;
-  closeCommentBox: (id: string) => void;
-  minimizeCommentBox: (id: string) => void;
-  sendMessageWithHashVerification: (popupId: string, message: string, projectId: string, chapterId?: string) => Promise<{ success: boolean; bannerState?: { message: string; type: 'success' | 'error' | 'loading' } }>;
-  saveChatMessage: (popupId: string, message: { role: 'user' | 'assistant'; content: string; timestamp: Date }) => Promise<void>;
-}
-
-const SimplePopupContext = React.createContext<SimplePopupContextProps | undefined>(undefined);
+const SimplePopupContext = createContext<SimplePopupContextType | undefined>(undefined);
 
 export const useSimplePopups = () => {
   const context = useContext(SimplePopupContext);
   if (!context) {
-    throw new Error('useSimplePopups must be used within a SimplePopupManagerProvider');
+    throw new Error('useSimplePopups must be used within a SimplePopupProvider');
   }
   return context;
 };
 
-interface SimplePopupRendererProps {
-  chatPopups: ChatPopupState[];
-  commentBoxes: CommentBoxState[];
-  onCloseChatPopup: (id: string) => void;
-  onMinimizeChatPopup: (id: string) => void;
-  onCloseCommentBox: (id: string) => void;
-  onMinimizeCommentBox: (id: string) => void;
-  projectId: string;
-  chapterId?: string;
+interface SimplePopupProviderProps {
+  children: ReactNode;
 }
 
-export const SimplePopupRenderer: React.FC<SimplePopupRendererProps> = ({
-  chatPopups,
-  commentBoxes,
-  onCloseChatPopup,
-  onMinimizeChatPopup,
-  onCloseCommentBox,
-  onMinimizeCommentBox,
-  projectId,
-  chapterId
-}) => {
-  const PopupChat = React.lazy(() => import('../PopupChat'));
-  const CommentBox = React.lazy(() => import('../CommentBox'));
+export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
+  const [popups, setPopups] = useState<SimplePopupSession[]>([]);
+  const [timelineVersion, setTimelineVersion] = useState(0);
 
-  return (
-    <>
-      {chatPopups.map((popup) => (
-        <React.Suspense key={popup.id} fallback={<div>Loading...</div>}>
-          <PopupChat
-            id={popup.id}
-            type={popup.type}
-            initialPosition={popup.position}
-            onClose={() => onCloseChatPopup(popup.id)}
-            onMinimize={() => onMinimizeChatPopup(popup.id)}
-            isMinimized={popup.isMinimized}
-            projectId={projectId}
-            chapterId={chapterId}
-            initialMessages={popup.messages}
-          />
-        </React.Suspense>
-      ))}
-      {commentBoxes.map((commentBox) => (
-        <React.Suspense key={commentBox.id} fallback={<div>Loading...</div>}>
-          <CommentBox
-            id={commentBox.id}
-            initialPosition={commentBox.position}
-            onClose={() => onCloseCommentBox(commentBox.id)}
-            onMinimize={() => onMinimizeCommentBox(commentBox.id)}
-            isMinimized={commentBox.isMinimized}
-            selectedText={commentBox.selectedText}
-            projectId={projectId}
-            chapterId={chapterId}
-          />
-        </React.Suspense>
-      ))}
-    </>
-  );
-};
+  const incrementTimelineVersion = useCallback(() => {
+    setTimelineVersion(prev => prev + 1);
+  }, []);
 
-export const SimplePopupManagerProvider: React.FC<{
-  children: React.ReactNode;
-  projectId: string;
-  chapterId?: string;
-}> = ({ children, projectId, chapterId }) => {
-  const [chatPopups, setChatPopups] = useState<ChatPopupState[]>([]);
-  const [commentBoxes, setCommentBoxes] = useState<CommentBoxState[]>([]);
-  const { toast } = useToast();
+  const openPopup = useCallback((type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => {
+    console.log('Opening popup:', { type, position, projectId, chapterId, selectedText });
+    
+    // Ensure position is within viewport bounds
+    const safePosition = {
+      x: Math.max(20, Math.min(position.x, window.innerWidth - 420)),
+      y: Math.max(20, Math.min(position.y, window.innerHeight - 520))
+    };
 
-  const loadChatSessions = useCallback(async () => {
-    try {
-      console.log('🔄 Loading chat sessions from database...');
-      
-      // Load chat popups
-      const { data: chatData, error: chatError } = await supabase
-        .from('popup_chats')
-        .select('*')
-        .eq('project_id', projectId);
-
-      if (chatError) {
-        console.error('❌ Error loading chat popups:', chatError);
-        throw chatError;
-      }
-
-      const loadedChatPopups: ChatPopupState[] = chatData.map(chat => ({
-        id: chat.id,
-        type: chat.chat_type,
-        position: chat.position,
-        isMinimized: chat.is_minimized,
-        messages: chat.messages || []
-      }));
-      
-      console.log(`✅ Loaded ${loadedChatPopups.length} chat popups`);
-      setChatPopups(loadedChatPopups);
-
-      // Load comment boxes
-      const { data: commentData, error: commentError } = await supabase
-        .from('comment_boxes')
-        .select('*')
-        .eq('project_id', projectId);
-
-      if (commentError) {
-        console.error('❌ Error loading comment boxes:', commentError);
-        throw commentError;
-      }
-
-      const loadedCommentBoxes: CommentBoxState[] = commentData.map(comment => ({
-        id: comment.id,
-        position: comment.position,
-        isMinimized: comment.is_minimized,
-        selectedText: comment.selected_text
-      }));
-      
-      console.log(`✅ Loaded ${loadedCommentBoxes.length} comment boxes`);
-      setCommentBoxes(loadedCommentBoxes);
-
-    } catch (error) {
-      console.error('❌ Error in loadChatSessions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load chat sessions",
-        variant: "destructive"
-      });
-    }
-  }, [projectId, toast]);
-
-  useEffect(() => {
-    loadChatSessions();
-  }, [loadChatSessions]);
-
-  const createChatPopup = useCallback((type: ChatType, initialPosition: PopupPosition, selectedText?: { text: string; lineNumber: number }) => {
-    const id = uuidv4();
-    const newPopup: ChatPopupState = {
-      id,
+    const newPopup: SimplePopupSession = {
+      id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type,
-      position: initialPosition,
+      position: safePosition,
       isMinimized: false,
-      messages: []
+      createdAt: new Date(),
+      projectId,
+      chapterId,
+      selectedText: selectedText?.text,
+      lineNumber: selectedText?.lineNumber,
+      textPosition: selectedText?.startOffset,
+      messages: type === 'comment' && selectedText ? [{
+        role: 'assistant',
+        content: `You're commenting on: "${selectedText.text}"\n\nWhat would you like to note about this text?`,
+        timestamp: new Date()
+      }] : [],
+      status: 'open'
     };
+    
+    setPopups(prev => [...prev, newPopup]);
+    incrementTimelineVersion();
+  }, [incrementTimelineVersion]);
 
-    setChatPopups(prev => [...prev, newPopup]);
+  const createPopup = useCallback(async (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string, lineNumber?: number) => {
+    const selectedTextContext: SelectedTextContext | undefined = selectedText ? {
+      text: selectedText,
+      startOffset: 0,
+      endOffset: selectedText.length,
+      lineNumber
+    } : undefined;
+    
+    openPopup(type, position, projectId, chapterId, selectedTextContext);
+  }, [openPopup]);
 
-    supabase
-      .from('popup_chats')
-      .insert({
-        id: id,
-        project_id: projectId,
-        chat_type: type,
-        position: initialPosition,
-        is_minimized: false,
-        messages: [],
-        selected_text: selectedText
-      })
-      .then(() => console.log('✅ Created chat popup:', id))
-      .catch(error => console.error('❌ Error creating chat popup:', error));
-
-    return id;
-  }, [projectId]);
-
-  const createCommentBox = useCallback((initialPosition: PopupPosition, selectedText?: { text: string; lineNumber: number }) => {
-    const id = uuidv4();
-    const newCommentBox: CommentBoxState = {
-      id,
-      position: initialPosition,
-      isMinimized: false,
-      selectedText: selectedText
-    };
-
-    setCommentBoxes(prev => [...prev, newCommentBox]);
-
-    supabase
-      .from('comment_boxes')
-      .insert({
-        id: id,
-        project_id: projectId,
-        position: initialPosition,
-        is_minimized: false,
-        selected_text: selectedText
-      })
-      .then(() => console.log('✅ Created comment box:', id))
-      .catch(error => console.error('❌ Error creating comment box:', error));
-
-    return id;
-  }, [projectId]);
-
-  const closeChatPopup = useCallback((id: string) => {
-    setChatPopups(prev => prev.filter(popup => popup.id !== id));
-
-    supabase
-      .from('popup_chats')
-      .delete()
-      .eq('id', id)
-      .then(() => console.log('✅ Closed chat popup:', id))
-      .catch(error => console.error('❌ Error closing chat popup:', error));
+  const updatePopup = useCallback((id: string, updates: Partial<SimplePopupSession>) => {
+    console.log('Updating popup:', id, updates);
+    setPopups(prev => prev.map(popup => 
+      popup.id === id ? { ...popup, ...updates } : popup
+    ));
   }, []);
 
-  const minimizeChatPopup = useCallback((id: string) => {
-    setChatPopups(prev =>
-      prev.map(popup =>
-        popup.id === id ? { ...popup, isMinimized: !popup.isMinimized } : popup
-      )
-    );
+  const closePopup = useCallback((id: string) => {
+    console.log('Closing popup:', id);
+    setPopups(prev => prev.filter(popup => popup.id !== id));
+    incrementTimelineVersion();
+  }, [incrementTimelineVersion]);
 
-    supabase
-      .from('popup_chats')
-      .update({ is_minimized: true })
-      .eq('id', id)
-      .then(() => console.log('✅ Minimized chat popup:', id))
-      .catch(error => console.error('❌ Error minimizing chat popup:', error));
+  const deletePopup = useCallback(async (id: string) => {
+    console.log('Deleting popup permanently:', id);
+    
+    // Remove from state
+    setPopups(prev => prev.filter(popup => popup.id !== id));
+    
+    // Delete from database
+    try {
+      const { error } = await supabase
+        .from('chat_sessions')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error deleting popup from database:', error);
+      }
+    } catch (error) {
+      console.error('Failed to delete popup from database:', error);
+    }
+    
+    incrementTimelineVersion();
+  }, [incrementTimelineVersion]);
+
+  const reopenPopup = useCallback(async (id: string, type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string) => {
+    console.log('Reopening popup:', id);
+    
+    // Check if already open
+    const existingPopup = popups.find(p => p.id === id);
+    if (existingPopup) {
+      console.log('Popup already open:', id);
+      return;
+    }
+
+    try {
+      // Load from database
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error || !data) {
+        console.error('Error loading popup from database:', error);
+        return;
+      }
+
+      // Convert to popup format
+      const reopenedPopup: SimplePopupSession = {
+        id: data.id,
+        type: data.chat_type as 'comment' | 'chat',
+        position: data.position as { x: number; y: number },
+        isMinimized: data.is_minimized,
+        createdAt: new Date(data.created_at),
+        projectId: data.project_id,
+        chapterId: data.chapter_id,
+        selectedText: data.selected_text,
+        lineNumber: data.line_number,
+        textPosition: data.text_position,
+        messages: (data.messages as any[])?.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        })) || [],
+        status: 'open'
+      };
+
+      setPopups(prev => [...prev, reopenedPopup]);
+    } catch (error) {
+      console.error('Failed to reopen popup:', error);
+    }
+  }, [popups]);
+
+  const goToLine = useCallback(async (chapterId: string, lineNumber: number): Promise<boolean> => {
+    try {
+      console.log('Navigation request:', { chapterId, lineNumber });
+      
+      // For now, just log the navigation request
+      // In a real implementation, this would navigate to the specific line
+      // and return true if successful, false if failed
+      
+      // Simulate navigation logic
+      if (chapterId && lineNumber > 0) {
+        console.log(`Navigating to chapter ${chapterId}, line ${lineNumber}`);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Navigation failed:', error);
+      return false;
+    }
   }, []);
 
-  const closeCommentBox = useCallback((id: string) => {
-    setCommentBoxes(prev => prev.filter(commentBox => commentBox.id !== id));
-
-    supabase
-      .from('comment_boxes')
-      .delete()
-      .eq('id', id)
-      .then(() => console.log('✅ Closed comment box:', id))
-      .catch(error => console.error('❌ Error closing comment box:', error));
-  }, []);
-
-  const minimizeCommentBox = useCallback((id: string) => {
-    setCommentBoxes(prev =>
-      prev.map(commentBox =>
-        commentBox.id === id ? { ...commentBox, isMinimized: !commentBox.isMinimized } : commentBox
-      )
-    );
-
-    supabase
-      .from('comment_boxes')
-      .update({ is_minimized: true })
-      .eq('id', id)
-      .then(() => console.log('✅ Minimized comment box:', id))
-      .catch(error => console.error('❌ Error minimizing comment box:', error));
+  const minimizePopup = useCallback((id: string) => {
+    console.log('Minimizing popup:', id);
+    setPopups(prev => prev.map(popup => 
+      popup.id === id ? { ...popup, isMinimized: !popup.isMinimized } : popup
+    ));
   }, []);
 
   const sendMessageWithHashVerification = useCallback(async (
-    popupId: string,
-    message: string,
-    projectId: string,
+    popupId: string, 
+    message: string, 
+    projectId: string, 
     chapterId?: string
-  ) => {
-    console.log('🚀 Starting sendMessageWithHashVerification:', { popupId, message, projectId, chapterId });
-    
+  ): Promise<{
+    success: boolean;
+    bannerState?: { message: string; type: 'success' | 'error' | 'loading' } | null;
+  }> => {
     try {
-      // Add user message to the popup immediately
-      setChatPopups(prev => prev.map(popup => {
-        if (popup.id === popupId) {
-          const userMessage = {
-            role: 'user' as const,
-            content: message,
-            timestamp: new Date()
-          };
-          
-          const updatedMessages = [...popup.messages, userMessage];
-          console.log('📝 Added user message to popup:', userMessage);
-          
-          return {
-            ...popup,
-            messages: updatedMessages
-          };
-        }
-        return popup;
-      }));
+      console.log('🚀 Sending message via edge function:', { popupId, projectId, chapterId, messageLength: message.length });
 
-      // Save user message to database
-      const userMessageData = {
+      // Add user message immediately to UI
+      const userMessage = {
         role: 'user' as const,
         content: message,
         timestamp: new Date()
       };
 
-      await saveChatMessage(popupId, userMessageData);
-      console.log('💾 Saved user message to database');
+      setPopups(prev => prev.map(popup => 
+        popup.id === popupId 
+          ? { ...popup, messages: [...(popup.messages || []), userMessage] }
+          : popup
+      ));
 
-      // Call the chat-with-ai edge function for AI response
-      console.log('🤖 Calling chat-with-ai edge function...');
-      
+      // Call the chat-with-ai edge function
+      console.log('📡 Calling chat-with-ai edge function...');
       const { data, error } = await supabase.functions.invoke('chat-with-ai', {
         body: {
-          message: message,
-          projectId: projectId,
-          chapterId: chapterId
+          message,
+          projectId,
+          chapterId
         }
       });
 
-      console.log('📨 Chat AI response received:', { data, error });
+      console.log('📨 Edge function response:', { data, error });
 
       if (error) {
-        console.error('❌ Chat AI error:', error);
-        throw new Error(`Chat AI failed: ${error.message}`);
+        console.error('❌ Edge function error:', error);
+        return {
+          success: false,
+          bannerState: {
+            message: `AI service failed: ${error.message}`,
+            type: 'error'
+          }
+        };
       }
 
-      if (!data?.success || !data?.response) {
-        console.error('❌ Invalid AI response:', data);
-        throw new Error('Invalid response from AI chat service');
+      if (!data?.success) {
+        console.error('❌ Edge function returned error:', data);
+        return {
+          success: false,
+          bannerState: {
+            message: `AI service failed: ${data?.error || 'Unknown error'}`,
+            type: 'error'
+          }
+        };
       }
 
-      // Add AI response to the popup
+      // Add AI response to UI
       const aiMessage = {
         role: 'assistant' as const,
         content: data.response,
         timestamp: new Date()
       };
 
-      setChatPopups(prev => prev.map(popup => {
-        if (popup.id === popupId) {
-          const updatedMessages = [...popup.messages, aiMessage];
-          console.log('🤖 Added AI message to popup:', aiMessage);
-          
-          return {
-            ...popup,
-            messages: updatedMessages
-          };
-        }
-        return popup;
-      }));
+      setPopups(prev => prev.map(popup => 
+        popup.id === popupId 
+          ? { ...popup, messages: [...(popup.messages || []), aiMessage] }
+          : popup
+      ));
 
-      // Save AI message to database
-      await saveChatMessage(popupId, aiMessage);
-      console.log('💾 Saved AI message to database');
+      console.log('✅ Message exchange completed successfully');
 
       return {
         success: true,
-        bannerState: { message: 'Message sent successfully!', type: 'success' as const }
+        bannerState: {
+          message: 'Response received successfully',
+          type: 'success'
+        }
       };
 
     } catch (error) {
       console.error('❌ Error in sendMessageWithHashVerification:', error);
-      
-      // Add error message to popup
-      const errorMessage = {
-        role: 'assistant' as const,
-        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date()
-      };
-
-      setChatPopups(prev => prev.map(popup => {
-        if (popup.id === popupId) {
-          return {
-            ...popup,
-            messages: [...popup.messages, errorMessage]
-          };
-        }
-        return popup;
-      }));
-
       return {
         success: false,
-        bannerState: { message: 'Failed to send message', type: 'error' as const }
+        bannerState: {
+          message: `Failed to send message: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          type: 'error'
+        }
       };
     }
-  }, [saveChatMessage]);
-
-  const saveChatMessage = useCallback(async (popupId: string, message: { role: 'user' | 'assistant'; content: string; timestamp: Date }) => {
-    try {
-      console.log('💾 Saving chat message to database:', { popupId, message });
-      
-      const { error } = await supabase
-        .from('popup_chats')
-        .update({
-          messages: supabase.raw(`jsonb_insert(messages, '{${(chatPopups.find(p => p.id === popupId)?.messages.length || 0)}}', '${JSON.stringify(message)}')`)
-        })
-        .eq('id', popupId);
-
-      if (error) {
-        console.error('❌ Error saving chat message:', error);
-        throw error;
-      }
-
-      console.log('✅ Chat message saved successfully');
-    } catch (error) {
-      console.error('❌ Error in saveChatMessage:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save chat message",
-        variant: "destructive"
-      });
-    }
-  }, [chatPopups, toast]);
-
-  const value: SimplePopupContextProps = {
-    chatPopups,
-    commentBoxes,
-    createChatPopup,
-    createCommentBox,
-    closeChatPopup,
-    minimizeChatPopup,
-    closeCommentBox,
-    minimizeCommentBox,
-    sendMessageWithHashVerification,
-    saveChatMessage
-  };
+  }, []);
 
   return (
-    <SimplePopupContext.Provider value={value}>
+    <SimplePopupContext.Provider value={{ 
+      popups, 
+      openPopup, 
+      closePopup, 
+      minimizePopup,
+      createPopup,
+      updatePopup,
+      deletePopup,
+      reopenPopup,
+      goToLine,
+      timelineVersion,
+      sendMessageWithHashVerification
+    }}>
       {children}
-      <SimplePopupRenderer 
-        chatPopups={chatPopups}
-        commentBoxes={commentBoxes}
-        onCloseChatPopup={closeChatPopup}
-        onMinimizeChatPopup={minimizeChatPopup}
-        onCloseCommentBox={closeCommentBox}
-        onMinimizeCommentBox={minimizeCommentBox}
-        projectId={projectId}
-        chapterId={chapterId}
-      />
     </SimplePopupContext.Provider>
   );
 };

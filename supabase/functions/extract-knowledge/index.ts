@@ -51,14 +51,14 @@ serve(async (req) => {
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-    // Create enhanced extraction prompt with more explicit instructions
-    const extractionPrompt = `You are an expert story analyst. Analyze the following text and extract comprehensive knowledge. You MUST return a valid JSON object with this EXACT structure:
+    // Create comprehensive extraction prompt
+    const extractionPrompt = `Analyze the following text and extract comprehensive knowledge. Return a JSON object with the following structure:
 
 {
   "characters": [
     {
       "name": "Character Name",
-      "description": "Brief character description",
+      "description": "Brief description",
       "category": "character",
       "details": {
         "role": "protagonist/antagonist/supporting",
@@ -69,11 +69,39 @@ serve(async (req) => {
       "confidence_score": 0.85
     }
   ],
+  "relationships": [
+    {
+      "character_a_name": "Character A",
+      "character_b_name": "Character B",
+      "relationship_type": "friend/enemy/family/romantic",
+      "relationship_strength": 7,
+      "confidence_score": 0.8
+    }
+  ],
+  "plot_threads": [
+    {
+      "thread_name": "Main Quest",
+      "thread_type": "main/subplot/backstory",
+      "key_events": ["event1", "event2"],
+      "thread_status": "active",
+      "confidence_score": 0.9
+    }
+  ],
+  "timeline_events": [
+    {
+      "event_name": "Important Event",
+      "event_type": "scene/flashback/background_event",
+      "event_description": "What happened",
+      "chronological_order": 1,
+      "characters_involved": ["character names"],
+      "confidence_score": 0.85
+    }
+  ],
   "world_building": [
     {
-      "name": "Location/Object/Concept Name",
-      "description": "Description of the world building element",
+      "name": "Location/Object/Concept",
       "category": "world_building",
+      "description": "Description of the element",
       "details": {
         "type": "location/object/concept/rule",
         "significance": "importance to story"
@@ -84,23 +112,17 @@ serve(async (req) => {
   "themes": [
     {
       "name": "Theme Name",
-      "description": "How this theme is explored in the story",
       "category": "theme",
-      "details": {},
+      "description": "How this theme is explored",
       "confidence_score": 0.75
     }
   ]
 }
 
-Important rules:
-- Return ONLY valid JSON, no additional text or markdown
-- Each item MUST have: name, description, category, details (object), confidence_score (0-1)
-- Use exactly these category names: "character", "world_building", "theme"
-- Make descriptions detailed and specific
-- Confidence scores should reflect how certain you are about each extraction
-
 Text to analyze:
-${content}`;
+${content}
+
+Return only valid JSON, no additional text.`;
 
     console.log('🤖 Calling Google AI API for knowledge extraction');
 
@@ -120,7 +142,7 @@ ${content}`;
           temperature: 0.3,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 2048,
         }
       }),
     });
@@ -140,54 +162,49 @@ ${content}`;
     }
 
     const aiResponse = data.candidates[0].content.parts[0].text;
-    console.log('🔥 Raw AI Response (first 500 chars):', aiResponse.substring(0, 500));
     
-    // Parse the JSON response with better error handling
+    // Parse the JSON response
     let extractedData;
     try {
       const cleanedResponse = aiResponse.replace(/```json\n?|\n?```/g, '').trim();
       extractedData = JSON.parse(cleanedResponse);
       console.log('✅ Successfully parsed AI response');
-      console.log('📊 Parsed data structure:', {
-        hasCharacters: !!extractedData.characters,
-        charactersCount: extractedData.characters?.length || 0,
-        hasWorldBuilding: !!extractedData.world_building,
-        worldBuildingCount: extractedData.world_building?.length || 0,
-        hasThemes: !!extractedData.themes,
-        themesCount: extractedData.themes?.length || 0
-      });
     } catch (parseError) {
       console.error('❌ Failed to parse AI response as JSON:', parseError);
-      console.log('🔍 Raw response that failed to parse:', aiResponse);
+      console.log('Raw AI response:', aiResponse.substring(0, 500));
       throw new Error('Failed to parse knowledge extraction response');
     }
 
-    // Store extracted knowledge in database with enhanced logging
+    console.log('📊 Knowledge extracted:', {
+      characters: extractedData.characters?.length || 0,
+      relationships: extractedData.relationships?.length || 0,
+      plotThreads: extractedData.plot_threads?.length || 0,
+      timelineEvents: extractedData.timeline_events?.length || 0,
+      worldBuilding: extractedData.world_building?.length || 0,
+      themes: extractedData.themes?.length || 0
+    });
+
+    // Store extracted knowledge in database
     let storedCount = 0;
     const errors = [];
 
     // Store characters
-    if (extractedData.characters && Array.isArray(extractedData.characters)) {
-      console.log(`💾 Storing ${extractedData.characters.length} characters...`);
+    if (extractedData.characters && extractedData.characters.length > 0) {
+      console.log('💾 Storing characters...');
       for (const character of extractedData.characters) {
         try {
-          console.log(`📝 Processing character: ${character.name}`);
-          
-          const knowledgeItem = {
-            project_id: projectId,
-            name: character.name || 'Unnamed Character',
-            category: 'character',
-            description: character.description || '',
-            details: character.details || {},
-            confidence_score: character.confidence_score || 0.5,
-            extraction_method: 'llm_direct'
-          };
-          
-          console.log('🔍 Inserting character with data:', knowledgeItem);
-
+          console.log(`Storing character: ${character.name}`);
           const { data: insertedData, error } = await supabase
             .from('knowledge_base')
-            .upsert(knowledgeItem, {
+            .upsert({
+              project_id: projectId,
+              name: character.name,
+              category: 'character',
+              description: character.description || '',
+              details: character.details || {},
+              confidence_score: character.confidence_score || 0.5,
+              extraction_method: 'llm_direct'
+            }, {
               onConflict: 'project_id,name,category'
             })
             .select();
@@ -197,7 +214,7 @@ ${content}`;
             errors.push(`Character ${character.name}: ${error.message}`);
           } else {
             storedCount++;
-            console.log('✅ Successfully stored character:', character.name, insertedData);
+            console.log('✅ Stored character:', character.name, insertedData);
           }
         } catch (error) {
           console.error('❌ Exception storing character:', character.name, error);
@@ -207,27 +224,22 @@ ${content}`;
     }
 
     // Store world building elements
-    if (extractedData.world_building && Array.isArray(extractedData.world_building)) {
-      console.log(`💾 Storing ${extractedData.world_building.length} world building elements...`);
+    if (extractedData.world_building && extractedData.world_building.length > 0) {
+      console.log('💾 Storing world building elements...');
       for (const element of extractedData.world_building) {
         try {
-          console.log(`📝 Processing world building: ${element.name}`);
-          
-          const knowledgeItem = {
-            project_id: projectId,
-            name: element.name || 'Unnamed Element',
-            category: 'world_building',
-            description: element.description || '',
-            details: element.details || {},
-            confidence_score: element.confidence_score || 0.5,
-            extraction_method: 'llm_direct'
-          };
-          
-          console.log('🔍 Inserting world building with data:', knowledgeItem);
-
+          console.log(`Storing world building: ${element.name}`);
           const { data: insertedData, error } = await supabase
             .from('knowledge_base')
-            .upsert(knowledgeItem, {
+            .upsert({
+              project_id: projectId,
+              name: element.name,
+              category: 'world_building',
+              description: element.description || '',
+              details: element.details || {},
+              confidence_score: element.confidence_score || 0.5,
+              extraction_method: 'llm_direct'
+            }, {
               onConflict: 'project_id,name,category'
             })
             .select();
@@ -237,7 +249,7 @@ ${content}`;
             errors.push(`World building ${element.name}: ${error.message}`);
           } else {
             storedCount++;
-            console.log('✅ Successfully stored world building element:', element.name, insertedData);
+            console.log('✅ Stored world building element:', element.name, insertedData);
           }
         } catch (error) {
           console.error('❌ Exception storing world building element:', element.name, error);
@@ -247,27 +259,22 @@ ${content}`;
     }
 
     // Store themes
-    if (extractedData.themes && Array.isArray(extractedData.themes)) {
-      console.log(`💾 Storing ${extractedData.themes.length} themes...`);
+    if (extractedData.themes && extractedData.themes.length > 0) {
+      console.log('💾 Storing themes...');
       for (const theme of extractedData.themes) {
         try {
-          console.log(`📝 Processing theme: ${theme.name}`);
-          
-          const knowledgeItem = {
-            project_id: projectId,
-            name: theme.name || 'Unnamed Theme',
-            category: 'theme',
-            description: theme.description || '',
-            details: theme.details || {},
-            confidence_score: theme.confidence_score || 0.5,
-            extraction_method: 'llm_direct'
-          };
-          
-          console.log('🔍 Inserting theme with data:', knowledgeItem);
-
+          console.log(`Storing theme: ${theme.name}`);
           const { data: insertedData, error } = await supabase
             .from('knowledge_base')
-            .upsert(knowledgeItem, {
+            .upsert({
+              project_id: projectId,
+              name: theme.name,
+              category: 'theme',
+              description: theme.description || '',
+              details: {},
+              confidence_score: theme.confidence_score || 0.5,
+              extraction_method: 'llm_direct'
+            }, {
               onConflict: 'project_id,name,category'
             })
             .select();
@@ -277,7 +284,7 @@ ${content}`;
             errors.push(`Theme ${theme.name}: ${error.message}`);
           } else {
             storedCount++;
-            console.log('✅ Successfully stored theme:', theme.name, insertedData);
+            console.log('✅ Stored theme:', theme.name, insertedData);
           }
         } catch (error) {
           console.error('❌ Exception storing theme:', theme.name, error);
