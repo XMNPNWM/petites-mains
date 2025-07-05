@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
@@ -467,110 +466,127 @@ ${content}`;
     console.log('🤖 Calling Google AI API for knowledge extraction...');
     console.log('📝 Prompt length:', extractionPrompt.length);
 
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: extractionPrompt }]
+    // Create an AbortController for timeout handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 55000); // 55 seconds to leave buffer
+
+    try {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: extractionPrompt }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.3,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 4096, // Increased for larger responses
           }
-        ],
-        generationConfig: {
-          temperature: 0.3,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
-        }
-      }),
-    });
+        }),
+        signal: controller.signal
+      });
 
-    console.log('📡 Google AI API response status:', response.status);
+      clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Google AI API error:', { status: response.status, error: errorText });
-      throw new Error(`Google AI API error: ${response.status}`);
-    }
+      console.log('📡 Google AI API response status:', response.status);
 
-    const data = await response.json();
-    console.log('✅ Google AI response received');
-    console.log('📊 Response structure:', {
-      hasCandidates: !!data.candidates,
-      candidatesLength: data.candidates?.length || 0,
-      hasContent: !!data.candidates?.[0]?.content,
-      partsLength: data.candidates?.[0]?.content?.parts?.length || 0
-    });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Google AI API error:', { status: response.status, error: errorText });
+        throw new Error(`Google AI API error: ${response.status} - ${errorText}`);
+      }
 
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      console.error('❌ Invalid response structure from Google AI API:', data);
-      throw new Error('Invalid response from Google AI API');
-    }
+      const data = await response.json();
+      console.log('✅ Google AI response received');
+      console.log('📊 Response structure:', {
+        hasCandidates: !!data.candidates,
+        candidatesLength: data.candidates?.length || 0,
+        hasContent: !!data.candidates?.[0]?.content,
+        partsLength: data.candidates?.[0]?.content?.parts?.length || 0
+      });
 
-    const aiResponse = data.candidates[0].content.parts[0].text;
-    console.log('📝 Raw AI response length:', aiResponse.length);
-    console.log('📝 Raw AI response preview:', aiResponse.substring(0, 500) + '...');
-    
-    // Parse the AI response with enhanced multiple strategies
-    console.log('🔧 Starting enhanced AI response parsing...');
-    const parseResult = parseAIResponse(aiResponse);
-    
-    if (!parseResult.success) {
-      console.error('❌ All parsing strategies failed:', parseResult.issues);
+      if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+        console.error('❌ Invalid response structure from Google AI API:', data);
+        throw new Error('Invalid response from Google AI API');
+      }
+
+      const aiResponse = data.candidates[0].content.parts[0].text;
+      console.log('📝 Raw AI response length:', aiResponse.length);
+      console.log('📝 Raw AI response preview:', aiResponse.substring(0, 500) + '...');
+      
+      // Parse the AI response with enhanced multiple strategies
+      console.log('🔧 Starting enhanced AI response parsing...');
+      const parseResult = parseAIResponse(aiResponse);
+      
+      if (!parseResult.success) {
+        console.error('❌ All parsing strategies failed:', parseResult.issues);
+        return new Response(JSON.stringify({ 
+          error: 'Failed to parse AI response with all available strategies',
+          issues: parseResult.issues,
+          success: false 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log(`✅ AI response parsed successfully using: ${parseResult.method}`);
+      const extractedData = parseResult.data;
+
+      // Validate the parsed response
+      console.log('🔍 Validating extracted data structure...');
+      const validation = validateAIResponse(extractedData, parseResult.method);
+      
+      console.log('✅ AI response validation completed');
+      console.log('📊 Extraction summary:', {
+        characters: extractedData.characters?.length || 0,
+        relationships: extractedData.relationships?.length || 0,
+        plotThreads: extractedData.plot_threads?.length || 0,
+        timelineEvents: extractedData.timeline_events?.length || 0,
+        worldBuilding: extractedData.world_building?.length || 0,
+        themes: extractedData.themes?.length || 0,
+        method: parseResult.method
+      });
+
+      // Store extracted knowledge with detailed logging
+      console.log('💾 Beginning knowledge storage process...');
+      const storageResult = await storeExtractedKnowledge(supabase, projectId, extractedData);
+
+      const processingTime = Date.now() - startTime;
+      console.log('⏱️ Total processing time:', processingTime, 'ms');
+      console.log('✅ Knowledge extraction completed successfully');
+
       return new Response(JSON.stringify({ 
-        error: 'Failed to parse AI response with all available strategies',
-        issues: parseResult.issues,
-        success: false 
+        success: true,
+        extractedData,
+        storedCount: storageResult.storedCount,
+        storageDetails: storageResult.storageDetails,
+        errors: storageResult.errors.length > 0 ? storageResult.errors : undefined,
+        validation: {
+          confidence: validation.confidence,
+          issues: validation.issues,
+          method: parseResult.method
+        },
+        processingTime,
+        message: `Successfully extracted and stored ${storageResult.storedCount} knowledge items using ${parseResult.method}${storageResult.errors.length > 0 ? ` with ${storageResult.errors.length} errors` : ''}`
       }), {
-        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.error('❌ Google AI API request timed out after 55 seconds');
+        throw new Error('Request timed out - content may be too large or API response too slow');
+      }
+      throw fetchError;
     }
-
-    console.log(`✅ AI response parsed successfully using: ${parseResult.method}`);
-    const extractedData = parseResult.data;
-
-    // Validate the parsed response
-    console.log('🔍 Validating extracted data structure...');
-    const validation = validateAIResponse(extractedData, parseResult.method);
-    
-    console.log('✅ AI response validation completed');
-    console.log('📊 Extraction summary:', {
-      characters: extractedData.characters?.length || 0,
-      relationships: extractedData.relationships?.length || 0,
-      plotThreads: extractedData.plot_threads?.length || 0,
-      timelineEvents: extractedData.timeline_events?.length || 0,
-      worldBuilding: extractedData.world_building?.length || 0,
-      themes: extractedData.themes?.length || 0,
-      method: parseResult.method
-    });
-
-    // Store extracted knowledge with detailed logging
-    console.log('💾 Beginning knowledge storage process...');
-    const storageResult = await storeExtractedKnowledge(supabase, projectId, extractedData);
-
-    const processingTime = Date.now() - startTime;
-    console.log('⏱️ Total processing time:', processingTime, 'ms');
-    console.log('✅ Knowledge extraction completed successfully');
-
-    return new Response(JSON.stringify({ 
-      success: true,
-      extractedData,
-      storedCount: storageResult.storedCount,
-      storageDetails: storageResult.storageDetails,
-      errors: storageResult.errors.length > 0 ? storageResult.errors : undefined,
-      validation: {
-        confidence: validation.confidence,
-        issues: validation.issues,
-        method: parseResult.method
-      },
-      processingTime,
-      message: `Successfully extracted and stored ${storageResult.storedCount} knowledge items using ${parseResult.method}${storageResult.errors.length > 0 ? ` with ${storageResult.errors.length} errors` : ''}`
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
 
   } catch (error) {
     const processingTime = Date.now() - startTime;
