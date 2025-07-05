@@ -19,10 +19,13 @@ export const useChatMessages = ({
   chapterId,
   initialMessages = []
 }: UseChatMessagesProps) => {
-  const [messages, setMessages] = useState(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [bannerState, setBannerState] = useState<{ message: string; type: 'success' | 'error' | 'loading' } | null>(null);
-  const { sendMessageWithHashVerification } = useSimplePopups();
+  const { sendMessageWithHashVerification, popups, updatePopup } = useSimplePopups();
+
+  // Get current popup and its messages from the popup manager state
+  const currentPopup = popups.find(p => p.id === id);
+  const messages = currentPopup?.messages || initialMessages;
 
   const sendMessage = useCallback(async (message: string) => {
     console.log('🚀 useChatMessages: Starting message send process', {
@@ -63,8 +66,6 @@ export const useChatMessages = ({
         console.log('🎌 useChatMessages: Updated banner state:', result.bannerState);
       }
 
-      // The messages are updated directly in the SimplePopupManager
-      // so we don't need to update local state here
       console.log('✅ useChatMessages: Message processing completed successfully');
       
       // Clear loading state

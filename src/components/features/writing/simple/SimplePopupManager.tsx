@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import { SelectedTextContext, SimplePopupSession } from './types/popupTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,6 +41,42 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     setTimelineVersion(prev => prev + 1);
   }, []);
 
+  // Helper function to save popup state to database
+  const savePopupToDatabase = useCallback(async (popup: SimplePopupSession) => {
+    try {
+      console.log('💾 SimplePopupManager: Saving popup to database:', popup.id);
+      
+      const { error } = await supabase
+        .from('chat_sessions')
+        .upsert({
+          id: popup.id,
+          project_id: popup.projectId,
+          chapter_id: popup.chapterId,
+          chat_type: popup.type,
+          position: popup.position,
+          messages: (popup.messages || []).map(msg => ({
+            ...msg,
+            timestamp: msg.timestamp.toISOString()
+          })),
+          selected_text: popup.selectedText,
+          text_position: popup.textPosition,
+          line_number: popup.lineNumber,
+          is_minimized: popup.isMinimized,
+          status: popup.status || 'open'
+        }, {
+          onConflict: 'id'
+        });
+
+      if (error) {
+        console.error('❌ SimplePopupManager: Error saving popup to database:', error);
+      } else {
+        console.log('✅ SimplePopupManager: Popup saved to database successfully:', popup.id);
+      }
+    } catch (error) {
+      console.error('❌ SimplePopupManager: Exception saving popup to database:', error);
+    }
+  }, []);
+
   const openPopup = useCallback((type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => {
     console.log('Opening popup:', { type, position, projectId, chapterId, selectedText });
     
@@ -72,7 +107,10 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     
     setPopups(prev => [...prev, newPopup]);
     incrementTimelineVersion();
-  }, [incrementTimelineVersion]);
+
+    // Save to database in background
+    savePopupToDatabase(newPopup);
+  }, [incrementTimelineVersion, savePopupToDatabase]);
 
   const createPopup = useCallback(async (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string, lineNumber?: number) => {
     const selectedTextContext: SelectedTextContext | undefined = selectedText ? {
@@ -87,10 +125,16 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
 
   const updatePopup = useCallback((id: string, updates: Partial<SimplePopupSession>) => {
     console.log('Updating popup:', id, updates);
-    setPopups(prev => prev.map(popup => 
-      popup.id === id ? { ...popup, ...updates } : popup
-    ));
-  }, []);
+    setPopups(prev => prev.map(popup => {
+      if (popup.id === id) {
+        const updatedPopup = { ...popup, ...updates };
+        // Save updated popup to database in background
+        savePopupToDatabase(updatedPopup);
+        return updatedPopup;
+      }
+      return popup;
+    }));
+  }, [savePopupToDatabase]);
 
   const closePopup = useCallback((id: string) => {
     console.log('Closing popup:', id);
@@ -192,10 +236,16 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
 
   const minimizePopup = useCallback((id: string) => {
     console.log('Minimizing popup:', id);
-    setPopups(prev => prev.map(popup => 
-      popup.id === id ? { ...popup, isMinimized: !popup.isMinimized } : popup
-    ));
-  }, []);
+    setPopups(prev => prev.map(popup => {
+      if (popup.id === id) {
+        const updatedPopup = { ...popup, isMinimized: !popup.isMinimized };
+        // Save updated popup to database in background
+        savePopupToDatabase(updatedPopup);
+        return updatedPopup;
+      }
+      return popup;
+    }));
+  }, [savePopupToDatabase]);
 
   const sendMessageWithHashVerification = useCallback(async (
     popupId: string, 
@@ -222,11 +272,15 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       };
 
       console.log('📝 SimplePopupManager: Adding user message to popup', popupId);
-      setPopups(prev => prev.map(popup => 
-        popup.id === popupId 
-          ? { ...popup, messages: [...(popup.messages || []), userMessage] }
-          : popup
-      ));
+      setPopups(prev => prev.map(popup => {
+        if (popup.id === popupId) {
+          const updatedPopup = { ...popup, messages: [...(popup.messages || []), userMessage] };
+          // Save updated popup to database in background
+          savePopupToDatabase(updatedPopup);
+          return updatedPopup;
+        }
+        return popup;
+      }));
 
       // Call the chat-with-ai edge function
       console.log('📡 SimplePopupManager: Calling chat-with-ai edge function...');
@@ -280,11 +334,15 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       };
 
       console.log('📝 SimplePopupManager: Adding AI message to popup', popupId);
-      setPopups(prev => prev.map(popup => 
-        popup.id === popupId 
-          ? { ...popup, messages: [...(popup.messages || []), aiMessage] }
-          : popup
-      ));
+      setPopups(prev => prev.map(popup => {
+        if (popup.id === popupId) {
+          const updatedPopup = { ...popup, messages: [...(popup.messages || []), aiMessage] };
+          // Save updated popup to database in background
+          savePopupToDatabase(updatedPopup);
+          return updatedPopup;
+        }
+        return popup;
+      }));
 
       console.log('✅ SimplePopupManager: Message exchange completed successfully');
 
@@ -312,7 +370,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
         }
       };
     }
-  }, []);
+  }, [savePopupToDatabase]);
 
   return (
     <SimplePopupContext.Provider value={{ 

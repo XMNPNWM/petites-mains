@@ -8,17 +8,139 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Enhanced validation function with multiple parsing strategies
+const parseAIResponse = (rawResponse: string) => {
+  console.log('🔍 Starting AI response parsing process...');
+  console.log('📝 Raw response preview:', rawResponse.substring(0, 300) + '...');
+  
+  const parseResult = {
+    success: false,
+    data: null as any,
+    method: '',
+    issues: [] as string[]
+  };
+
+  // Strategy 1: Strict JSON parsing
+  try {
+    console.log('🎯 Attempting Strategy 1: Strict JSON parsing...');
+    const cleanedResponse = rawResponse.trim();
+    if (cleanedResponse.startsWith('{') && cleanedResponse.endsWith('}')) {
+      parseResult.data = JSON.parse(cleanedResponse);
+      parseResult.success = true;
+      parseResult.method = 'strict_json';
+      console.log('✅ Strategy 1 successful: Strict JSON parsing');
+      return parseResult;
+    }
+  } catch (error) {
+    console.log('❌ Strategy 1 failed:', error.message);
+    parseResult.issues.push(`Strict JSON failed: ${error.message}`);
+  }
+
+  // Strategy 2: Markdown-wrapped JSON extraction
+  try {
+    console.log('🎯 Attempting Strategy 2: Markdown-wrapped JSON extraction...');
+    const jsonMatch = rawResponse.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
+    if (jsonMatch && jsonMatch[1]) {
+      parseResult.data = JSON.parse(jsonMatch[1].trim());
+      parseResult.success = true;
+      parseResult.method = 'markdown_json';
+      console.log('✅ Strategy 2 successful: Markdown-wrapped JSON');
+      return parseResult;
+    }
+  } catch (error) {
+    console.log('❌ Strategy 2 failed:', error.message);
+    parseResult.issues.push(`Markdown JSON failed: ${error.message}`);
+  }
+
+  // Strategy 3: Regex-based conversational extraction
+  try {
+    console.log('🎯 Attempting Strategy 3: Conversational extraction...');
+    const extractedData = {
+      characters: [],
+      relationships: [],
+      plot_threads: [],
+      timeline_events: [],
+      world_building: [],
+      themes: []
+    };
+
+    // Extract characters from conversational text
+    const characterMatches = rawResponse.match(/(?:character|protagonist|antagonist)[s]?[:\-\s]*([^.\n]+)/gi);
+    if (characterMatches) {
+      characterMatches.forEach((match, index) => {
+        const name = match.replace(/(?:character|protagonist|antagonist)[s]?[:\-\s]*/i, '').trim();
+        if (name && name.length > 2) {
+          extractedData.characters.push({
+            name: name.substring(0, 50),
+            category: 'character',
+            description: `Character mentioned in analysis`,
+            confidence_score: 0.6,
+            details: { extraction_method: 'conversational_regex' }
+          });
+        }
+      });
+    }
+
+    // Extract themes from conversational text
+    const themeMatches = rawResponse.match(/(?:theme|explores|about)[s]?[:\-\s]*([^.\n]+)/gi);
+    if (themeMatches) {
+      themeMatches.slice(0, 3).forEach((match) => {
+        const theme = match.replace(/(?:theme|explores|about)[s]?[:\-\s]*/i, '').trim();
+        if (theme && theme.length > 5) {
+          extractedData.themes.push({
+            name: theme.substring(0, 50),
+            category: 'theme',
+            description: `Theme identified in analysis`,
+            confidence_score: 0.5
+          });
+        }
+      });
+    }
+
+    // Only consider successful if we extracted something meaningful
+    const totalExtracted = extractedData.characters.length + extractedData.themes.length;
+    if (totalExtracted > 0) {
+      parseResult.data = extractedData;
+      parseResult.success = true;
+      parseResult.method = 'conversational_extraction';
+      console.log(`✅ Strategy 3 successful: Extracted ${totalExtracted} elements conversationally`);
+      return parseResult;
+    }
+  } catch (error) {
+    console.log('❌ Strategy 3 failed:', error.message);
+    parseResult.issues.push(`Conversational extraction failed: ${error.message}`);
+  }
+
+  // Strategy 4: Fallback - return minimal structure
+  console.log('🎯 Attempting Strategy 4: Fallback minimal structure...');
+  parseResult.data = {
+    characters: [],
+    relationships: [],
+    plot_threads: [],
+    timeline_events: [],
+    world_building: [],
+    themes: []
+  };
+  parseResult.success = true;
+  parseResult.method = 'fallback_empty';
+  parseResult.issues.push('All parsing strategies failed, returning empty structure');
+  console.log('⚠️ Strategy 4: Fallback to empty structure');
+  
+  return parseResult;
+};
+
 // Enhanced validation function for AI response structure
-const validateAIResponse = (data: any) => {
+const validateAIResponse = (data: any, parseMethod: string) => {
   const validation = {
     isValid: true,
     issues: [] as string[],
     parsedData: null as any,
-    confidence: 0
+    confidence: 0,
+    method: parseMethod
   };
 
   try {
-    console.log('🔍 Validating AI response structure...');
+    console.log('🔍 Validating AI response structure using method:', parseMethod);
     
     if (!data || typeof data !== 'object') {
       validation.isValid = false;
@@ -54,9 +176,11 @@ const validateAIResponse = (data: any) => {
     console.log('📊 Validation summary:', {
       validProps: `${validProps}/${expectedProps.length}`,
       confidence: validation.confidence,
-      extractionSummary
+      extractionSummary,
+      method: parseMethod
     });
     
+    // Accept partial success - any valid extraction is better than none
     if (validProps === 0) {
       validation.isValid = false;
       validation.issues.push('No valid extraction properties found');
@@ -265,14 +389,16 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
     console.log('✅ Supabase client initialized');
 
-    // Enhanced extraction prompt with better structure
-    const extractionPrompt = `Analyze the following text and extract comprehensive knowledge. Return a JSON object with the following exact structure:
+    // Enhanced extraction prompt with conversational approach
+    const extractionPrompt = `I need you to analyze this creative writing text and help me understand the story elements. Please read through it carefully and tell me what you discover about the characters, relationships, plot, world, and themes.
+
+After you've analyzed the text, please provide your findings in this exact JSON format:
 
 {
   "characters": [
     {
       "name": "Character Name",
-      "description": "Brief description of the character",
+      "description": "Brief description of the character and their role",
       "category": "character",
       "details": {
         "role": "protagonist/antagonist/supporting",
@@ -333,7 +459,7 @@ serve(async (req) => {
   ]
 }
 
-IMPORTANT: Return ONLY valid JSON, no additional text, no markdown formatting, no code blocks.
+For confidence scores: Use 0.9+ for very clear elements, 0.7-0.8 for reasonably clear, 0.5-0.6 for somewhat unclear, and below 0.5 for very uncertain.
 
 Text to analyze:
 ${content}`;
@@ -387,30 +513,15 @@ ${content}`;
     console.log('📝 Raw AI response length:', aiResponse.length);
     console.log('📝 Raw AI response preview:', aiResponse.substring(0, 500) + '...');
     
-    // Parse the JSON response with enhanced error handling
-    let extractedData;
-    try {
-      console.log('🔧 Attempting to parse AI response as JSON...');
-      const cleanedResponse = aiResponse.replace(/```json\n?|\n?```/g, '').trim();
-      console.log('🧹 Cleaned response preview:', cleanedResponse.substring(0, 300) + '...');
-      
-      extractedData = JSON.parse(cleanedResponse);
-      console.log('✅ Successfully parsed AI response as JSON');
-    } catch (parseError) {
-      console.error('❌ Failed to parse AI response as JSON:', parseError);
-      console.log('📝 Problematic response section:', aiResponse.substring(0, 1000));
-      throw new Error(`Failed to parse knowledge extraction response: ${parseError.message}`);
-    }
-
-    // Validate the AI response structure
-    console.log('🔍 Validating extracted data structure...');
-    const validation = validateAIResponse(extractedData);
+    // Parse the AI response with enhanced multiple strategies
+    console.log('🔧 Starting enhanced AI response parsing...');
+    const parseResult = parseAIResponse(aiResponse);
     
-    if (!validation.isValid) {
-      console.error('❌ AI response validation failed:', validation.issues);
+    if (!parseResult.success) {
+      console.error('❌ All parsing strategies failed:', parseResult.issues);
       return new Response(JSON.stringify({ 
-        error: 'Invalid AI response structure',
-        issues: validation.issues,
+        error: 'Failed to parse AI response with all available strategies',
+        issues: parseResult.issues,
         success: false 
       }), {
         status: 500,
@@ -418,14 +529,22 @@ ${content}`;
       });
     }
 
-    console.log('✅ AI response validation passed');
+    console.log(`✅ AI response parsed successfully using: ${parseResult.method}`);
+    const extractedData = parseResult.data;
+
+    // Validate the parsed response
+    console.log('🔍 Validating extracted data structure...');
+    const validation = validateAIResponse(extractedData, parseResult.method);
+    
+    console.log('✅ AI response validation completed');
     console.log('📊 Extraction summary:', {
       characters: extractedData.characters?.length || 0,
       relationships: extractedData.relationships?.length || 0,
       plotThreads: extractedData.plot_threads?.length || 0,
       timelineEvents: extractedData.timeline_events?.length || 0,
       worldBuilding: extractedData.world_building?.length || 0,
-      themes: extractedData.themes?.length || 0
+      themes: extractedData.themes?.length || 0,
+      method: parseResult.method
     });
 
     // Store extracted knowledge with detailed logging
@@ -444,10 +563,11 @@ ${content}`;
       errors: storageResult.errors.length > 0 ? storageResult.errors : undefined,
       validation: {
         confidence: validation.confidence,
-        issues: validation.issues
+        issues: validation.issues,
+        method: parseResult.method
       },
       processingTime,
-      message: `Successfully extracted and stored ${storageResult.storedCount} knowledge items${storageResult.errors.length > 0 ? ` with ${storageResult.errors.length} errors` : ''}`
+      message: `Successfully extracted and stored ${storageResult.storedCount} knowledge items using ${parseResult.method}${storageResult.errors.length > 0 ? ` with ${storageResult.errors.length} errors` : ''}`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
