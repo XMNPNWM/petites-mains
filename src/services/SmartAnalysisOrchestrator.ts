@@ -1,7 +1,8 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { RefinementService } from './RefinementService';
 import { ContentHashService } from './ContentHashService';
-import { KnowledgeBase } from '@/types/knowledge';
+import { KnowledgeBase, ChapterSummary, PlotPoint } from '@/types/knowledge';
 
 export class SmartAnalysisOrchestrator {
   static async analyzeChapter(projectId: string, chapterId: string): Promise<void> {
@@ -77,7 +78,7 @@ export class SmartAnalysisOrchestrator {
 
   static async analyzeProject(projectId: string): Promise<any> {
     try {
-      console.log('🚀 [SMART] Starting hash-aware project analysis:', projectId);
+      console.log('🚀 [SMART] Starting comprehensive project analysis:', projectId);
 
       // PHASE 1: Hash Verification - Check what actually needs analysis
       console.log('📋 Phase 1: Checking content hashes for all chapters');
@@ -158,7 +159,7 @@ export class SmartAnalysisOrchestrator {
         };
       }
 
-      // PHASE 2: Knowledge Extraction from chapters that need analysis using edge function
+      // PHASE 2: Comprehensive Knowledge Extraction using enhanced extract-knowledge function
       let totalContentAnalyzed = 0;
       let totalCreditsUsed = 0;
       let totalKnowledgeExtracted = 0;
@@ -168,9 +169,9 @@ export class SmartAnalysisOrchestrator {
         `Chapter: ${chapter.title}\n${chapter.content || ''}`
       ).join('\n\n---CHAPTER_BREAK---\n\n');
 
-      console.log(`🧠 Phase 2: Extracting knowledge from ${chaptersNeedingAnalysis.length} chapters (${contentToAnalyze.length} chars)`);
+      console.log(`🧠 Phase 2: Comprehensive knowledge extraction from ${chaptersNeedingAnalysis.length} chapters (${contentToAnalyze.length} chars)`);
 
-      // Use the extract-knowledge edge function with gemini-2.5-flash
+      // Use the enhanced extract-knowledge edge function with comprehensive extraction
       const { data: knowledgeResult, error: knowledgeError } = await supabase.functions.invoke('extract-knowledge', {
         body: { 
           content: contentToAnalyze,
@@ -180,13 +181,14 @@ export class SmartAnalysisOrchestrator {
       });
 
       if (knowledgeError) {
-        console.error('Project knowledge extraction failed:', knowledgeError);
+        console.error('Comprehensive knowledge extraction failed:', knowledgeError);
         throw new Error(`Knowledge extraction failed: ${knowledgeError.message}`);
       }
 
       if (knowledgeResult?.success) {
         totalKnowledgeExtracted = knowledgeResult.storedCount || 0;
-        console.log(`✅ Knowledge extraction completed: ${totalKnowledgeExtracted} items extracted`);
+        console.log(`✅ Comprehensive knowledge extraction completed: ${totalKnowledgeExtracted} items extracted`);
+        console.log('📊 Storage breakdown:', knowledgeResult.storageDetails);
         
         if (knowledgeResult.errors && knowledgeResult.errors.length > 0) {
           console.warn('Some errors occurred during storage:', knowledgeResult.errors);
@@ -219,7 +221,7 @@ export class SmartAnalysisOrchestrator {
         }
       }
 
-      console.log('✅ [SMART] Hash-aware project analysis completed successfully');
+      console.log('✅ [SMART] Comprehensive project analysis completed successfully');
 
       return {
         success: true,
@@ -229,14 +231,15 @@ export class SmartAnalysisOrchestrator {
           knowledgeExtracted: totalKnowledgeExtracted,
           chaptersSkipped: chaptersSkipped,
           hashVerificationSaved: chaptersSkipped > 0,
+          comprehensiveExtraction: knowledgeResult?.storageDetails || {},
           message: chaptersSkipped > 0 
             ? `Analyzed ${chaptersNeedingAnalysis.length} changed chapters, skipped ${chaptersSkipped} unchanged chapters`
-            : `Analyzed ${chaptersNeedingAnalysis.length} chapters`
+            : `Analyzed ${chaptersNeedingAnalysis.length} chapters with comprehensive extraction`
         }
       };
 
     } catch (error) {
-      console.error('❌ [SMART] Hash-aware project analysis failed:', error);
+      console.error('❌ [SMART] Comprehensive project analysis failed:', error);
       throw error;
     }
   }
@@ -260,6 +263,46 @@ export class SmartAnalysisOrchestrator {
       })) as KnowledgeBase[];
     } catch (error) {
       console.error('Error in getProjectKnowledge:', error);
+      return [];
+    }
+  }
+
+  static async getChapterSummaries(projectId: string): Promise<ChapterSummary[]> {
+    try {
+      const { data, error } = await supabase
+        .from('chapter_summaries')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching chapter summaries:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getChapterSummaries:', error);
+      return [];
+    }
+  }
+
+  static async getPlotPoints(projectId: string): Promise<PlotPoint[]> {
+    try {
+      const { data, error } = await supabase
+        .from('plot_points')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching plot points:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getPlotPoints:', error);
       return [];
     }
   }

@@ -227,6 +227,54 @@ export type Database = {
           },
         ]
       }
+      chapter_summaries: {
+        Row: {
+          ai_confidence: number | null
+          chapter_id: string
+          created_at: string | null
+          id: string
+          is_newly_extracted: boolean | null
+          key_events_in_chapter: Json | null
+          primary_focus: Json | null
+          project_id: string
+          source_chapter_id: string | null
+          summary_long: string | null
+          summary_short: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_confidence?: number | null
+          chapter_id: string
+          created_at?: string | null
+          id?: string
+          is_newly_extracted?: boolean | null
+          key_events_in_chapter?: Json | null
+          primary_focus?: Json | null
+          project_id: string
+          source_chapter_id?: string | null
+          summary_long?: string | null
+          summary_short?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_confidence?: number | null
+          chapter_id?: string
+          created_at?: string | null
+          id?: string
+          is_newly_extracted?: boolean | null
+          key_events_in_chapter?: Json | null
+          primary_focus?: Json | null
+          project_id?: string
+          source_chapter_id?: string | null
+          summary_long?: string | null
+          summary_short?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       chapters: {
         Row: {
           content: string | null
@@ -273,6 +321,7 @@ export type Database = {
       }
       character_relationships: {
         Row: {
+          ai_confidence_new: number | null
           character_a_id: string | null
           character_a_name: string
           character_b_id: string | null
@@ -285,6 +334,7 @@ export type Database = {
             | null
           id: string
           is_flagged: boolean | null
+          is_newly_extracted: boolean | null
           is_verified: boolean | null
           key_interactions: Json | null
           project_id: string
@@ -292,10 +342,14 @@ export type Database = {
           relationship_start_chapter_id: string | null
           relationship_strength: number
           relationship_type: string
+          source_chapter_ids: Json | null
+          source_character_name: string | null
           strength_history: Json | null
+          target_character_name: string | null
           updated_at: string | null
         }
         Insert: {
+          ai_confidence_new?: number | null
           character_a_id?: string | null
           character_a_name: string
           character_b_id?: string | null
@@ -308,6 +362,7 @@ export type Database = {
             | null
           id?: string
           is_flagged?: boolean | null
+          is_newly_extracted?: boolean | null
           is_verified?: boolean | null
           key_interactions?: Json | null
           project_id: string
@@ -315,10 +370,14 @@ export type Database = {
           relationship_start_chapter_id?: string | null
           relationship_strength?: number
           relationship_type: string
+          source_chapter_ids?: Json | null
+          source_character_name?: string | null
           strength_history?: Json | null
+          target_character_name?: string | null
           updated_at?: string | null
         }
         Update: {
+          ai_confidence_new?: number | null
           character_a_id?: string | null
           character_a_name?: string
           character_b_id?: string | null
@@ -331,6 +390,7 @@ export type Database = {
             | null
           id?: string
           is_flagged?: boolean | null
+          is_newly_extracted?: boolean | null
           is_verified?: boolean | null
           key_interactions?: Json | null
           project_id?: string
@@ -338,7 +398,10 @@ export type Database = {
           relationship_start_chapter_id?: string | null
           relationship_strength?: number
           relationship_type?: string
+          source_chapter_ids?: Json | null
+          source_character_name?: string | null
           strength_history?: Json | null
+          target_character_name?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -643,6 +706,7 @@ export type Database = {
       }
       knowledge_base: {
         Row: {
+          ai_confidence_new: number | null
           category: Database["public"]["Enums"]["knowledge_category"]
           confidence_score: number
           created_at: string | null
@@ -652,6 +716,7 @@ export type Database = {
           extraction_method: Database["public"]["Enums"]["extraction_method"]
           id: string
           is_flagged: boolean | null
+          is_newly_extracted: boolean | null
           is_verified: boolean | null
           last_seen_at: string | null
           name: string
@@ -660,12 +725,14 @@ export type Database = {
           review_notes: string | null
           search_vector: unknown | null
           source_chapter_id: string | null
+          source_chapter_ids: Json | null
           source_paragraph_hash: string | null
           source_text_excerpt: string | null
           subcategory: string | null
           updated_at: string | null
         }
         Insert: {
+          ai_confidence_new?: number | null
           category: Database["public"]["Enums"]["knowledge_category"]
           confidence_score?: number
           created_at?: string | null
@@ -675,6 +742,7 @@ export type Database = {
           extraction_method?: Database["public"]["Enums"]["extraction_method"]
           id?: string
           is_flagged?: boolean | null
+          is_newly_extracted?: boolean | null
           is_verified?: boolean | null
           last_seen_at?: string | null
           name: string
@@ -683,12 +751,14 @@ export type Database = {
           review_notes?: string | null
           search_vector?: unknown | null
           source_chapter_id?: string | null
+          source_chapter_ids?: Json | null
           source_paragraph_hash?: string | null
           source_text_excerpt?: string | null
           subcategory?: string | null
           updated_at?: string | null
         }
         Update: {
+          ai_confidence_new?: number | null
           category?: Database["public"]["Enums"]["knowledge_category"]
           confidence_score?: number
           created_at?: string | null
@@ -698,6 +768,7 @@ export type Database = {
           extraction_method?: Database["public"]["Enums"]["extraction_method"]
           id?: string
           is_flagged?: boolean | null
+          is_newly_extracted?: boolean | null
           is_verified?: boolean | null
           last_seen_at?: string | null
           name?: string
@@ -706,6 +777,7 @@ export type Database = {
           review_notes?: string | null
           search_vector?: unknown | null
           source_chapter_id?: string | null
+          source_chapter_ids?: Json | null
           source_paragraph_hash?: string | null
           source_text_excerpt?: string | null
           subcategory?: string | null
@@ -941,8 +1013,55 @@ export type Database = {
           },
         ]
       }
+      plot_points: {
+        Row: {
+          ai_confidence: number | null
+          characters_involved_names: Json | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_newly_extracted: boolean | null
+          name: string
+          plot_thread_name: string | null
+          project_id: string
+          significance: string | null
+          source_chapter_ids: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_confidence?: number | null
+          characters_involved_names?: Json | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_newly_extracted?: boolean | null
+          name: string
+          plot_thread_name?: string | null
+          project_id: string
+          significance?: string | null
+          source_chapter_ids?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_confidence?: number | null
+          characters_involved_names?: Json | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_newly_extracted?: boolean | null
+          name?: string
+          plot_thread_name?: string | null
+          project_id?: string
+          significance?: string | null
+          source_chapter_ids?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       plot_threads: {
         Row: {
+          ai_confidence_new: number | null
+          characters_involved_names: Json | null
           confidence_score: number | null
           created_at: string | null
           end_chapter_id: string | null
@@ -952,10 +1071,12 @@ export type Database = {
             | null
           id: string
           is_flagged: boolean | null
+          is_newly_extracted: boolean | null
           is_verified: boolean | null
           key_events: Json | null
           project_id: string
           resolution_status: string | null
+          source_chapter_ids: Json | null
           start_chapter_id: string | null
           thread_name: string
           thread_status: string | null
@@ -963,6 +1084,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          ai_confidence_new?: number | null
+          characters_involved_names?: Json | null
           confidence_score?: number | null
           created_at?: string | null
           end_chapter_id?: string | null
@@ -972,10 +1095,12 @@ export type Database = {
             | null
           id?: string
           is_flagged?: boolean | null
+          is_newly_extracted?: boolean | null
           is_verified?: boolean | null
           key_events?: Json | null
           project_id: string
           resolution_status?: string | null
+          source_chapter_ids?: Json | null
           start_chapter_id?: string | null
           thread_name: string
           thread_status?: string | null
@@ -983,6 +1108,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          ai_confidence_new?: number | null
+          characters_involved_names?: Json | null
           confidence_score?: number | null
           created_at?: string | null
           end_chapter_id?: string | null
@@ -992,10 +1119,12 @@ export type Database = {
             | null
           id?: string
           is_flagged?: boolean | null
+          is_newly_extracted?: boolean | null
           is_verified?: boolean | null
           key_events?: Json | null
           project_id?: string
           resolution_status?: string | null
+          source_chapter_ids?: Json | null
           start_chapter_id?: string | null
           thread_name?: string
           thread_status?: string | null
@@ -1318,16 +1447,20 @@ export type Database = {
       }
       timeline_events: {
         Row: {
+          ai_confidence_new: number | null
           chapter_id: string | null
           characters_involved: Json | null
+          characters_involved_names: Json | null
           chronological_order: number
           confidence_score: number | null
           created_at: string | null
+          date_or_time_reference: string | null
           duration_description: string | null
           event_date_in_story: string | null
           event_description: string | null
           event_importance: string | null
           event_name: string
+          event_summary: string | null
           event_type: string
           evidence: string | null
           extraction_method:
@@ -1335,23 +1468,32 @@ export type Database = {
             | null
           id: string
           is_flagged: boolean | null
+          is_newly_extracted: boolean | null
           is_verified: boolean | null
           locations_involved: Json | null
+          locations_involved_names: Json | null
           plot_threads_affected: Json | null
+          plot_threads_impacted_names: Json | null
           project_id: string
+          significance: string | null
+          source_chapter_ids: Json | null
           updated_at: string | null
         }
         Insert: {
+          ai_confidence_new?: number | null
           chapter_id?: string | null
           characters_involved?: Json | null
+          characters_involved_names?: Json | null
           chronological_order: number
           confidence_score?: number | null
           created_at?: string | null
+          date_or_time_reference?: string | null
           duration_description?: string | null
           event_date_in_story?: string | null
           event_description?: string | null
           event_importance?: string | null
           event_name: string
+          event_summary?: string | null
           event_type: string
           evidence?: string | null
           extraction_method?:
@@ -1359,23 +1501,32 @@ export type Database = {
             | null
           id?: string
           is_flagged?: boolean | null
+          is_newly_extracted?: boolean | null
           is_verified?: boolean | null
           locations_involved?: Json | null
+          locations_involved_names?: Json | null
           plot_threads_affected?: Json | null
+          plot_threads_impacted_names?: Json | null
           project_id: string
+          significance?: string | null
+          source_chapter_ids?: Json | null
           updated_at?: string | null
         }
         Update: {
+          ai_confidence_new?: number | null
           chapter_id?: string | null
           characters_involved?: Json | null
+          characters_involved_names?: Json | null
           chronological_order?: number
           confidence_score?: number | null
           created_at?: string | null
+          date_or_time_reference?: string | null
           duration_description?: string | null
           event_date_in_story?: string | null
           event_description?: string | null
           event_importance?: string | null
           event_name?: string
+          event_summary?: string | null
           event_type?: string
           evidence?: string | null
           extraction_method?:
@@ -1383,10 +1534,15 @@ export type Database = {
             | null
           id?: string
           is_flagged?: boolean | null
+          is_newly_extracted?: boolean | null
           is_verified?: boolean | null
           locations_involved?: Json | null
+          locations_involved_names?: Json | null
           plot_threads_affected?: Json | null
+          plot_threads_impacted_names?: Json | null
           project_id?: string
+          significance?: string | null
+          source_chapter_ids?: Json | null
           updated_at?: string | null
         }
         Relationships: [

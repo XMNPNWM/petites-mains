@@ -138,4 +138,144 @@ export interface EnhancedKnowledgeBase {
     changes: string[];
     timestamp: string;
   }>;
+  
+  // New metadata fields
+  source_chapter_ids?: string[];
+  is_newly_extracted?: boolean;
+  ai_confidence_new?: number;
+}
+
+// Chapter Summary interface
+export interface ChapterSummary {
+  id: string;
+  chapter_id: string;
+  project_id: string;
+  title?: string;
+  summary_short?: string;
+  summary_long?: string;
+  key_events_in_chapter?: string[];
+  primary_focus?: string[];
+  ai_confidence?: number;
+  source_chapter_id?: string;
+  is_newly_extracted?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Plot Point interface  
+export interface PlotPoint {
+  id: string;
+  project_id: string;
+  name: string;
+  description?: string;
+  plot_thread_name?: string;
+  significance?: string;
+  characters_involved_names?: string[];
+  ai_confidence?: number;
+  source_chapter_ids?: string[];
+  is_newly_extracted?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Enhanced extraction response structure
+export interface ComprehensiveExtractionResult {
+  success: boolean;
+  extractedData: {
+    chapter_summary?: {
+      title: string;
+      summary_short: string;
+      summary_long: string;
+      key_events_in_chapter: string[];
+      primary_focus: string[];
+    };
+    extracted_data: {
+      characters: Array<{
+        name: string;
+        aliases?: string[];
+        role?: string;
+        description?: string;
+        traits?: string[];
+        goals?: string[];
+        motivations?: string[];
+        backstory_elements?: string[];
+        arc_status?: string;
+        ai_confidence?: number;
+        source_chapter_ids?: string[];
+        is_newly_extracted?: boolean;
+      }>;
+      relationships: Array<{
+        source_character_name: string;
+        target_character_name: string;
+        type: string;
+        strength?: number;
+        description?: string;
+        current_status?: string;
+        ai_confidence?: number;
+        source_chapter_ids?: string[];
+        is_newly_extracted?: boolean;
+      }>;
+      plot_points: Array<{
+        name: string;
+        description?: string;
+        plot_thread_name?: string;
+        significance?: string;
+        characters_involved_names?: string[];
+        ai_confidence?: number;
+        source_chapter_ids?: string[];
+        is_newly_extracted?: boolean;
+      }>;
+      plot_threads: Array<{
+        name: string;
+        type?: string;
+        status?: string;
+        key_events?: string[];
+        characters_involved_names?: string[];
+        resolution?: string;
+        ai_confidence?: number;
+        source_chapter_ids?: string[];
+        is_newly_extracted?: boolean;
+      }>;
+      timeline_events: Array<{
+        event_summary: string;
+        chronological_order?: number;
+        date_or_time_reference?: string;
+        significance?: string;
+        characters_involved_names?: string[];
+        plot_threads_impacted_names?: string[];
+        locations_involved_names?: string[];
+        ai_confidence?: number;
+        source_chapter_id?: string;
+        is_newly_extracted?: boolean;
+      }>;
+      world_building: Array<{
+        name: string;
+        type?: string;
+        description?: string;
+        significance?: string;
+        associated_characters_names?: string[];
+        ai_confidence?: number;
+        source_chapter_ids?: string[];
+        is_newly_extracted?: boolean;
+      }>;
+      themes: Array<{
+        name: string;
+        exploration_summary?: string;
+        key_moments_or_characters?: string[];
+        ai_confidence?: number;
+        source_chapter_ids?: string[];
+        is_newly_extracted?: boolean;
+      }>;
+    };
+  };
+  storedCount: number;
+  storageDetails: Record<string, any>;
+  errors?: string[];
+  validation: {
+    confidence: number;
+    issues: string[];
+    method: string;
+  };
+  processingTime: number;
+  message: string;
 }
