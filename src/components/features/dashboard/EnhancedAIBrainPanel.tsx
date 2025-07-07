@@ -221,45 +221,49 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       {/* Main Tabbed Interface */}
       <Card className="p-6">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-8 lg:grid-cols-8">
-            <TabsTrigger value="overview" className="flex items-center space-x-1">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 gap-1">
+            <TabsTrigger value="overview" className="flex items-center space-x-1 text-xs">
               <Brain className="w-3 h-3" />
               <span className="hidden sm:inline">Overview</span>
             </TabsTrigger>
-            <TabsTrigger value="characters" className="flex items-center space-x-1">
+            <TabsTrigger value="characters" className="flex items-center space-x-1 text-xs">
               <Users className="w-3 h-3" />
               <span className="hidden sm:inline">Characters</span>
             </TabsTrigger>
-            <TabsTrigger value="relationships" className="flex items-center space-x-1">
+            <TabsTrigger value="relationships" className="flex items-center space-x-1 text-xs">
               <Heart className="w-3 h-3" />
               <span className="hidden sm:inline">Relations</span>
             </TabsTrigger>
-            <TabsTrigger value="plot-points" className="flex items-center space-x-1">
+            <TabsTrigger value="plot-points" className="flex items-center space-x-1 text-xs">
               <BookOpen className="w-3 h-3" />
               <span className="hidden sm:inline">Plot Points</span>
             </TabsTrigger>
-            <TabsTrigger value="plot-threads" className="flex items-center space-x-1">
+            <TabsTrigger value="plot-threads" className="flex items-center space-x-1 text-xs">
               <GitBranch className="w-3 h-3" />
               <span className="hidden sm:inline">Threads</span>
             </TabsTrigger>
-            <TabsTrigger value="timeline" className="flex items-center space-x-1">
+            <TabsTrigger value="timeline" className="flex items-center space-x-1 text-xs">
               <Calendar className="w-3 h-3" />
               <span className="hidden sm:inline">Timeline</span>
             </TabsTrigger>
-            <TabsTrigger value="world-building" className="flex items-center space-x-1">
+            <TabsTrigger value="world-building" className="flex items-center space-x-1 text-xs">
               <Globe className="w-3 h-3" />
               <span className="hidden sm:inline">World</span>
             </TabsTrigger>
-            <TabsTrigger value="summaries" className="flex items-center space-x-1">
+            <TabsTrigger value="summaries" className="flex items-center space-x-1 text-xs">
               <FileText className="w-3 h-3" />
               <span className="hidden sm:inline">Summaries</span>
+            </TabsTrigger>
+            <TabsTrigger value="themes" className="flex items-center space-x-1 text-xs">
+              <Lightbulb className="w-3 h-3" />
+              <span className="hidden sm:inline">Themes</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="mt-6">
             <div className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <Users className="w-6 h-6 mx-auto mb-2 text-blue-600" />
                   <div className="text-2xl font-bold text-blue-600">{knowledge.filter(k => k.category === 'character').length}</div>
@@ -279,6 +283,11 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                   <Globe className="w-6 h-6 mx-auto mb-2 text-orange-600" />
                   <div className="text-2xl font-bold text-orange-600">{worldBuilding.length}</div>
                   <div className="text-sm text-slate-600">World Elements</div>
+                </div>
+                <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                  <Lightbulb className="w-6 h-6 mx-auto mb-2 text-yellow-600" />
+                  <div className="text-2xl font-bold text-yellow-600">{themes.length}</div>
+                  <div className="text-sm text-slate-600">Themes</div>
                 </div>
               </div>
               
@@ -602,6 +611,38 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                             ))}
                           </div>
                         </div>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Themes Tab */}
+          <TabsContent value="themes" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-medium text-slate-900">Themes ({themes.length})</h4>
+              </div>
+              {themes.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <Lightbulb className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No themes extracted yet</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {themes.map((theme) => (
+                    <Card key={theme.id} className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h5 className="font-medium text-slate-900">{theme.name}</h5>
+                        <Badge variant="outline" className="text-xs">
+                          {Math.round(theme.confidence_score * 100)}%
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-slate-600 mb-2">{theme.description}</p>
+                      {theme.evidence && (
+                        <p className="text-xs text-slate-500 italic">"{theme.evidence}"</p>
                       )}
                     </Card>
                   ))}
