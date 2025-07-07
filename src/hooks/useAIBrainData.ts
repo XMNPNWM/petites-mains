@@ -1,84 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { KnowledgeBase, ChapterSummary, PlotPoint } from '@/types/knowledge';
-
-interface PlotThread {
-  id: string;
-  project_id: string;
-  thread_name: string;
-  thread_type: string;
-  thread_status: string;
-  resolution_status?: string;
-  key_events?: string[];
-  characters_involved_names?: string[];
-  ai_confidence_new?: number;
-  source_chapter_ids?: string[];
-  is_newly_extracted?: boolean;
-  evidence?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface TimelineEvent {
-  id: string;
-  project_id: string;
-  event_name: string;
-  event_type: string;
-  event_description?: string;
-  event_summary?: string;
-  chronological_order: number;
-  date_or_time_reference?: string;
-  significance?: string;
-  characters_involved_names?: string[];
-  plot_threads_impacted_names?: string[];
-  locations_involved_names?: string[];
-  ai_confidence_new?: number;
-  source_chapter_ids?: string[];
-  is_newly_extracted?: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-interface CharacterRelationship {
-  id: string;
-  project_id: string;
-  character_a_name: string;
-  character_b_name: string;
-  relationship_type: string;
-  relationship_strength: number;
-  relationship_current_status?: string;
-  ai_confidence_new?: number;
-  source_chapter_ids?: string[];
-  is_newly_extracted?: boolean;
-  evidence?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface WorldBuildingElement {
-  id: string;
-  project_id: string;
-  name: string;
-  type: string;
-  description?: string;
-  details?: Record<string, any>;
-  created_at: string;
-  updated_at: string;
-}
-
-interface AIBrainData {
-  knowledge: KnowledgeBase[];
-  chapterSummaries: ChapterSummary[];
-  plotPoints: PlotPoint[];
-  plotThreads: PlotThread[];
-  timelineEvents: TimelineEvent[];
-  characterRelationships: CharacterRelationship[];
-  worldBuilding: WorldBuildingElement[];
-  themes: KnowledgeBase[];
-  isLoading: boolean;
-  error: string | null;
-}
+import { AIBrainData, PlotThread, TimelineEvent, CharacterRelationship, WorldBuildingElement } from '@/types/ai-brain';
 
 export const useAIBrainData = (projectId: string): AIBrainData => {
   const [data, setData] = useState<AIBrainData>({
@@ -108,47 +31,12 @@ export const useAIBrainData = (projectId: string): AIBrainData => {
         timelineEventsResponse,
         characterRelationshipsResponse
       ] = await Promise.all([
-        // 1. Knowledge Base (all categories)
-        supabase
-          .from('knowledge_base')
-          .select('*')
-          .eq('project_id', projectId)
-          .order('created_at', { ascending: false }),
-        
-        // 2. Chapter Summaries
-        supabase
-          .from('chapter_summaries')
-          .select('*')
-          .eq('project_id', projectId)
-          .order('created_at', { ascending: false }),
-        
-        // 3. Plot Points  
-        supabase
-          .from('plot_points')
-          .select('*')
-          .eq('project_id', projectId)
-          .order('created_at', { ascending: false }),
-        
-        // 4. Plot Threads
-        supabase
-          .from('plot_threads')
-          .select('*')
-          .eq('project_id', projectId)
-          .order('created_at', { ascending: false }),
-        
-        // 5. Timeline Events
-        supabase
-          .from('timeline_events')
-          .select('*')
-          .eq('project_id', projectId)
-          .order('chronological_order', { ascending: true }),
-        
-        // 6. Character Relationships
-        supabase
-          .from('character_relationships')
-          .select('*')
-          .eq('project_id', projectId)
-          .order('created_at', { ascending: false })
+        supabase.from('knowledge_base').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
+        supabase.from('chapter_summaries').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
+        supabase.from('plot_points').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
+        supabase.from('plot_threads').select('*').eq('project_id', projectId).order('created_at', { ascending: false }),
+        supabase.from('timeline_events').select('*').eq('project_id', projectId).order('chronological_order', { ascending: true }),
+        supabase.from('character_relationships').select('*').eq('project_id', projectId).order('created_at', { ascending: false })
       ]);
 
       // Check for errors
@@ -220,30 +108,18 @@ export const useAIBrainData = (projectId: string): AIBrainData => {
           updated_at: item.updated_at
         }));
 
-      // Separate themes from general knowledge
       const themes = allKnowledge.filter(item => item.category === 'theme');
       const generalKnowledge = allKnowledge.filter(item => 
         item.category !== 'theme' && item.category !== 'world_building'
       );
 
-      console.log('📊 AI Brain data fetched successfully:', {
-        knowledge: generalKnowledge.length,
-        chapterSummaries: chapterSummaries.length,
-        plotPoints: plotPoints.length,
-        plotThreads: plotThreads.length,
-        timelineEvents: timelineEvents.length,
-        characterRelationships: characterRelationships.length,
-        worldBuilding: worldBuilding.length,
-        themes: themes.length
-      });
-
       setData({
         knowledge: generalKnowledge,
-        chapterSummaries,
-        plotPoints,
-        plotThreads,
-        timelineEvents,
-        characterRelationships,
+        chapterSummaries: chapterSummariesResponse.data || [],
+        plotPoints: plotPointsResponse.data || [],
+        plotThreads: plotThreadsResponse.data || [],
+        timelineEvents: timelineEventsResponse.data || [],
+        characterRelationships: characterRelationshipsResponse.data || [],
         worldBuilding,
         themes,
         isLoading: false,
@@ -266,5 +142,9 @@ export const useAIBrainData = (projectId: string): AIBrainData => {
     }
   }, [projectId]);
 
-  return data;
+  // Return data with refresh function for inline editing
+  return {
+    ...data,
+    refresh: fetchAllData
+  } as AIBrainData & { refresh: () => Promise<void> };
 };
