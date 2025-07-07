@@ -12,6 +12,8 @@ import { KnowledgeBase, AnalysisStatus } from '@/types/knowledge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAIBrainData } from '@/hooks/useAIBrainData';
+import { AIBrainHeader } from './ai-brain/AIBrainHeader';
+import { AIBrainStatusCards } from './ai-brain/AIBrainStatusCards';
 
 interface EnhancedAIBrainPanelProps {
   projectId: string;
@@ -198,147 +200,23 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Header with Analysis Button */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <Brain className="w-6 h-6 text-purple-600" />
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900">AI Brain</h3>
-            <p className="text-sm text-slate-600">
-              Intelligent story analysis with knowledge extraction
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          {analysisStatus.hasErrors && analysisStatus.currentJob?.state === 'failed' && (
-            <Button 
-              onClick={handleRetryAnalysis}
-              disabled={isRetrying || analysisStatus.isProcessing}
-              variant="outline"
-              size="sm"
-              className="text-orange-600 hover:text-orange-700"
-            >
-              {isRetrying ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <RotateCcw className="w-4 h-4 mr-2" />
-              )}
-              Retry
-            </Button>
-          )}
-          
-          {analysisStatus.isProcessing && (
-            <Button 
-              onClick={handleCancelAnalysis}
-              variant="outline"
-              size="sm"
-              className="text-red-600 hover:text-red-700"
-            >
-              <XCircle className="w-4 h-4 mr-2" />
-              Cancel
-            </Button>
-          )}
-          
-          <Button
-            onClick={handleAnalyzeProject}
-            disabled={analysisStatus.isProcessing || isAnalyzing || isRetrying}
-            className="flex items-center space-x-2"
-          >
-            {(analysisStatus.isProcessing || isAnalyzing) ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Brain className="w-4 h-4" />
-            )}
-            <span>
-              {analysisStatus.isProcessing ? 'Analyzing...' : 
-               isAnalyzing ? 'Starting...' : 
-               isRetrying ? 'Retrying...' : 'Analyze Project'}
-            </span>
-          </Button>
-        </div>
-      </div>
+      {/* Header with Analysis Controls */}
+      <AIBrainHeader
+        analysisStatus={analysisStatus}
+        isAnalyzing={isAnalyzing}
+        isRetrying={isRetrying}
+        onAnalyzeProject={handleAnalyzeProject}
+        onRetryAnalysis={handleRetryAnalysis}
+        onCancelAnalysis={handleCancelAnalysis}
+      />
 
-      {/* Processing Status */}
-      {analysisStatus.isProcessing && analysisStatus.currentJob && (
-        <Card className="p-4 bg-blue-50 border-blue-200">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-2">
-              <Brain className="w-5 h-5 animate-pulse text-blue-600" />
-              <span className="font-medium text-blue-900">Analysis in Progress</span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-blue-700">
-              <Clock className="w-4 h-4" />
-              <span>Processing Your Story</span>
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-blue-800">{analysisStatus.currentJob.current_step || 'Processing...'}</span>
-              <span className="text-blue-700">{analysisStatus.currentJob.progress_percentage || 0}%</span>
-            </div>
-            
-            <div className="w-full bg-blue-200 rounded-full h-2">
-              <div 
-                className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300" 
-                style={{ width: `${analysisStatus.currentJob.progress_percentage || 0}%` }}
-              />
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Success Status */}
-      {!analysisStatus.isProcessing && !analysisStatus.hasErrors && totalKnowledgeItems > 0 && (
-        <Card className="p-4 bg-green-50 border-green-200">
-          <div className="flex items-center space-x-2 mb-2">
-            <CheckCircle className="w-5 h-5 text-green-600" />
-            <span className="font-medium text-green-900">Analysis Complete</span>
-          </div>
-          <p className="text-sm text-green-700">
-            Successfully extracted {totalKnowledgeItems} total knowledge items from your story
-            {analysisStatus.lastProcessedAt && (
-              <span className="ml-2">
-                • Last updated: {new Date(analysisStatus.lastProcessedAt).toLocaleString()}
-              </span>
-            )}
-          </p>
-        </Card>
-      )}
-
-      {/* Status Overview - Updated with real data stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <CheckCircle className="w-5 h-5 text-green-500" />
-            <div>
-              <p className="text-sm font-medium text-slate-900">Total Knowledge</p>
-              <p className="text-2xl font-bold text-green-600">{totalKnowledgeItems}</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <AlertTriangle className="w-5 h-5 text-yellow-500" />
-            <div>
-              <p className="text-sm font-medium text-slate-900">Low Confidence</p>
-              <p className="text-2xl font-bold text-yellow-600">{lowConfidenceItems}</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <Flag className="w-5 h-5 text-red-500" />
-            <div>
-              <p className="text-sm font-medium text-slate-900">Flagged Items</p>
-              <p className="text-2xl font-bold text-red-600">{flaggedItems}</p>
-            </div>
-          </div>
-        </Card>
-      </div>
+      {/* Status Cards */}
+      <AIBrainStatusCards
+        totalKnowledgeItems={totalKnowledgeItems}
+        lowConfidenceItems={lowConfidenceItems}
+        flaggedItems={flaggedItems}
+        analysisStatus={analysisStatus}
+      />
 
       {/* Main Tabbed Interface */}
       <Card className="p-6">
@@ -487,9 +365,9 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                     <Card key={relationship.id} className="p-4">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-2">
-                          <span className="font-medium text-slate-900">{relationship.source_character_name}</span>
+                          <span className="font-medium text-slate-900">{relationship.character_a_name}</span>
                           <Heart className="w-4 h-4 text-red-500" />
-                          <span className="font-medium text-slate-900">{relationship.target_character_name}</span>
+                          <span className="font-medium text-slate-900">{relationship.character_b_name}</span>
                         </div>
                         <Badge variant="outline" className="text-xs">
                           {Math.round((relationship.ai_confidence_new || 0) * 100)}%
