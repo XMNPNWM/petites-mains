@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -488,12 +487,12 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                     <Card key={relationship.id} className="p-4">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-2">
-                          <span className="font-medium text-slate-900">{relationship.source_character_name || relationship.character_a_name}</span>
+                          <span className="font-medium text-slate-900">{relationship.character_a_name}</span>
                           <Heart className="w-4 h-4 text-red-500" />
-                          <span className="font-medium text-slate-900">{relationship.target_character_name || relationship.character_b_name}</span>
+                          <span className="font-medium text-slate-900">{relationship.character_b_name}</span>
                         </div>
                         <Badge variant="outline" className="text-xs">
-                          {Math.round((relationship.ai_confidence_new || relationship.confidence_score || 0) * 100)}%
+                          {Math.round((relationship.ai_confidence_new || 0) * 100)}%
                         </Badge>
                       </div>
                       <div className="flex items-center space-x-4 text-sm text-slate-600">
