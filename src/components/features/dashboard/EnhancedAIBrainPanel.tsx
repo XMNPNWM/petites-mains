@@ -561,7 +561,8 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
               {filteredData.worldBuilding.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   <Globe className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No world building elements found with current filters</p>
+                  <p>No AI-extracted world building elements found</p>
+                  <p className="text-xs text-slate-400 mt-2">World building elements will appear here after AI analysis of your chapters</p>
                 </div>
               ) : (
                 <div className="space-y-3">

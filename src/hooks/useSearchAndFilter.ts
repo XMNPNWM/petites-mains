@@ -13,6 +13,7 @@ interface PlotThread {
   characters_involved_names?: string[];
   is_newly_extracted?: boolean;
   evidence?: string;
+  key_events?: string[];
 }
 
 interface TimelineEvent {
@@ -25,6 +26,8 @@ interface TimelineEvent {
   ai_confidence_new?: number;
   characters_involved_names?: string[];
   is_newly_extracted?: boolean;
+  date_or_time_reference?: string;
+  significance?: string;
 }
 
 interface CharacterRelationship {
@@ -33,6 +36,8 @@ interface CharacterRelationship {
   character_a_name: string;
   character_b_name: string;
   relationship_type: string;
+  relationship_strength: number;
+  relationship_current_status?: string;
   ai_confidence_new?: number;
   is_newly_extracted?: boolean;
   evidence?: string;
@@ -175,7 +180,7 @@ export const useSearchAndFilter = (data: SearchAndFilterData) => {
     // Filter timeline events
     const filteredTimelineEvents = applyFilters(
       data.timelineEvents,
-      (item) => `${item.event_name} ${item.event_description} ${item.significance}`,
+      (item) => `${item.event_name} ${item.event_description} ${item.significance || ''}`,
       (item) => item.ai_confidence_new || 0,
       (item) => item.is_newly_extracted || false,
       () => false,

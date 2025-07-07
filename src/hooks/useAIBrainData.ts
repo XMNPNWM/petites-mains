@@ -106,8 +106,7 @@ export const useAIBrainData = (projectId: string): AIBrainData => {
         plotPointsResponse,
         plotThreadsResponse,
         timelineEventsResponse,
-        characterRelationshipsResponse,
-        worldBuildingResponse
+        characterRelationshipsResponse
       ] = await Promise.all([
         // 1. Knowledge Base (all categories)
         supabase
@@ -149,13 +148,6 @@ export const useAIBrainData = (projectId: string): AIBrainData => {
           .from('character_relationships')
           .select('*')
           .eq('project_id', projectId)
-          .order('created_at', { ascending: false }),
-        
-        // 7. World Building Elements
-        supabase
-          .from('worldbuilding_elements')
-          .select('*')
-          .eq('project_id', projectId)
           .order('created_at', { ascending: false })
       ]);
 
@@ -166,8 +158,7 @@ export const useAIBrainData = (projectId: string): AIBrainData => {
         plotPointsResponse.error,
         plotThreadsResponse.error,
         timelineEventsResponse.error,
-        characterRelationshipsResponse.error,
-        worldBuildingResponse.error
+        characterRelationshipsResponse.error
       ].filter(Boolean);
 
       if (errors.length > 0) {
@@ -214,14 +205,26 @@ export const useAIBrainData = (projectId: string): AIBrainData => {
         source_chapter_ids: (item.source_chapter_ids as string[]) || []
       }));
 
-      const worldBuilding: WorldBuildingElement[] = (worldBuildingResponse.data || []).map(item => ({
-        ...item,
-        details: typeof item.details === 'string' ? JSON.parse(item.details) : (item.details as Record<string, any>) || {}
-      }));
+      // Extract world building elements from knowledge_base where category='world_building'
+      // This ensures AI Brain only shows AI-extracted world building data
+      const worldBuilding: WorldBuildingElement[] = allKnowledge
+        .filter(item => item.category === 'world_building')
+        .map(item => ({
+          id: item.id,
+          project_id: item.project_id,
+          name: item.name,
+          type: item.subcategory || 'general',
+          description: item.description,
+          details: item.details,
+          created_at: item.created_at,
+          updated_at: item.updated_at
+        }));
 
       // Separate themes from general knowledge
       const themes = allKnowledge.filter(item => item.category === 'theme');
-      const generalKnowledge = allKnowledge.filter(item => item.category !== 'theme');
+      const generalKnowledge = allKnowledge.filter(item => 
+        item.category !== 'theme' && item.category !== 'world_building'
+      );
 
       console.log('📊 AI Brain data fetched successfully:', {
         knowledge: generalKnowledge.length,
