@@ -280,7 +280,11 @@ export class SmartAnalysisOrchestrator {
         throw error;
       }
 
-      return data || [];
+      return (data || []).map(item => ({
+        ...item,
+        key_events_in_chapter: (item.key_events_in_chapter as string[]) || [],
+        primary_focus: (item.primary_focus as string[]) || []
+      })) as ChapterSummary[];
     } catch (error) {
       console.error('Error in getChapterSummaries:', error);
       return [];
@@ -300,7 +304,11 @@ export class SmartAnalysisOrchestrator {
         throw error;
       }
 
-      return data || [];
+      return (data || []).map(item => ({
+        ...item,
+        characters_involved_names: (item.characters_involved_names as string[]) || [],
+        source_chapter_ids: (item.source_chapter_ids as string[]) || []
+      })) as PlotPoint[];
     } catch (error) {
       console.error('Error in getPlotPoints:', error);
       return [];
