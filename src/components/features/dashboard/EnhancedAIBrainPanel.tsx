@@ -1,10 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Brain, AlertTriangle, CheckCircle, Loader2, RefreshCw, Edit3, Save, X, Filter, Search, Flag, Trash2, Clock, XCircle, RotateCcw } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Brain, AlertTriangle, CheckCircle, Loader2, RefreshCw, Edit3, Save, X, Filter, Search, Flag, Trash2, Clock, XCircle, RotateCcw, Users, BookOpen, GitBranch, Calendar, Globe, Lightbulb, FileText, Heart } from 'lucide-react';
 import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator';
 import { AnalysisJobManager } from '@/services/AnalysisJobManager';
 import { KnowledgeBase, AnalysisStatus } from '@/types/knowledge';
@@ -25,7 +27,7 @@ interface EditingKnowledge {
 }
 
 const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
-  // Use the new comprehensive data hook
+  // Use the comprehensive data hook
   const {
     knowledge,
     chapterSummaries,
@@ -39,8 +41,6 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     error: dataError
   } = useAIBrainData(projectId);
 
-  const [filteredKnowledge, setFilteredKnowledge] = useState<KnowledgeBase[]>([]);
-  const [flaggedKnowledge, setFlaggedKnowledge] = useState<KnowledgeBase[]>([]);
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>({
     isProcessing: false,
     hasErrors: false,
@@ -49,24 +49,13 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   });
   const [editingItem, setEditingItem] = useState<EditingKnowledge | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [confidenceFilter, setConfidenceFilter] = useState<string>('all');
-  const [showFlagged, setShowFlagged] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const { toast } = useToast();
 
   const jobManager = new AnalysisJobManager();
 
-  // Calculate all knowledge items for filtering and stats
-  const allKnowledge = [...knowledge, ...themes];
-
   useEffect(() => {
-    // Update filtered and flagged knowledge when data changes
-    const flagged = allKnowledge.filter(item => item.is_flagged);
-    setFlaggedKnowledge(flagged);
-    applyFilters(allKnowledge);
-
     // Get analysis status
     const fetchAnalysisStatus = async () => {
       try {
@@ -80,41 +69,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     if (projectId && !dataLoading) {
       fetchAnalysisStatus();
     }
-  }, [knowledge, themes, projectId, dataLoading]);
-
-  const applyFilters = (knowledgeData: KnowledgeBase[] = allKnowledge) => {
-    let filtered = [...knowledgeData];
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(item => 
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Category filter
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(item => item.category === selectedCategory);
-    }
-
-    // Confidence filter
-    if (confidenceFilter !== 'all') {
-      const threshold = parseFloat(confidenceFilter);
-      filtered = filtered.filter(item => item.confidence_score >= threshold);
-    }
-
-    // Flagged filter
-    if (showFlagged) {
-      filtered = filtered.filter(item => item.is_flagged);
-    }
-
-    setFilteredKnowledge(filtered);
-  };
-
-  useEffect(() => {
-    applyFilters();
-  }, [searchTerm, selectedCategory, confidenceFilter, showFlagged, allKnowledge]);
+  }, [projectId, dataLoading]);
 
   // Real-time status polling when processing
   useEffect(() => {
@@ -212,129 +167,8 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     }
   };
 
-  const startEditing = (item: KnowledgeBase) => {
-    setEditingItem({
-      id: item.id,
-      name: item.name,
-      description: item.description || '',
-      confidence_score: item.confidence_score,
-      evidence: item.evidence || ''
-    });
-  };
-
-  const saveEdit = async () => {
-    if (!editingItem) return;
-
-    try {
-      const { error } = await supabase
-        .from('knowledge_base')
-        .update({
-          name: editingItem.name,
-          description: editingItem.description,
-          confidence_score: editingItem.confidence_score,
-          evidence: editingItem.evidence,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', editingItem.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Knowledge item updated successfully",
-      });
-
-      setEditingItem(null);
-    } catch (error) {
-      console.error('Error updating knowledge:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update knowledge item",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const cancelEdit = () => {
-    setEditingItem(null);
-  };
-
-  const toggleFlag = async (item: KnowledgeBase) => {
-    try {
-      const { error } = await supabase
-        .from('knowledge_base')
-        .update({ 
-          is_flagged: !item.is_flagged,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', item.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: `Knowledge item ${item.is_flagged ? 'unflagged' : 'flagged'} successfully`,
-      });
-
-    } catch (error) {
-      console.error('Error toggling flag:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update flag status",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const deleteKnowledge = async (item: KnowledgeBase) => {
-    if (!confirm(`Are you sure you want to delete "${item.name}"? This action cannot be undone.`)) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('knowledge_base')
-        .delete()
-        .eq('id', item.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Knowledge item deleted successfully",
-      });
-
-    } catch (error) {
-      console.error('Error deleting knowledge:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete knowledge item",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const getCategoryColor = (category: string) => {
-    const colors = {
-      character: 'bg-blue-100 text-blue-800',
-      plot_point: 'bg-green-100 text-green-800',
-      world_building: 'bg-purple-100 text-purple-800',
-      theme: 'bg-orange-100 text-orange-800',
-      setting: 'bg-teal-100 text-teal-800',
-      other: 'bg-gray-100 text-gray-800'
-    };
-    return colors[category as keyof typeof colors] || colors.other;
-  };
-
-  const getConfidenceColor = (score: number) => {
-    if (score >= 0.8) return 'text-green-600';
-    if (score >= 0.6) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const categories = [...new Set(allKnowledge.map(k => k.category))];
-
   // Calculate comprehensive stats from real data
+  const allKnowledge = [...knowledge, ...themes];
   const totalKnowledgeItems = allKnowledge.length + chapterSummaries.length + plotPoints.length + 
                              plotThreads.length + timelineEvents.length + characterRelationships.length + worldBuilding.length;
   const lowConfidenceItems = allKnowledge.filter(k => k.confidence_score < 0.6).length;
@@ -507,191 +341,399 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         </Card>
       </div>
 
-      {/* Filters */}
-      <Card className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="text-sm font-medium text-slate-700 mb-1 block">Search</label>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-              <Input
-                placeholder="Search knowledge..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className="text-sm font-medium text-slate-700 mb-1 block">Category</label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full p-2 border rounded-md"
-            >
-              <option value="all">All Categories</option>
-              {categories.map(category => (
-                <option key={category} value={category}>
-                  {category.replace('_', ' ')}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className="text-sm font-medium text-slate-700 mb-1 block">Confidence</label>
-            <select
-              value={confidenceFilter}
-              onChange={(e) => setConfidenceFilter(e.target.value)}
-              className="w-full p-2 border rounded-md"
-            >
-              <option value="all">All Confidence</option>
-              <option value="0.8">High (80%+)</option>
-              <option value="0.6">Medium (60%+)</option>
-              <option value="0.4">Low (40%+)</option>
-            </select>
-          </div>
-          
-          <div className="flex items-end">
-            <Button
-              variant={showFlagged ? "default" : "outline"}
-              onClick={() => setShowFlagged(!showFlagged)}
-              className="w-full"
-            >
-              <Flag className="w-4 h-4 mr-2" />
-              {showFlagged ? 'Show All' : 'Show Flagged'}
-            </Button>
-          </div>
-        </div>
-      </Card>
+      {/* Main Tabbed Interface */}
+      <Card className="p-6">
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-8 lg:grid-cols-8">
+            <TabsTrigger value="overview" className="flex items-center space-x-1">
+              <Brain className="w-3 h-3" />
+              <span className="hidden sm:inline">Overview</span>
+            </TabsTrigger>
+            <TabsTrigger value="characters" className="flex items-center space-x-1">
+              <Users className="w-3 h-3" />
+              <span className="hidden sm:inline">Characters</span>
+            </TabsTrigger>
+            <TabsTrigger value="relationships" className="flex items-center space-x-1">
+              <Heart className="w-3 h-3" />
+              <span className="hidden sm:inline">Relations</span>
+            </TabsTrigger>
+            <TabsTrigger value="plot-points" className="flex items-center space-x-1">
+              <BookOpen className="w-3 h-3" />
+              <span className="hidden sm:inline">Plot Points</span>
+            </TabsTrigger>
+            <TabsTrigger value="plot-threads" className="flex items-center space-x-1">
+              <GitBranch className="w-3 h-3" />
+              <span className="hidden sm:inline">Threads</span>
+            </TabsTrigger>
+            <TabsTrigger value="timeline" className="flex items-center space-x-1">
+              <Calendar className="w-3 h-3" />
+              <span className="hidden sm:inline">Timeline</span>
+            </TabsTrigger>
+            <TabsTrigger value="world-building" className="flex items-center space-x-1">
+              <Globe className="w-3 h-3" />
+              <span className="hidden sm:inline">World</span>
+            </TabsTrigger>
+            <TabsTrigger value="summaries" className="flex items-center space-x-1">
+              <FileText className="w-3 h-3" />
+              <span className="hidden sm:inline">Summaries</span>
+            </TabsTrigger>
+          </TabsList>
 
-      {/* Knowledge Items Display */}
-      <div className="space-y-3">
-        {filteredKnowledge.length === 0 ? (
-          <Card className="p-8 text-center">
-            <Brain className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-            <p className="text-slate-600 mb-4">
-              {allKnowledge.length === 0 
-                ? "No knowledge extracted yet" 
-                : "No knowledge matches your filters"
-              }
-            </p>
-            {allKnowledge.length === 0 && (
-              <p className="text-sm text-slate-500">
-                Click "Analyze Project" to start extracting insights from your story
-              </p>
-            )}
-          </Card>
-        ) : (
-          filteredKnowledge.map((item) => (
-            <Card key={item.id} className={`p-4 ${item.is_flagged ? 'border-red-200 bg-red-50' : ''}`}>
-              {editingItem?.id === item.id ? (
-                // Edit mode
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 block mb-1">Name</label>
-                    <Input
-                      value={editingItem.name}
-                      onChange={(e) => setEditingItem(prev => prev ? {...prev, name: e.target.value} : null)}
-                    />
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="mt-6">
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <Users className="w-6 h-6 mx-auto mb-2 text-blue-600" />
+                  <div className="text-2xl font-bold text-blue-600">{knowledge.filter(k => k.category === 'character').length}</div>
+                  <div className="text-sm text-slate-600">Characters</div>
+                </div>
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <BookOpen className="w-6 h-6 mx-auto mb-2 text-green-600" />
+                  <div className="text-2xl font-bold text-green-600">{plotPoints.length}</div>
+                  <div className="text-sm text-slate-600">Plot Points</div>
+                </div>
+                <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <GitBranch className="w-6 h-6 mx-auto mb-2 text-purple-600" />
+                  <div className="text-2xl font-bold text-purple-600">{plotThreads.length}</div>
+                  <div className="text-sm text-slate-600">Plot Threads</div>
+                </div>
+                <div className="text-center p-4 bg-orange-50 rounded-lg">
+                  <Globe className="w-6 h-6 mx-auto mb-2 text-orange-600" />
+                  <div className="text-2xl font-bold text-orange-600">{worldBuilding.length}</div>
+                  <div className="text-sm text-slate-600">World Elements</div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <h4 className="font-medium text-slate-900 mb-2">Recent Activity</h4>
+                  <div className="space-y-2">
+                    {chapterSummaries.slice(0, 3).map((summary) => (
+                      <div key={summary.id} className="text-sm text-slate-600 flex items-center space-x-2">
+                        <FileText className="w-3 h-3" />
+                        <span>Chapter summary: {summary.title}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 block mb-1">Description</label>
-                    <Textarea
-                      value={editingItem.description}
-                      onChange={(e) => setEditingItem(prev => prev ? {...prev, description: e.target.value} : null)}
-                      rows={3}
-                    />
+                </div>
+                
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <h4 className="font-medium text-slate-900 mb-2">Knowledge Quality</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>High Confidence (80%+)</span>
+                      <span className="font-medium">{allKnowledge.filter(k => k.confidence_score >= 0.8).length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Medium Confidence (60-80%)</span>
+                      <span className="font-medium">{allKnowledge.filter(k => k.confidence_score >= 0.6 && k.confidence_score < 0.8).length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Low Confidence (<60%)</span>
+                      <span className="font-medium text-yellow-600">{lowConfidenceItems}</span>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 block mb-1">
-                      Confidence Score ({Math.round(editingItem.confidence_score * 100)}%)
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={editingItem.confidence_score}
-                      onChange={(e) => setEditingItem(prev => prev ? {...prev, confidence_score: parseFloat(e.target.value)} : null)}
-                      className="w-full"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 block mb-1">Evidence</label>
-                    <Textarea
-                      value={editingItem.evidence}
-                      onChange={(e) => setEditingItem(prev => prev ? {...prev, evidence: e.target.value} : null)}
-                      rows={2}
-                    />
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button onClick={saveEdit} size="sm">
-                      <Save className="w-4 h-4 mr-1" />
-                      Save
-                    </Button>
-                    <Button onClick={cancelEdit} variant="outline" size="sm">
-                      <X className="w-4 h-4 mr-1" />
-                      Cancel
-                    </Button>
-                  </div>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Characters Tab */}
+          <TabsContent value="characters" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-medium text-slate-900">Characters ({knowledge.filter(k => k.category === 'character').length})</h4>
+              </div>
+              {knowledge.filter(k => k.category === 'character').length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No characters extracted yet</p>
                 </div>
               ) : (
-                // View mode
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <h5 className="font-medium text-slate-900">{item.name}</h5>
-                      <Badge className={getCategoryColor(item.category)}>
-                        {item.category.replace('_', ' ')}
-                      </Badge>
-                      <span className={`text-sm font-medium ${getConfidenceColor(item.confidence_score)}`}>
-                        {Math.round(item.confidence_score * 100)}%
-                      </span>
-                      {item.is_flagged && (
-                        <Badge variant="destructive">
-                          <Flag className="w-3 h-3 mr-1" />
-                          Flagged
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {knowledge.filter(k => k.category === 'character').map((character) => (
+                    <Card key={character.id} className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h5 className="font-medium text-slate-900">{character.name}</h5>
+                        <Badge variant="outline" className="text-xs">
+                          {Math.round(character.confidence_score * 100)}%
                         </Badge>
+                      </div>
+                      <p className="text-sm text-slate-600 mb-2">{character.description}</p>
+                      {character.evidence && (
+                        <p className="text-xs text-slate-500 italic">"{character.evidence}"</p>
                       )}
-                    </div>
-                    <p className="text-sm text-slate-600 mb-2">{item.description}</p>
-                    {item.evidence && (
-                      <p className="text-xs text-slate-500 italic">Evidence: {item.evidence}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-1 ml-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => startEditing(item)}
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleFlag(item)}
-                      className={item.is_flagged ? 'text-red-600' : ''}
-                    >
-                      <Flag className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => deleteKnowledge(item)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                    </Card>
+                  ))}
                 </div>
               )}
-            </Card>
-          ))
-        )}
-      </div>
+            </div>
+          </TabsContent>
+
+          {/* Relationships Tab */}
+          <TabsContent value="relationships" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-medium text-slate-900">Character Relationships ({characterRelationships.length})</h4>
+              </div>
+              {characterRelationships.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <Heart className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No relationships extracted yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {characterRelationships.map((relationship) => (
+                    <Card key={relationship.id} className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium text-slate-900">{relationship.source_character_name || relationship.character_a_name}</span>
+                          <Heart className="w-4 h-4 text-red-500" />
+                          <span className="font-medium text-slate-900">{relationship.target_character_name || relationship.character_b_name}</span>
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {Math.round((relationship.ai_confidence_new || relationship.confidence_score || 0) * 100)}%
+                        </Badge>
+                      </div>
+                      <div className="flex items-center space-x-4 text-sm text-slate-600">
+                        <span>Type: {relationship.relationship_type}</span>
+                        <span>Strength: {relationship.relationship_strength}/10</span>
+                        {relationship.relationship_current_status && (
+                          <span>Status: {relationship.relationship_current_status}</span>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Plot Points Tab */}
+          <TabsContent value="plot-points" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-medium text-slate-900">Plot Points ({plotPoints.length})</h4>
+              </div>
+              {plotPoints.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No plot points extracted yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {plotPoints.map((plotPoint) => (
+                    <Card key={plotPoint.id} className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h5 className="font-medium text-slate-900">{plotPoint.name}</h5>
+                        <Badge variant="outline" className="text-xs">
+                          {Math.round((plotPoint.ai_confidence || 0) * 100)}%
+                        </Badge>
+                      </div>
+                      {plotPoint.description && (
+                        <p className="text-sm text-slate-600 mb-2">{plotPoint.description}</p>
+                      )}
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        {plotPoint.plot_thread_name && (
+                          <Badge variant="secondary">Thread: {plotPoint.plot_thread_name}</Badge>
+                        )}
+                        {plotPoint.characters_involved_names && plotPoint.characters_involved_names.length > 0 && (
+                          <Badge variant="outline">Characters: {plotPoint.characters_involved_names.join(', ')}</Badge>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Plot Threads Tab */}
+          <TabsContent value="plot-threads" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-medium text-slate-900">Plot Threads ({plotThreads.length})</h4>
+              </div>
+              {plotThreads.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <GitBranch className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No plot threads extracted yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {plotThreads.map((thread) => (
+                    <Card key={thread.id} className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h5 className="font-medium text-slate-900">{thread.thread_name}</h5>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant="outline" className="text-xs">
+                            {Math.round((thread.ai_confidence_new || 0) * 100)}%
+                          </Badge>
+                          <Badge variant={thread.thread_status === 'resolved' ? 'default' : 'secondary'}>
+                            {thread.thread_status}
+                          </Badge>
+                        </div>
+                      </div>
+                      {thread.thread_type && (
+                        <p className="text-sm text-slate-600 mb-2">Type: {thread.thread_type}</p>
+                      )}
+                      {thread.key_events && thread.key_events.length > 0 && (
+                        <div className="mb-2">
+                          <p className="text-xs font-medium text-slate-700 mb-1">Key Events:</p>
+                          <ul className="text-xs text-slate-600 space-y-1 pl-4">
+                            {thread.key_events.map((event, index) => (
+                              <li key={index} className="list-disc">{event}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {thread.characters_involved_names && thread.characters_involved_names.length > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          Characters: {thread.characters_involved_names.join(', ')}
+                        </Badge>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Timeline Tab */}
+          <TabsContent value="timeline" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-medium text-slate-900">Timeline Events ({timelineEvents.length})</h4>
+              </div>
+              {timelineEvents.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No timeline events extracted yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {timelineEvents.map((event) => (
+                    <Card key={event.id} className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h5 className="font-medium text-slate-900">{event.event_name}</h5>
+                        <Badge variant="outline" className="text-xs">
+                          {Math.round((event.ai_confidence_new || 0) * 100)}%
+                        </Badge>
+                      </div>
+                      {event.event_description && (
+                        <p className="text-sm text-slate-600 mb-2">{event.event_description}</p>
+                      )}
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <Badge variant="secondary">Order: {event.chronological_order}</Badge>
+                        {event.date_or_time_reference && (
+                          <Badge variant="outline">Time: {event.date_or_time_reference}</Badge>
+                        )}
+                        {event.characters_involved_names && event.characters_involved_names.length > 0 && (
+                          <Badge variant="outline">Characters: {event.characters_involved_names.join(', ')}</Badge>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* World Building Tab */}
+          <TabsContent value="world-building" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-medium text-slate-900">World Building Elements ({worldBuilding.length})</h4>
+              </div>
+              {worldBuilding.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <Globe className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No world building elements extracted yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {worldBuilding.map((element) => (
+                    <Card key={element.id} className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h5 className="font-medium text-slate-900">{element.name}</h5>
+                        <Badge variant="outline" className="text-xs">
+                          {element.type}
+                        </Badge>
+                      </div>
+                      {element.description && (
+                        <p className="text-sm text-slate-600">{element.description}</p>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Chapter Summaries Tab */}
+          <TabsContent value="summaries" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-medium text-slate-900">Chapter Summaries ({chapterSummaries.length})</h4>
+              </div>
+              {chapterSummaries.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No chapter summaries available yet</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {chapterSummaries.map((summary) => (
+                    <Card key={summary.id} className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <h5 className="font-medium text-slate-900">{summary.title}</h5>
+                        <Badge variant="outline" className="text-xs">
+                          {Math.round((summary.ai_confidence || 0) * 100)}%
+                        </Badge>
+                      </div>
+                      
+                      {/* Medium summary with all important details */}
+                      {summary.summary_long && (
+                        <div className="mb-4">
+                          <h6 className="text-sm font-medium text-slate-700 mb-2">Chapter Summary</h6>
+                          <p className="text-sm text-slate-600 leading-relaxed">{summary.summary_long}</p>
+                        </div>
+                      )}
+                      
+                      {/* Key events */}
+                      {summary.key_events_in_chapter && summary.key_events_in_chapter.length > 0 && (
+                        <div className="mb-3">
+                          <h6 className="text-sm font-medium text-slate-700 mb-2">Key Events</h6>
+                          <ul className="text-sm text-slate-600 space-y-1 pl-4">
+                            {summary.key_events_in_chapter.map((event, index) => (
+                              <li key={index} className="list-disc">{event}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      
+                      {/* Primary focus */}
+                      {summary.primary_focus && summary.primary_focus.length > 0 && (
+                        <div>
+                          <h6 className="text-sm font-medium text-slate-700 mb-2">Primary Focus</h6>
+                          <div className="flex flex-wrap gap-1">
+                            {summary.primary_focus.map((focus, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {focus}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </Card>
     </div>
   );
 };
