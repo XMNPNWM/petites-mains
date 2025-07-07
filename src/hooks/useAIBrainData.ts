@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { KnowledgeBase, ChapterSummary, PlotPoint } from '@/types/knowledge';
@@ -54,47 +55,46 @@ export const useAIBrainData = (projectId: string): AIBrainData => {
         throw new Error(`Failed to fetch data: ${errors.map(e => e?.message).join(', ')}`);
       }
 
-      // Process and type the data
+      // Process and type the data with proper JSON to string[] casting
       const allKnowledge: KnowledgeBase[] = (knowledgeResponse.data || []).map(item => ({
         ...item,
         details: typeof item.details === 'string' ? JSON.parse(item.details) : (item.details as Record<string, any>) || {},
-        source_chapter_ids: (item.source_chapter_ids as string[]) || []
+        source_chapter_ids: Array.isArray(item.source_chapter_ids) ? item.source_chapter_ids as string[] : []
       }));
 
       const chapterSummaries: ChapterSummary[] = (chapterSummariesResponse.data || []).map(item => ({
         ...item,
-        key_events_in_chapter: (item.key_events_in_chapter as string[]) || [],
-        primary_focus: (item.primary_focus as string[]) || []
+        key_events_in_chapter: Array.isArray(item.key_events_in_chapter) ? item.key_events_in_chapter as string[] : [],
+        primary_focus: Array.isArray(item.primary_focus) ? item.primary_focus as string[] : []
       }));
 
       const plotPoints: PlotPoint[] = (plotPointsResponse.data || []).map(item => ({
         ...item,
-        characters_involved_names: (item.characters_involved_names as string[]) || [],
-        source_chapter_ids: (item.source_chapter_ids as string[]) || []
+        characters_involved_names: Array.isArray(item.characters_involved_names) ? item.characters_involved_names as string[] : [],
+        source_chapter_ids: Array.isArray(item.source_chapter_ids) ? item.source_chapter_ids as string[] : []
       }));
 
       const plotThreads: PlotThread[] = (plotThreadsResponse.data || []).map(item => ({
         ...item,
-        key_events: (item.key_events as string[]) || [],
-        characters_involved_names: (item.characters_involved_names as string[]) || [],
-        source_chapter_ids: (item.source_chapter_ids as string[]) || []
+        key_events: Array.isArray(item.key_events) ? item.key_events as string[] : [],
+        characters_involved_names: Array.isArray(item.characters_involved_names) ? item.characters_involved_names as string[] : [],
+        source_chapter_ids: Array.isArray(item.source_chapter_ids) ? item.source_chapter_ids as string[] : []
       }));
 
       const timelineEvents: TimelineEvent[] = (timelineEventsResponse.data || []).map(item => ({
         ...item,
-        characters_involved_names: (item.characters_involved_names as string[]) || [],
-        plot_threads_impacted_names: (item.plot_threads_impacted_names as string[]) || [],
-        locations_involved_names: (item.locations_involved_names as string[]) || [],
-        source_chapter_ids: (item.source_chapter_ids as string[]) || []
+        characters_involved_names: Array.isArray(item.characters_involved_names) ? item.characters_involved_names as string[] : [],
+        plot_threads_impacted_names: Array.isArray(item.plot_threads_impacted_names) ? item.plot_threads_impacted_names as string[] : [],
+        locations_involved_names: Array.isArray(item.locations_involved_names) ? item.locations_involved_names as string[] : [],
+        source_chapter_ids: Array.isArray(item.source_chapter_ids) ? item.source_chapter_ids as string[] : []
       }));
 
       const characterRelationships: CharacterRelationship[] = (characterRelationshipsResponse.data || []).map(item => ({
         ...item,
-        source_chapter_ids: (item.source_chapter_ids as string[]) || []
+        source_chapter_ids: Array.isArray(item.source_chapter_ids) ? item.source_chapter_ids as string[] : []
       }));
 
       // Extract world building elements from knowledge_base where category='world_building'
-      // This ensures AI Brain only shows AI-extracted world building data
       const worldBuilding: WorldBuildingElement[] = allKnowledge
         .filter(item => item.category === 'world_building')
         .map(item => ({
@@ -115,11 +115,11 @@ export const useAIBrainData = (projectId: string): AIBrainData => {
 
       setData({
         knowledge: generalKnowledge,
-        chapterSummaries: chapterSummariesResponse.data || [],
-        plotPoints: plotPointsResponse.data || [],
-        plotThreads: plotThreadsResponse.data || [],
-        timelineEvents: timelineEventsResponse.data || [],
-        characterRelationships: characterRelationshipsResponse.data || [],
+        chapterSummaries,
+        plotPoints,
+        plotThreads,
+        timelineEvents,
+        characterRelationships,
         worldBuilding,
         themes,
         isLoading: false,
