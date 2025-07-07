@@ -12,8 +12,10 @@ import { KnowledgeBase, AnalysisStatus } from '@/types/knowledge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAIBrainData } from '@/hooks/useAIBrainData';
+import { useSearchAndFilter } from '@/hooks/useSearchAndFilter';
 import { AIBrainHeader } from './ai-brain/AIBrainHeader';
 import { AIBrainStatusCards } from './ai-brain/AIBrainStatusCards';
+import SearchFilterPanel from './ai-brain/SearchFilterPanel';
 
 interface EnhancedAIBrainPanelProps {
   projectId: string;
@@ -41,6 +43,23 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     isLoading: dataLoading,
     error: dataError
   } = useAIBrainData(projectId);
+
+  // Use search and filter hook
+  const {
+    filters,
+    setFilters,
+    filteredData,
+    totalResults
+  } = useSearchAndFilter({
+    knowledge,
+    chapterSummaries,
+    plotPoints,
+    plotThreads,
+    timelineEvents,
+    characterRelationships,
+    worldBuilding,
+    themes
+  });
 
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>({
     isProcessing: false,
@@ -168,10 +187,10 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     }
   };
 
-  // Calculate comprehensive stats from real data
-  const allKnowledge = [...knowledge, ...themes];
-  const totalKnowledgeItems = allKnowledge.length + chapterSummaries.length + plotPoints.length + 
-                             plotThreads.length + timelineEvents.length + characterRelationships.length + worldBuilding.length;
+  // Calculate comprehensive stats from filtered data
+  const allKnowledge = [...filteredData.knowledge, ...filteredData.themes];
+  const totalKnowledgeItems = allKnowledge.length + filteredData.chapterSummaries.length + filteredData.plotPoints.length + 
+                             filteredData.plotThreads.length + filteredData.timelineEvents.length + filteredData.characterRelationships.length + filteredData.worldBuilding.length;
   const lowConfidenceItems = allKnowledge.filter(k => k.confidence_score < 0.6).length;
   const flaggedItems = allKnowledge.filter(k => k.is_flagged).length;
 
@@ -216,6 +235,13 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         lowConfidenceItems={lowConfidenceItems}
         flaggedItems={flaggedItems}
         analysisStatus={analysisStatus}
+      />
+
+      {/* Search and Filter Panel */}
+      <SearchFilterPanel
+        filters={filters}
+        onFiltersChange={setFilters}
+        resultsCount={totalResults}
       />
 
       {/* Main Tabbed Interface */}
@@ -266,27 +292,27 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <Users className="w-6 h-6 mx-auto mb-2 text-blue-600" />
-                  <div className="text-2xl font-bold text-blue-600">{knowledge.filter(k => k.category === 'character').length}</div>
+                  <div className="text-2xl font-bold text-blue-600">{filteredData.knowledge.filter(k => k.category === 'character').length}</div>
                   <div className="text-sm text-slate-600">Characters</div>
                 </div>
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <BookOpen className="w-6 h-6 mx-auto mb-2 text-green-600" />
-                  <div className="text-2xl font-bold text-green-600">{plotPoints.length}</div>
+                  <div className="text-2xl font-bold text-green-600">{filteredData.plotPoints.length}</div>
                   <div className="text-sm text-slate-600">Plot Points</div>
                 </div>
                 <div className="text-center p-4 bg-purple-50 rounded-lg">
                   <GitBranch className="w-6 h-6 mx-auto mb-2 text-purple-600" />
-                  <div className="text-2xl font-bold text-purple-600">{plotThreads.length}</div>
+                  <div className="text-2xl font-bold text-purple-600">{filteredData.plotThreads.length}</div>
                   <div className="text-sm text-slate-600">Plot Threads</div>
                 </div>
                 <div className="text-center p-4 bg-orange-50 rounded-lg">
                   <Globe className="w-6 h-6 mx-auto mb-2 text-orange-600" />
-                  <div className="text-2xl font-bold text-orange-600">{worldBuilding.length}</div>
+                  <div className="text-2xl font-bold text-orange-600">{filteredData.worldBuilding.length}</div>
                   <div className="text-sm text-slate-600">World Elements</div>
                 </div>
                 <div className="text-center p-4 bg-yellow-50 rounded-lg">
                   <Lightbulb className="w-6 h-6 mx-auto mb-2 text-yellow-600" />
-                  <div className="text-2xl font-bold text-yellow-600">{themes.length}</div>
+                  <div className="text-2xl font-bold text-yellow-600">{filteredData.themes.length}</div>
                   <div className="text-sm text-slate-600">Themes</div>
                 </div>
               </div>
@@ -295,7 +321,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                 <div className="p-4 bg-slate-50 rounded-lg">
                   <h4 className="font-medium text-slate-900 mb-2">Recent Activity</h4>
                   <div className="space-y-2">
-                    {chapterSummaries.slice(0, 3).map((summary) => (
+                    {filteredData.chapterSummaries.slice(0, 3).map((summary) => (
                       <div key={summary.id} className="text-sm text-slate-600 flex items-center space-x-2">
                         <FileText className="w-3 h-3" />
                         <span>Chapter summary: {summary.title}</span>
@@ -329,16 +355,16 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
           <TabsContent value="characters" className="mt-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-lg font-medium text-slate-900">Characters ({knowledge.filter(k => k.category === 'character').length})</h4>
+                <h4 className="text-lg font-medium text-slate-900">Characters ({filteredData.knowledge.filter(k => k.category === 'character').length})</h4>
               </div>
-              {knowledge.filter(k => k.category === 'character').length === 0 ? (
+              {filteredData.knowledge.filter(k => k.category === 'character').length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No characters extracted yet</p>
+                  <p>No characters found with current filters</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {knowledge.filter(k => k.category === 'character').map((character) => (
+                  {filteredData.knowledge.filter(k => k.category === 'character').map((character) => (
                     <Card key={character.id} className="p-4">
                       <div className="flex items-start justify-between mb-2">
                         <h5 className="font-medium text-slate-900">{character.name}</h5>
@@ -361,16 +387,16 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
           <TabsContent value="relationships" className="mt-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-lg font-medium text-slate-900">Character Relationships ({characterRelationships.length})</h4>
+                <h4 className="text-lg font-medium text-slate-900">Character Relationships ({filteredData.characterRelationships.length})</h4>
               </div>
-              {characterRelationships.length === 0 ? (
+              {filteredData.characterRelationships.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   <Heart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No relationships extracted yet</p>
+                  <p>No relationships found with current filters</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {characterRelationships.map((relationship) => (
+                  {filteredData.characterRelationships.map((relationship) => (
                     <Card key={relationship.id} className="p-4">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-2">
@@ -400,16 +426,16 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
           <TabsContent value="plot-points" className="mt-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-lg font-medium text-slate-900">Plot Points ({plotPoints.length})</h4>
+                <h4 className="text-lg font-medium text-slate-900">Plot Points ({filteredData.plotPoints.length})</h4>
               </div>
-              {plotPoints.length === 0 ? (
+              {filteredData.plotPoints.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No plot points extracted yet</p>
+                  <p>No plot points found with current filters</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {plotPoints.map((plotPoint) => (
+                  {filteredData.plotPoints.map((plotPoint) => (
                     <Card key={plotPoint.id} className="p-4">
                       <div className="flex items-start justify-between mb-2">
                         <h5 className="font-medium text-slate-900">{plotPoint.name}</h5>
@@ -439,16 +465,16 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
           <TabsContent value="plot-threads" className="mt-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-lg font-medium text-slate-900">Plot Threads ({plotThreads.length})</h4>
+                <h4 className="text-lg font-medium text-slate-900">Plot Threads ({filteredData.plotThreads.length})</h4>
               </div>
-              {plotThreads.length === 0 ? (
+              {filteredData.plotThreads.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   <GitBranch className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No plot threads extracted yet</p>
+                  <p>No plot threads found with current filters</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {plotThreads.map((thread) => (
+                  {filteredData.plotThreads.map((thread) => (
                     <Card key={thread.id} className="p-4">
                       <div className="flex items-start justify-between mb-2">
                         <h5 className="font-medium text-slate-900">{thread.thread_name}</h5>
@@ -490,16 +516,16 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
           <TabsContent value="timeline" className="mt-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-lg font-medium text-slate-900">Timeline Events ({timelineEvents.length})</h4>
+                <h4 className="text-lg font-medium text-slate-900">Timeline Events ({filteredData.timelineEvents.length})</h4>
               </div>
-              {timelineEvents.length === 0 ? (
+              {filteredData.timelineEvents.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No timeline events extracted yet</p>
+                  <p>No timeline events found with current filters</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {timelineEvents.map((event) => (
+                  {filteredData.timelineEvents.map((event) => (
                     <Card key={event.id} className="p-4">
                       <div className="flex items-start justify-between mb-2">
                         <h5 className="font-medium text-slate-900">{event.event_name}</h5>
@@ -530,16 +556,16 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
           <TabsContent value="world-building" className="mt-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-lg font-medium text-slate-900">World Building Elements ({worldBuilding.length})</h4>
+                <h4 className="text-lg font-medium text-slate-900">World Building Elements ({filteredData.worldBuilding.length})</h4>
               </div>
-              {worldBuilding.length === 0 ? (
+              {filteredData.worldBuilding.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   <Globe className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No world building elements extracted yet</p>
+                  <p>No world building elements found with current filters</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {worldBuilding.map((element) => (
+                  {filteredData.worldBuilding.map((element) => (
                     <Card key={element.id} className="p-4">
                       <div className="flex items-start justify-between mb-2">
                         <h5 className="font-medium text-slate-900">{element.name}</h5>
@@ -561,16 +587,16 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
           <TabsContent value="summaries" className="mt-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-lg font-medium text-slate-900">Chapter Summaries ({chapterSummaries.length})</h4>
+                <h4 className="text-lg font-medium text-slate-900">Chapter Summaries ({filteredData.chapterSummaries.length})</h4>
               </div>
-              {chapterSummaries.length === 0 ? (
+              {filteredData.chapterSummaries.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>No chapter summaries available yet</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {chapterSummaries.map((summary) => (
+                  {filteredData.chapterSummaries.map((summary) => (
                     <Card key={summary.id} className="p-4">
                       <div className="flex items-start justify-between mb-3">
                         <h5 className="font-medium text-slate-900">{summary.title}</h5>
@@ -623,16 +649,16 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
           <TabsContent value="themes" className="mt-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-lg font-medium text-slate-900">Themes ({themes.length})</h4>
+                <h4 className="text-lg font-medium text-slate-900">Themes ({filteredData.themes.length})</h4>
               </div>
-              {themes.length === 0 ? (
+              {filteredData.themes.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   <Lightbulb className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No themes extracted yet</p>
+                  <p>No themes found with current filters</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {themes.map((theme) => (
+                  {filteredData.themes.map((theme) => (
                     <Card key={theme.id} className="p-4">
                       <div className="flex items-start justify-between mb-2">
                         <h5 className="font-medium text-slate-900">{theme.name}</h5>

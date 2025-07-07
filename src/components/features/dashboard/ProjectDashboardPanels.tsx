@@ -1,8 +1,9 @@
+
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import ReadOnlyStorylineViewer from './ReadOnlyStorylineViewer';
 import UnifiedWorldbuildingPanel from './UnifiedWorldbuildingPanel';
-import AIBrainPanel from './AIBrainPanel';
+import EnhancedAIBrainPanel from './EnhancedAIBrainPanel';
 import WritingTrendsChart from '../analytics/WritingTrendsChart';
 import WritingHeatmap from '../analytics/WritingHeatmap';
 import ContentBreakdownChart from '../analytics/ContentBreakdownChart';
@@ -100,7 +101,7 @@ const ProjectDashboardPanels = ({
 
   const renderAIBrainPanel = () => (
     <div className="h-full overflow-y-auto">
-      <AIBrainPanel projectId={projectId} />
+      <EnhancedAIBrainPanel projectId={projectId} />
     </div>
   );
 
