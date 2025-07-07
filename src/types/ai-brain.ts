@@ -9,6 +9,7 @@ export interface PlotThread {
   ai_confidence_new?: number;
   characters_involved_names?: string[];
   is_newly_extracted?: boolean;
+  is_flagged?: boolean;
   evidence?: string;
   key_events?: string[];
 }
@@ -23,6 +24,7 @@ export interface TimelineEvent {
   ai_confidence_new?: number;
   characters_involved_names?: string[];
   is_newly_extracted?: boolean;
+  is_flagged?: boolean;
   date_or_time_reference?: string;
   significance?: string;
 }
@@ -37,6 +39,7 @@ export interface CharacterRelationship {
   relationship_current_status?: string;
   ai_confidence_new?: number;
   is_newly_extracted?: boolean;
+  is_flagged?: boolean;
   evidence?: string;
 }
 

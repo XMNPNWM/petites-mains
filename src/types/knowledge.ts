@@ -177,6 +177,7 @@ export interface PlotPoint {
   ai_confidence?: number;
   source_chapter_ids?: string[];
   is_newly_extracted?: boolean;
+  is_flagged?: boolean;
   created_at: string;
   updated_at: string;
 }
