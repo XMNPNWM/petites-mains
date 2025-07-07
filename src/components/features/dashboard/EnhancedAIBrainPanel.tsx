@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,8 +16,11 @@ import { useAIBrainData } from '@/hooks/useAIBrainData';
 import { useSearchAndFilter } from '@/hooks/useSearchAndFilter';
 import { AIBrainHeader } from './ai-brain/AIBrainHeader';
 import { AIBrainStatusCards } from './ai-brain/AIBrainStatusCards';
+import { QualityReviewPanel } from './ai-brain/QualityReviewPanel';
 import SearchFilterPanel from './ai-brain/SearchFilterPanel';
 import InlineEditableField from '@/components/ui/inline-editable-field';
+import { ConfidenceBadge } from '@/components/ui/confidence-badge';
+import { FlagToggleButton } from '@/components/ui/flag-toggle-button';
 import { AIBrainUpdateService } from '@/services/AIBrainUpdateService';
 
 interface EnhancedAIBrainPanelProps {
@@ -63,8 +67,18 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     await refresh();
   };
 
+  const handleToggleKnowledgeFlag = async (id: string, isFlagged: boolean) => {
+    await AIBrainUpdateService.toggleKnowledgeFlag(id, isFlagged);
+    await refresh();
+  };
+
   const handleUpdatePlotPoint = async (id: string, field: 'name' | 'description', value: string) => {
     await AIBrainUpdateService.updatePlotPoint(id, { [field]: value });
+    await refresh();
+  };
+
+  const handleTogglePlotPointFlag = async (id: string, isFlagged: boolean) => {
+    await AIBrainUpdateService.togglePlotPointFlag(id, isFlagged);
     await refresh();
   };
 
@@ -73,8 +87,23 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     await refresh();
   };
 
+  const handleTogglePlotThreadFlag = async (id: string, isFlagged: boolean) => {
+    await AIBrainUpdateService.togglePlotThreadFlag(id, isFlagged);
+    await refresh();
+  };
+
   const handleUpdateTimelineEvent = async (id: string, field: 'event_name' | 'event_description', value: string) => {
     await AIBrainUpdateService.updateTimelineEvent(id, { [field]: value });
+    await refresh();
+  };
+
+  const handleToggleTimelineEventFlag = async (id: string, isFlagged: boolean) => {
+    await AIBrainUpdateService.toggleTimelineEventFlag(id, isFlagged);
+    await refresh();
+  };
+
+  const handleToggleCharacterRelationshipFlag = async (id: string, isFlagged: boolean) => {
+    await AIBrainUpdateService.toggleCharacterRelationshipFlag(id, isFlagged);
     await refresh();
   };
 
@@ -128,6 +157,11 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         lowConfidenceItems={lowConfidenceItems}
         flaggedItems={flaggedItems}
         analysisStatus={analysisStatus}
+      />
+
+      <QualityReviewPanel 
+        data={brainData}
+        onDataRefresh={refresh}
       />
 
       <SearchFilterPanel
@@ -190,7 +224,10 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {filteredData.knowledge.filter(k => k.category === 'character').map((character) => (
-                    <Card key={character.id} className="p-4">
+                    <Card 
+                      key={character.id} 
+                      className={`p-4 ${character.is_flagged ? 'border-red-200 bg-red-50/50' : ''}`}
+                    >
                       <div className="flex items-start justify-between mb-2">
                         <InlineEditableField
                           value={character.name}
@@ -199,9 +236,16 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                           className="font-medium text-slate-900 flex-1"
                           fieldName="Character name"
                         />
-                        <Badge variant="outline" className="text-xs ml-2">
-                          {Math.round(character.confidence_score * 100)}%
-                        </Badge>
+                        <div className="flex items-center space-x-2 ml-2">
+                          <ConfidenceBadge 
+                            confidence={character.confidence_score} 
+                            isUserModified={character.is_verified}
+                          />
+                          <FlagToggleButton
+                            isFlagged={character.is_flagged || false}
+                            onToggle={(isFlagged) => handleToggleKnowledgeFlag(character.id, isFlagged)}
+                          />
+                        </div>
                       </div>
                       <InlineEditableField
                         value={character.description || ''}
@@ -234,7 +278,10 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
               ) : (
                 <div className="space-y-3">
                   {filteredData.plotPoints.map((plotPoint) => (
-                    <Card key={plotPoint.id} className="p-4">
+                    <Card 
+                      key={plotPoint.id} 
+                      className={`p-4 ${plotPoint.is_flagged ? 'border-red-200 bg-red-50/50' : ''}`}
+                    >
                       <div className="flex items-start justify-between mb-2">
                         <InlineEditableField
                           value={plotPoint.name}
@@ -243,9 +290,15 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                           className="font-medium text-slate-900 flex-1"
                           fieldName="Plot point name"
                         />
-                        <Badge variant="outline" className="text-xs ml-2">
-                          {Math.round((plotPoint.ai_confidence || 0) * 100)}%
-                        </Badge>
+                        <div className="flex items-center space-x-2 ml-2">
+                          <ConfidenceBadge 
+                            confidence={plotPoint.ai_confidence || 0}
+                          />
+                          <FlagToggleButton
+                            isFlagged={plotPoint.is_flagged || false}
+                            onToggle={(isFlagged) => handleTogglePlotPointFlag(plotPoint.id, isFlagged)}
+                          />
+                        </div>
                       </div>
                       <InlineEditableField
                         value={plotPoint.description || ''}
@@ -263,6 +316,160 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                           <Badge variant="outline">Characters: {plotPoint.characters_involved_names.join(', ')}</Badge>
                         )}
                       </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="plot-threads" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-medium text-slate-900">Plot Threads ({filteredData.plotThreads.length})</h4>
+              </div>
+              {filteredData.plotThreads.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <GitBranch className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No plot threads found with current filters</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredData.plotThreads.map((thread) => (
+                    <Card 
+                      key={thread.id} 
+                      className={`p-4 ${thread.is_flagged ? 'border-red-200 bg-red-50/50' : ''}`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <InlineEditableField
+                          value={thread.thread_name}
+                          onSave={(value) => handleUpdatePlotThread(thread.id, value)}
+                          placeholder="Plot thread name..."
+                          className="font-medium text-slate-900 flex-1"
+                          fieldName="Plot thread name"
+                        />
+                        <div className="flex items-center space-x-2 ml-2">
+                          <ConfidenceBadge 
+                            confidence={thread.ai_confidence_new || 0}
+                          />
+                          <FlagToggleButton
+                            isFlagged={thread.is_flagged || false}
+                            onToggle={(isFlagged) => handleTogglePlotThreadFlag(thread.id, isFlagged)}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <Badge variant="secondary">{thread.thread_type}</Badge>
+                        <Badge variant="outline">{thread.thread_status}</Badge>
+                        {thread.characters_involved_names && thread.characters_involved_names.length > 0 && (
+                          <Badge variant="outline">Characters: {thread.characters_involved_names.join(', ')}</Badge>
+                        )}
+                      </div>
+                      {thread.evidence && (
+                        <p className="text-xs text-slate-500 italic mt-2">"{thread.evidence}"</p>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="timeline" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-medium text-slate-900">Timeline Events ({filteredData.timelineEvents.length})</h4>
+              </div>
+              {filteredData.timelineEvents.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No timeline events found with current filters</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredData.timelineEvents.map((event) => (
+                    <Card 
+                      key={event.id} 
+                      className={`p-4 ${event.is_flagged ? 'border-red-200 bg-red-50/50' : ''}`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <InlineEditableField
+                          value={event.event_name}
+                          onSave={(value) => handleUpdateTimelineEvent(event.id, 'event_name', value)}
+                          placeholder="Event name..."
+                          className="font-medium text-slate-900 flex-1"
+                          fieldName="Event name"
+                        />
+                        <div className="flex items-center space-x-2 ml-2">
+                          <ConfidenceBadge 
+                            confidence={event.ai_confidence_new || 0}
+                          />
+                          <FlagToggleButton
+                            isFlagged={event.is_flagged || false}
+                            onToggle={(isFlagged) => handleToggleTimelineEventFlag(event.id, isFlagged)}
+                          />
+                        </div>
+                      </div>
+                      <InlineEditableField
+                        value={event.event_description || ''}
+                        onSave={(value) => handleUpdateTimelineEvent(event.id, 'event_description', value)}
+                        placeholder="Add event description..."
+                        multiline
+                        className="text-sm text-slate-600 mb-2"
+                        fieldName="Event description"
+                      />
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <Badge variant="secondary">{event.event_type}</Badge>
+                        {event.characters_involved_names && event.characters_involved_names.length > 0 && (
+                          <Badge variant="outline">Characters: {event.characters_involved_names.join(', ')}</Badge>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="relationships" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-medium text-slate-900">Character Relationships ({filteredData.characterRelationships.length})</h4>
+              </div>
+              {filteredData.characterRelationships.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <Heart className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No character relationships found with current filters</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredData.characterRelationships.map((relationship) => (
+                    <Card 
+                      key={relationship.id} 
+                      className={`p-4 ${relationship.is_flagged ? 'border-red-200 bg-red-50/50' : ''}`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <h5 className="font-medium text-slate-900">
+                            {relationship.character_a_name} ↔ {relationship.character_b_name}
+                          </h5>
+                          <Badge variant="secondary" className="text-xs mt-1">
+                            {relationship.relationship_type}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center space-x-2 ml-2">
+                          <ConfidenceBadge 
+                            confidence={relationship.ai_confidence_new || 0}
+                          />
+                          <FlagToggleButton
+                            isFlagged={relationship.is_flagged || false}
+                            onToggle={(isFlagged) => handleToggleCharacterRelationshipFlag(relationship.id, isFlagged)}
+                          />
+                        </div>
+                      </div>
+                      {relationship.evidence && (
+                        <p className="text-xs text-slate-500 italic">"{relationship.evidence}"</p>
+                      )}
                     </Card>
                   ))}
                 </div>
@@ -292,9 +499,9 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                           className="font-medium text-slate-900 flex-1"
                           fieldName="Chapter title"
                         />
-                        <Badge variant="outline" className="text-xs ml-2">
-                          {Math.round((summary.ai_confidence || 0) * 100)}%
-                        </Badge>
+                        <ConfidenceBadge 
+                          confidence={summary.ai_confidence || 0}
+                        />
                       </div>
                       
                       <div className="mb-4">
