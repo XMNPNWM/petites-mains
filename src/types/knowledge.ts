@@ -1,4 +1,3 @@
-
 export interface KnowledgeBase {
   id: string;
   project_id: string;
@@ -16,10 +15,14 @@ export interface KnowledgeBase {
   source_text_excerpt?: string;
   is_flagged: boolean;
   is_verified: boolean;
+  is_newly_extracted?: boolean;
   review_notes?: string;
   created_at: string;
   updated_at: string;
   last_seen_at: string;
+  // Enhanced temporal fields
+  source_chapter_ids?: string[];
+  ai_confidence_new?: number;
 }
 
 export interface KnowledgeFact {
