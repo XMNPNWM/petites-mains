@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import { AnalysisJobManager } from '@/services/AnalysisJobManager';
 import { KnowledgeBase, AnalysisStatus } from '@/types/knowledge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAIBrainData } from '@/hooks/useAIBrainData';
 
 interface EnhancedAIBrainPanelProps {
   projectId: string;
@@ -25,7 +25,20 @@ interface EditingKnowledge {
 }
 
 const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
-  const [knowledge, setKnowledge] = useState<KnowledgeBase[]>([]);
+  // Use the new comprehensive data hook
+  const {
+    knowledge,
+    chapterSummaries,
+    plotPoints,
+    plotThreads,
+    timelineEvents,
+    characterRelationships,
+    worldBuilding,
+    themes,
+    isLoading: dataLoading,
+    error: dataError
+  } = useAIBrainData(projectId);
+
   const [filteredKnowledge, setFilteredKnowledge] = useState<KnowledgeBase[]>([]);
   const [flaggedKnowledge, setFlaggedKnowledge] = useState<KnowledgeBase[]>([]);
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>({
@@ -34,7 +47,6 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     errorCount: 0,
     lowConfidenceFactsCount: 0
   });
-  const [isLoading, setIsLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<EditingKnowledge | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -46,61 +58,31 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
 
   const jobManager = new AnalysisJobManager();
 
-  const fetchKnowledge = async () => {
-    try {
-      console.log('🔄 Fetching knowledge for project:', projectId);
-      
-      // Fetch knowledge from database
-      const { data: knowledgeData, error: knowledgeError } = await supabase
-        .from('knowledge_base')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false });
+  // Calculate all knowledge items for filtering and stats
+  const allKnowledge = [...knowledge, ...themes];
 
-      if (knowledgeError) {
-        console.error('❌ Error fetching knowledge:', knowledgeError);
-        throw knowledgeError;
-      }
+  useEffect(() => {
+    // Update filtered and flagged knowledge when data changes
+    const flagged = allKnowledge.filter(item => item.is_flagged);
+    setFlaggedKnowledge(flagged);
+    applyFilters(allKnowledge);
 
-      // Convert database Json type to proper KnowledgeBase type
-      const allKnowledge: KnowledgeBase[] = (knowledgeData || []).map(item => ({
-        ...item,
-        details: typeof item.details === 'string' ? JSON.parse(item.details) : (item.details as Record<string, any>) || {}
-      }));
-
-      const flagged = allKnowledge.filter(item => item.is_flagged);
-
-      console.log('📊 Knowledge fetched:', {
-        total: allKnowledge.length,
-        flagged: flagged.length
-      });
-
-      setKnowledge(allKnowledge);
-      setFlaggedKnowledge(flagged);
-      
-      // Get analysis status
+    // Get analysis status
+    const fetchAnalysisStatus = async () => {
       try {
         const status = await jobManager.getProjectAnalysisStatus(projectId);
         setAnalysisStatus(status);
       } catch (statusError) {
         console.error('❌ Error fetching analysis status:', statusError);
-        // Continue with default status
       }
-      
-      applyFilters(allKnowledge);
-    } catch (error) {
-      console.error('❌ Error in fetchKnowledge:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load knowledge data",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
 
-  const applyFilters = (knowledgeData: KnowledgeBase[] = knowledge) => {
+    if (projectId && !dataLoading) {
+      fetchAnalysisStatus();
+    }
+  }, [knowledge, themes, projectId, dataLoading]);
+
+  const applyFilters = (knowledgeData: KnowledgeBase[] = allKnowledge) => {
     let filtered = [...knowledgeData];
 
     // Search filter
@@ -131,43 +113,28 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   };
 
   useEffect(() => {
-    console.log('🔄 Initial useEffect triggered, calling fetchKnowledge');
-    fetchKnowledge();
-    
-    // Set up real-time subscription
-    const subscription = supabase
-      .channel('knowledge_changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'knowledge_base', filter: `project_id=eq.${projectId}` },
-        (payload) => {
-          console.log('📡 Real-time knowledge change detected:', payload);
-          fetchKnowledge();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      console.log('🧹 Cleaning up subscription');
-      supabase.removeChannel(subscription);
-    };
-  }, [projectId]);
-
-  useEffect(() => {
     applyFilters();
-  }, [searchTerm, selectedCategory, confidenceFilter, showFlagged, knowledge]);
+  }, [searchTerm, selectedCategory, confidenceFilter, showFlagged, allKnowledge]);
 
   // Real-time status polling when processing
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
     if (analysisStatus.isProcessing) {
-      interval = setInterval(fetchKnowledge, 2000); // Poll every 2 seconds
+      interval = setInterval(async () => {
+        try {
+          const status = await jobManager.getProjectAnalysisStatus(projectId);
+          setAnalysisStatus(status);
+        } catch (error) {
+          console.error('Error polling analysis status:', error);
+        }
+      }, 2000);
     }
     
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [analysisStatus.isProcessing]);
+  }, [analysisStatus.isProcessing, projectId]);
 
   const handleAnalyzeProject = async () => {
     console.log('🚀 Starting project analysis for:', projectId);
@@ -176,77 +143,14 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       setIsAnalyzing(true);
       setAnalysisStatus(prev => ({ ...prev, isProcessing: true }));
       
-      // Get all chapters for this project
-      const { data: chapters, error: chaptersError } = await supabase
-        .from('chapters')
-        .select('id, title, content')
-        .eq('project_id', projectId)
-        .order('order_index', { ascending: true });
-
-      if (chaptersError) {
-        console.error('❌ Error fetching chapters:', chaptersError);
-        throw new Error('Failed to fetch chapters');
-      }
-
-      if (!chapters || chapters.length === 0) {
-        toast({
-          title: "No Content Found",
-          description: "Please add some chapters to your project before running analysis.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      console.log(`📖 Found ${chapters.length} chapters to analyze`);
-
-      // Combine all chapter content
-      const combinedContent = chapters
-        .filter(chapter => chapter.content && chapter.content.trim().length > 0)
-        .map(chapter => `Chapter: ${chapter.title}\n\n${chapter.content}`)
-        .join('\n\n---\n\n');
-
-      if (!combinedContent || combinedContent.trim().length === 0) {
-        toast({
-          title: "No Content Found",
-          description: "Your chapters appear to be empty. Please add some content before running analysis.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      console.log(`📝 Combined content length: ${combinedContent.length} characters`);
-
-      // Call the extract-knowledge edge function
-      console.log('🧠 Calling extract-knowledge edge function...');
-      const { data, error } = await supabase.functions.invoke('extract-knowledge', {
-        body: {
-          content: combinedContent,
-          projectId: projectId,
-          extractionType: 'comprehensive'
-        }
-      });
-
-      console.log('📨 Extract knowledge response:', { data, error });
-
-      if (error) {
-        console.error('❌ Edge function error:', error);
-        throw new Error(`Analysis failed: ${error.message}`);
-      }
-
-      if (!data?.success) {
-        console.error('❌ Edge function returned error:', data);
-        throw new Error(`Analysis failed: ${data?.error || 'Unknown error'}`);
-      }
-
-      console.log('✅ Analysis completed successfully:', data);
+      const result = await SmartAnalysisOrchestrator.analyzeProject(projectId);
+      
+      console.log('✅ Analysis completed successfully:', result);
       
       toast({
         title: "Analysis Complete",
-        description: `Successfully extracted ${data.storedCount || 0} knowledge items.`,
+        description: `Successfully analyzed project with ${result.processingStats?.knowledgeExtracted || 0} knowledge items extracted.`,
       });
-      
-      // Refresh the knowledge display
-      setTimeout(fetchKnowledge, 1000);
       
     } catch (error) {
       console.error('❌ Error in handleAnalyzeProject:', error);
@@ -298,7 +202,6 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         description: "The analysis job has been cancelled.",
       });
       
-      setTimeout(fetchKnowledge, 1000);
     } catch (error) {
       console.error('❌ Error cancelling analysis:', error);
       toast({
@@ -342,7 +245,6 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       });
 
       setEditingItem(null);
-      fetchKnowledge();
     } catch (error) {
       console.error('Error updating knowledge:', error);
       toast({
@@ -374,7 +276,6 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         description: `Knowledge item ${item.is_flagged ? 'unflagged' : 'flagged'} successfully`,
       });
 
-      fetchKnowledge();
     } catch (error) {
       console.error('Error toggling flag:', error);
       toast({
@@ -403,7 +304,6 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         description: "Knowledge item deleted successfully",
       });
 
-      fetchKnowledge();
     } catch (error) {
       console.error('Error deleting knowledge:', error);
       toast({
@@ -432,24 +332,32 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     return 'text-red-600';
   };
 
-  const formatProcessingTime = (startTime: string) => {
-    const start = new Date(startTime);
-    const now = new Date();
-    const diffSeconds = Math.floor((now.getTime() - start.getTime()) / 1000);
-    
-    if (diffSeconds < 60) return `${diffSeconds}s`;
-    if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ${diffSeconds % 60}s`;
-    return `${Math.floor(diffSeconds / 3600)}h ${Math.floor((diffSeconds % 3600) / 60)}m`;
-  };
+  const categories = [...new Set(allKnowledge.map(k => k.category))];
 
-  const categories = [...new Set(knowledge.map(k => k.category))];
+  // Calculate comprehensive stats from real data
+  const totalKnowledgeItems = allKnowledge.length + chapterSummaries.length + plotPoints.length + 
+                             plotThreads.length + timelineEvents.length + characterRelationships.length + worldBuilding.length;
+  const lowConfidenceItems = allKnowledge.filter(k => k.confidence_score < 0.6).length;
+  const flaggedItems = allKnowledge.filter(k => k.is_flagged).length;
 
-  if (isLoading) {
+  if (dataLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-purple-600" />
-          <p className="text-slate-600">Loading AI Brain...</p>
+          <p className="text-slate-600">Loading AI Brain Data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (dataError) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertTriangle className="w-8 h-8 mx-auto mb-4 text-red-500" />
+          <p className="text-slate-600 mb-4">Error loading AI Brain data</p>
+          <p className="text-sm text-red-600">{dataError}</p>
         </div>
       </div>
     );
@@ -549,14 +457,14 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       )}
 
       {/* Success Status */}
-      {!analysisStatus.isProcessing && !analysisStatus.hasErrors && knowledge.length > 0 && (
+      {!analysisStatus.isProcessing && !analysisStatus.hasErrors && totalKnowledgeItems > 0 && (
         <Card className="p-4 bg-green-50 border-green-200">
           <div className="flex items-center space-x-2 mb-2">
             <CheckCircle className="w-5 h-5 text-green-600" />
             <span className="font-medium text-green-900">Analysis Complete</span>
           </div>
           <p className="text-sm text-green-700">
-            Successfully extracted {knowledge.length} knowledge items from your story
+            Successfully extracted {totalKnowledgeItems} total knowledge items from your story
             {analysisStatus.lastProcessedAt && (
               <span className="ml-2">
                 • Last updated: {new Date(analysisStatus.lastProcessedAt).toLocaleString()}
@@ -566,14 +474,14 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         </Card>
       )}
 
-      {/* Status Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Status Overview - Updated with real data stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4">
           <div className="flex items-center space-x-3">
             <CheckCircle className="w-5 h-5 text-green-500" />
             <div>
               <p className="text-sm font-medium text-slate-900">Total Knowledge</p>
-              <p className="text-2xl font-bold text-green-600">{knowledge.length}</p>
+              <p className="text-2xl font-bold text-green-600">{totalKnowledgeItems}</p>
             </div>
           </div>
         </Card>
@@ -583,9 +491,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
             <AlertTriangle className="w-5 h-5 text-yellow-500" />
             <div>
               <p className="text-sm font-medium text-slate-900">Low Confidence</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {knowledge.filter(k => k.confidence_score < 0.6).length}
-              </p>
+              <p className="text-2xl font-bold text-yellow-600">{lowConfidenceItems}</p>
             </div>
           </div>
         </Card>
@@ -595,17 +501,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
             <Flag className="w-5 h-5 text-red-500" />
             <div>
               <p className="text-sm font-medium text-slate-900">Flagged Items</p>
-              <p className="text-2xl font-bold text-red-600">{flaggedKnowledge.length}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <Filter className="w-5 h-5 text-blue-500" />
-            <div>
-              <p className="text-sm font-medium text-slate-900">Filtered Results</p>
-              <p className="text-2xl font-bold text-blue-600">{filteredKnowledge.length}</p>
+              <p className="text-2xl font-bold text-red-600">{flaggedItems}</p>
             </div>
           </div>
         </Card>
@@ -670,18 +566,18 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         </div>
       </Card>
 
-      {/* Knowledge Items */}
+      {/* Knowledge Items Display */}
       <div className="space-y-3">
         {filteredKnowledge.length === 0 ? (
           <Card className="p-8 text-center">
             <Brain className="w-12 h-12 text-slate-400 mx-auto mb-3" />
             <p className="text-slate-600 mb-4">
-              {knowledge.length === 0 
+              {allKnowledge.length === 0 
                 ? "No knowledge extracted yet" 
                 : "No knowledge matches your filters"
               }
             </p>
-            {knowledge.length === 0 && (
+            {allKnowledge.length === 0 && (
               <p className="text-sm text-slate-500">
                 Click "Analyze Project" to start extracting insights from your story
               </p>
