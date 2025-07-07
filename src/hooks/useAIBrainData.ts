@@ -43,8 +43,8 @@ interface TimelineEvent {
 interface CharacterRelationship {
   id: string;
   project_id: string;
-  source_character_name: string;
-  target_character_name: string;
+  character_a_name: string;
+  character_b_name: string;
   relationship_type: string;
   relationship_strength: number;
   relationship_current_status?: string;
