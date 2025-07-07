@@ -430,7 +430,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                       <span className="font-medium">{allKnowledge.filter(k => k.confidence_score >= 0.6 && k.confidence_score < 0.8).length}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span>Low Confidence (<60%)</span>
+                      <span>Low Confidence (&lt;60%)</span>
                       <span className="font-medium text-yellow-600">{lowConfidenceItems}</span>
                     </div>
                   </div>
