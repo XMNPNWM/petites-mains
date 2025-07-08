@@ -225,6 +225,78 @@ Retournez un objet JSON avec un tableau "chapterSummaries":
 }
 
 Texte à analyser:`
+  },
+  worldBuilding: {
+    english: `Analyze this creative fiction text and extract world building elements. Look for:
+- Settings, locations, and environments
+- Magic systems, technologies, or special abilities
+- Cultural elements, societies, and organizations
+- Rules that govern the fictional world
+
+Return a JSON object with a "worldBuilding" array:
+{
+  "name": "Element name",
+  "type": "location/magic_system/culture/technology/rule/etc",
+  "description": "Detailed description of the element",
+  "significance": "How this affects the story world",
+  "details": {"key": "value"},
+  "ai_confidence": 0.8
+}
+
+Text to analyze:`,
+    french: `Analysez ce texte de fiction créative et extrayez les éléments de construction du monde. Recherchez:
+- Décors, lieux et environnements
+- Systèmes de magie, technologies ou capacités spéciales
+- Éléments culturels, sociétés et organisations
+- Règles qui gouvernent le monde fictif
+
+Retournez un objet JSON avec un tableau "worldBuilding":
+{
+  "name": "Nom de l'élément",
+  "type": "lieu/système_magique/culture/technologie/règle/etc",
+  "description": "Description détaillée de l'élément",
+  "significance": "Comment cela affecte le monde de l'histoire",
+  "details": {"clé": "valeur"},
+  "ai_confidence": 0.8
+}
+
+Texte à analyser:`
+  },
+  themes: {
+    english: `Analyze this creative fiction text and extract themes. Look for:
+- Central themes and messages
+- Recurring motifs and symbols
+- Moral or philosophical questions explored
+- Character arcs that illustrate themes
+
+Return a JSON object with a "themes" array:
+{
+  "name": "Theme name",
+  "type": "central/secondary/motif/moral/etc",
+  "exploration_summary": "How this theme is explored",
+  "key_moments_or_characters": ["moment1", "character1"],
+  "significance": "Why this theme matters to the story",
+  "ai_confidence": 0.8
+}
+
+Text to analyze:`,
+    french: `Analysez ce texte de fiction créative et extrayez les thèmes. Recherchez:
+- Thèmes centraux et messages
+- Motifs et symboles récurrents
+- Questions morales ou philosophiques explorées
+- Arcs de personnages qui illustrent les thèmes
+
+Retournez un objet JSON avec un tableau "themes":
+{
+  "name": "Nom du thème",
+  "type": "central/secondaire/motif/moral/etc",
+  "exploration_summary": "Comment ce thème est exploré",
+  "key_moments_or_characters": ["moment1", "personnage1"],
+  "significance": "Pourquoi ce thème est important pour l'histoire",
+  "ai_confidence": 0.8
+}
+
+Texte à analyser:`
   }
 };
 
@@ -345,6 +417,28 @@ function mapChapterSummaryFields(summary: any): any {
   };
 }
 
+function mapWorldBuildingFields(worldElement: any): any {
+  return {
+    name: worldElement.name || 'Unnamed World Element',
+    type: worldElement.type || 'general',
+    description: worldElement.description || null,
+    significance: worldElement.significance || null,
+    details: worldElement.details || {},
+    ai_confidence: worldElement.ai_confidence || worldElement.confidence_score || 0.8
+  };
+}
+
+function mapThemeFields(theme: any): any {
+  return {
+    name: theme.name || 'Unnamed Theme',
+    type: theme.type || 'general',
+    exploration_summary: theme.exploration_summary || theme.description || null,
+    key_moments_or_characters: Array.isArray(theme.key_moments_or_characters) ? theme.key_moments_or_characters : [],
+    significance: theme.significance || null,
+    ai_confidence: theme.ai_confidence || theme.confidence_score || 0.7
+  };
+}
+
 // AI extraction with proper Google AI SDK
 async function extractWithAI(content: string, extractionType: string, language: string): Promise<any> {
   const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
@@ -397,6 +491,8 @@ async function performComprehensiveExtraction(content: string, language: string)
     timelineEvents: [],
     plotPoints: [],
     chapterSummaries: [],
+    worldBuilding: [],
+    themes: [],
     extractionStats: {
       charactersExtracted: 0,
       relationshipsExtracted: 0,
@@ -404,6 +500,8 @@ async function performComprehensiveExtraction(content: string, language: string)
       timelineEventsExtracted: 0,
       plotPointsExtracted: 0,
       chapterSummariesExtracted: 0,
+      worldBuildingExtracted: 0,
+      themesExtracted: 0,
       language: language,
       totalAttempts: 0,
       successfulExtractions: 0
@@ -487,7 +585,7 @@ async function performComprehensiveExtraction(content: string, language: string)
     logExtraction('PLOTPOINTS_ERROR', { error: error.message });
   }
 
-  // Step 6: Generate Chapter Summaries (comprehensive overview)
+  // Step 6: Extract Chapter Summaries (narrative overview)
   try {
     results.extractionStats.totalAttempts++;
     const summaryResult = await extractWithAI(content, 'chapterSummaries', language);
@@ -500,6 +598,36 @@ async function performComprehensiveExtraction(content: string, language: string)
     }
   } catch (error) {
     logExtraction('SUMMARIES_ERROR', { error: error.message });
+  }
+
+  // Step 7: Extract World Building Elements
+  try {
+    results.extractionStats.totalAttempts++;
+    const worldBuildingResult = await extractWithAI(content, 'worldBuilding', language);
+    
+    if (worldBuildingResult.worldBuilding && worldBuildingResult.worldBuilding.length > 0) {
+      results.worldBuilding = worldBuildingResult.worldBuilding.map(mapWorldBuildingFields);
+      results.extractionStats.worldBuildingExtracted = results.worldBuilding.length;
+      results.extractionStats.successfulExtractions++;
+      logExtraction('WORLDBUILDING_SUCCESS', { count: results.worldBuilding.length });
+    }
+  } catch (error) {
+    logExtraction('WORLDBUILDING_ERROR', { error: error.message });
+  }
+
+  // Step 8: Extract Themes
+  try {
+    results.extractionStats.totalAttempts++;
+    const themesResult = await extractWithAI(content, 'themes', language);
+    
+    if (themesResult.themes && themesResult.themes.length > 0) {
+      results.themes = themesResult.themes.map(mapThemeFields);
+      results.extractionStats.themesExtracted = results.themes.length;
+      results.extractionStats.successfulExtractions++;
+      logExtraction('THEMES_SUCCESS', { count: results.themes.length });
+    }
+  } catch (error) {
+    logExtraction('THEMES_ERROR', { error: error.message });
   }
 
   return results;
@@ -556,8 +684,8 @@ serve(async (req) => {
         plotThreads: extractionResults.plotThreads,
         timelineEvents: extractionResults.timelineEvents,
         plotPoints: extractionResults.plotPoints,
-        worldBuilding: [], // Will be implemented in future phase
-        themes: [], // Will be implemented in future phase
+        worldBuilding: extractionResults.worldBuilding,
+        themes: extractionResults.themes,
         chapterSummaries: extractionResults.chapterSummaries
       },
       storedCount: extractionResults.characters.length + 
@@ -565,7 +693,9 @@ serve(async (req) => {
                    extractionResults.plotThreads.length + 
                    extractionResults.timelineEvents.length + 
                    extractionResults.plotPoints.length + 
-                   extractionResults.chapterSummaries.length,
+                   extractionResults.chapterSummaries.length +
+                   extractionResults.worldBuilding.length +
+                   extractionResults.themes.length,
       storageDetails: {
         characters: extractionResults.characters.length,
         relationships: extractionResults.relationships.length,
@@ -573,6 +703,8 @@ serve(async (req) => {
         timelineEvents: extractionResults.timelineEvents.length,
         plotPoints: extractionResults.plotPoints.length,
         chapterSummaries: extractionResults.chapterSummaries.length,
+        worldBuilding: extractionResults.worldBuilding.length,
+        themes: extractionResults.themes.length,
         language: language,
         extractionStats: extractionResults.extractionStats
       },

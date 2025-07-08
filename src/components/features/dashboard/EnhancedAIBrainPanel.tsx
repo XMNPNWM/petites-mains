@@ -255,35 +255,35 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
               </TabsTrigger>
               <TabsTrigger value="characters" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
                 <Users className="w-4 h-4" />
-                <span>Characters</span>
+                <span>Characters ({knowledge.filter(k => k.category === 'character').length})</span>
               </TabsTrigger>
               <TabsTrigger value="relationships" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
                 <Heart className="w-4 h-4" />
-                <span>Relations</span>
+                <span>Relations ({characterRelationships.length})</span>
               </TabsTrigger>
               <TabsTrigger value="plot-points" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
                 <BookOpen className="w-4 h-4" />
-                <span>Plot Points</span>
+                <span>Plot Points ({plotPoints.length})</span>
               </TabsTrigger>
               <TabsTrigger value="plot-threads" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
                 <GitBranch className="w-4 h-4" />
-                <span>Threads</span>
+                <span>Threads ({plotThreads.length})</span>
               </TabsTrigger>
               <TabsTrigger value="timeline" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
                 <Calendar className="w-4 h-4" />
-                <span>Timeline</span>
+                <span>Timeline ({timelineEvents.length})</span>
               </TabsTrigger>
               <TabsTrigger value="world-building" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
                 <Globe className="w-4 h-4" />
-                <span>World</span>
+                <span>World ({worldBuilding.length})</span>
               </TabsTrigger>
               <TabsTrigger value="summaries" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
                 <FileText className="w-4 h-4" />
-                <span>Summaries</span>
+                <span>Summaries ({chapterSummaries.length})</span>
               </TabsTrigger>
               <TabsTrigger value="themes" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
                 <Lightbulb className="w-4 h-4" />
-                <span>Themes</span>
+                <span>Themes ({themes.length})</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -596,6 +596,137 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                   ))}
                 </div>
               )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="world-building" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-medium text-slate-900">World Building ({filteredData.worldBuilding.length})</h4>
+              </div>
+              {filteredData.worldBuilding.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <Globe className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No world building elements found. Try running an analysis first.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredData.worldBuilding.map((element) => (
+                    <Card key={element.id} className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h5 className="font-medium text-slate-900">{element.name}</h5>
+                        <Badge variant="outline">{element.type}</Badge>
+                      </div>
+                      <p className="text-sm text-slate-600 mb-2">{element.description}</p>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="themes" className="mt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-medium text-slate-900">Themes ({filteredData.themes.length})</h4>
+              </div>
+              {filteredData.themes.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <Lightbulb className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No themes found. Try running an analysis first.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredData.themes.map((theme) => (
+                    <Card key={theme.id} className={`p-4 ${theme.is_flagged ? 'border-red-200 bg-red-50/50' : ''}`}>
+                      <div className="flex items-start justify-between mb-2">
+                        <h5 className="font-medium text-slate-900">{theme.name}</h5>
+                        <ConfidenceBadge confidence={theme.confidence_score} />
+                      </div>
+                      <p className="text-sm text-slate-600 mb-2">{theme.description}</p>
+                      {theme.evidence && (
+                        <p className="text-xs text-slate-500 italic">"{theme.evidence}"</p>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="overview" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-slate-900">Characters</h4>
+                  <Users className="w-4 h-4 text-slate-500" />
+                </div>
+                <p className="text-2xl font-bold text-slate-900">{knowledge.filter(k => k.category === 'character').length}</p>
+                <p className="text-sm text-slate-600">Extracted characters</p>
+              </Card>
+
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-slate-900">Plot Points</h4>
+                  <BookOpen className="w-4 h-4 text-slate-500" />
+                </div>
+                <p className="text-2xl font-bold text-slate-900">{plotPoints.length}</p>
+                <p className="text-sm text-slate-600">Key plot moments</p>
+              </Card>
+
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-slate-900">World Building</h4>
+                  <Globe className="w-4 h-4 text-slate-500" />
+                </div>
+                <p className="text-2xl font-bold text-slate-900">{worldBuilding.length}</p>
+                <p className="text-sm text-slate-600">World elements</p>
+              </Card>
+
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-slate-900">Themes</h4>
+                  <Lightbulb className="w-4 h-4 text-slate-500" />
+                </div>
+                <p className="text-2xl font-bold text-slate-900">{themes.length}</p>
+                <p className="text-sm text-slate-600">Story themes</p>
+              </Card>
+
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-slate-900">Relationships</h4>
+                  <Heart className="w-4 h-4 text-slate-500" />
+                </div>
+                <p className="text-2xl font-bold text-slate-900">{characterRelationships.length}</p>
+                <p className="text-sm text-slate-600">Character relations</p>
+              </Card>
+
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-slate-900">Timeline</h4>
+                  <Calendar className="w-4 h-4 text-slate-500" />
+                </div>
+                <p className="text-2xl font-bold text-slate-900">{timelineEvents.length}</p>
+                <p className="text-sm text-slate-600">Events tracked</p>
+              </Card>
+
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-slate-900">Plot Threads</h4>
+                  <GitBranch className="w-4 h-4 text-slate-500" />
+                </div>
+                <p className="text-2xl font-bold text-slate-900">{plotThreads.length}</p>
+                <p className="text-sm text-slate-600">Story threads</p>
+              </Card>
+
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-slate-900">Summaries</h4>
+                  <FileText className="w-4 h-4 text-slate-500" />
+                </div>
+                <p className="text-2xl font-bold text-slate-900">{chapterSummaries.length}</p>
+                <p className="text-sm text-slate-600">Chapter summaries</p>
+              </Card>
             </div>
           </TabsContent>
         </Tabs>

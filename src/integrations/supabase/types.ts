@@ -727,6 +727,7 @@ export type Database = {
           name: string
           project_id: string
           reasoning: string | null
+          relevance_score: number | null
           review_notes: string | null
           search_vector: unknown | null
           source_chapter_id: string | null
@@ -735,6 +736,7 @@ export type Database = {
           source_text_excerpt: string | null
           subcategory: string | null
           updated_at: string | null
+          user_edited: boolean | null
         }
         Insert: {
           ai_confidence_new?: number | null
@@ -753,6 +755,7 @@ export type Database = {
           name: string
           project_id: string
           reasoning?: string | null
+          relevance_score?: number | null
           review_notes?: string | null
           search_vector?: unknown | null
           source_chapter_id?: string | null
@@ -761,6 +764,7 @@ export type Database = {
           source_text_excerpt?: string | null
           subcategory?: string | null
           updated_at?: string | null
+          user_edited?: boolean | null
         }
         Update: {
           ai_confidence_new?: number | null
@@ -779,6 +783,7 @@ export type Database = {
           name?: string
           project_id?: string
           reasoning?: string | null
+          relevance_score?: number | null
           review_notes?: string | null
           search_vector?: unknown | null
           source_chapter_id?: string | null
@@ -787,6 +792,7 @@ export type Database = {
           source_text_excerpt?: string | null
           subcategory?: string | null
           updated_at?: string | null
+          user_edited?: boolean | null
         }
         Relationships: [
           {
@@ -1710,6 +1716,14 @@ export type Database = {
         Args: { "": string } | { "": unknown }
         Returns: unknown
       }
+      calculate_relevance_score: {
+        Args: {
+          category_param: Database["public"]["Enums"]["knowledge_category"]
+          description_param: string
+          details_param: Json
+        }
+        Returns: number
+      }
       check_cross_chapter_consistency: {
         Args: { p_project_id: string }
         Returns: {
@@ -1856,9 +1870,6 @@ export type Database = {
         | "plot_point"
         | "world_building"
         | "theme"
-        | "setting"
-        | "object"
-        | "event"
         | "relationship"
         | "other"
       processing_state:
@@ -2012,9 +2023,6 @@ export const Constants = {
         "plot_point",
         "world_building",
         "theme",
-        "setting",
-        "object",
-        "event",
         "relationship",
         "other",
       ],

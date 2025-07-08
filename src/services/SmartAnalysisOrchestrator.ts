@@ -262,42 +262,44 @@ export class SmartAnalysisOrchestrator {
     }
   }
 
-  // Enhanced method to store all extracted knowledge types in database
+  // Enhanced method to store all extracted knowledge types in database with intelligent deduplication
   static async storeComprehensiveKnowledge(projectId: string, extractedData: any, sourceChapters: any[]): Promise<number> {
     let storedCount = 0;
     const sourceChapterIds = sourceChapters.map(c => c.id);
 
     try {
-      // Store characters
+      // Store characters with intelligent deduplication
       if (extractedData.characters && extractedData.characters.length > 0) {
         for (const character of extractedData.characters) {
           try {
-            const { error } = await supabase
-              .from('knowledge_base')
-              .insert({
-                project_id: projectId,
-                name: character.name,
-                category: 'character',
-                subcategory: character.role,
-                description: character.description,
-                details: {
-                  traits: character.traits || [],
-                  role: character.role
-                },
-                confidence_score: character.ai_confidence || 0.5,
-                extraction_method: 'llm_direct',
-                source_chapter_ids: sourceChapterIds,
-                is_newly_extracted: true,
-                ai_confidence_new: character.ai_confidence || 0.5
-              });
-
-            if (!error) {
-              storedCount++;
-            } else {
-              console.error('Error storing character:', character.name, error);
-            }
+            await this.storeOrUpdateCharacter(projectId, character, sourceChapterIds);
+            storedCount++;
           } catch (charError) {
             console.error('Error processing character:', character, charError);
+          }
+        }
+      }
+
+      // Store world building elements (new category)
+      if (extractedData.worldBuilding && extractedData.worldBuilding.length > 0) {
+        for (const worldElement of extractedData.worldBuilding) {
+          try {
+            await this.storeOrUpdateWorldBuilding(projectId, worldElement, sourceChapterIds);
+            storedCount++;
+          } catch (worldError) {
+            console.error('Error processing world building:', worldElement, worldError);
+          }
+        }
+      }
+
+      // Store themes (new category)
+      if (extractedData.themes && extractedData.themes.length > 0) {
+        for (const theme of extractedData.themes) {
+          try {
+            await this.storeOrUpdateTheme(projectId, theme, sourceChapterIds);
+            storedCount++;
+          } catch (themeError) {
+            console.error('Error processing theme:', theme, themeError);
           }
         }
       }
@@ -464,6 +466,221 @@ export class SmartAnalysisOrchestrator {
       console.error('❌ Error storing comprehensive knowledge:', error);
       return storedCount;
     }
+  }
+
+  // Intelligent character deduplication and merging
+  static async storeOrUpdateCharacter(projectId: string, character: any, sourceChapterIds: string[]) {
+    const relevanceScore = await this.calculateRelevanceScore('character', character.description || '', character);
+    
+    // Check for existing character by name
+    const { data: existingCharacters, error: searchError } = await supabase
+      .from('knowledge_base')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('category', 'character')
+      .ilike('name', character.name.trim());
+
+    if (searchError) {
+      console.error('Error searching for existing character:', searchError);
+      return;
+    }
+
+    if (existingCharacters && existingCharacters.length > 0) {
+      // Character exists - intelligently merge information
+      const existingChar = existingCharacters[0];
+      
+      // Don't overwrite user-edited content
+      if (existingChar.user_edited) {
+        console.log(`⏭️ Skipping user-edited character: ${character.name}`);
+        return;
+      }
+
+      // Merge descriptions intelligently based on relevance
+      const mergedDescription = this.mergeDescriptions(
+        existingChar.description || '',
+        character.description || '',
+        existingChar.relevance_score || 0.5,
+        relevanceScore
+      );
+
+      // Merge traits
+      const existingTraits = (existingChar.details as any)?.traits || [];
+      const newTraits = character.traits || [];
+      const mergedTraits = [...new Set([...existingTraits, ...newTraits])];
+
+      // Update with highest confidence and merged content
+      const updateData = {
+        description: mergedDescription,
+        details: {
+          ...((existingChar.details as any) || {}),
+          traits: mergedTraits,
+          role: character.role || (existingChar.details as any)?.role
+        },
+        confidence_score: Math.max(existingChar.confidence_score, character.ai_confidence || 0.5),
+        relevance_score: Math.max(existingChar.relevance_score || 0.5, relevanceScore),
+        source_chapter_ids: [...new Set([
+          ...(existingChar.source_chapter_ids as string[] || []),
+          ...sourceChapterIds
+        ])],
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: updateError } = await supabase
+        .from('knowledge_base')
+        .update(updateData)
+        .eq('id', existingChar.id);
+
+      if (updateError) {
+        console.error('Error updating character:', updateError);
+      } else {
+        console.log(`🔄 Updated character: ${character.name} with merged content`);
+      }
+    } else {
+      // New character - create with relevance scoring
+      const { error } = await supabase
+        .from('knowledge_base')
+        .insert({
+          project_id: projectId,
+          name: character.name,
+          category: 'character',
+          subcategory: character.role,
+          description: character.description,
+          details: {
+            traits: character.traits || [],
+            role: character.role
+          },
+          confidence_score: character.ai_confidence || 0.5,
+          relevance_score: relevanceScore,
+          extraction_method: 'llm_direct',
+          source_chapter_ids: sourceChapterIds,
+          is_newly_extracted: true,
+          ai_confidence_new: character.ai_confidence || 0.5
+        });
+
+      if (error) {
+        console.error('Error storing new character:', character.name, error);
+      } else {
+        console.log(`✅ Created new character: ${character.name}`);
+      }
+    }
+  }
+
+  // Store or update world building elements
+  static async storeOrUpdateWorldBuilding(projectId: string, worldElement: any, sourceChapterIds: string[]) {
+    const { error } = await supabase
+      .from('knowledge_base')
+      .insert({
+        project_id: projectId,
+        name: worldElement.name || 'Unnamed World Element',
+        category: 'world_building',
+        subcategory: worldElement.type || 'general',
+        description: worldElement.description,
+        details: worldElement.details || {},
+        confidence_score: worldElement.ai_confidence || 0.8,
+        relevance_score: 0.8, // World building is inherently relevant
+        extraction_method: 'llm_direct',
+        source_chapter_ids: sourceChapterIds,
+        is_newly_extracted: true,
+        ai_confidence_new: worldElement.ai_confidence || 0.8
+      });
+
+    if (error) {
+      console.error('Error storing world building element:', worldElement, error);
+    }
+  }
+
+  // Store or update themes
+  static async storeOrUpdateTheme(projectId: string, theme: any, sourceChapterIds: string[]) {
+    const { error } = await supabase
+      .from('knowledge_base')
+      .insert({
+        project_id: projectId,
+        name: theme.name || 'Unnamed Theme',
+        category: 'theme',
+        subcategory: theme.type || 'general',
+        description: theme.exploration_summary || theme.description,
+        details: {
+          key_moments: theme.key_moments_or_characters || [],
+          exploration: theme.exploration_summary
+        },
+        confidence_score: theme.ai_confidence || 0.7,
+        relevance_score: 0.7, // Themes are important for narrative analysis
+        extraction_method: 'llm_direct',
+        source_chapter_ids: sourceChapterIds,
+        is_newly_extracted: true,
+        ai_confidence_new: theme.ai_confidence || 0.7
+      });
+
+    if (error) {
+      console.error('Error storing theme:', theme, error);
+    }
+  }
+
+  // Calculate relevance score based on content
+  static async calculateRelevanceScore(category: string, description: string, entity: any): Promise<number> {
+    try {
+      const { data, error } = await supabase
+        .rpc('calculate_relevance_score', {
+          category_param: category as 'character' | 'plot_point' | 'world_building' | 'theme' | 'relationship' | 'other',
+          description_param: description,
+          details_param: entity
+        });
+
+      if (error) {
+        console.error('Error calculating relevance score:', error);
+        return 0.5; // Default fallback
+      }
+
+      return data || 0.5;
+    } catch (error) {
+      console.error('Error calling relevance function:', error);
+      return 0.5;
+    }
+  }
+
+  // Intelligently merge descriptions based on relevance
+  static mergeDescriptions(existing: string, newDesc: string, existingRelevance: number, newRelevance: number): string {
+    if (!existing) return newDesc;
+    if (!newDesc) return existing;
+
+    // If new description is significantly more relevant, use it
+    if (newRelevance > existingRelevance + 0.2) {
+      return newDesc;
+    }
+
+    // If existing is more relevant, keep it but add unique new information
+    if (existingRelevance > newRelevance + 0.1) {
+      const uniqueInfo = this.extractUniqueInformation(existing, newDesc);
+      return uniqueInfo ? `${existing}. ${uniqueInfo}` : existing;
+    }
+
+    // Similar relevance - combine intelligently
+    return this.combineDescriptions(existing, newDesc);
+  }
+
+  // Extract unique information from new description
+  static extractUniqueInformation(existing: string, newDesc: string): string {
+    const existingWords = new Set(existing.toLowerCase().split(/\W+/));
+    const newWords = newDesc.toLowerCase().split(/\W+/);
+    
+    // Find sentences in new description that contain significant new information
+    const sentences = newDesc.split(/[.!?]+/);
+    const uniqueSentences = sentences.filter(sentence => {
+      const sentenceWords = sentence.toLowerCase().split(/\W+/);
+      const newWordCount = sentenceWords.filter(word => 
+        word.length > 3 && !existingWords.has(word)
+      ).length;
+      return newWordCount >= 2; // Must have at least 2 new significant words
+    });
+
+    return uniqueSentences.join('. ').trim();
+  }
+
+  // Combine descriptions intelligently
+  static combineDescriptions(desc1: string, desc2: string): string {
+    // Simple combination for now - could be enhanced with NLP
+    const unique2 = this.extractUniqueInformation(desc1, desc2);
+    return unique2 ? `${desc1}. ${unique2}` : desc1;
   }
 
   static async getProjectKnowledge(projectId: string): Promise<KnowledgeBase[]> {
