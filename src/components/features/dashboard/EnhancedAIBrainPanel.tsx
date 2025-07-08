@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAIBrainData } from '@/hooks/useAIBrainData';
 import { useSearchAndFilter } from '@/hooks/useSearchAndFilter';
+import { useJobManager } from '@/hooks/useJobManager';
 import { AIBrainHeader } from './ai-brain/AIBrainHeader';
 import { AIBrainStatusCards } from './ai-brain/AIBrainStatusCards';
 import { QualityReviewPanel } from './ai-brain/QualityReviewPanel';
@@ -50,6 +50,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     totalResults
   } = useSearchAndFilter(brainData);
 
+  const { getProjectAnalysisStatus } = useJobManager();
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>({
     isProcessing: false,
     hasErrors: false,
@@ -61,6 +62,79 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   const { toast } = useToast();
 
   const jobManager = new AnalysisJobManager();
+  const orchestrator = new SmartAnalysisOrchestrator();
+
+  // Load analysis status on mount
+  useEffect(() => {
+    const loadAnalysisStatus = async () => {
+      const status = await getProjectAnalysisStatus(projectId);
+      setAnalysisStatus(status);
+    };
+    loadAnalysisStatus();
+  }, [projectId, getProjectAnalysisStatus]);
+
+  const handleAnalyzeProject = async () => {
+    if (analysisStatus.isProcessing) return;
+    
+    setIsAnalyzing(true);
+    try {
+      console.log('🚀 Starting comprehensive analysis for project:', projectId);
+      
+      const result = await orchestrator.analyzeProject(projectId);
+      
+      if (result.success) {
+        toast({
+          title: "Analysis Complete",
+          description: `Successfully extracted ${result.totalExtracted} knowledge items`,
+        });
+        await refresh();
+      } else {
+        throw new Error(result.error || 'Analysis failed');
+      }
+    } catch (error) {
+      console.error('❌ Analysis failed:', error);
+      toast({
+        title: "Analysis Failed",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAnalyzing(false);
+      // Refresh analysis status
+      const status = await getProjectAnalysisStatus(projectId);
+      setAnalysisStatus(status);
+    }
+  };
+
+  const handleRetryAnalysis = async () => {
+    setIsRetrying(true);
+    try {
+      await handleAnalyzeProject();
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  const handleCancelAnalysis = async () => {
+    if (analysisStatus.currentJob?.id) {
+      try {
+        await jobManager.cancelJob(analysisStatus.currentJob.id);
+        toast({
+          title: "Analysis Cancelled",
+          description: "The analysis job has been cancelled"
+        });
+        const status = await getProjectAnalysisStatus(projectId);
+        setAnalysisStatus(status);
+      } catch (error) {
+        console.error('Error cancelling job:', error);
+        toast({
+          title: "Error",
+          description: "Failed to cancel analysis job",
+          variant: "destructive"
+        });
+      }
+    }
+  };
 
   const handleUpdateKnowledge = async (id: string, field: 'name' | 'description', value: string) => {
     await AIBrainUpdateService.updateKnowledgeItem(id, { [field]: value });
@@ -147,9 +221,9 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         analysisStatus={analysisStatus}
         isAnalyzing={isAnalyzing}
         isRetrying={isRetrying}
-        onAnalyzeProject={() => {}}
-        onRetryAnalysis={() => {}}
-        onCancelAnalysis={() => {}}
+        onAnalyzeProject={handleAnalyzeProject}
+        onRetryAnalysis={handleRetryAnalysis}
+        onCancelAnalysis={handleCancelAnalysis}
       />
 
       <AIBrainStatusCards
@@ -172,44 +246,46 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
 
       <Card className="p-6">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 gap-1">
-            <TabsTrigger value="overview" className="flex items-center space-x-1 text-xs">
-              <Brain className="w-3 h-3" />
-              <span className="hidden sm:inline">Overview</span>
-            </TabsTrigger>
-            <TabsTrigger value="characters" className="flex items-center space-x-1 text-xs">
-              <Users className="w-3 h-3" />
-              <span className="hidden sm:inline">Characters</span>
-            </TabsTrigger>
-            <TabsTrigger value="relationships" className="flex items-center space-x-1 text-xs">
-              <Heart className="w-3 h-3" />
-              <span className="hidden sm:inline">Relations</span>
-            </TabsTrigger>
-            <TabsTrigger value="plot-points" className="flex items-center space-x-1 text-xs">
-              <BookOpen className="w-3 h-3" />
-              <span className="hidden sm:inline">Plot Points</span>
-            </TabsTrigger>
-            <TabsTrigger value="plot-threads" className="flex items-center space-x-1 text-xs">
-              <GitBranch className="w-3 h-3" />
-              <span className="hidden sm:inline">Threads</span>
-            </TabsTrigger>
-            <TabsTrigger value="timeline" className="flex items-center space-x-1 text-xs">
-              <Calendar className="w-3 h-3" />
-              <span className="hidden sm:inline">Timeline</span>
-            </TabsTrigger>
-            <TabsTrigger value="world-building" className="flex items-center space-x-1 text-xs">
-              <Globe className="w-3 h-3" />
-              <span className="hidden sm:inline">World</span>
-            </TabsTrigger>
-            <TabsTrigger value="summaries" className="flex items-center space-x-1 text-xs">
-              <FileText className="w-3 h-3" />
-              <span className="hidden sm:inline">Summaries</span>
-            </TabsTrigger>
-            <TabsTrigger value="themes" className="flex items-center space-x-1 text-xs">
-              <Lightbulb className="w-3 h-3" />
-              <span className="hidden sm:inline">Themes</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="mb-6">
+            <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 gap-2 h-auto p-2 bg-slate-100">
+              <TabsTrigger value="overview" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
+                <Brain className="w-4 h-4" />
+                <span>Overview</span>
+              </TabsTrigger>
+              <TabsTrigger value="characters" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
+                <Users className="w-4 h-4" />
+                <span>Characters</span>
+              </TabsTrigger>
+              <TabsTrigger value="relationships" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
+                <Heart className="w-4 h-4" />
+                <span>Relations</span>
+              </TabsTrigger>
+              <TabsTrigger value="plot-points" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
+                <BookOpen className="w-4 h-4" />
+                <span>Plot Points</span>
+              </TabsTrigger>
+              <TabsTrigger value="plot-threads" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
+                <GitBranch className="w-4 h-4" />
+                <span>Threads</span>
+              </TabsTrigger>
+              <TabsTrigger value="timeline" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
+                <Calendar className="w-4 h-4" />
+                <span>Timeline</span>
+              </TabsTrigger>
+              <TabsTrigger value="world-building" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
+                <Globe className="w-4 h-4" />
+                <span>World</span>
+              </TabsTrigger>
+              <TabsTrigger value="summaries" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
+                <FileText className="w-4 h-4" />
+                <span>Summaries</span>
+              </TabsTrigger>
+              <TabsTrigger value="themes" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
+                <Lightbulb className="w-4 h-4" />
+                <span>Themes</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="characters" className="mt-6">
             <div className="space-y-4">
