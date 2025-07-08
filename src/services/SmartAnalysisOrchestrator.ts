@@ -158,7 +158,7 @@ export class SmartAnalysisOrchestrator {
         };
       }
 
-      // PHASE 2: Enhanced Knowledge Extraction using optimized extract-knowledge function
+      // PHASE 2: Enhanced Knowledge Extraction using comprehensive extract-knowledge function
       let totalContentAnalyzed = 0;
       let totalCreditsUsed = 0;
       let totalKnowledgeExtracted = 0;
@@ -168,36 +168,40 @@ export class SmartAnalysisOrchestrator {
         `Chapter: ${chapter.title}\n${chapter.content || ''}`
       ).join('\n\n---CHAPTER_BREAK---\n\n');
 
-      console.log(`🧠 Phase 2: Enhanced knowledge extraction from ${chaptersNeedingAnalysis.length} chapters (${contentToAnalyze.length} chars)`);
+      console.log(`🧠 Phase 2: Comprehensive knowledge extraction from ${chaptersNeedingAnalysis.length} chapters (${contentToAnalyze.length} chars)`);
 
-      // Use the enhanced extract-knowledge edge function with incremental extraction
+      // Use the enhanced extract-knowledge edge function with comprehensive extraction
       const primaryChapterId = chaptersNeedingAnalysis[0]?.id;
       
       const { data: knowledgeResult, error: knowledgeError } = await supabase.functions.invoke('extract-knowledge', {
         body: { 
           content: contentToAnalyze,
           projectId: projectId,
-          extractionType: 'incremental',
+          extractionType: 'comprehensive',
           chapterId: primaryChapterId
         }
       });
 
       if (knowledgeError) {
-        console.error('❌ Enhanced knowledge extraction failed:', knowledgeError);
+        console.error('❌ Comprehensive knowledge extraction failed:', knowledgeError);
         throw new Error(`Knowledge extraction failed: ${knowledgeError.message}`);
       }
 
       if (knowledgeResult?.success && knowledgeResult.extractedData) {
-        console.log('✅ Enhanced knowledge extraction completed');
+        console.log('✅ Comprehensive knowledge extraction completed');
         console.log('📊 Extraction results:', {
           characters: knowledgeResult.extractedData.characters?.length || 0,
           relationships: knowledgeResult.extractedData.relationships?.length || 0,
+          plotThreads: knowledgeResult.extractedData.plotThreads?.length || 0,
+          timelineEvents: knowledgeResult.extractedData.timelineEvents?.length || 0,
+          plotPoints: knowledgeResult.extractedData.plotPoints?.length || 0,
+          chapterSummaries: knowledgeResult.extractedData.chapterSummaries?.length || 0,
           language: knowledgeResult.storageDetails?.language || 'unknown',
           extractionStats: knowledgeResult.storageDetails?.extractionStats || {}
         });
 
         // Store the extracted knowledge in the database
-        const storedItems = await this.storeExtractedKnowledge(projectId, knowledgeResult.extractedData, chaptersNeedingAnalysis);
+        const storedItems = await this.storeComprehensiveKnowledge(projectId, knowledgeResult.extractedData, chaptersNeedingAnalysis);
         totalKnowledgeExtracted = storedItems;
         
         console.log(`📚 Stored ${totalKnowledgeExtracted} knowledge items in database`);
@@ -235,7 +239,7 @@ export class SmartAnalysisOrchestrator {
         }
       }
 
-      console.log('✅ [SMART] Enhanced project analysis completed successfully');
+      console.log('✅ [SMART] Comprehensive project analysis completed successfully');
 
       return {
         success: true,
@@ -248,18 +252,18 @@ export class SmartAnalysisOrchestrator {
           extractionDetails: knowledgeResult?.storageDetails || {},
           message: chaptersSkipped > 0 
             ? `Analyzed ${chaptersNeedingAnalysis.length} changed chapters, skipped ${chaptersSkipped} unchanged chapters`
-            : `Analyzed ${chaptersNeedingAnalysis.length} chapters with enhanced extraction`
+            : `Analyzed ${chaptersNeedingAnalysis.length} chapters with comprehensive extraction`
         }
       };
 
     } catch (error) {
-      console.error('❌ [SMART] Enhanced project analysis failed:', error);
+      console.error('❌ [SMART] Comprehensive project analysis failed:', error);
       throw error;
     }
   }
 
-  // New method to store extracted knowledge in database
-  static async storeExtractedKnowledge(projectId: string, extractedData: any, sourceChapters: any[]): Promise<number> {
+  // Enhanced method to store all extracted knowledge types in database
+  static async storeComprehensiveKnowledge(projectId: string, extractedData: any, sourceChapters: any[]): Promise<number> {
     let storedCount = 0;
     const sourceChapterIds = sourceChapters.map(c => c.id);
 
@@ -329,11 +333,133 @@ export class SmartAnalysisOrchestrator {
         }
       }
 
-      console.log(`✅ Successfully stored ${storedCount} knowledge items`);
+      // Store plot threads
+      if (extractedData.plotThreads && extractedData.plotThreads.length > 0) {
+        for (const plotThread of extractedData.plotThreads) {
+          try {
+            const { error } = await supabase
+              .from('plot_threads')
+              .insert({
+                project_id: projectId,
+                thread_name: plotThread.thread_name,
+                thread_type: plotThread.thread_type,
+                thread_status: plotThread.thread_status,
+                key_events: plotThread.key_events || [],
+                characters_involved_names: plotThread.characters_involved_names || [],
+                confidence_score: plotThread.ai_confidence || 0.5,
+                extraction_method: 'llm_direct',
+                source_chapter_ids: sourceChapterIds,
+                is_newly_extracted: true,
+                ai_confidence_new: plotThread.ai_confidence || 0.5
+              });
+
+            if (!error) {
+              storedCount++;
+            } else {
+              console.error('Error storing plot thread:', plotThread, error);
+            }
+          } catch (plotError) {
+            console.error('Error processing plot thread:', plotThread, plotError);
+          }
+        }
+      }
+
+      // Store timeline events
+      if (extractedData.timelineEvents && extractedData.timelineEvents.length > 0) {
+        for (const event of extractedData.timelineEvents) {
+          try {
+            const { error } = await supabase
+              .from('timeline_events')
+              .insert({
+                project_id: projectId,
+                event_summary: event.event_summary,
+                chronological_order: event.chronological_order || 0,
+                date_or_time_reference: event.date_or_time_reference,
+                significance: event.significance,
+                characters_involved_names: event.characters_involved_names || [],
+                plot_threads_impacted_names: event.plot_threads_impacted_names || [],
+                locations_involved_names: event.locations_involved_names || [],
+                confidence_score: event.ai_confidence || 0.5,
+                extraction_method: 'llm_direct',
+                source_chapter_ids: sourceChapterIds,
+                is_newly_extracted: true,
+                ai_confidence_new: event.ai_confidence || 0.5
+              });
+
+            if (!error) {
+              storedCount++;
+            } else {
+              console.error('Error storing timeline event:', event, error);
+            }
+          } catch (eventError) {
+            console.error('Error processing timeline event:', event, eventError);
+          }
+        }
+      }
+
+      // Store plot points
+      if (extractedData.plotPoints && extractedData.plotPoints.length > 0) {
+        for (const plotPoint of extractedData.plotPoints) {
+          try {
+            const { error } = await supabase
+              .from('plot_points')
+              .insert({
+                project_id: projectId,
+                name: plotPoint.name,
+                description: plotPoint.description,
+                plot_thread_name: plotPoint.plot_thread_name,
+                significance: plotPoint.significance,
+                characters_involved_names: plotPoint.characters_involved_names || [],
+                ai_confidence: plotPoint.ai_confidence || 0.5,
+                source_chapter_ids: sourceChapterIds,
+                is_newly_extracted: true
+              });
+
+            if (!error) {
+              storedCount++;
+            } else {
+              console.error('Error storing plot point:', plotPoint, error);
+            }
+          } catch (plotPointError) {
+            console.error('Error processing plot point:', plotPoint, plotPointError);
+          }
+        }
+      }
+
+      // Store chapter summaries
+      if (extractedData.chapterSummaries && extractedData.chapterSummaries.length > 0) {
+        for (const summary of extractedData.chapterSummaries) {
+          try {
+            const { error } = await supabase
+              .from('chapter_summaries')
+              .insert({
+                project_id: projectId,
+                chapter_id: sourceChapters[0]?.id, // Use first chapter as primary reference
+                title: summary.title,
+                summary_short: summary.summary_short,
+                summary_long: summary.summary_long,
+                key_events_in_chapter: summary.key_events_in_chapter || [],
+                primary_focus: summary.primary_focus || [],
+                ai_confidence: summary.ai_confidence || 0.5,
+                is_newly_extracted: true
+              });
+
+            if (!error) {
+              storedCount++;
+            } else {
+              console.error('Error storing chapter summary:', summary, error);
+            }
+          } catch (summaryError) {
+            console.error('Error processing chapter summary:', summary, summaryError);
+          }
+        }
+      }
+
+      console.log(`✅ Successfully stored ${storedCount} comprehensive knowledge items`);
       return storedCount;
 
     } catch (error) {
-      console.error('❌ Error storing extracted knowledge:', error);
+      console.error('❌ Error storing comprehensive knowledge:', error);
       return storedCount;
     }
   }
