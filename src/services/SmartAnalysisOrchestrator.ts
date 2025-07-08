@@ -364,7 +364,7 @@ export class SmartAnalysisOrchestrator {
         }
       }
 
-      // Store timeline events
+      // Store timeline events - Fixed field mapping
       if (extractedData.timelineEvents && extractedData.timelineEvents.length > 0) {
         for (const event of extractedData.timelineEvents) {
           try {
@@ -372,6 +372,8 @@ export class SmartAnalysisOrchestrator {
               .from('timeline_events')
               .insert({
                 project_id: projectId,
+                event_name: event.event_name || event.event_summary || 'Unnamed Event',
+                event_type: event.event_type || 'general',
                 event_summary: event.event_summary,
                 chronological_order: event.chronological_order || 0,
                 date_or_time_reference: event.date_or_time_reference,
