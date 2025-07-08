@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,7 +63,6 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   const { toast } = useToast();
 
   const jobManager = new AnalysisJobManager();
-  const orchestrator = new SmartAnalysisOrchestrator();
 
   // Load analysis status on mount
   useEffect(() => {
@@ -80,14 +80,16 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     try {
       console.log('🚀 Starting comprehensive analysis for project:', projectId);
       
-      const result = await orchestrator.analyzeProject(projectId);
+      const result = await SmartAnalysisOrchestrator.analyzeProject(projectId);
       
       if (result.success) {
         toast({
           title: "Analysis Complete",
-          description: `Successfully extracted ${result.totalExtracted} knowledge items`,
+          description: `Successfully extracted ${result.totalExtracted || result.processingStats?.knowledgeExtracted || 0} knowledge items`,
         });
-        await refresh();
+        if (refresh) {
+          await refresh();
+        }
       } else {
         throw new Error(result.error || 'Analysis failed');
       }

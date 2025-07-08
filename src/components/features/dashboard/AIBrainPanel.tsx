@@ -20,6 +20,7 @@ interface AIBrainPanelProps {
 }
 
 const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
+  const brainDataResult = useAIBrainData(projectId);
   const {
     knowledge,
     chapterSummaries,
@@ -30,9 +31,11 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
     worldBuilding,
     themes,
     isLoading,
-    error,
-    refresh
-  } = useAIBrainData(projectId);
+    error
+  } = brainDataResult;
+
+  // Extract refresh function safely
+  const refresh = (brainDataResult as any).refresh;
 
   const { getProjectAnalysisStatus } = useJobManager();
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>({
@@ -45,7 +48,6 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
   const { toast } = useToast();
 
   const jobManager = new AnalysisJobManager();
-  const orchestrator = new SmartAnalysisOrchestrator();
 
   // Load analysis status on mount
   useEffect(() => {
@@ -63,14 +65,16 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
     try {
       console.log('🚀 Starting comprehensive analysis for project:', projectId);
       
-      const result = await orchestrator.analyzeProject(projectId);
+      const result = await SmartAnalysisOrchestrator.analyzeProject(projectId);
       
       if (result.success) {
         toast({
           title: "Analysis Complete",
-          description: `Successfully extracted ${result.totalExtracted} knowledge items`,
+          description: `Successfully extracted ${result.totalExtracted || result.processingStats?.knowledgeExtracted || 0} knowledge items`,
         });
-        await refresh();
+        if (refresh) {
+          await refresh();
+        }
       } else {
         throw new Error(result.error || 'Analysis failed');
       }
@@ -124,9 +128,9 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
         <div className="flex items-center space-x-3">
           <Brain className="w-6 h-6 text-purple-600" />
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">AI Brain</h3>
+            <h3 className="text-lg font-semibold text-slate-900">AI Brain (Deprecated)</h3>
             <p className="text-sm text-slate-600">
-              Intelligent story analysis with knowledge extraction
+              This component is deprecated. Use EnhancedAIBrainPanel instead.
             </p>
           </div>
         </div>

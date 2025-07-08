@@ -62,6 +62,7 @@ export interface AIBrainData {
   themes: KnowledgeBase[];
   isLoading: boolean;
   error: string | null;
+  refresh?: () => Promise<void>;
 }
 
 // Import existing types

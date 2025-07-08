@@ -17,6 +17,7 @@ interface AnalysisStatus {
   lastProcessedAt: string | null;
   lowConfidenceFactsCount: number;
   errorCount: number;
+  hasErrors: boolean;
   currentJob: AnalysisJob | null;
 }
 
@@ -53,12 +54,14 @@ export const useJobManager = () => {
 
       const lowConfidenceFactsCount = knowledge?.filter(k => k.confidence_score < 0.7).length || 0;
       const errorCount = knowledge?.filter(k => k.is_flagged).length || 0;
+      const hasErrors = errorCount > 0;
 
       return {
         isProcessing,
         lastProcessedAt,
         lowConfidenceFactsCount,
         errorCount,
+        hasErrors,
         currentJob
       };
     } catch (error) {
@@ -68,6 +71,7 @@ export const useJobManager = () => {
         lastProcessedAt: null,
         lowConfidenceFactsCount: 0,
         errorCount: 0,
+        hasErrors: false,
         currentJob: null
       };
     }
