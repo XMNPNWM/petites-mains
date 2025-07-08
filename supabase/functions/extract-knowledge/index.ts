@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import "https://deno.land/x/xhr@0.1.0/mod.ts"
+import { GoogleGenAI } from "https://esm.sh/@google/genai@1.7.0"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -161,7 +161,7 @@ function mapRelationshipFields(relationship: any): any {
   };
 }
 
-// AI extraction with retry logic
+// AI extraction with proper Google AI SDK
 async function extractWithAI(content: string, extractionType: string, language: string): Promise<any> {
   const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
   if (!apiKey) {
@@ -183,37 +183,17 @@ async function extractWithAI(content: string, extractionType: string, language: 
   });
 
   try {
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + apiKey, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: fullPrompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.2,
-          topK: 20,
-          topP: 0.8,
-          maxOutputTokens: 2048,
-        }
-      }),
+    const ai = new GoogleGenAI({ apiKey });
+    
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: fullPrompt
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      logExtraction('API_ERROR', { status: response.status, error: errorText });
-      throw new Error(`AI API Error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const aiResponse = response.text;
     
     if (!aiResponse) {
-      logExtraction('EMPTY_RESPONSE', { data });
+      logExtraction('EMPTY_RESPONSE', { response });
       throw new Error('Empty response from AI');
     }
 
