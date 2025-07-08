@@ -1,28 +1,10 @@
 
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-
-interface AnalysisJob {
-  id: string;
-  project_id: string;
-  state: string;
-  current_step: string;
-  progress_percentage: number;
-  created_at: string;
-  updated_at: string;
-}
-
-interface AnalysisStatus {
-  isProcessing: boolean;
-  lastProcessedAt: string | null;
-  lowConfidenceFactsCount: number;
-  errorCount: number;
-  hasErrors: boolean;
-  currentJob: AnalysisJob | null;
-}
+import { ProcessingJob, AnalysisStatus } from '@/types/knowledge';
 
 export const useJobManager = () => {
-  const [analysisJobs, setAnalysisJobs] = useState<AnalysisJob[]>([]);
+  const [analysisJobs, setAnalysisJobs] = useState<ProcessingJob[]>([]);
 
   const getProjectAnalysisStatus = useCallback(async (projectId: string): Promise<AnalysisStatus> => {
     try {
@@ -48,7 +30,15 @@ export const useJobManager = () => {
         console.error('Error fetching knowledge stats:', knowledgeError);
       }
 
-      const currentJob = jobs?.[0] || null;
+      const currentJob = jobs?.[0] ? {
+        ...jobs[0],
+        job_type: jobs[0].job_type as ProcessingJob['job_type'],
+        state: jobs[0].state as ProcessingJob['state'],
+        processing_options: (jobs[0].processing_options as Record<string, any>) || {},
+        results_summary: (jobs[0].results_summary as Record<string, any>) || {},
+        error_details: jobs[0].error_details as Record<string, any> | undefined
+      } as ProcessingJob : null;
+
       const isProcessing = currentJob?.state === 'thinking' || currentJob?.state === 'analyzing' || currentJob?.state === 'extracting' || currentJob?.state === 'pending';
       const lastProcessedAt = jobs?.find(job => job.state === 'done')?.updated_at || null;
 
