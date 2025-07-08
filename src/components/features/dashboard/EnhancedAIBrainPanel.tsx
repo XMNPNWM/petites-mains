@@ -246,13 +246,9 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       />
 
       <Card className="p-6">
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue="characters" className="w-full">
           <div className="mb-6">
-            <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 gap-2 h-auto p-2 bg-slate-100">
-              <TabsTrigger value="overview" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
-                <Brain className="w-4 h-4" />
-                <span>Overview</span>
-              </TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-8 gap-2 h-auto p-2 bg-slate-100">
               <TabsTrigger value="characters" className="flex flex-col items-center space-y-1 p-3 text-xs h-auto">
                 <Users className="w-4 h-4" />
                 <span>Characters ({knowledge.filter(k => k.category === 'character').length})</span>
@@ -651,82 +647,6 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                   ))}
                 </div>
               )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="overview" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-slate-900">Characters</h4>
-                  <Users className="w-4 h-4 text-slate-500" />
-                </div>
-                <p className="text-2xl font-bold text-slate-900">{knowledge.filter(k => k.category === 'character').length}</p>
-                <p className="text-sm text-slate-600">Extracted characters</p>
-              </Card>
-
-              <Card className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-slate-900">Plot Points</h4>
-                  <BookOpen className="w-4 h-4 text-slate-500" />
-                </div>
-                <p className="text-2xl font-bold text-slate-900">{plotPoints.length}</p>
-                <p className="text-sm text-slate-600">Key plot moments</p>
-              </Card>
-
-              <Card className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-slate-900">World Building</h4>
-                  <Globe className="w-4 h-4 text-slate-500" />
-                </div>
-                <p className="text-2xl font-bold text-slate-900">{worldBuilding.length}</p>
-                <p className="text-sm text-slate-600">World elements</p>
-              </Card>
-
-              <Card className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-slate-900">Themes</h4>
-                  <Lightbulb className="w-4 h-4 text-slate-500" />
-                </div>
-                <p className="text-2xl font-bold text-slate-900">{themes.length}</p>
-                <p className="text-sm text-slate-600">Story themes</p>
-              </Card>
-
-              <Card className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-slate-900">Relationships</h4>
-                  <Heart className="w-4 h-4 text-slate-500" />
-                </div>
-                <p className="text-2xl font-bold text-slate-900">{characterRelationships.length}</p>
-                <p className="text-sm text-slate-600">Character relations</p>
-              </Card>
-
-              <Card className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-slate-900">Timeline</h4>
-                  <Calendar className="w-4 h-4 text-slate-500" />
-                </div>
-                <p className="text-2xl font-bold text-slate-900">{timelineEvents.length}</p>
-                <p className="text-sm text-slate-600">Events tracked</p>
-              </Card>
-
-              <Card className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-slate-900">Plot Threads</h4>
-                  <GitBranch className="w-4 h-4 text-slate-500" />
-                </div>
-                <p className="text-2xl font-bold text-slate-900">{plotThreads.length}</p>
-                <p className="text-sm text-slate-600">Story threads</p>
-              </Card>
-
-              <Card className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-slate-900">Summaries</h4>
-                  <FileText className="w-4 h-4 text-slate-500" />
-                </div>
-                <p className="text-2xl font-bold text-slate-900">{chapterSummaries.length}</p>
-                <p className="text-sm text-slate-600">Chapter summaries</p>
-              </Card>
             </div>
           </TabsContent>
         </Tabs>
