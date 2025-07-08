@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { RefinementService } from './RefinementService';
 import { ContentHashService } from './ContentHashService';
@@ -159,7 +158,7 @@ export class SmartAnalysisOrchestrator {
         };
       }
 
-      // PHASE 2: Comprehensive Knowledge Extraction using enhanced extract-knowledge function
+      // PHASE 2: Enhanced Knowledge Extraction using optimized extract-knowledge function
       let totalContentAnalyzed = 0;
       let totalCreditsUsed = 0;
       let totalKnowledgeExtracted = 0;
@@ -169,34 +168,45 @@ export class SmartAnalysisOrchestrator {
         `Chapter: ${chapter.title}\n${chapter.content || ''}`
       ).join('\n\n---CHAPTER_BREAK---\n\n');
 
-      console.log(`🧠 Phase 2: Comprehensive knowledge extraction from ${chaptersNeedingAnalysis.length} chapters (${contentToAnalyze.length} chars)`);
+      console.log(`🧠 Phase 2: Enhanced knowledge extraction from ${chaptersNeedingAnalysis.length} chapters (${contentToAnalyze.length} chars)`);
 
-      // Use the enhanced extract-knowledge edge function with comprehensive extraction
-      // For multiple chapters, we'll create a combined analysis with first chapter as primary
+      // Use the enhanced extract-knowledge edge function with incremental extraction
       const primaryChapterId = chaptersNeedingAnalysis[0]?.id;
       
       const { data: knowledgeResult, error: knowledgeError } = await supabase.functions.invoke('extract-knowledge', {
         body: { 
           content: contentToAnalyze,
           projectId: projectId,
-          extractionType: 'comprehensive',
+          extractionType: 'incremental',
           chapterId: primaryChapterId
         }
       });
 
       if (knowledgeError) {
-        console.error('Comprehensive knowledge extraction failed:', knowledgeError);
+        console.error('❌ Enhanced knowledge extraction failed:', knowledgeError);
         throw new Error(`Knowledge extraction failed: ${knowledgeError.message}`);
       }
 
-      if (knowledgeResult?.success) {
-        totalKnowledgeExtracted = knowledgeResult.storedCount || 0;
-        console.log(`✅ Comprehensive knowledge extraction completed: ${totalKnowledgeExtracted} items extracted`);
-        console.log('📊 Storage breakdown:', knowledgeResult.storageDetails);
+      if (knowledgeResult?.success && knowledgeResult.extractedData) {
+        console.log('✅ Enhanced knowledge extraction completed');
+        console.log('📊 Extraction results:', {
+          characters: knowledgeResult.extractedData.characters?.length || 0,
+          relationships: knowledgeResult.extractedData.relationships?.length || 0,
+          language: knowledgeResult.storageDetails?.language || 'unknown',
+          extractionStats: knowledgeResult.storageDetails?.extractionStats || {}
+        });
+
+        // Store the extracted knowledge in the database
+        const storedItems = await this.storeExtractedKnowledge(projectId, knowledgeResult.extractedData, chaptersNeedingAnalysis);
+        totalKnowledgeExtracted = storedItems;
         
-        if (knowledgeResult.errors && knowledgeResult.errors.length > 0) {
-          console.warn('Some errors occurred during storage:', knowledgeResult.errors);
+        console.log(`📚 Stored ${totalKnowledgeExtracted} knowledge items in database`);
+        
+        if (knowledgeResult.validation?.issues && knowledgeResult.validation.issues.length > 0) {
+          console.warn('⚠️ Some issues occurred during extraction:', knowledgeResult.validation.issues);
         }
+      } else {
+        console.warn('⚠️ Knowledge extraction returned no data or failed silently');
       }
 
       // PHASE 3: Update content hashes for analyzed chapters
@@ -225,7 +235,7 @@ export class SmartAnalysisOrchestrator {
         }
       }
 
-      console.log('✅ [SMART] Comprehensive project analysis completed successfully');
+      console.log('✅ [SMART] Enhanced project analysis completed successfully');
 
       return {
         success: true,
@@ -235,16 +245,96 @@ export class SmartAnalysisOrchestrator {
           knowledgeExtracted: totalKnowledgeExtracted,
           chaptersSkipped: chaptersSkipped,
           hashVerificationSaved: chaptersSkipped > 0,
-          comprehensiveExtraction: knowledgeResult?.storageDetails || {},
+          extractionDetails: knowledgeResult?.storageDetails || {},
           message: chaptersSkipped > 0 
             ? `Analyzed ${chaptersNeedingAnalysis.length} changed chapters, skipped ${chaptersSkipped} unchanged chapters`
-            : `Analyzed ${chaptersNeedingAnalysis.length} chapters with comprehensive extraction`
+            : `Analyzed ${chaptersNeedingAnalysis.length} chapters with enhanced extraction`
         }
       };
 
     } catch (error) {
-      console.error('❌ [SMART] Comprehensive project analysis failed:', error);
+      console.error('❌ [SMART] Enhanced project analysis failed:', error);
       throw error;
+    }
+  }
+
+  // New method to store extracted knowledge in database
+  static async storeExtractedKnowledge(projectId: string, extractedData: any, sourceChapters: any[]): Promise<number> {
+    let storedCount = 0;
+    const sourceChapterIds = sourceChapters.map(c => c.id);
+
+    try {
+      // Store characters
+      if (extractedData.characters && extractedData.characters.length > 0) {
+        for (const character of extractedData.characters) {
+          try {
+            const { error } = await supabase
+              .from('knowledge_base')
+              .insert({
+                project_id: projectId,
+                name: character.name,
+                category: 'character',
+                subcategory: character.role,
+                description: character.description,
+                details: {
+                  traits: character.traits || [],
+                  role: character.role
+                },
+                confidence_score: character.ai_confidence || 0.5,
+                extraction_method: 'llm_direct',
+                source_chapter_ids: sourceChapterIds,
+                is_newly_extracted: true,
+                ai_confidence_new: character.ai_confidence || 0.5
+              });
+
+            if (!error) {
+              storedCount++;
+            } else {
+              console.error('Error storing character:', character.name, error);
+            }
+          } catch (charError) {
+            console.error('Error processing character:', character, charError);
+          }
+        }
+      }
+
+      // Store relationships
+      if (extractedData.relationships && extractedData.relationships.length > 0) {
+        for (const relationship of extractedData.relationships) {
+          try {
+            const { error } = await supabase
+              .from('character_relationships')
+              .insert({
+                project_id: projectId,
+                character_a_name: relationship.character_a_name,
+                character_b_name: relationship.character_b_name,
+                relationship_type: relationship.relationship_type,
+                relationship_strength: relationship.relationship_strength || 5,
+                confidence_score: relationship.ai_confidence || 0.5,
+                extraction_method: 'llm_direct',
+                source_chapter_ids: sourceChapterIds,
+                is_newly_extracted: true,
+                ai_confidence_new: relationship.ai_confidence || 0.5,
+                evidence: relationship.evidence || null
+              });
+
+            if (!error) {
+              storedCount++;
+            } else {
+              console.error('Error storing relationship:', relationship, error);
+            }
+          } catch (relError) {
+            console.error('Error processing relationship:', relationship, relError);
+          }
+        }
+      }
+
+      console.log(`✅ Successfully stored ${storedCount} knowledge items`);
+      return storedCount;
+
+    } catch (error) {
+      console.error('❌ Error storing extracted knowledge:', error);
+      return storedCount;
     }
   }
 
