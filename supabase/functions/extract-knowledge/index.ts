@@ -159,7 +159,7 @@ const validateAIResponse = (data: any, parseMethod: string) => {
 };
 
 // Enhanced storage function with comprehensive data handling
-const storeExtractedKnowledge = async (supabase: any, projectId: string, extractedData: any) => {
+const storeExtractedKnowledge = async (supabase: any, projectId: string, extractedData: any, chapterId?: string) => {
   console.log('💾 Starting comprehensive knowledge storage process...');
   
   let storedCount = 0;
@@ -188,6 +188,7 @@ const storeExtractedKnowledge = async (supabase: any, projectId: string, extract
         .from('chapter_summaries')
         .upsert({
           project_id: projectId,
+          chapter_id: chapterId, // Include chapter_id for proper relationship
           title: summary.title || 'Chapter Summary',
           summary_short: summary.summary_short || '',
           summary_long: summary.summary_long || '',
@@ -196,7 +197,7 @@ const storeExtractedKnowledge = async (supabase: any, projectId: string, extract
           ai_confidence: 0.8,
           is_newly_extracted: true
         }, {
-          onConflict: 'project_id,title'
+          onConflict: 'project_id,chapter_id'
         });
 
       if (error) {
@@ -545,7 +546,7 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    const { content, projectId, extractionType = 'comprehensive' } = await req.json();
+    const { content, projectId, extractionType = 'comprehensive', chapterId } = await req.json();
     
     console.log('📥 Request details:', { 
       projectId, 
@@ -795,7 +796,7 @@ ${content}`;
 
       // Store extracted knowledge with comprehensive handling
       console.log('💾 Beginning comprehensive knowledge storage process...');
-      const storageResult = await storeExtractedKnowledge(supabase, projectId, extractedData);
+      const storageResult = await storeExtractedKnowledge(supabase, projectId, extractedData, chapterId);
 
       const processingTime = Date.now() - startTime;
       console.log('⏱️ Total processing time:', processingTime, 'ms');

@@ -172,11 +172,15 @@ export class SmartAnalysisOrchestrator {
       console.log(`🧠 Phase 2: Comprehensive knowledge extraction from ${chaptersNeedingAnalysis.length} chapters (${contentToAnalyze.length} chars)`);
 
       // Use the enhanced extract-knowledge edge function with comprehensive extraction
+      // For multiple chapters, we'll create a combined analysis with first chapter as primary
+      const primaryChapterId = chaptersNeedingAnalysis[0]?.id;
+      
       const { data: knowledgeResult, error: knowledgeError } = await supabase.functions.invoke('extract-knowledge', {
         body: { 
           content: contentToAnalyze,
           projectId: projectId,
-          extractionType: 'comprehensive'
+          extractionType: 'comprehensive',
+          chapterId: primaryChapterId
         }
       });
 

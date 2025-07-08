@@ -1025,6 +1025,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          is_flagged: boolean | null
           is_newly_extracted: boolean | null
           name: string
           plot_thread_name: string | null
@@ -1039,6 +1040,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          is_flagged?: boolean | null
           is_newly_extracted?: boolean | null
           name: string
           plot_thread_name?: string | null
@@ -1053,6 +1055,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          is_flagged?: boolean | null
           is_newly_extracted?: boolean | null
           name?: string
           plot_thread_name?: string | null
