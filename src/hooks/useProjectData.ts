@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Project, Chapter } from '@/types/shared';
@@ -14,7 +13,7 @@ export const useProjectData = (projectId: string | undefined) => {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, title, description, user_id')
+        .select('id, title, description, user_id, created_at, updated_at')
         .eq('id', projectId)
         .single();
 
