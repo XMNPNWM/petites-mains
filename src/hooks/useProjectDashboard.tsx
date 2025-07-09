@@ -1,146 +1,111 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { Project } from '@/types/Project';
+import { Chapter } from '@/types/Chapter';
+import { ReadOnlyStorylineViewer } from '@/components/panels/storyline/ReadOnlyStorylineViewer';
+import { ChapterOrganizerPanel } from '@/components/panels/chapters/ChapterOrganizerPanel';
+import { ProjectInsights } from '@/components/panels/analytics/ProjectInsights';
+import { UnifiedWorldbuildingPanel } from '@/components/panels/worldbuilding/UnifiedWorldbuildingPanel';
+import { EnhancedAIBrainPanel } from '@/components/panels/ai-brain/EnhancedAIBrainPanel';
 
-interface Project {
+interface Panel {
   id: string;
-  title: string;
-  description: string;
-  created_at: string;
-  updated_at: string;
-  last_active_chapter_id?: string;
+  label: string;
+  component: React.ComponentType<any>;
+  props: any;
 }
 
-interface Chapter {
-  id: string;
-  title: string;
-  word_count: number;
-  status: string;
-  order_index: number;
-}
-
-interface WorldbuildingElementsByType {
-  [type: string]: number;
-}
-
-export const useProjectDashboard = (projectId: string | undefined) => {
-  const navigate = useNavigate();
+export const useProjectDashboard = (projectId: string) => {
   const [project, setProject] = useState<Project | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
-  const [currentPanel, setCurrentPanel] = useState(0);
-  const [totalWorldElements, setTotalWorldElements] = useState(0);
-  const [worldElementsByType, setWorldElementsByType] = useState<WorldbuildingElementsByType>({});
-
-  const panels = [
-    { id: 'storyline', title: 'Storyline', icon: 'BookOpen' },
-    { id: 'worldbuilding', title: 'World Elements', icon: 'Globe' },
-    { id: 'chapters', title: 'Chapters', icon: 'Edit3' },
-    { id: 'ai-brain', title: 'AI Brain', icon: 'Brain' },
-    { id: 'analytics', title: 'Analytics', icon: 'BarChart3' }
-  ];
-
-  const fetchProjectData = async () => {
-    if (!projectId) return;
-
-    try {
-      // Fetch project
-      const { data: projectData, error: projectError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .single();
-
-      if (projectError) throw projectError;
-      setProject(projectData);
-
-      // Fetch chapters with timestamps for analytics
-      const { data: chaptersData, error: chaptersError } = await supabase
-        .from('chapters')
-        .select('*, created_at, updated_at')
-        .eq('project_id', projectId)
-        .order('order_index');
-
-      if (chaptersError) throw chaptersError;
-      setChapters(chaptersData || []);
-
-      // Fetch worldbuilding elements with type breakdown
-      const { data: worldData, error: worldError } = await supabase
-        .from('worldbuilding_elements')
-        .select('type')
-        .eq('project_id', projectId);
-
-      if (worldError) throw worldError;
-      
-      // Group worldbuilding elements by type
-      const elementsByType = (worldData || []).reduce((acc, element) => {
-        acc[element.type] = (acc[element.type] || 0) + 1;
-        return acc;
-      }, {} as WorldbuildingElementsByType);
-
-      setWorldElementsByType(elementsByType);
-      setTotalWorldElements((worldData || []).length);
-
-    } catch (error) {
-      console.error('Error fetching project data:', error);
-    }
-  };
-
-  const updateProjectDescription = async (newDescription: string) => {
-    if (!project) return;
-
-    try {
-      const { error } = await supabase
-        .from('projects')
-        .update({ description: newDescription })
-        .eq('id', project.id);
-
-      if (error) throw error;
-      
-      setProject(prev => prev ? { ...prev, description: newDescription } : null);
-    } catch (error) {
-      console.error('Error updating project description:', error);
-      throw error;
-    }
-  };
-
-  const goToWritingSpace = (chapterId?: string) => {
-    const route = chapterId 
-      ? `/project/${projectId}/write/${chapterId}`
-      : `/project/${projectId}/write`;
-    navigate(route);
-  };
-
-  const handleWriteButtonClick = () => {
-    if (project?.last_active_chapter_id) {
-      goToWritingSpace(project.last_active_chapter_id);
-    } else {
-      goToWritingSpace();
-    }
-  };
-
-  const getWriteButtonText = () => {
-    if (project?.last_active_chapter_id) {
-      return 'Continue Writing';
-    }
-    return chapters.length > 0 ? 'Start Writing' : 'Create First Chapter';
-  };
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const fetchProjectData = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // Fetch project details
+        const { data: projectData, error: projectError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', projectId)
+          .single();
+
+        if (projectError) {
+          throw new Error(`Failed to fetch project: ${projectError.message}`);
+        }
+
+        if (!projectData) {
+          throw new Error('Project not found');
+        }
+
+        setProject(projectData as Project);
+
+        // Fetch chapters for the project
+        const { data: chaptersData, error: chaptersError } = await supabase
+          .from('chapters')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('order_number', { ascending: true });
+
+        if (chaptersError) {
+          throw new Error(`Failed to fetch chapters: ${chaptersError.message}`);
+        }
+
+        setChapters(chaptersData as Chapter[]);
+      } catch (err: any) {
+        setError(err.message);
+        console.error('Error fetching project data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     fetchProjectData();
   }, [projectId]);
+
+  const panels = [
+    { 
+      id: 'storyline', 
+      label: 'Storyline', 
+      component: ReadOnlyStorylineViewer,
+      props: { projectId }
+    },
+    { 
+      id: 'worldbuilding', 
+      label: 'World Elements', 
+      component: UnifiedWorldbuildingPanel,
+      props: { projectId }
+    },
+    { 
+      id: 'ai-brain', 
+      label: 'AI Brain', 
+      component: EnhancedAIBrainPanel,
+      props: { projectId }
+    },
+    { 
+      id: 'chapters', 
+      label: 'Chapters', 
+      component: ChapterOrganizerPanel,
+      props: { projectId }
+    },
+    { 
+      id: 'analytics', 
+      label: 'Analytics', 
+      component: ProjectInsights,
+      props: { projectId }
+    }
+  ];
 
   return {
     project,
     chapters,
-    currentPanel,
-    setCurrentPanel,
-    totalWorldElements,
-    worldElementsByType,
-    panels,
-    updateProjectDescription,
-    goToWritingSpace,
-    handleWriteButtonClick,
-    getWriteButtonText,
-    navigate
+    isLoading,
+    error,
+    panels
   };
 };

@@ -17,7 +17,6 @@ export interface SimilarityResult {
 export class EmbeddingsService {
   private static readonly MODEL = 'text-embedding-004';
   private static readonly DIMENSION = 768;
-  private static readonly GOOGLE_AI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent';
   
   // Rate limiting for Google AI (60 requests/minute for free tier)
   private static requestQueue: Array<() => Promise<any>> = [];
@@ -51,27 +50,7 @@ export class EmbeddingsService {
   }
 
   /**
-   * Generate batch embeddings for multiple texts with rate limiting
-   */
-  static async generateBatchEmbeddings(texts: string[]): Promise<EmbeddingResult[]> {
-    const results: EmbeddingResult[] = [];
-    
-    // Process individually to respect rate limits
-    for (const text of texts) {
-      const result = await this.generateEmbedding(text);
-      results.push(result);
-      
-      // Delay between requests to respect rate limits
-      if (texts.indexOf(text) < texts.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, this.MIN_REQUEST_INTERVAL));
-      }
-    }
-    
-    return results;
-  }
-
-  /**
-   * Call Google AI API for embeddings with rate limiting
+   * Call Google AI API for embeddings using proper GoogleGenAI client pattern
    */
   private static async callGoogleAIEmbedding(text: string): Promise<number[]> {
     return new Promise((resolve, reject) => {
@@ -85,28 +64,19 @@ export class EmbeddingsService {
             );
           }
 
-          const response = await fetch(`${this.GOOGLE_AI_URL}?key=${process.env.GOOGLE_AI_API_KEY}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: `models/${this.MODEL}`,
-              content: {
-                parts: [{ text }]
-              }
-            })
+          // Use Supabase edge function to call Google AI API properly
+          const { data, error } = await supabase.functions.invoke('generate-embedding', {
+            body: { text, model: this.MODEL }
           });
 
-          if (!response.ok) {
-            throw new Error(`Google AI API error: ${response.status} ${response.statusText}`);
+          if (error) {
+            throw new Error(`Google AI API error: ${error.message}`);
           }
 
-          const data = await response.json();
           this.lastRequestTime = Date.now();
           
-          if (data.embedding && data.embedding.values) {
-            resolve(data.embedding.values);
+          if (data && data.embedding) {
+            resolve(data.embedding);
           } else {
             throw new Error('Invalid embedding response format');
           }
