@@ -20,36 +20,40 @@ function detectLanguage(content: string): string {
   return frenchCount > 5 ? 'french' : 'english';
 }
 
-// Comprehensive prompts for all data types in both languages
+// Enhanced prompts with explicit language preservation instructions
 const prompts = {
   characters: {
-    english: `Analyze this creative fiction text and extract character information. Focus on identifying:
-- Character names (including nicknames, aliases)
+    english: `CRITICAL INSTRUCTION: You MUST respond in English and preserve all original character names exactly as they appear in the text.
+
+Analyze this creative fiction text and extract character information. Focus on identifying:
+- Character names (including nicknames, aliases) - KEEP ORIGINAL NAMES EXACTLY
 - Their roles in the story
 - Physical or personality descriptions
 - Goals, motivations, or traits
 
 Return a JSON object with a "characters" array. Each character should have:
 {
-  "name": "Character Name",
-  "role": "their role",
-  "description": "description of the character",
+  "name": "Character Name (EXACT as in text)",
+  "role": "their role in English",
+  "description": "description of the character in English",
   "traits": ["trait1", "trait2"],
   "ai_confidence": 0.8
 }
 
 Text to analyze:`,
-    french: `Analysez ce texte de fiction créative et extrayez les informations sur les personnages. Concentrez-vous sur:
-- Les noms des personnages (y compris surnoms, alias)
+    french: `INSTRUCTION CRITIQUE: Vous DEVEZ répondre en français et préserver tous les noms de personnages originaux exactement comme ils apparaissent dans le texte.
+
+Analysez ce texte de fiction créative et extrayez les informations sur les personnages. Concentrez-vous sur:
+- Les noms des personnages (y compris surnoms, alias) - GARDEZ LES NOMS ORIGINAUX EXACTS
 - Leurs rôles dans l'histoire
 - Descriptions physiques ou de personnalité
 - Objectifs, motivations, ou traits
 
 Retournez un objet JSON avec un tableau "characters". Chaque personnage doit avoir:
 {
-  "name": "Nom du Personnage",
-  "role": "leur rôle",
-  "description": "description du personnage",
+  "name": "Nom du Personnage (EXACT comme dans le texte)",
+  "role": "leur rôle en français",
+  "description": "description du personnage en français",
   "traits": ["trait1", "trait2"],
   "ai_confidence": 0.8
 }
@@ -57,31 +61,35 @@ Retournez un objet JSON avec un tableau "characters". Chaque personnage doit avo
 Texte à analyser:`
   },
   relationships: {
-    english: `Analyze this creative fiction text and extract character relationships. Look for:
+    english: `CRITICAL INSTRUCTION: You MUST respond in English and preserve all original character names exactly as they appear in the text.
+
+Analyze this creative fiction text and extract character relationships. Look for:
 - How characters interact with each other
 - Their relationship types (friend, enemy, family, romantic, etc.)
 - Relationship strength and dynamics
 
 Return a JSON object with a "relationships" array:
 {
-  "character_a_name": "First Character",
-  "character_b_name": "Second Character", 
-  "relationship_type": "friend/enemy/family/romantic/etc",
+  "character_a_name": "First Character (EXACT as in text)",
+  "character_b_name": "Second Character (EXACT as in text)", 
+  "relationship_type": "friend/enemy/family/romantic/etc in English",
   "relationship_strength": 5,
   "ai_confidence": 0.8
 }
 
 Text to analyze:`,
-    french: `Analysez ce texte de fiction créative et extrayez les relations entre personnages. Recherchez:
+    french: `INSTRUCTION CRITIQUE: Vous DEVEZ répondre en français et préserver tous les noms de personnages originaux exactement comme ils apparaissent dans le texte.
+
+Analysez ce texte de fiction créative et extrayez les relations entre personnages. Recherchez:
 - Comment les personnages interagissent
 - Types de relations (ami, ennemi, famille, romantique, etc.)
 - Force et dynamiques des relations
 
 Retournez un objet JSON avec un tableau "relationships":
 {
-  "character_a_name": "Premier Personnage",
-  "character_b_name": "Deuxième Personnage",
-  "relationship_type": "ami/ennemi/famille/romantique/etc",
+  "character_a_name": "Premier Personnage (EXACT comme dans le texte)",
+  "character_b_name": "Deuxième Personnage (EXACT comme dans le texte)",
+  "relationship_type": "ami/ennemi/famille/romantique/etc en français",
   "relationship_strength": 5,
   "ai_confidence": 0.8
 }
@@ -89,109 +97,123 @@ Retournez un objet JSON avec un tableau "relationships":
 Texte à analyser:`
   },
   plotThreads: {
-    english: `Analyze this creative fiction text and extract plot threads/story arcs. Look for:
+    english: `CRITICAL INSTRUCTION: You MUST respond in English and preserve all original character names exactly as they appear in the text.
+
+Analyze this creative fiction text and extract plot threads/story arcs. Look for:
 - Main story arcs and subplots
 - Narrative threads that span across scenes
 - Story progression and development
 
 Return a JSON object with a "plotThreads" array:
 {
-  "thread_name": "Name of the plot thread",
+  "thread_name": "Name of the plot thread in English",
   "thread_type": "main/subplot/character_arc/mystery/etc",
   "thread_status": "active/resolved/paused",
   "key_events": ["event1", "event2"],
-  "characters_involved_names": ["character1", "character2"],
+  "characters_involved_names": ["character1 (EXACT as in text)", "character2 (EXACT as in text)"],
   "ai_confidence": 0.8
 }
 
 Text to analyze:`,
-    french: `Analysez ce texte de fiction créative et extrayez les fils narratifs/arcs d'histoire. Recherchez:
+    french: `INSTRUCTION CRITIQUE: Vous DEVEZ répondre en français et préserver tous les noms de personnages originaux exactement comme ils apparaissent dans le texte.
+
+Analysez ce texte de fiction créative et extrayez les fils narratifs/arcs d'histoire. Recherchez:
 - Arcs d'histoire principaux et sous-intrigues
 - Fils narratifs qui s'étendent sur plusieurs scènes
 - Progression et développement de l'histoire
 
 Retournez un objet JSON avec un tableau "plotThreads":
 {
-  "thread_name": "Nom du fil narratif",
+  "thread_name": "Nom du fil narratif en français",
   "thread_type": "principal/sous-intrigue/arc_personnage/mystère/etc",
   "thread_status": "actif/résolu/en_pause",
   "key_events": ["événement1", "événement2"],
-  "characters_involved_names": ["personnage1", "personnage2"],
+  "characters_involved_names": ["personnage1 (EXACT comme dans le texte)", "personnage2 (EXACT comme dans le texte)"],
   "ai_confidence": 0.8
 }
 
 Texte à analyser:`
   },
   timelineEvents: {
-    english: `Analyze this creative fiction text and extract timeline events. Look for:
+    english: `CRITICAL INSTRUCTION: You MUST respond in English and preserve all original character names exactly as they appear in the text.
+
+Analyze this creative fiction text and extract timeline events. Look for:
 - Key events that happen in chronological order
 - Time references and sequencing
 - Important story moments with temporal significance
 
 Return a JSON object with a "timelineEvents" array:
 {
-  "event_summary": "Brief description of the event",
+  "event_summary": "Brief description of the event in English",
   "chronological_order": 1,
-  "date_or_time_reference": "time reference from text",
-  "significance": "why this event is important",
-  "characters_involved_names": ["character1", "character2"],
+  "date_or_time_reference": "time reference from text (keep original)",
+  "significance": "why this event is important in English",
+  "characters_involved_names": ["character1 (EXACT as in text)", "character2 (EXACT as in text)"],
   "ai_confidence": 0.8
 }
 
 Text to analyze:`,
-    french: `Analysez ce texte de fiction créative et extrayez les événements chronologiques. Recherchez:
+    french: `INSTRUCTION CRITIQUE: Vous DEVEZ répondre en français et préserver tous les noms de personnages originaux exactement comme ils apparaissent dans le texte.
+
+Analysez ce texte de fiction créative et extrayez les événements chronologiques. Recherchez:
 - Événements clés qui se passent dans l'ordre chronologique
 - Références temporelles et séquences
 - Moments importants de l'histoire avec signification temporelle
 
 Retournez un objet JSON avec un tableau "timelineEvents":
 {
-  "event_summary": "Description brève de l'événement",
+  "event_summary": "Description brève de l'événement en français",
   "chronological_order": 1,
-  "date_or_time_reference": "référence temporelle du texte",
-  "significance": "pourquoi cet événement est important",
-  "characters_involved_names": ["personnage1", "personnage2"],
+  "date_or_time_reference": "référence temporelle du texte (garder original)",
+  "significance": "pourquoi cet événement est important en français",
+  "characters_involved_names": ["personnage1 (EXACT comme dans le texte)", "personnage2 (EXACT comme dans le texte)"],
   "ai_confidence": 0.8
 }
 
 Texte à analyser:`
   },
   plotPoints: {
-    english: `Analyze this creative fiction text and extract plot points. Look for:
+    english: `CRITICAL INSTRUCTION: You MUST respond in English and preserve all original character names exactly as they appear in the text.
+
+Analyze this creative fiction text and extract plot points. Look for:
 - Specific story beats and turning points
 - Key revelations and discoveries
 - Important narrative moments that drive the story
 
 Return a JSON object with a "plotPoints" array:
 {
-  "name": "Plot point name",
-  "description": "What happens in this plot point",
-  "plot_thread_name": "Related plot thread",
-  "significance": "Impact on the story",
-  "characters_involved_names": ["character1", "character2"],
+  "name": "Plot point name in English",
+  "description": "What happens in this plot point in English",
+  "plot_thread_name": "Related plot thread in English",
+  "significance": "Impact on the story in English",
+  "characters_involved_names": ["character1 (EXACT as in text)", "character2 (EXACT as in text)"],
   "ai_confidence": 0.8
 }
 
 Text to analyze:`,
-    french: `Analysez ce texte de fiction créative et extrayez les points d'intrigue. Recherchez:
+    french: `INSTRUCTION CRITIQUE: Vous DEVEZ répondre en français et préserver tous les noms de personnages originaux exactement comme ils apparaissent dans le texte.
+
+Analysez ce texte de fiction créative et extrayez les points d'intrigue. Recherchez:
 - Moments narratifs spécifiques et tournants
 - Révélations et découvertes clés
 - Moments narratifs importants qui font avancer l'histoire
 
 Retournez un objet JSON avec un tableau "plotPoints":
 {
-  "name": "Nom du point d'intrigue",
-  "description": "Ce qui se passe dans ce point d'intrigue",
-  "plot_thread_name": "Fil narratif associé",
-  "significance": "Impact sur l'histoire",
-  "characters_involved_names": ["personnage1", "personnage2"],
+  "name": "Nom du point d'intrigue en français",
+  "description": "Ce qui se passe dans ce point d'intrigue en français",
+  "plot_thread_name": "Fil narratif associé en français",
+  "significance": "Impact sur l'histoire en français",
+  "characters_involved_names": ["personnage1 (EXACT comme dans le texte)", "personnage2 (EXACT comme dans le texte)"],
   "ai_confidence": 0.8
 }
 
 Texte à analyser:`
   },
   chapterSummaries: {
-    english: `Analyze this creative fiction text and create a comprehensive chapter summary. Focus on:
+    english: `CRITICAL INSTRUCTION: You MUST respond in English and preserve all original character names exactly as they appear in the text.
+
+Analyze this creative fiction text and create a comprehensive chapter summary. Focus on:
 - Overall chapter theme and focus
 - Key events that happen
 - Character development and interactions
@@ -199,16 +221,18 @@ Texte à analyser:`
 
 Return a JSON object with a "chapterSummaries" array:
 {
-  "title": "Chapter title or suggested title",
-  "summary_short": "Brief 1-2 sentence summary",
-  "summary_long": "Detailed paragraph summary",
-  "key_events_in_chapter": ["event1", "event2"],
-  "primary_focus": ["main_theme1", "main_theme2"],
+  "title": "Chapter title or suggested title in English",
+  "summary_short": "Brief 1-2 sentence summary in English",
+  "summary_long": "Detailed paragraph summary in English",
+  "key_events_in_chapter": ["event1 in English", "event2 in English"],
+  "primary_focus": ["main_theme1 in English", "main_theme2 in English"],
   "ai_confidence": 0.8
 }
 
 Text to analyze:`,
-    french: `Analysez ce texte de fiction créative et créez un résumé de chapitre complet. Concentrez-vous sur:
+    french: `INSTRUCTION CRITIQUE: Vous DEVEZ répondre en français et préserver tous les noms de personnages originaux exactement comme ils apparaissent dans le texte.
+
+Analysez ce texte de fiction créative et créez un résumé de chapitre complet. Concentrez-vous sur:
 - Thème et focus général du chapitre
 - Événements clés qui se passent
 - Développement des personnages et interactions
@@ -216,18 +240,20 @@ Text to analyze:`,
 
 Retournez un objet JSON avec un tableau "chapterSummaries":
 {
-  "title": "Titre du chapitre ou titre suggéré",
-  "summary_short": "Résumé bref en 1-2 phrases",
-  "summary_long": "Résumé détaillé en paragraphe",
-  "key_events_in_chapter": ["événement1", "événement2"],
-  "primary_focus": ["thème_principal1", "thème_principal2"],
+  "title": "Titre du chapitre ou titre suggéré en français",
+  "summary_short": "Résumé bref en 1-2 phrases en français",
+  "summary_long": "Résumé détaillé en paragraphe en français",
+  "key_events_in_chapter": ["événement1 en français", "événement2 en français"],
+  "primary_focus": ["thème_principal1 en français", "thème_principal2 en français"],
   "ai_confidence": 0.8
 }
 
 Texte à analyser:`
   },
   worldBuilding: {
-    english: `Analyze this creative fiction text and extract world building elements. Look for:
+    english: `CRITICAL INSTRUCTION: You MUST respond in English and preserve all original place names and terms exactly as they appear in the text.
+
+Analyze this creative fiction text and extract world building elements. Look for:
 - Settings, locations, and environments
 - Magic systems, technologies, or special abilities
 - Cultural elements, societies, and organizations
@@ -235,16 +261,18 @@ Texte à analyser:`
 
 Return a JSON object with a "worldBuilding" array:
 {
-  "name": "Element name",
+  "name": "Element name (EXACT as in text for places/names)",
   "type": "location/magic_system/culture/technology/rule/etc",
-  "description": "Detailed description of the element",
-  "significance": "How this affects the story world",
+  "description": "Detailed description of the element in English",
+  "significance": "How this affects the story world in English",
   "details": {"key": "value"},
   "ai_confidence": 0.8
 }
 
 Text to analyze:`,
-    french: `Analysez ce texte de fiction créative et extrayez les éléments de construction du monde. Recherchez:
+    french: `INSTRUCTION CRITIQUE: Vous DEVEZ répondre en français et préserver tous les noms de lieux et termes originaux exactement comme ils apparaissent dans le texte.
+
+Analysez ce texte de fiction créative et extrayez les éléments de construction du monde. Recherchez:
 - Décors, lieux et environnements
 - Systèmes de magie, technologies ou capacités spéciales
 - Éléments culturels, sociétés et organisations
@@ -252,10 +280,10 @@ Text to analyze:`,
 
 Retournez un objet JSON avec un tableau "worldBuilding":
 {
-  "name": "Nom de l'élément",
+  "name": "Nom de l'élément (EXACT comme dans le texte pour lieux/noms)",
   "type": "lieu/système_magique/culture/technologie/règle/etc",
-  "description": "Description détaillée de l'élément",
-  "significance": "Comment cela affecte le monde de l'histoire",
+  "description": "Description détaillée de l'élément en français",
+  "significance": "Comment cela affecte le monde de l'histoire en français",
   "details": {"clé": "valeur"},
   "ai_confidence": 0.8
 }
@@ -263,7 +291,9 @@ Retournez un objet JSON avec un tableau "worldBuilding":
 Texte à analyser:`
   },
   themes: {
-    english: `Analyze this creative fiction text and extract themes. Look for:
+    english: `CRITICAL INSTRUCTION: You MUST respond in English and preserve all original character names exactly as they appear in the text.
+
+Analyze this creative fiction text and extract themes. Look for:
 - Central themes and messages
 - Recurring motifs and symbols
 - Moral or philosophical questions explored
@@ -271,16 +301,18 @@ Texte à analyser:`
 
 Return a JSON object with a "themes" array:
 {
-  "name": "Theme name",
+  "name": "Theme name in English",
   "type": "central/secondary/motif/moral/etc",
-  "exploration_summary": "How this theme is explored",
-  "key_moments_or_characters": ["moment1", "character1"],
-  "significance": "Why this theme matters to the story",
+  "exploration_summary": "How this theme is explored in English",
+  "key_moments_or_characters": ["moment1 in English", "character1 (EXACT as in text)"],
+  "significance": "Why this theme matters to the story in English",
   "ai_confidence": 0.8
 }
 
 Text to analyze:`,
-    french: `Analysez ce texte de fiction créative et extrayez les thèmes. Recherchez:
+    french: `INSTRUCTION CRITIQUE: Vous DEVEZ répondre en français et préserver tous les noms de personnages originaux exactement comme ils apparaissent dans le texte.
+
+Analysez ce texte de fiction créative et extrayez les thèmes. Recherchez:
 - Thèmes centraux et messages
 - Motifs et symboles récurrents
 - Questions morales ou philosophiques explorées
@@ -288,11 +320,11 @@ Text to analyze:`,
 
 Retournez un objet JSON avec un tableau "themes":
 {
-  "name": "Nom du thème",
+  "name": "Nom du thème en français",
   "type": "central/secondaire/motif/moral/etc",
-  "exploration_summary": "Comment ce thème est exploré",
-  "key_moments_or_characters": ["moment1", "personnage1"],
-  "significance": "Pourquoi ce thème est important pour l'histoire",
+  "exploration_summary": "Comment ce thème est exploré en français",
+  "key_moments_or_characters": ["moment1 en français", "personnage1 (EXACT comme dans le texte)"],
+  "significance": "Pourquoi ce thème est important pour l'histoire en français",
   "ai_confidence": 0.8
 }
 
@@ -300,15 +332,21 @@ Texte à analyser:`
   }
 };
 
-// Flexible JSON parsing with multiple strategies
-function parseAIResponse(response: string, expectedType: string): any {
+// Enhanced parsing with language validation
+function parseAIResponse(response: string, expectedType: string, expectedLanguage: string): any {
   logExtraction('RAW_RESPONSE', { type: expectedType, response: response.substring(0, 500) + '...' });
   
   // Strategy 1: Direct JSON parsing
   try {
     const parsed = JSON.parse(response);
     if (parsed[expectedType] && Array.isArray(parsed[expectedType])) {
-      logExtraction('PARSE_SUCCESS_DIRECT', { type: expectedType, count: parsed[expectedType].length });
+      // Validate language consistency
+      const languageValid = validateResponseLanguage(parsed[expectedType], expectedLanguage);
+      if (!languageValid) {
+        logExtraction('LANGUAGE_VALIDATION_FAILED', { expectedLanguage, type: expectedType });
+        // Continue to fallback strategies rather than failing completely
+      }
+      logExtraction('PARSE_SUCCESS_DIRECT', { type: expectedType, count: parsed[expectedType].length, languageValid });
       return parsed;
     }
   } catch (e) {
@@ -321,7 +359,8 @@ function parseAIResponse(response: string, expectedType: string): any {
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[1]);
       if (parsed[expectedType] && Array.isArray(parsed[expectedType])) {
-        logExtraction('PARSE_SUCCESS_MARKDOWN', { type: expectedType, count: parsed[expectedType].length });
+        const languageValid = validateResponseLanguage(parsed[expectedType], expectedLanguage);
+        logExtraction('PARSE_SUCCESS_MARKDOWN', { type: expectedType, count: parsed[expectedType].length, languageValid });
         return parsed;
       }
     }
@@ -337,7 +376,8 @@ function parseAIResponse(response: string, expectedType: string): any {
       const jsonStr = response.substring(jsonStart, jsonEnd);
       const parsed = JSON.parse(jsonStr);
       if (parsed[expectedType] && Array.isArray(parsed[expectedType])) {
-        logExtraction('PARSE_SUCCESS_SUBSTRING', { type: expectedType, count: parsed[expectedType].length });
+        const languageValid = validateResponseLanguage(parsed[expectedType], expectedLanguage);
+        logExtraction('PARSE_SUCCESS_SUBSTRING', { type: expectedType, count: parsed[expectedType].length, languageValid });
         return parsed;
       }
     }
@@ -348,6 +388,37 @@ function parseAIResponse(response: string, expectedType: string): any {
   // Strategy 4: Return empty structure to avoid null errors
   logExtraction('PARSE_FALLBACK', { expectedType });
   return { [expectedType]: [] };
+}
+
+// Language validation function
+function validateResponseLanguage(dataArray: any[], expectedLanguage: string): boolean {
+  if (!dataArray || dataArray.length === 0) return true;
+  
+  // Sample check on first few items
+  const sampleSize = Math.min(3, dataArray.length);
+  const samples = dataArray.slice(0, sampleSize);
+  
+  for (const item of samples) {
+    // Check descriptive text fields for language consistency
+    const textFields = ['description', 'role', 'thread_name', 'event_summary', 'significance', 'summary_short', 'summary_long'];
+    
+    for (const field of textFields) {
+      if (item[field]) {
+        const detectedLang = detectLanguage(item[field]);
+        if (detectedLang !== expectedLanguage) {
+          logExtraction('LANGUAGE_MISMATCH', { 
+            field, 
+            expected: expectedLanguage, 
+            detected: detectedLang, 
+            text: item[field].substring(0, 100) 
+          });
+          return false;
+        }
+      }
+    }
+  }
+  
+  return true;
 }
 
 // Database field mapping and validation functions
@@ -475,7 +546,7 @@ async function extractWithAI(content: string, extractionType: string, language: 
       throw new Error('Empty response from AI');
     }
 
-    return parseAIResponse(aiResponse, extractionType);
+    return parseAIResponse(aiResponse, extractionType, language);
   } catch (error) {
     logExtraction('EXTRACTION_ERROR', { error: error.message });
     throw error;
