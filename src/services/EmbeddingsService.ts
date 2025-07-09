@@ -228,6 +228,118 @@ export class EmbeddingsService {
   }
 
   /**
+   * Check if content is similar to existing chunks using embeddings
+   */
+  static async checkContentSimilarity(
+    projectId: string,
+    content: string,
+    similarityThreshold: number = 0.8
+  ): Promise<{
+    isSimilar: boolean;
+    similarChunks: SimilarityResult[];
+    shouldSkipExtraction: boolean;
+  }> {
+    try {
+      console.log('🔍 Checking content similarity for:', content.substring(0, 100) + '...');
+      
+      // Generate embedding for the content
+      const embeddingResult = await this.generateEmbedding(content);
+      
+      // Find similar chunks
+      const similarChunks = await this.findSimilarChunks(
+        projectId,
+        embeddingResult.embedding,
+        10,
+        similarityThreshold
+      );
+
+      const isSimilar = similarChunks.length > 0;
+      const shouldSkipExtraction = isSimilar && similarChunks[0]?.similarity >= 0.85;
+
+      console.log(`📊 Similarity check results: ${similarChunks.length} similar chunks found`);
+      if (shouldSkipExtraction) {
+        console.log(`⏭️ Skipping extraction - content too similar (${similarChunks[0].similarity})`);
+      }
+
+      return {
+        isSimilar,
+        similarChunks,
+        shouldSkipExtraction
+      };
+    } catch (error) {
+      console.error('Error checking content similarity:', error);
+      return {
+        isSimilar: false,
+        similarChunks: [],
+        shouldSkipExtraction: false
+      };
+    }
+  }
+
+  /**
+   * Process embeddings for all chunks in a project that don't have them
+   */
+  static async processProjectEmbeddings(projectId: string): Promise<{
+    processed: number;
+    skipped: number;
+    errors: number;
+  }> {
+    try {
+      console.log(`🚀 Processing embeddings for project: ${projectId}`);
+      
+      // Get chunks without embeddings
+      const { data: chunks, error } = await supabase
+        .from('semantic_chunks')
+        .select('id, content')
+        .eq('project_id', projectId)
+        .is('embeddings', null);
+
+      if (error) throw error;
+
+      if (!chunks || chunks.length === 0) {
+        console.log('✅ All chunks already have embeddings');
+        return { processed: 0, skipped: 0, errors: 0 };
+      }
+
+      let processed = 0;
+      let errors = 0;
+
+      console.log(`📝 Processing ${chunks.length} chunks...`);
+
+      // Process chunks in batches to respect rate limits
+      for (const chunk of chunks) {
+        try {
+          const embeddingResult = await this.generateEmbedding(chunk.content);
+          await this.storeEmbedding(chunk.id, embeddingResult.embedding);
+          processed++;
+          
+          // Log progress every 10 chunks
+          if (processed % 10 === 0) {
+            console.log(`📊 Processed ${processed}/${chunks.length} chunks`);
+          }
+          
+          // Rate limiting delay
+          await new Promise(resolve => setTimeout(resolve, this.MIN_REQUEST_INTERVAL));
+        } catch (error) {
+          console.error(`❌ Error processing chunk ${chunk.id}:`, error);
+          errors++;
+        }
+      }
+
+      console.log(`✅ Embeddings processing complete: ${processed} processed, ${errors} errors`);
+      
+      return {
+        processed,
+        skipped: 0,
+        errors
+      };
+    } catch (error) {
+      console.error('Error processing project embeddings:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Parse embedding from database (convert from JSON string)
    */
   static parseEmbedding(embeddingData: any): number[] | null {

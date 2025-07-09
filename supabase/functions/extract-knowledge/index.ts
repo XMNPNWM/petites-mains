@@ -1,11 +1,18 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenAI } from "https://esm.sh/@google/genai@1.7.0"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+const GOOGLE_AI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent'
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+)
 
 // Enhanced diagnostic logging
 function logExtraction(stage: string, data: any) {
@@ -941,6 +948,75 @@ serve(async (req) => {
     // Detect language
     const language = detectLanguage(content);
     logExtraction('LANGUAGE_DETECTED', { language });
+
+    // Check content similarity using embeddings before extraction
+    if (projectId && chapterId) {
+      console.log('🔍 Checking content similarity using embeddings...');
+      
+      try {
+        // Generate embedding for content
+        const googleAIKey = Deno.env.get('GOOGLE_AI_API_KEY');
+        const embeddingResponse = await fetch(`${GOOGLE_AI_URL}?key=${googleAIKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'models/text-embedding-004',
+            content: { parts: [{ text: content }] }
+          })
+        });
+
+        if (embeddingResponse.ok) {
+          const embeddingData = await embeddingResponse.json();
+          if (embeddingData.embedding?.values) {
+            const embeddingString = `[${embeddingData.embedding.values.join(',')}]`;
+            
+            // Check for similar content
+            const { data: similarChunks, error: similarError } = await supabase.rpc('match_semantic_chunks', {
+              query_embedding: embeddingString,
+              match_threshold: 0.85,
+              match_count: 5,
+              filter_project_id: projectId
+            });
+
+            if (!similarError && similarChunks && similarChunks.length > 0) {
+              const topSimilarity = similarChunks[0].similarity;
+              console.log(`📊 Found ${similarChunks.length} similar chunks, top similarity: ${topSimilarity}`);
+              
+              if (topSimilarity > 0.9) {
+                console.log('⏭️ Content is too similar to existing chunks - skipping extraction');
+                return new Response(JSON.stringify({
+                  success: true,
+                  extractedData: {
+                    characters: [],
+                    relationships: [],
+                    plotThreads: [],
+                    timelineEvents: [],
+                    plotPoints: [],
+                    worldBuilding: [],
+                    themes: [],
+                    chapterSummaries: []
+                  },
+                  storedCount: 0,
+                  validation: {
+                    confidence: 1,
+                    issues: [],
+                    method: 'embeddings_similarity_skip'
+                  },
+                  processingTime: 0,
+                  message: `Content skipped due to high similarity (${topSimilarity}) with existing analyzed content`
+                }), {
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+              } else if (topSimilarity > 0.8) {
+                console.log('🔄 Similar content found - will apply enhanced deduplication after extraction');
+              }
+            }
+          }
+        }
+      } catch (embeddingError) {
+        console.warn('⚠️ Embeddings similarity check failed, proceeding with extraction:', embeddingError);
+      }
+    }
 
     // Perform comprehensive extraction
     const extractionResults = await performComprehensiveExtraction(content, language);

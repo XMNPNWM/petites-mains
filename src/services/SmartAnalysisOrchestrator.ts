@@ -3,6 +3,7 @@ import { RefinementService } from './RefinementService';
 import { ContentHashService } from './ContentHashService';
 import { ChronologicalCoordinationService } from './ChronologicalCoordinationService';
 import { SemanticDeduplicationService } from './SemanticDeduplicationService';
+import { EmbeddingsBasedProcessingService } from './EmbeddingsBasedProcessingService';
 import { KnowledgeBase, ChapterSummary, PlotPoint } from '@/types/knowledge';
 
 export class SmartAnalysisOrchestrator {
@@ -151,6 +152,18 @@ export class SmartAnalysisOrchestrator {
 
       if (chaptersNeedingAnalysis.length === 0) {
         console.log('✅ All chapters are up-to-date, no analysis needed');
+        
+        // Still run knowledge base optimization for existing projects
+        if (!isFirstAnalysis) {
+          console.log('🛠️ Running knowledge base optimization...');
+          try {
+            const optimizationResult = await EmbeddingsBasedProcessingService.optimizeKnowledgeBase(projectId);
+            console.log('✅ Knowledge base optimization completed:', optimizationResult);
+          } catch (optimizationError) {
+            console.warn('⚠️ Knowledge base optimization failed:', optimizationError);
+          }
+        }
+        
         return {
           success: true,
           processingStats: {
@@ -160,6 +173,54 @@ export class SmartAnalysisOrchestrator {
             chaptersSkipped: chaptersSkipped,
             hashVerificationSaved: true,
             message: 'All content is up-to-date'
+          }
+        };
+      }
+
+      // PHASE 1.5: Embeddings-based content similarity check
+      console.log('🔍 Phase 1.5: Checking content similarity using embeddings...');
+      let embeddingsSkipped = 0;
+      let embeddingsFiltered = [];
+      
+      for (const chapter of chaptersNeedingAnalysis) {
+        try {
+          const processingCheck = await EmbeddingsBasedProcessingService.checkContentProcessingNeed(
+            projectId,
+            chapter.content || '',
+            chapter.id
+          );
+          
+          if (processingCheck.shouldSkipExtraction) {
+            console.log(`⏭️ Skipping chapter "${chapter.title}" - too similar to existing content`);
+            embeddingsSkipped++;
+          } else {
+            embeddingsFiltered.push(chapter);
+            if (processingCheck.similarContent) {
+              console.log(`🔄 Chapter "${chapter.title}" has similar content - will apply enhanced deduplication`);
+            }
+          }
+        } catch (embeddingsError) {
+          console.warn(`⚠️ Embeddings check failed for chapter ${chapter.id}, including in analysis:`, embeddingsError);
+          embeddingsFiltered.push(chapter);
+        }
+      }
+      
+      // Update chapters list after embeddings filtering
+      chaptersNeedingAnalysis = embeddingsFiltered;
+      console.log(`🧠 Embeddings analysis: ${embeddingsSkipped} chapters skipped due to similarity, ${chaptersNeedingAnalysis.length} chapters to process`);
+      
+      if (chaptersNeedingAnalysis.length === 0) {
+        console.log('✅ All chapters filtered out by embeddings similarity check');
+        return {
+          success: true,
+          processingStats: {
+            contentAnalyzed: 0,
+            creditsUsed: 0,
+            knowledgeExtracted: existingKnowledge.length,
+            chaptersSkipped: chaptersSkipped + embeddingsSkipped,
+            hashVerificationSaved: true,
+            embeddingsOptimization: true,
+            message: 'All content filtered by similarity analysis'
           }
         };
       }
@@ -275,6 +336,15 @@ export class SmartAnalysisOrchestrator {
           console.error(`Failed to analyze chapter ${chapter.id}:`, error);
           // Continue with other chapters
         }
+      }
+
+      // PHASE 5: Final embeddings-based optimization
+      console.log('🛠️ Phase 5: Final knowledge base optimization with embeddings');
+      try {
+        const optimizationResult = await EmbeddingsBasedProcessingService.optimizeKnowledgeBase(projectId);
+        console.log('✅ Final optimization completed:', optimizationResult);
+      } catch (optimizationError) {
+        console.warn('⚠️ Final optimization failed but analysis completed:', optimizationError);
       }
 
       console.log('✅ [SMART] Comprehensive project analysis completed successfully');
