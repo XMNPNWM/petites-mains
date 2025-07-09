@@ -12,6 +12,11 @@ export interface PlotThread {
   is_flagged?: boolean;
   evidence?: string;
   key_events?: string[];
+  chronological_order?: number;
+  narrative_sequence_id?: string;
+  temporal_markers?: string[];
+  dependency_elements?: string[];
+  chronological_confidence?: number;
 }
 
 export interface TimelineEvent {
@@ -27,6 +32,10 @@ export interface TimelineEvent {
   is_flagged?: boolean;
   date_or_time_reference?: string;
   significance?: string;
+  narrative_sequence_id?: string;
+  temporal_markers?: string[];
+  dependency_elements?: string[];
+  chronological_confidence?: number;
 }
 
 export interface CharacterRelationship {
@@ -41,6 +50,11 @@ export interface CharacterRelationship {
   is_newly_extracted?: boolean;
   is_flagged?: boolean;
   evidence?: string;
+  chronological_order?: number;
+  narrative_sequence_id?: string;
+  temporal_markers?: string[];
+  dependency_elements?: string[];
+  chronological_confidence?: number;
 }
 
 export interface WorldBuildingElement {

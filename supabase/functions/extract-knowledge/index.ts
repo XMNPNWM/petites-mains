@@ -25,11 +25,19 @@ const prompts = {
   characters: {
     english: `CRITICAL INSTRUCTION: You MUST respond in English and preserve all original character names exactly as they appear in the text.
 
-Analyze this creative fiction text and extract character information. Focus on identifying:
+Analyze this creative fiction text and extract character information with chronological context. Focus on identifying:
 - Character names (including nicknames, aliases) - KEEP ORIGINAL NAMES EXACTLY
-- Their roles in the story
+- Their roles in the story and when they first appear
 - Physical or personality descriptions
 - Goals, motivations, or traits
+- Time references for when they are introduced or change
+- Chronological markers indicating narrative sequence
+
+CHRONOLOGICAL ANALYSIS: Pay attention to:
+- When characters first appear in the narrative
+- Character development progression
+- Time indicators (dates, seasons, "later", "before", etc.)
+- Narrative sequence clues
 
 Return a JSON object with a "characters" array. Each character should have:
 {
@@ -37,6 +45,8 @@ Return a JSON object with a "characters" array. Each character should have:
   "role": "their role in English",
   "description": "description of the character in English",
   "traits": ["trait1", "trait2"],
+  "temporal_markers": ["first appearance", "character development points"],
+  "chronological_order": 1,
   "ai_confidence": 0.8
 }
 
@@ -63,10 +73,18 @@ Texte à analyser:`
   relationships: {
     english: `CRITICAL INSTRUCTION: You MUST respond in English and preserve all original character names exactly as they appear in the text.
 
-Analyze this creative fiction text and extract character relationships. Look for:
+Analyze this creative fiction text and extract character relationships with chronological context. Look for:
 - How characters interact with each other
 - Their relationship types (friend, enemy, family, romantic, etc.)
 - Relationship strength and dynamics
+- When relationships are established or change
+- Temporal markers indicating relationship development
+
+CHRONOLOGICAL ANALYSIS: Pay attention to:
+- When relationships first form or are revealed
+- How relationships evolve over time
+- Time indicators for relationship changes
+- Narrative sequence of relationship development
 
 Return a JSON object with a "relationships" array:
 {
@@ -74,6 +92,9 @@ Return a JSON object with a "relationships" array:
   "character_b_name": "Second Character (EXACT as in text)", 
   "relationship_type": "friend/enemy/family/romantic/etc in English",
   "relationship_strength": 5,
+  "temporal_markers": ["when relationship forms", "development points"],
+  "chronological_order": 1,
+  "dependency_elements": ["related events", "connected plot points"],
   "ai_confidence": 0.8
 }
 
@@ -438,6 +459,10 @@ function mapRelationshipFields(relationship: any): any {
     character_b_name: relationship.character_b_name || relationship.target_character_name || 'Unknown',
     relationship_type: relationship.relationship_type || relationship.type || 'unknown',
     relationship_strength: relationship.relationship_strength || relationship.strength || 5,
+    chronological_order: relationship.chronological_order || 0,
+    temporal_markers: Array.isArray(relationship.temporal_markers) ? relationship.temporal_markers : [],
+    dependency_elements: Array.isArray(relationship.dependency_elements) ? relationship.dependency_elements : [],
+    chronological_confidence: relationship.chronological_confidence || 0.5,
     ai_confidence: relationship.ai_confidence || relationship.confidence_score || 0.5
   };
 }
@@ -449,6 +474,10 @@ function mapPlotThreadFields(plotThread: any): any {
     thread_status: plotThread.thread_status || plotThread.status || 'active',
     key_events: Array.isArray(plotThread.key_events) ? plotThread.key_events : [],
     characters_involved_names: Array.isArray(plotThread.characters_involved_names) ? plotThread.characters_involved_names : [],
+    chronological_order: plotThread.chronological_order || 0,
+    temporal_markers: Array.isArray(plotThread.temporal_markers) ? plotThread.temporal_markers : [],
+    dependency_elements: Array.isArray(plotThread.dependency_elements) ? plotThread.dependency_elements : [],
+    chronological_confidence: plotThread.chronological_confidence || 0.5,
     ai_confidence: plotThread.ai_confidence || plotThread.confidence_score || 0.5
   };
 }
@@ -462,6 +491,9 @@ function mapTimelineEventFields(event: any): any {
     characters_involved_names: Array.isArray(event.characters_involved_names) ? event.characters_involved_names : [],
     plot_threads_impacted_names: Array.isArray(event.plot_threads_impacted_names) ? event.plot_threads_impacted_names : [],
     locations_involved_names: Array.isArray(event.locations_involved_names) ? event.locations_involved_names : [],
+    temporal_markers: Array.isArray(event.temporal_markers) ? event.temporal_markers : [],
+    dependency_elements: Array.isArray(event.dependency_elements) ? event.dependency_elements : [],
+    chronological_confidence: event.chronological_confidence || 0.5,
     ai_confidence: event.ai_confidence || event.confidence_score || 0.5
   };
 }
@@ -473,6 +505,10 @@ function mapPlotPointFields(plotPoint: any): any {
     plot_thread_name: plotPoint.plot_thread_name || plotPoint.thread_name || null,
     significance: plotPoint.significance || plotPoint.importance || null,
     characters_involved_names: Array.isArray(plotPoint.characters_involved_names) ? plotPoint.characters_involved_names : [],
+    chronological_order: plotPoint.chronological_order || 0,
+    temporal_markers: Array.isArray(plotPoint.temporal_markers) ? plotPoint.temporal_markers : [],
+    dependency_elements: Array.isArray(plotPoint.dependency_elements) ? plotPoint.dependency_elements : [],
+    chronological_confidence: plotPoint.chronological_confidence || 0.5,
     ai_confidence: plotPoint.ai_confidence || plotPoint.confidence_score || 0.5
   };
 }
@@ -484,6 +520,10 @@ function mapChapterSummaryFields(summary: any): any {
     summary_long: summary.summary_long || summary.detailed_summary || null,
     key_events_in_chapter: Array.isArray(summary.key_events_in_chapter) ? summary.key_events_in_chapter : [],
     primary_focus: Array.isArray(summary.primary_focus) ? summary.primary_focus : [],
+    chronological_order: summary.chronological_order || 0,
+    temporal_markers: Array.isArray(summary.temporal_markers) ? summary.temporal_markers : [],
+    dependency_elements: Array.isArray(summary.dependency_elements) ? summary.dependency_elements : [],
+    chronological_confidence: summary.chronological_confidence || 0.5,
     ai_confidence: summary.ai_confidence || summary.confidence_score || 0.5
   };
 }
@@ -550,6 +590,47 @@ async function extractWithAI(content: string, extractionType: string, language: 
   } catch (error) {
     logExtraction('EXTRACTION_ERROR', { error: error.message });
     throw error;
+  }
+}
+
+// Chronological coordination function for post-processing
+async function coordinateChronology(extractedData: any, projectId: string) {
+  try {
+    logExtraction('CHRONOLOGICAL_COORDINATION_START', { projectId });
+
+    // Analyze temporal markers in all extracted data
+    const allElements = [
+      ...extractedData.characters.map((item: any) => ({ ...item, type: 'character' })),
+      ...extractedData.relationships.map((item: any) => ({ ...item, type: 'relationship' })),
+      ...extractedData.plotThreads.map((item: any) => ({ ...item, type: 'plot_thread' })),
+      ...extractedData.timelineEvents.map((item: any) => ({ ...item, type: 'timeline_event' })),
+      ...extractedData.plotPoints.map((item: any) => ({ ...item, type: 'plot_point' })),
+      ...extractedData.chapterSummaries.map((item: any) => ({ ...item, type: 'chapter_summary' })),
+      ...extractedData.worldBuilding.map((item: any) => ({ ...item, type: 'world_building' })),
+      ...extractedData.themes.map((item: any) => ({ ...item, type: 'theme' }))
+    ];
+
+    // Sort elements by chronological order and assign coordination
+    allElements.sort((a, b) => {
+      const aOrder = a.chronological_order || 0;
+      const bOrder = b.chronological_order || 0;
+      return aOrder - bOrder;
+    });
+
+    // Reassign chronological order based on sorted sequence
+    allElements.forEach((element, index) => {
+      element.chronological_order = index + 1;
+      element.chronological_confidence = element.chronological_confidence || 0.5;
+    });
+
+    logExtraction('CHRONOLOGICAL_COORDINATION_SUCCESS', { 
+      elementsCoordinated: allElements.length 
+    });
+
+    return allElements;
+  } catch (error) {
+    logExtraction('CHRONOLOGICAL_COORDINATION_ERROR', { error: error.message });
+    return [];
   }
 }
 
@@ -704,6 +785,77 @@ async function performComprehensiveExtraction(content: string, language: string)
   return results;
 }
 
+// Post-processing function to apply chronological coordination
+async function applyChronologicalCoordination(extractionResults: any, projectId: string) {
+  try {
+    logExtraction('POST_PROCESSING_START', { projectId });
+
+    // Coordinate chronological order across all elements
+    const coordinatedElements = await coordinateChronology(extractionResults, projectId);
+    
+    // Group coordinated elements back by type
+    const updatedResults = { ...extractionResults };
+    
+    coordinatedElements.forEach((element: any) => {
+      switch (element.type) {
+        case 'character':
+          const charIndex = updatedResults.characters.findIndex((c: any) => c.name === element.name);
+          if (charIndex >= 0) {
+            updatedResults.characters[charIndex] = { ...element };
+            delete updatedResults.characters[charIndex].type;
+          }
+          break;
+        case 'relationship':
+          const relIndex = updatedResults.relationships.findIndex((r: any) => 
+            r.character_a_name === element.character_a_name && r.character_b_name === element.character_b_name
+          );
+          if (relIndex >= 0) {
+            updatedResults.relationships[relIndex] = { ...element };
+            delete updatedResults.relationships[relIndex].type;
+          }
+          break;
+        case 'plot_thread':
+          const threadIndex = updatedResults.plotThreads.findIndex((t: any) => t.thread_name === element.thread_name);
+          if (threadIndex >= 0) {
+            updatedResults.plotThreads[threadIndex] = { ...element };
+            delete updatedResults.plotThreads[threadIndex].type;
+          }
+          break;
+        case 'timeline_event':
+          const eventIndex = updatedResults.timelineEvents.findIndex((e: any) => e.event_summary === element.event_summary);
+          if (eventIndex >= 0) {
+            updatedResults.timelineEvents[eventIndex] = { ...element };
+            delete updatedResults.timelineEvents[eventIndex].type;
+          }
+          break;
+        case 'plot_point':
+          const pointIndex = updatedResults.plotPoints.findIndex((p: any) => p.name === element.name);
+          if (pointIndex >= 0) {
+            updatedResults.plotPoints[pointIndex] = { ...element };
+            delete updatedResults.plotPoints[pointIndex].type;
+          }
+          break;
+        case 'chapter_summary':
+          const summaryIndex = updatedResults.chapterSummaries.findIndex((s: any) => s.title === element.title);
+          if (summaryIndex >= 0) {
+            updatedResults.chapterSummaries[summaryIndex] = { ...element };
+            delete updatedResults.chapterSummaries[summaryIndex].type;
+          }
+          break;
+      }
+    });
+
+    logExtraction('POST_PROCESSING_SUCCESS', { 
+      coordinatedElements: coordinatedElements.length 
+    });
+
+    return updatedResults;
+  } catch (error) {
+    logExtraction('POST_PROCESSING_ERROR', { error: error.message });
+    return extractionResults; // Return original results if coordination fails
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -736,56 +888,60 @@ serve(async (req) => {
     // Perform comprehensive extraction
     const extractionResults = await performComprehensiveExtraction(content, language);
     
+    // Apply chronological coordination post-processing
+    const coordinatedResults = await applyChronologicalCoordination(extractionResults, projectId);
+    
     logExtraction('EXTRACTION_COMPLETE', {
-      stats: extractionResults.extractionStats,
-      charactersFound: extractionResults.characters.length,
-      relationshipsFound: extractionResults.relationships.length,
-      plotThreadsFound: extractionResults.plotThreads.length,
-      timelineEventsFound: extractionResults.timelineEvents.length,
-      plotPointsFound: extractionResults.plotPoints.length,
-      chapterSummariesFound: extractionResults.chapterSummaries.length
+      stats: coordinatedResults.extractionStats,
+      charactersFound: coordinatedResults.characters.length,
+      relationshipsFound: coordinatedResults.relationships.length,
+      plotThreadsFound: coordinatedResults.plotThreads.length,
+      timelineEventsFound: coordinatedResults.timelineEvents.length,
+      plotPointsFound: coordinatedResults.plotPoints.length,
+      chapterSummariesFound: coordinatedResults.chapterSummaries.length
     });
 
     // Return results in the expected format
     const response = {
       success: true,
       extractedData: {
-        characters: extractionResults.characters,
-        relationships: extractionResults.relationships,
-        plotThreads: extractionResults.plotThreads,
-        timelineEvents: extractionResults.timelineEvents,
-        plotPoints: extractionResults.plotPoints,
-        worldBuilding: extractionResults.worldBuilding,
-        themes: extractionResults.themes,
-        chapterSummaries: extractionResults.chapterSummaries
+        characters: coordinatedResults.characters,
+        relationships: coordinatedResults.relationships,
+        plotThreads: coordinatedResults.plotThreads,
+        timelineEvents: coordinatedResults.timelineEvents,
+        plotPoints: coordinatedResults.plotPoints,
+        worldBuilding: coordinatedResults.worldBuilding,
+        themes: coordinatedResults.themes,
+        chapterSummaries: coordinatedResults.chapterSummaries
       },
-      storedCount: extractionResults.characters.length + 
-                   extractionResults.relationships.length + 
-                   extractionResults.plotThreads.length + 
-                   extractionResults.timelineEvents.length + 
-                   extractionResults.plotPoints.length + 
-                   extractionResults.chapterSummaries.length +
-                   extractionResults.worldBuilding.length +
-                   extractionResults.themes.length,
+      storedCount: coordinatedResults.characters.length + 
+                   coordinatedResults.relationships.length + 
+                   coordinatedResults.plotThreads.length + 
+                   coordinatedResults.timelineEvents.length + 
+                   coordinatedResults.plotPoints.length + 
+                   coordinatedResults.chapterSummaries.length +
+                   coordinatedResults.worldBuilding.length +
+                   coordinatedResults.themes.length,
       storageDetails: {
-        characters: extractionResults.characters.length,
-        relationships: extractionResults.relationships.length,
-        plotThreads: extractionResults.plotThreads.length,
-        timelineEvents: extractionResults.timelineEvents.length,
-        plotPoints: extractionResults.plotPoints.length,
-        chapterSummaries: extractionResults.chapterSummaries.length,
-        worldBuilding: extractionResults.worldBuilding.length,
-        themes: extractionResults.themes.length,
+        characters: coordinatedResults.characters.length,
+        relationships: coordinatedResults.relationships.length,
+        plotThreads: coordinatedResults.plotThreads.length,
+        timelineEvents: coordinatedResults.timelineEvents.length,
+        plotPoints: coordinatedResults.plotPoints.length,
+        chapterSummaries: coordinatedResults.chapterSummaries.length,
+        worldBuilding: coordinatedResults.worldBuilding.length,
+        themes: coordinatedResults.themes.length,
         language: language,
-        extractionStats: extractionResults.extractionStats
+        extractionStats: coordinatedResults.extractionStats,
+        chronologicalCoordination: true
       },
       validation: {
-        confidence: extractionResults.extractionStats.successfulExtractions / Math.max(1, extractionResults.extractionStats.totalAttempts),
+        confidence: coordinatedResults.extractionStats.successfulExtractions / Math.max(1, coordinatedResults.extractionStats.totalAttempts),
         issues: [],
-        method: 'comprehensive_extraction'
+        method: 'comprehensive_extraction_with_chronological_coordination'
       },
       processingTime: 0,
-      message: `Extracted ${extractionResults.characters.length} characters, ${extractionResults.relationships.length} relationships, ${extractionResults.plotThreads.length} plot threads, ${extractionResults.timelineEvents.length} timeline events, ${extractionResults.plotPoints.length} plot points, and ${extractionResults.chapterSummaries.length} chapter summaries`
+      message: `Extracted and chronologically coordinated ${coordinatedResults.characters.length} characters, ${coordinatedResults.relationships.length} relationships, ${coordinatedResults.plotThreads.length} plot threads, ${coordinatedResults.timelineEvents.length} timeline events, ${coordinatedResults.plotPoints.length} plot points, and ${coordinatedResults.chapterSummaries.length} chapter summaries`
     };
 
     logExtraction('RESPONSE_SENT', {

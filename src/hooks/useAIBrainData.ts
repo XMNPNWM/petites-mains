@@ -78,7 +78,9 @@ export const useAIBrainData = (projectId: string): AIBrainData => {
         ...item,
         key_events: Array.isArray(item.key_events) ? item.key_events as string[] : [],
         characters_involved_names: Array.isArray(item.characters_involved_names) ? item.characters_involved_names as string[] : [],
-        source_chapter_ids: Array.isArray(item.source_chapter_ids) ? item.source_chapter_ids as string[] : []
+        source_chapter_ids: Array.isArray(item.source_chapter_ids) ? item.source_chapter_ids as string[] : [],
+        temporal_markers: Array.isArray(item.temporal_markers) ? item.temporal_markers as string[] : [],
+        dependency_elements: Array.isArray(item.dependency_elements) ? item.dependency_elements as string[] : []
       }));
 
       const timelineEvents: TimelineEvent[] = (timelineEventsResponse.data || []).map(item => ({
@@ -86,12 +88,16 @@ export const useAIBrainData = (projectId: string): AIBrainData => {
         characters_involved_names: Array.isArray(item.characters_involved_names) ? item.characters_involved_names as string[] : [],
         plot_threads_impacted_names: Array.isArray(item.plot_threads_impacted_names) ? item.plot_threads_impacted_names as string[] : [],
         locations_involved_names: Array.isArray(item.locations_involved_names) ? item.locations_involved_names as string[] : [],
-        source_chapter_ids: Array.isArray(item.source_chapter_ids) ? item.source_chapter_ids as string[] : []
+        source_chapter_ids: Array.isArray(item.source_chapter_ids) ? item.source_chapter_ids as string[] : [],
+        temporal_markers: Array.isArray(item.temporal_markers) ? item.temporal_markers as string[] : [],
+        dependency_elements: Array.isArray(item.dependency_elements) ? item.dependency_elements as string[] : []
       }));
 
       const characterRelationships: CharacterRelationship[] = (characterRelationshipsResponse.data || []).map(item => ({
         ...item,
-        source_chapter_ids: Array.isArray(item.source_chapter_ids) ? item.source_chapter_ids as string[] : []
+        source_chapter_ids: Array.isArray(item.source_chapter_ids) ? item.source_chapter_ids as string[] : [],
+        temporal_markers: Array.isArray(item.temporal_markers) ? item.temporal_markers as string[] : [],
+        dependency_elements: Array.isArray(item.dependency_elements) ? item.dependency_elements as string[] : []
       }));
 
       // Extract world building elements from knowledge_base where category='world_building'

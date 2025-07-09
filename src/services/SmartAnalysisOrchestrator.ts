@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { RefinementService } from './RefinementService';
 import { ContentHashService } from './ContentHashService';
+import { ChronologicalCoordinationService } from './ChronologicalCoordinationService';
 import { KnowledgeBase, ChapterSummary, PlotPoint } from '@/types/knowledge';
 
 export class SmartAnalysisOrchestrator {
@@ -229,6 +230,18 @@ export class SmartAnalysisOrchestrator {
         totalKnowledgeExtracted = storedItems;
         
         console.log(`📚 Stored ${totalKnowledgeExtracted} knowledge items in database`);
+
+        // PHASE 2.5: Apply chronological coordination to all stored elements
+        console.log('🕒 Phase 2.5: Applying chronological coordination');
+        try {
+          const coordinationResult = await ChronologicalCoordinationService.assignChronologicalOrder(projectId);
+          console.log('✅ Chronological coordination completed:', {
+            elementsProcessed: coordinationResult.elementsProcessed,
+            sequencesCreated: coordinationResult.sequencesCreated
+          });
+        } catch (coordinationError) {
+          console.warn('⚠️ Chronological coordination failed but continuing analysis:', coordinationError);
+        }
         
         if (knowledgeResult.validation?.issues && knowledgeResult.validation.issues.length > 0) {
           console.warn('⚠️ Some issues occurred during extraction:', knowledgeResult.validation.issues);
