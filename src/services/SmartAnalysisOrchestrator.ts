@@ -173,13 +173,33 @@ export class SmartAnalysisOrchestrator {
       // Use the enhanced extract-knowledge edge function with comprehensive extraction
       const primaryChapterId = chaptersNeedingAnalysis[0]?.id;
       
+      console.log('🔧 DEBUG: About to call extract-knowledge edge function with:', {
+        contentLength: contentToAnalyze.length,
+        projectId: projectId,
+        primaryChapterId: primaryChapterId,
+        extractionType: 'comprehensive',
+        chaptersToAnalyze: chaptersNeedingAnalysis.length
+      });
+      
+      // First test with small content to isolate the issue
+      const testContent = contentToAnalyze.length > 1000 ? contentToAnalyze.substring(0, 1000) + "..." : contentToAnalyze;
+      
+      console.log('🔧 DEBUG: Testing with reduced content length:', testContent.length);
+      
       const { data: knowledgeResult, error: knowledgeError } = await supabase.functions.invoke('extract-knowledge', {
         body: { 
-          content: contentToAnalyze,
+          content: testContent,
           projectId: projectId,
           extractionType: 'comprehensive',
           chapterId: primaryChapterId
         }
+      });
+
+      console.log('🔧 DEBUG: extract-knowledge response:', {
+        hasData: !!knowledgeResult,
+        hasError: !!knowledgeError,
+        errorDetails: knowledgeError,
+        dataKeys: knowledgeResult ? Object.keys(knowledgeResult) : []
       });
 
       if (knowledgeError) {
