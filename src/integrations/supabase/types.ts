@@ -1812,8 +1812,22 @@ export type Database = {
           plot_threads_checked: number
         }[]
       }
-      cleanup_duplicate_knowledge: {
-        Args: { p_project_id: string }
+      check_semantic_similarity: {
+        Args: {
+          p_project_id: string
+          p_table_name: string
+          p_comparison_data: Json
+          p_similarity_threshold?: number
+        }
+        Returns: {
+          has_similar: boolean
+          similar_id: string
+          similarity_score: number
+          suggested_action: string
+        }[]
+      }
+      enhanced_semantic_deduplication: {
+        Args: { p_project_id: string; p_similarity_threshold?: number }
         Returns: {
           relationships_removed: number
           plot_threads_removed: number
@@ -1822,6 +1836,7 @@ export type Database = {
           chapter_summaries_removed: number
           world_building_removed: number
           themes_removed: number
+          semantic_merges_performed: number
         }[]
       }
       extract_knowledge_from_chunks: {

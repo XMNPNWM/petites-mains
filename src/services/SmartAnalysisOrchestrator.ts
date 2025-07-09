@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { RefinementService } from './RefinementService';
 import { ContentHashService } from './ContentHashService';
 import { ChronologicalCoordinationService } from './ChronologicalCoordinationService';
+import { SemanticDeduplicationService } from './SemanticDeduplicationService';
 import { KnowledgeBase, ChapterSummary, PlotPoint } from '@/types/knowledge';
 
 export class SmartAnalysisOrchestrator {
@@ -746,19 +747,20 @@ export class SmartAnalysisOrchestrator {
 
   // Phase 1 Deduplication Methods Implementation
 
-  // Cleanup existing duplicates using database function
+  // Cleanup existing duplicates using enhanced semantic deduplication
   static async cleanupExistingDuplicates(projectId: string): Promise<void> {
     try {
-      const { data, error } = await supabase.rpc('cleanup_duplicate_knowledge', {
-        p_project_id: projectId
+      const { data, error } = await supabase.rpc('enhanced_semantic_deduplication', {
+        p_project_id: projectId,
+        p_similarity_threshold: 0.8
       });
 
       if (error) {
-        console.error('❌ Error cleaning up duplicates:', error);
+        console.error('❌ Error with enhanced semantic deduplication:', error);
         return;
       }
 
-      if (data && data.length > 0) {
+      if (data && Array.isArray(data) && data.length > 0) {
         const results = data[0];
         console.log('🧹 Cleanup results:', {
           relationships_removed: results.relationships_removed,

@@ -12,12 +12,64 @@ function logExtraction(stage: string, data: any) {
   console.log(`🔍 [EXTRACTION-${stage}]:`, JSON.stringify(data, null, 2));
 }
 
-// Language detection helper
+// Enhanced language detection helper with strict validation
 function detectLanguage(content: string): string {
-  const frenchWords = ['le', 'la', 'les', 'de', 'du', 'des', 'et', 'un', 'une', 'dans', 'avec', 'pour', 'sur', 'par', 'que', 'qui', 'ce', 'cette', 'son', 'sa', 'ses'];
-  const words = content.toLowerCase().split(/\s+/).slice(0, 100); // Check first 100 words
+  const frenchWords = ['le', 'la', 'les', 'de', 'du', 'des', 'et', 'un', 'une', 'dans', 'avec', 'pour', 'sur', 'par', 'que', 'qui', 'ce', 'cette', 'son', 'sa', 'ses', 'mais', 'ou', 'donc', 'car', 'ne', 'pas', 'tout', 'tous', 'être', 'avoir', 'faire', 'aller', 'voir', 'savoir', 'pouvoir', 'vouloir', 'venir', 'dire', 'prendre'];
+  const englishWords = ['the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'i', 'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at', 'this', 'but', 'his', 'by', 'from', 'they', 'we', 'say', 'her', 'she', 'or', 'an', 'will', 'my', 'one', 'all', 'would', 'there', 'their'];
+  
+  // Check first 150 words for better accuracy
+  const words = content.toLowerCase().split(/\s+/).slice(0, 150);
   const frenchCount = words.filter(word => frenchWords.includes(word)).length;
-  return frenchCount > 5 ? 'french' : 'english';
+  const englishCount = words.filter(word => englishWords.includes(word)).length;
+  
+  logExtraction('LANGUAGE_DETECTION', { 
+    frenchCount, 
+    englishCount, 
+    totalWords: words.length,
+    decision: frenchCount > englishCount ? 'french' : 'english'
+  });
+  
+  return frenchCount > englishCount ? 'french' : 'english';
+}
+
+// Strict language validation function
+function validateExtractedLanguage(extractedData: any, expectedLanguage: string): boolean {
+  if (!extractedData || typeof extractedData !== 'object') return false;
+  
+  // Sample text from extracted data for validation
+  const textSamples = [];
+  
+  // Collect text samples from various fields
+  Object.values(extractedData).forEach((category: any) => {
+    if (Array.isArray(category)) {
+      category.slice(0, 3).forEach((item: any) => {
+        if (item.description) textSamples.push(item.description);
+        if (item.role) textSamples.push(item.role);
+        if (item.relationship_type) textSamples.push(item.relationship_type);
+        if (item.thread_name) textSamples.push(item.thread_name);
+        if (item.event_summary) textSamples.push(item.event_summary);
+        if (item.significance) textSamples.push(item.significance);
+        if (item.summary_short) textSamples.push(item.summary_short);
+      });
+    }
+  });
+  
+  if (textSamples.length === 0) return true; // No text to validate
+  
+  // Check language consistency
+  const combinedText = textSamples.join(' ').substring(0, 500);
+  const detectedLanguage = detectLanguage(combinedText);
+  
+  const isValid = detectedLanguage === expectedLanguage;
+  logExtraction('LANGUAGE_VALIDATION', {
+    expected: expectedLanguage,
+    detected: detectedLanguage,
+    isValid,
+    samplesChecked: textSamples.length,
+    combinedTextLength: combinedText.length
+  });
+  
+  return isValid;
 }
 
 // Enhanced prompts with explicit language preservation instructions
@@ -353,7 +405,7 @@ Texte à analyser:`
   }
 };
 
-// Enhanced parsing with language validation
+// Enhanced parsing with strict language validation
 function parseAIResponse(response: string, expectedType: string, expectedLanguage: string): any {
   logExtraction('RAW_RESPONSE', { type: expectedType, response: response.substring(0, 500) + '...' });
   
@@ -361,11 +413,16 @@ function parseAIResponse(response: string, expectedType: string, expectedLanguag
   try {
     const parsed = JSON.parse(response);
     if (parsed[expectedType] && Array.isArray(parsed[expectedType])) {
-      // Validate language consistency
+      // Strict language validation - reject if wrong language
       const languageValid = validateResponseLanguage(parsed[expectedType], expectedLanguage);
       if (!languageValid) {
-        logExtraction('LANGUAGE_VALIDATION_FAILED', { expectedLanguage, type: expectedType });
-        // Continue to fallback strategies rather than failing completely
+        logExtraction('LANGUAGE_VALIDATION_FAILED_REJECTING', { 
+          expectedLanguage, 
+          type: expectedType,
+          message: 'Response rejected due to language mixing'
+        });
+        // Return empty array instead of mixed language content
+        return { [expectedType]: [] };
       }
       logExtraction('PARSE_SUCCESS_DIRECT', { type: expectedType, count: parsed[expectedType].length, languageValid });
       return parsed;
@@ -887,6 +944,39 @@ serve(async (req) => {
 
     // Perform comprehensive extraction
     const extractionResults = await performComprehensiveExtraction(content, language);
+    
+    // Final language validation - reject entire result if language mixing detected
+    const languageValid = validateExtractedLanguage(extractionResults, language);
+    if (!languageValid) {
+      logExtraction('FINAL_LANGUAGE_VALIDATION_FAILED', {
+        language,
+        message: 'Entire extraction rejected due to language mixing'
+      });
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: `Language mixing detected. Expected ${language} content only, but found mixed languages.`,
+        extractedData: {
+          characters: [],
+          relationships: [],
+          plotThreads: [],
+          timelineEvents: [],
+          plotPoints: [],
+          worldBuilding: [],
+          themes: [],
+          chapterSummaries: []
+        },
+        storedCount: 0,
+        validation: {
+          confidence: 0,
+          issues: [`Language mixing detected - expected ${language} only`],
+          method: 'language_validation_rejection'
+        }
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
     
     // Apply chronological coordination post-processing
     const coordinatedResults = await applyChronologicalCoordination(extractionResults, projectId);
