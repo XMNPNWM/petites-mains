@@ -79,6 +79,10 @@ export class SmartAnalysisOrchestrator {
     try {
       console.log('🚀 [SMART] Starting comprehensive project analysis:', projectId);
 
+      // PHASE 0: Cleanup existing duplicates
+      console.log('🧹 Phase 0: Cleaning up existing duplicates');
+      await this.cleanupExistingDuplicates(projectId);
+
       // PHASE 1: Hash Verification - Check what actually needs analysis
       console.log('📋 Phase 1: Checking content hashes for all chapters');
       
@@ -324,155 +328,60 @@ export class SmartAnalysisOrchestrator {
         }
       }
 
-      // Store relationships
+      // Store relationships with intelligent deduplication
       if (extractedData.relationships && extractedData.relationships.length > 0) {
         for (const relationship of extractedData.relationships) {
           try {
-            const { error } = await supabase
-              .from('character_relationships')
-              .insert({
-                project_id: projectId,
-                character_a_name: relationship.character_a_name,
-                character_b_name: relationship.character_b_name,
-                relationship_type: relationship.relationship_type,
-                relationship_strength: relationship.relationship_strength || 5,
-                confidence_score: relationship.ai_confidence || 0.5,
-                extraction_method: 'llm_direct',
-                source_chapter_ids: sourceChapterIds,
-                is_newly_extracted: true,
-                ai_confidence_new: relationship.ai_confidence || 0.5,
-                evidence: relationship.evidence || null
-              });
-
-            if (!error) {
-              storedCount++;
-            } else {
-              console.error('Error storing relationship:', relationship, error);
-            }
+            await this.storeOrUpdateRelationship(projectId, relationship, sourceChapterIds);
+            storedCount++;
           } catch (relError) {
             console.error('Error processing relationship:', relationship, relError);
           }
         }
       }
 
-      // Store plot threads
+      // Store plot threads with intelligent deduplication
       if (extractedData.plotThreads && extractedData.plotThreads.length > 0) {
         for (const plotThread of extractedData.plotThreads) {
           try {
-            const { error } = await supabase
-              .from('plot_threads')
-              .insert({
-                project_id: projectId,
-                thread_name: plotThread.thread_name,
-                thread_type: plotThread.thread_type,
-                thread_status: plotThread.thread_status,
-                key_events: plotThread.key_events || [],
-                characters_involved_names: plotThread.characters_involved_names || [],
-                confidence_score: plotThread.ai_confidence || 0.5,
-                extraction_method: 'llm_direct',
-                source_chapter_ids: sourceChapterIds,
-                is_newly_extracted: true,
-                ai_confidence_new: plotThread.ai_confidence || 0.5
-              });
-
-            if (!error) {
-              storedCount++;
-            } else {
-              console.error('Error storing plot thread:', plotThread, error);
-            }
+            await this.storeOrUpdatePlotThread(projectId, plotThread, sourceChapterIds);
+            storedCount++;
           } catch (plotError) {
             console.error('Error processing plot thread:', plotThread, plotError);
           }
         }
       }
 
-      // Store timeline events - Fixed field mapping
+      // Store timeline events with intelligent deduplication
       if (extractedData.timelineEvents && extractedData.timelineEvents.length > 0) {
         for (const event of extractedData.timelineEvents) {
           try {
-            const { error } = await supabase
-              .from('timeline_events')
-              .insert({
-                project_id: projectId,
-                event_name: event.event_name || event.event_summary || 'Unnamed Event',
-                event_type: event.event_type || 'general',
-                event_summary: event.event_summary,
-                chronological_order: event.chronological_order || 0,
-                date_or_time_reference: event.date_or_time_reference,
-                significance: event.significance,
-                characters_involved_names: event.characters_involved_names || [],
-                plot_threads_impacted_names: event.plot_threads_impacted_names || [],
-                locations_involved_names: event.locations_involved_names || [],
-                confidence_score: event.ai_confidence || 0.5,
-                extraction_method: 'llm_direct',
-                source_chapter_ids: sourceChapterIds,
-                is_newly_extracted: true,
-                ai_confidence_new: event.ai_confidence || 0.5
-              });
-
-            if (!error) {
-              storedCount++;
-            } else {
-              console.error('Error storing timeline event:', event, error);
-            }
+            await this.storeOrUpdateTimelineEvent(projectId, event, sourceChapterIds);
+            storedCount++;
           } catch (eventError) {
             console.error('Error processing timeline event:', event, eventError);
           }
         }
       }
 
-      // Store plot points
+      // Store plot points with intelligent deduplication
       if (extractedData.plotPoints && extractedData.plotPoints.length > 0) {
         for (const plotPoint of extractedData.plotPoints) {
           try {
-            const { error } = await supabase
-              .from('plot_points')
-              .insert({
-                project_id: projectId,
-                name: plotPoint.name,
-                description: plotPoint.description,
-                plot_thread_name: plotPoint.plot_thread_name,
-                significance: plotPoint.significance,
-                characters_involved_names: plotPoint.characters_involved_names || [],
-                ai_confidence: plotPoint.ai_confidence || 0.5,
-                source_chapter_ids: sourceChapterIds,
-                is_newly_extracted: true
-              });
-
-            if (!error) {
-              storedCount++;
-            } else {
-              console.error('Error storing plot point:', plotPoint, error);
-            }
+            await this.storeOrUpdatePlotPoint(projectId, plotPoint, sourceChapterIds);
+            storedCount++;
           } catch (plotPointError) {
             console.error('Error processing plot point:', plotPoint, plotPointError);
           }
         }
       }
 
-      // Store chapter summaries
+      // Store chapter summaries with intelligent deduplication
       if (extractedData.chapterSummaries && extractedData.chapterSummaries.length > 0) {
         for (const summary of extractedData.chapterSummaries) {
           try {
-            const { error } = await supabase
-              .from('chapter_summaries')
-              .insert({
-                project_id: projectId,
-                chapter_id: sourceChapters[0]?.id, // Use first chapter as primary reference
-                title: summary.title,
-                summary_short: summary.summary_short,
-                summary_long: summary.summary_long,
-                key_events_in_chapter: summary.key_events_in_chapter || [],
-                primary_focus: summary.primary_focus || [],
-                ai_confidence: summary.ai_confidence || 0.5,
-                is_newly_extracted: true
-              });
-
-            if (!error) {
-              storedCount++;
-            } else {
-              console.error('Error storing chapter summary:', summary, error);
-            }
+            await this.storeOrUpdateChapterSummary(projectId, summary, sourceChapters);
+            storedCount++;
           } catch (summaryError) {
             console.error('Error processing chapter summary:', summary, summaryError);
           }
@@ -820,5 +729,419 @@ export class SmartAnalysisOrchestrator {
     
     // All retries failed
     throw lastError || new Error('Analysis failed after multiple attempts');
+  }
+
+  // Phase 1 Deduplication Methods Implementation
+
+  // Cleanup existing duplicates using database function
+  static async cleanupExistingDuplicates(projectId: string): Promise<void> {
+    try {
+      const { data, error } = await supabase.rpc('cleanup_duplicate_knowledge', {
+        p_project_id: projectId
+      });
+
+      if (error) {
+        console.error('❌ Error cleaning up duplicates:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const results = data[0];
+        console.log('🧹 Cleanup results:', {
+          relationships_removed: results.relationships_removed,
+          plot_threads_removed: results.plot_threads_removed,
+          timeline_events_removed: results.timeline_events_removed,
+          plot_points_removed: results.plot_points_removed,
+          chapter_summaries_removed: results.chapter_summaries_removed,
+          world_building_removed: results.world_building_removed,
+          themes_removed: results.themes_removed
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error in cleanup function:', error);
+    }
+  }
+
+  // Intelligent relationship deduplication and merging
+  static async storeOrUpdateRelationship(projectId: string, relationship: any, sourceChapterIds: string[]) {
+    // Check for existing relationship by character names and type
+    const { data: existingRelationships, error: searchError } = await supabase
+      .from('character_relationships')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('character_a_name', relationship.character_a_name)
+      .eq('character_b_name', relationship.character_b_name)
+      .eq('relationship_type', relationship.relationship_type);
+
+    if (searchError) {
+      console.error('Error searching for existing relationship:', searchError);
+      return;
+    }
+
+    if (existingRelationships && existingRelationships.length > 0) {
+      // Relationship exists - merge information
+      const existingRel = existingRelationships[0];
+      
+      const updateData = {
+        relationship_strength: Math.max(existingRel.relationship_strength, relationship.relationship_strength || 5),
+        confidence_score: Math.max(existingRel.confidence_score || 0.5, relationship.ai_confidence || 0.5),
+        ai_confidence_new: Math.max(existingRel.ai_confidence_new || 0.5, relationship.ai_confidence || 0.5),
+        source_chapter_ids: [...new Set([
+          ...(existingRel.source_chapter_ids as string[] || []),
+          ...sourceChapterIds
+        ])],
+        evidence: relationship.evidence || existingRel.evidence,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: updateError } = await supabase
+        .from('character_relationships')
+        .update(updateData)
+        .eq('id', existingRel.id);
+
+      if (updateError) {
+        console.error('Error updating relationship:', updateError);
+      } else {
+        console.log(`🔄 Updated relationship: ${relationship.character_a_name} - ${relationship.character_b_name}`);
+      }
+    } else {
+      // New relationship - create
+      const { error } = await supabase
+        .from('character_relationships')
+        .insert({
+          project_id: projectId,
+          character_a_name: relationship.character_a_name,
+          character_b_name: relationship.character_b_name,
+          relationship_type: relationship.relationship_type,
+          relationship_strength: relationship.relationship_strength || 5,
+          confidence_score: relationship.ai_confidence || 0.5,
+          extraction_method: 'llm_direct',
+          source_chapter_ids: sourceChapterIds,
+          is_newly_extracted: true,
+          ai_confidence_new: relationship.ai_confidence || 0.5,
+          evidence: relationship.evidence || null
+        });
+
+      if (error) {
+        console.error('Error storing new relationship:', relationship, error);
+      } else {
+        console.log(`✅ Created new relationship: ${relationship.character_a_name} - ${relationship.character_b_name}`);
+      }
+    }
+  }
+
+  // Intelligent plot thread deduplication and merging
+  static async storeOrUpdatePlotThread(projectId: string, plotThread: any, sourceChapterIds: string[]) {
+    // Check for existing plot thread by name and type
+    const { data: existingThreads, error: searchError } = await supabase
+      .from('plot_threads')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('thread_name', plotThread.thread_name)
+      .eq('thread_type', plotThread.thread_type);
+
+    if (searchError) {
+      console.error('Error searching for existing plot thread:', searchError);
+      return;
+    }
+
+    if (existingThreads && existingThreads.length > 0) {
+      // Plot thread exists - merge information
+      const existingThread = existingThreads[0];
+      
+      // Merge key events
+      const existingEvents = (existingThread.key_events as string[]) || [];
+      const newEvents = plotThread.key_events || [];
+      const mergedEvents = [...new Set([...existingEvents, ...newEvents])];
+
+      // Merge characters involved
+      const existingChars = (existingThread.characters_involved_names as string[]) || [];
+      const newChars = plotThread.characters_involved_names || [];
+      const mergedChars = [...new Set([...existingChars, ...newChars])];
+
+      const updateData = {
+        thread_status: plotThread.thread_status || existingThread.thread_status,
+        key_events: mergedEvents,
+        characters_involved_names: mergedChars,
+        confidence_score: Math.max(existingThread.confidence_score || 0.5, plotThread.ai_confidence || 0.5),
+        ai_confidence_new: Math.max(existingThread.ai_confidence_new || 0.5, plotThread.ai_confidence || 0.5),
+        source_chapter_ids: [...new Set([
+          ...(existingThread.source_chapter_ids as string[] || []),
+          ...sourceChapterIds
+        ])],
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: updateError } = await supabase
+        .from('plot_threads')
+        .update(updateData)
+        .eq('id', existingThread.id);
+
+      if (updateError) {
+        console.error('Error updating plot thread:', updateError);
+      } else {
+        console.log(`🔄 Updated plot thread: ${plotThread.thread_name}`);
+      }
+    } else {
+      // New plot thread - create
+      const { error } = await supabase
+        .from('plot_threads')
+        .insert({
+          project_id: projectId,
+          thread_name: plotThread.thread_name,
+          thread_type: plotThread.thread_type,
+          thread_status: plotThread.thread_status,
+          key_events: plotThread.key_events || [],
+          characters_involved_names: plotThread.characters_involved_names || [],
+          confidence_score: plotThread.ai_confidence || 0.5,
+          extraction_method: 'llm_direct',
+          source_chapter_ids: sourceChapterIds,
+          is_newly_extracted: true,
+          ai_confidence_new: plotThread.ai_confidence || 0.5
+        });
+
+      if (error) {
+        console.error('Error storing new plot thread:', plotThread, error);
+      } else {
+        console.log(`✅ Created new plot thread: ${plotThread.thread_name}`);
+      }
+    }
+  }
+
+  // Intelligent timeline event deduplication and merging
+  static async storeOrUpdateTimelineEvent(projectId: string, event: any, sourceChapterIds: string[]) {
+    const eventName = event.event_name || event.event_summary || 'Unnamed Event';
+    
+    // Check for existing timeline event by name and type
+    const { data: existingEvents, error: searchError } = await supabase
+      .from('timeline_events')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('event_name', eventName)
+      .eq('event_type', event.event_type || 'general');
+
+    if (searchError) {
+      console.error('Error searching for existing timeline event:', searchError);
+      return;
+    }
+
+    if (existingEvents && existingEvents.length > 0) {
+      // Timeline event exists - merge information
+      const existingEvent = existingEvents[0];
+      
+      // Merge characters involved
+      const existingChars = (existingEvent.characters_involved_names as string[]) || [];
+      const newChars = event.characters_involved_names || [];
+      const mergedChars = [...new Set([...existingChars, ...newChars])];
+
+      // Merge locations involved
+      const existingLocs = (existingEvent.locations_involved_names as string[]) || [];
+      const newLocs = event.locations_involved_names || [];
+      const mergedLocs = [...new Set([...existingLocs, ...newLocs])];
+
+      // Merge plot threads impacted
+      const existingThreads = (existingEvent.plot_threads_impacted_names as string[]) || [];
+      const newThreads = event.plot_threads_impacted_names || [];
+      const mergedThreads = [...new Set([...existingThreads, ...newThreads])];
+
+      const updateData = {
+        event_summary: event.event_summary || existingEvent.event_summary,
+        chronological_order: event.chronological_order || existingEvent.chronological_order,
+        date_or_time_reference: event.date_or_time_reference || existingEvent.date_or_time_reference,
+        significance: event.significance || existingEvent.significance,
+        characters_involved_names: mergedChars,
+        plot_threads_impacted_names: mergedThreads,
+        locations_involved_names: mergedLocs,
+        confidence_score: Math.max(existingEvent.confidence_score || 0.5, event.ai_confidence || 0.5),
+        ai_confidence_new: Math.max(existingEvent.ai_confidence_new || 0.5, event.ai_confidence || 0.5),
+        source_chapter_ids: [...new Set([
+          ...(existingEvent.source_chapter_ids as string[] || []),
+          ...sourceChapterIds
+        ])],
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: updateError } = await supabase
+        .from('timeline_events')
+        .update(updateData)
+        .eq('id', existingEvent.id);
+
+      if (updateError) {
+        console.error('Error updating timeline event:', updateError);
+      } else {
+        console.log(`🔄 Updated timeline event: ${eventName}`);
+      }
+    } else {
+      // New timeline event - create
+      const { error } = await supabase
+        .from('timeline_events')
+        .insert({
+          project_id: projectId,
+          event_name: eventName,
+          event_type: event.event_type || 'general',
+          event_summary: event.event_summary,
+          chronological_order: event.chronological_order || 0,
+          date_or_time_reference: event.date_or_time_reference,
+          significance: event.significance,
+          characters_involved_names: event.characters_involved_names || [],
+          plot_threads_impacted_names: event.plot_threads_impacted_names || [],
+          locations_involved_names: event.locations_involved_names || [],
+          confidence_score: event.ai_confidence || 0.5,
+          extraction_method: 'llm_direct',
+          source_chapter_ids: sourceChapterIds,
+          is_newly_extracted: true,
+          ai_confidence_new: event.ai_confidence || 0.5
+        });
+
+      if (error) {
+        console.error('Error storing new timeline event:', event, error);
+      } else {
+        console.log(`✅ Created new timeline event: ${eventName}`);
+      }
+    }
+  }
+
+  // Intelligent plot point deduplication and merging
+  static async storeOrUpdatePlotPoint(projectId: string, plotPoint: any, sourceChapterIds: string[]) {
+    // Check for existing plot point by name and plot thread
+    const { data: existingPoints, error: searchError } = await supabase
+      .from('plot_points')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('name', plotPoint.name)
+      .eq('plot_thread_name', plotPoint.plot_thread_name || '');
+
+    if (searchError) {
+      console.error('Error searching for existing plot point:', searchError);
+      return;
+    }
+
+    if (existingPoints && existingPoints.length > 0) {
+      // Plot point exists - merge information
+      const existingPoint = existingPoints[0];
+      
+      // Merge characters involved
+      const existingChars = (existingPoint.characters_involved_names as string[]) || [];
+      const newChars = plotPoint.characters_involved_names || [];
+      const mergedChars = [...new Set([...existingChars, ...newChars])];
+
+      const updateData = {
+        description: plotPoint.description || existingPoint.description,
+        significance: plotPoint.significance || existingPoint.significance,
+        characters_involved_names: mergedChars,
+        ai_confidence: Math.max(existingPoint.ai_confidence || 0.5, plotPoint.ai_confidence || 0.5),
+        source_chapter_ids: [...new Set([
+          ...(existingPoint.source_chapter_ids as string[] || []),
+          ...sourceChapterIds
+        ])],
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: updateError } = await supabase
+        .from('plot_points')
+        .update(updateData)
+        .eq('id', existingPoint.id);
+
+      if (updateError) {
+        console.error('Error updating plot point:', updateError);
+      } else {
+        console.log(`🔄 Updated plot point: ${plotPoint.name}`);
+      }
+    } else {
+      // New plot point - create
+      const { error } = await supabase
+        .from('plot_points')
+        .insert({
+          project_id: projectId,
+          name: plotPoint.name,
+          description: plotPoint.description,
+          plot_thread_name: plotPoint.plot_thread_name,
+          significance: plotPoint.significance,
+          characters_involved_names: plotPoint.characters_involved_names || [],
+          ai_confidence: plotPoint.ai_confidence || 0.5,
+          source_chapter_ids: sourceChapterIds,
+          is_newly_extracted: true
+        });
+
+      if (error) {
+        console.error('Error storing new plot point:', plotPoint, error);
+      } else {
+        console.log(`✅ Created new plot point: ${plotPoint.name}`);
+      }
+    }
+  }
+
+  // Intelligent chapter summary deduplication and merging
+  static async storeOrUpdateChapterSummary(projectId: string, summary: any, sourceChapters: any[]) {
+    const chapterId = sourceChapters[0]?.id;
+    
+    // Check for existing chapter summary by chapter ID
+    const { data: existingSummaries, error: searchError } = await supabase
+      .from('chapter_summaries')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('chapter_id', chapterId);
+
+    if (searchError) {
+      console.error('Error searching for existing chapter summary:', searchError);
+      return;
+    }
+
+    if (existingSummaries && existingSummaries.length > 0) {
+      // Chapter summary exists - merge information
+      const existingSummary = existingSummaries[0];
+      
+      // Merge key events
+      const existingEvents = (existingSummary.key_events_in_chapter as string[]) || [];
+      const newEvents = summary.key_events_in_chapter || [];
+      const mergedEvents = [...new Set([...existingEvents, ...newEvents])];
+
+      // Merge primary focus
+      const existingFocus = (existingSummary.primary_focus as string[]) || [];
+      const newFocus = summary.primary_focus || [];
+      const mergedFocus = [...new Set([...existingFocus, ...newFocus])];
+
+      const updateData = {
+        title: summary.title || existingSummary.title,
+        summary_short: summary.summary_short || existingSummary.summary_short,
+        summary_long: summary.summary_long || existingSummary.summary_long,
+        key_events_in_chapter: mergedEvents,
+        primary_focus: mergedFocus,
+        ai_confidence: Math.max(existingSummary.ai_confidence || 0.5, summary.ai_confidence || 0.5),
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: updateError } = await supabase
+        .from('chapter_summaries')
+        .update(updateData)
+        .eq('id', existingSummary.id);
+
+      if (updateError) {
+        console.error('Error updating chapter summary:', updateError);
+      } else {
+        console.log(`🔄 Updated chapter summary for chapter: ${chapterId}`);
+      }
+    } else {
+      // New chapter summary - create
+      const { error } = await supabase
+        .from('chapter_summaries')
+        .insert({
+          project_id: projectId,
+          chapter_id: chapterId,
+          title: summary.title,
+          summary_short: summary.summary_short,
+          summary_long: summary.summary_long,
+          key_events_in_chapter: summary.key_events_in_chapter || [],
+          primary_focus: summary.primary_focus || [],
+          ai_confidence: summary.ai_confidence || 0.5,
+          is_newly_extracted: true
+        });
+
+      if (error) {
+        console.error('Error storing new chapter summary:', summary, error);
+      } else {
+        console.log(`✅ Created new chapter summary for chapter: ${chapterId}`);
+      }
+    }
   }
 }

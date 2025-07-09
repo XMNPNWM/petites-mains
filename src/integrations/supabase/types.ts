@@ -1733,6 +1733,18 @@ export type Database = {
           plot_threads_checked: number
         }[]
       }
+      cleanup_duplicate_knowledge: {
+        Args: { p_project_id: string }
+        Returns: {
+          relationships_removed: number
+          plot_threads_removed: number
+          timeline_events_removed: number
+          plot_points_removed: number
+          chapter_summaries_removed: number
+          world_building_removed: number
+          themes_removed: number
+        }[]
+      }
       extract_knowledge_from_chunks: {
         Args: { p_project_id: string; p_chapter_id?: string }
         Returns: {
