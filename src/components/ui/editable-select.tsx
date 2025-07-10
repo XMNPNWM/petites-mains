@@ -144,7 +144,7 @@ export const EditableSelect: React.FC<EditableSelectProps> = ({
     }
 
     return (
-      <DropdownMenu onOpenChange={(open) => !open && handleCancel()}>
+      <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Badge 
             variant={variant} 

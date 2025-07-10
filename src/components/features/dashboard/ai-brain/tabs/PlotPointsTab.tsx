@@ -6,7 +6,8 @@ import { EditablePlotCard } from '../cards/EditablePlotCard';
 export const PlotPointsTab: React.FC<TabComponentProps> = ({
   data,
   onUpdatePlotPoint,
-  onTogglePlotPointFlag
+  onTogglePlotPointFlag,
+  onDeletePlotPoint
 }) => {
   if (data.length === 0) {
     return (
@@ -26,6 +27,7 @@ export const PlotPointsTab: React.FC<TabComponentProps> = ({
           onUpdateName={(id, value) => onUpdatePlotPoint(id, 'name', value)}
           onUpdateDescription={(id, value) => onUpdatePlotPoint(id, 'description', value)}
           onToggleFlag={onTogglePlotPointFlag}
+          onDelete={onDeletePlotPoint}
           type="plot-point"
         />
       ))}

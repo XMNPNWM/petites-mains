@@ -6,7 +6,9 @@ import { EditablePlotCard } from '../cards/EditablePlotCard';
 export const PlotThreadsTab: React.FC<TabComponentProps> = ({
   data,
   onUpdatePlotThread,
-  onTogglePlotThreadFlag
+  onTogglePlotThreadFlag,
+  onDeletePlotThread,
+  onUpdatePlotThreadType
 }) => {
   if (data.length === 0) {
     return (
@@ -25,6 +27,8 @@ export const PlotThreadsTab: React.FC<TabComponentProps> = ({
           item={thread}
           onUpdateName={(id, value) => onUpdatePlotThread(id, value)}
           onToggleFlag={onTogglePlotThreadFlag}
+          onDelete={onDeletePlotThread}
+          onUpdateThreadType={onUpdatePlotThreadType}
           type="plot-thread"
         />
       ))}

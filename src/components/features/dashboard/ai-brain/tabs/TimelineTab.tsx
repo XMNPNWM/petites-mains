@@ -6,7 +6,9 @@ import { EditableTimelineCard } from '../cards/EditableTimelineCard';
 export const TimelineTab: React.FC<TabComponentProps> = ({
   data,
   onUpdateTimelineEvent,
-  onToggleTimelineEventFlag
+  onToggleTimelineEventFlag,
+  onDeleteTimelineEvent,
+  onUpdateTimelineEventType
 }) => {
   if (data.length === 0) {
     return (
@@ -26,6 +28,8 @@ export const TimelineTab: React.FC<TabComponentProps> = ({
           onUpdateEventName={(id, value) => onUpdateTimelineEvent(id, 'event_name', value)}
           onUpdateEventDescription={(id, value) => onUpdateTimelineEvent(id, 'event_description', value)}
           onToggleFlag={onToggleTimelineEventFlag}
+          onDelete={onDeleteTimelineEvent}
+          onUpdateEventType={onUpdateTimelineEventType}
         />
       ))}
     </div>

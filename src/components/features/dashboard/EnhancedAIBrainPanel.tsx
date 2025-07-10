@@ -164,6 +164,38 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     await refresh();
   };
 
+  // Delete handlers
+  const handleDeleteRelationship = async (id: string) => {
+    await UnifiedUpdateService.deleteCharacterRelationship(id);
+    await refresh();
+  };
+
+  const handleDeletePlotPoint = async (id: string) => {
+    await UnifiedUpdateService.deletePlotPoint(id);
+    await refresh();
+  };
+
+  const handleDeletePlotThread = async (id: string) => {
+    await UnifiedUpdateService.deletePlotThread(id);
+    await refresh();
+  };
+
+  const handleDeleteTimelineEvent = async (id: string) => {
+    await UnifiedUpdateService.deleteTimelineEvent(id);
+    await refresh();
+  };
+
+  // Type update handlers
+  const handleUpdatePlotThreadType = async (id: string, threadType: string) => {
+    await UnifiedUpdateService.updatePlotThreadType(id, threadType);
+    await refresh();
+  };
+
+  const handleUpdateTimelineEventType = async (id: string, eventType: string) => {
+    await UnifiedUpdateService.updateTimelineEventType(id, eventType);
+    await refresh();
+  };
+
   if (dataLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -296,6 +328,12 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                     onToggleTimelineEventFlag={handleToggleTimelineEventFlag}
                     onToggleCharacterRelationshipFlag={handleToggleCharacterRelationshipFlag}
                     onUpdateChapterSummary={handleUpdateChapterSummary}
+                    onDeleteRelationship={handleDeleteRelationship}
+                    onDeletePlotPoint={handleDeletePlotPoint}
+                    onDeletePlotThread={handleDeletePlotThread}
+                    onDeleteTimelineEvent={handleDeleteTimelineEvent}
+                    onUpdatePlotThreadType={handleUpdatePlotThreadType}
+                    onUpdateTimelineEventType={handleUpdateTimelineEventType}
                   />
                 </div>
               </TabsContent>
