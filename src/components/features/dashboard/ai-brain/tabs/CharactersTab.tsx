@@ -32,7 +32,6 @@ export const CharactersTab: React.FC<TabComponentProps> = ({
           onToggleFlag={onToggleKnowledgeFlag}
           onDelete={async (id) => {
             await onDeleteKnowledgeItem?.(id);
-            onDataRefresh?.();
           }}
           nameFieldName="Character name"
           descriptionFieldName="Character description"
