@@ -2,7 +2,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { EmbeddingsService, SimilarityResult } from './EmbeddingsService';
 import crypto from 'crypto';
 
-interface ChunkSimilarityResult extends SimilarityResult {
+interface ChunkSimilarityResult {
+  id: string;
+  content: string;
+  similarity: number;
+  chunk_index: number;
+  chapter_id: string;
+  project_id: string;
   content_hash: string;
 }
 
