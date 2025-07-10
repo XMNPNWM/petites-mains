@@ -12,6 +12,7 @@ export interface TabMetadata {
 export interface TabComponentProps {
   data: any[];
   onDataRefresh: () => Promise<void>;
+  // Core update handlers
   onUpdateKnowledge: (id: string, field: 'name' | 'description', value: string) => Promise<void>;
   onToggleKnowledgeFlag: (id: string, isFlagged: boolean) => Promise<void>;
   onUpdatePlotPoint: (id: string, field: 'name' | 'description', value: string) => Promise<void>;
