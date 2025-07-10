@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator';
+import { EnhancedAnalysisOrchestrator } from '@/services/EnhancedAnalysisOrchestrator';
 import { AnalysisJobManager } from '@/services/AnalysisJobManager';
 import { useToast } from '@/hooks/use-toast';
 import { useAIBrainData } from '@/hooks/useAIBrainData';
@@ -54,14 +55,15 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     
     setIsAnalyzing(true);
     try {
-      console.log('🚀 Starting comprehensive analysis for project:', projectId);
+      console.log('🚀 Starting enhanced comprehensive analysis for project:', projectId);
       
-      const result = await SmartAnalysisOrchestrator.analyzeProject(projectId);
+      const result = await EnhancedAnalysisOrchestrator.analyzeProject(projectId);
       
       if (result.success) {
+        const stats = result.processingStats;
         toast({
-          title: "Analysis Complete",
-          description: `Successfully extracted ${result.totalExtracted || result.processingStats?.knowledgeExtracted || 0} knowledge items`,
+          title: "Enhanced Analysis Complete",
+          description: `Extracted ${result.totalExtracted || 0} items, processed ${stats?.chunksProcessed || 0} chunks, performed ${stats?.semanticMergesPerformed || 0} merges${stats?.extractionSkipped ? ', skipped duplicate content' : ''}`,
         });
         if (refresh) {
           await refresh();

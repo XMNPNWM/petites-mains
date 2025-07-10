@@ -1,6 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { EmbeddingsService } from './EmbeddingsService';
 import { SemanticDeduplicationService } from './SemanticDeduplicationService';
+import { EnhancedEmbeddingsService } from './EnhancedEmbeddingsService';
+import { EmbeddingBasedSemanticMerger } from './EmbeddingBasedSemanticMerger';
 
 interface ProcessingResult {
   shouldSkipExtraction: boolean;
@@ -11,7 +13,7 @@ interface ProcessingResult {
 
 export class EmbeddingsBasedProcessingService {
   /**
-   * Check if content should be processed based on embeddings similarity
+   * Enhanced content processing check using the new enhanced embeddings service
    */
   static async checkContentProcessingNeed(
     projectId: string,
@@ -19,54 +21,65 @@ export class EmbeddingsBasedProcessingService {
     chapterId?: string
   ): Promise<ProcessingResult> {
     try {
-      console.log('🔍 Checking content processing need using embeddings...');
+      console.log('🔍 Enhanced content processing check starting...');
       
-      // Check similarity with existing content
-      const similarityResult = await EmbeddingsService.checkContentSimilarity(
+      // Use enhanced chunk-level similarity check
+      const enhancedResult = await EnhancedEmbeddingsService.checkChunkLevelSimilarity(
         projectId,
         content,
-        0.8 // High threshold for skipping
+        chapterId
       );
 
-      if (similarityResult.shouldSkipExtraction) {
-        console.log('⏭️ Skipping extraction - highly similar content found');
+      if (enhancedResult.shouldSkipExtraction) {
+        console.log('⏭️ Skipping extraction - enhanced similarity check detected high similarity');
+        
+        // Perform smart content linking if skipping
+        if (chapterId && enhancedResult.similarChunks.length > 0) {
+          await EnhancedEmbeddingsService.smartContentLinking(
+            projectId,
+            chapterId,
+            enhancedResult.similarChunks
+          );
+        }
+        
         return {
           shouldSkipExtraction: true,
           similarContent: true,
-          reason: 'Content is too similar to existing analyzed content',
+          reason: enhancedResult.reasoning,
           suggestions: [
-            'Consider referencing existing knowledge items',
-            'Check if this is a duplicate chapter section',
-            'Review similar content for potential consolidation'
+            'Content linked to existing knowledge items',
+            'Confidence scores boosted for related items',
+            'No duplicate extraction performed'
           ]
         };
       }
 
-      if (similarityResult.isSimilar) {
-        console.log('🔄 Similar content found but proceeding with semantic deduplication');
+      if (enhancedResult.recommendedAction === 'proceed_with_enhanced_dedup') {
+        console.log('🔄 Proceeding with enhanced semantic deduplication');
         return {
           shouldSkipExtraction: false,
           similarContent: true,
-          reason: 'Similar content found - will use enhanced deduplication',
+          reason: enhancedResult.reasoning,
           suggestions: [
-            'Will apply semantic deduplication after extraction',
-            'Knowledge items will be merged intelligently'
+            'Will use embedding-based semantic merging',
+            'LLM conflict resolution when needed',
+            'User overrides will be preserved'
           ]
         };
       }
 
-      console.log('✅ Content is novel - proceeding with full extraction');
+      console.log('✅ Content is novel - proceeding with normal extraction');
       return {
         shouldSkipExtraction: false,
         similarContent: false,
-        reason: 'Content is sufficiently novel for extraction'
+        reason: enhancedResult.reasoning
       };
     } catch (error) {
-      console.error('Error in content processing check:', error);
+      console.error('Error in enhanced content processing check:', error);
       return {
         shouldSkipExtraction: false,
         similarContent: false,
-        reason: 'Error in similarity check - proceeding with extraction'
+        reason: 'Error in enhanced similarity check - proceeding with extraction'
       };
     }
   }
@@ -289,46 +302,113 @@ export class EmbeddingsBasedProcessingService {
   }
 
   /**
-   * Optimize knowledge base using embeddings and deduplication
+   * Enhanced knowledge base optimization using the new services
    */
   static async optimizeKnowledgeBase(projectId: string): Promise<{
     optimized: boolean;
     duplicatesRemoved: number;
     embeddingsGenerated: number;
+    semanticMergesPerformed: number;
+    userConflictsDetected: number;
     message: string;
   }> {
     try {
-      console.log(`🛠️ Optimizing knowledge base for project: ${projectId}`);
+      console.log(`🛠️ Enhanced knowledge base optimization for project: ${projectId}`);
       
-      // Step 1: Generate missing embeddings
-      const embeddingsResult = await this.initializeProjectEmbeddings(projectId);
+      // Step 1: Process incremental embeddings (only for changed content)
+      let totalEmbeddingsGenerated = 0;
+      const { data: chapters } = await supabase
+        .from('chapters')
+        .select('id, content')
+        .eq('project_id', projectId);
       
-      // Step 2: Apply semantic deduplication
+      if (chapters) {
+        for (const chapter of chapters) {
+          if (chapter.content) {
+            const result = await EnhancedEmbeddingsService.processIncrementalEmbeddings(
+              projectId,
+              chapter.id,
+              chapter.content
+            );
+            totalEmbeddingsGenerated += result.embeddingsGenerated;
+          }
+        }
+      }
+      
+      // Step 2: Apply embedding-based semantic merging for each knowledge type
+      let semanticMergesPerformed = 0;
+      let userConflictsDetected = 0;
+      
+      // Merge character relationships
+      const { data: relationships } = await supabase
+        .from('character_relationships')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('is_newly_extracted', true);
+      
+      if (relationships) {
+        for (const rel of relationships) {
+          const mergeResult = await EmbeddingBasedSemanticMerger.mergeCharacterRelationships(projectId, rel);
+          if (mergeResult.merged) {
+            semanticMergesPerformed++;
+            // Delete the original since it was merged
+            await supabase.from('character_relationships').delete().eq('id', rel.id);
+          } else if (mergeResult.conflictResolution === 'user_required') {
+            userConflictsDetected++;
+          }
+        }
+      }
+      
+      // Merge timeline events
+      const { data: events } = await supabase
+        .from('timeline_events')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('is_newly_extracted', true);
+      
+      if (events) {
+        for (const event of events) {
+          const mergeResult = await EmbeddingBasedSemanticMerger.mergeTimelineEvents(projectId, event);
+          if (mergeResult.merged) {
+            semanticMergesPerformed++;
+            // Delete the original since it was merged
+            await supabase.from('timeline_events').delete().eq('id', event.id);
+          } else if (mergeResult.conflictResolution === 'user_required') {
+            userConflictsDetected++;
+          }
+        }
+      }
+      
+      // Step 3: Apply traditional deduplication for remaining items
       const deduplicationResult = await SemanticDeduplicationService.applyEnhancedDeduplication(
         projectId,
         0.8
       );
       
-      const totalRemoved = deduplicationResult.relationshipsRemoved +
-                          deduplicationResult.plotThreadsRemoved +
-                          deduplicationResult.timelineEventsRemoved +
-                          deduplicationResult.plotPointsRemoved +
-                          deduplicationResult.chapterSummariesRemoved +
-                          deduplicationResult.worldBuildingRemoved +
-                          deduplicationResult.themesRemoved;
+      const totalDuplicatesRemoved = deduplicationResult.relationshipsRemoved +
+                                    deduplicationResult.plotThreadsRemoved +
+                                    deduplicationResult.timelineEventsRemoved +
+                                    deduplicationResult.plotPointsRemoved +
+                                    deduplicationResult.chapterSummariesRemoved +
+                                    deduplicationResult.worldBuildingRemoved +
+                                    deduplicationResult.themesRemoved;
 
       return {
         optimized: true,
-        duplicatesRemoved: totalRemoved,
-        embeddingsGenerated: embeddingsResult.processed,
-        message: `Optimization complete: Generated ${embeddingsResult.processed} embeddings, removed ${totalRemoved} duplicates, performed ${deduplicationResult.semanticMergesPerformed} semantic merges`
+        duplicatesRemoved: totalDuplicatesRemoved,
+        embeddingsGenerated: totalEmbeddingsGenerated,
+        semanticMergesPerformed,
+        userConflictsDetected,
+        message: `Enhanced optimization complete: Generated ${totalEmbeddingsGenerated} embeddings, performed ${semanticMergesPerformed} semantic merges, removed ${totalDuplicatesRemoved} duplicates, detected ${userConflictsDetected} user conflicts`
       };
     } catch (error) {
-      console.error('Error optimizing knowledge base:', error);
+      console.error('Error in enhanced knowledge base optimization:', error);
       return {
         optimized: false,
         duplicatesRemoved: 0,
         embeddingsGenerated: 0,
+        semanticMergesPerformed: 0,
+        userConflictsDetected: 0,
         message: `Optimization failed: ${error.message}`
       };
     }

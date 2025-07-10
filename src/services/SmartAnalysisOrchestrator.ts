@@ -4,6 +4,8 @@ import { ContentHashService } from './ContentHashService';
 import { ChronologicalCoordinationService } from './ChronologicalCoordinationService';
 import { SemanticDeduplicationService } from './SemanticDeduplicationService';
 import { EmbeddingsBasedProcessingService } from './EmbeddingsBasedProcessingService';
+import { EnhancedEmbeddingsService } from './EnhancedEmbeddingsService';
+import { EmbeddingBasedSemanticMerger } from './EmbeddingBasedSemanticMerger';
 import { KnowledgeBase, ChapterSummary, PlotPoint } from '@/types/knowledge';
 
 export class SmartAnalysisOrchestrator {

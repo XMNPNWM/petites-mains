@@ -240,10 +240,12 @@ export type Database = {
           chronological_order: number | null
           created_at: string | null
           dependency_elements: Json | null
+          edit_timestamp: string | null
           id: string
           is_newly_extracted: boolean | null
           key_events_in_chapter: Json | null
           narrative_sequence_id: string | null
+          original_ai_value: Json | null
           primary_focus: Json | null
           project_id: string
           source_chapter_id: string | null
@@ -252,6 +254,7 @@ export type Database = {
           temporal_markers: Json | null
           title: string | null
           updated_at: string | null
+          user_edited: boolean | null
         }
         Insert: {
           ai_confidence?: number | null
@@ -260,10 +263,12 @@ export type Database = {
           chronological_order?: number | null
           created_at?: string | null
           dependency_elements?: Json | null
+          edit_timestamp?: string | null
           id?: string
           is_newly_extracted?: boolean | null
           key_events_in_chapter?: Json | null
           narrative_sequence_id?: string | null
+          original_ai_value?: Json | null
           primary_focus?: Json | null
           project_id: string
           source_chapter_id?: string | null
@@ -272,6 +277,7 @@ export type Database = {
           temporal_markers?: Json | null
           title?: string | null
           updated_at?: string | null
+          user_edited?: boolean | null
         }
         Update: {
           ai_confidence?: number | null
@@ -280,10 +286,12 @@ export type Database = {
           chronological_order?: number | null
           created_at?: string | null
           dependency_elements?: Json | null
+          edit_timestamp?: string | null
           id?: string
           is_newly_extracted?: boolean | null
           key_events_in_chapter?: Json | null
           narrative_sequence_id?: string | null
+          original_ai_value?: Json | null
           primary_focus?: Json | null
           project_id?: string
           source_chapter_id?: string | null
@@ -292,6 +300,7 @@ export type Database = {
           temporal_markers?: Json | null
           title?: string | null
           updated_at?: string | null
+          user_edited?: boolean | null
         }
         Relationships: []
       }
@@ -351,6 +360,7 @@ export type Database = {
           confidence_score: number | null
           created_at: string | null
           dependency_elements: Json | null
+          edit_timestamp: string | null
           evidence: string | null
           extraction_method:
             | Database["public"]["Enums"]["extraction_method"]
@@ -361,6 +371,7 @@ export type Database = {
           is_verified: boolean | null
           key_interactions: Json | null
           narrative_sequence_id: string | null
+          original_ai_value: Json | null
           project_id: string
           relationship_current_status: string | null
           relationship_start_chapter_id: string | null
@@ -372,6 +383,7 @@ export type Database = {
           target_character_name: string | null
           temporal_markers: Json | null
           updated_at: string | null
+          user_edited: boolean | null
         }
         Insert: {
           ai_confidence_new?: number | null
@@ -384,6 +396,7 @@ export type Database = {
           confidence_score?: number | null
           created_at?: string | null
           dependency_elements?: Json | null
+          edit_timestamp?: string | null
           evidence?: string | null
           extraction_method?:
             | Database["public"]["Enums"]["extraction_method"]
@@ -394,6 +407,7 @@ export type Database = {
           is_verified?: boolean | null
           key_interactions?: Json | null
           narrative_sequence_id?: string | null
+          original_ai_value?: Json | null
           project_id: string
           relationship_current_status?: string | null
           relationship_start_chapter_id?: string | null
@@ -405,6 +419,7 @@ export type Database = {
           target_character_name?: string | null
           temporal_markers?: Json | null
           updated_at?: string | null
+          user_edited?: boolean | null
         }
         Update: {
           ai_confidence_new?: number | null
@@ -417,6 +432,7 @@ export type Database = {
           confidence_score?: number | null
           created_at?: string | null
           dependency_elements?: Json | null
+          edit_timestamp?: string | null
           evidence?: string | null
           extraction_method?:
             | Database["public"]["Enums"]["extraction_method"]
@@ -427,6 +443,7 @@ export type Database = {
           is_verified?: boolean | null
           key_interactions?: Json | null
           narrative_sequence_id?: string | null
+          original_ai_value?: Json | null
           project_id?: string
           relationship_current_status?: string | null
           relationship_start_chapter_id?: string | null
@@ -438,6 +455,7 @@ export type Database = {
           target_character_name?: string | null
           temporal_markers?: Json | null
           updated_at?: string | null
+          user_edited?: boolean | null
         }
         Relationships: [
           {
@@ -747,6 +765,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           details: Json | null
+          edit_timestamp: string | null
           evidence: string | null
           extraction_method: Database["public"]["Enums"]["extraction_method"]
           id: string
@@ -755,6 +774,7 @@ export type Database = {
           is_verified: boolean | null
           last_seen_at: string | null
           name: string
+          original_ai_value: Json | null
           project_id: string
           reasoning: string | null
           relevance_score: number | null
@@ -775,6 +795,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           details?: Json | null
+          edit_timestamp?: string | null
           evidence?: string | null
           extraction_method?: Database["public"]["Enums"]["extraction_method"]
           id?: string
@@ -783,6 +804,7 @@ export type Database = {
           is_verified?: boolean | null
           last_seen_at?: string | null
           name: string
+          original_ai_value?: Json | null
           project_id: string
           reasoning?: string | null
           relevance_score?: number | null
@@ -803,6 +825,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           details?: Json | null
+          edit_timestamp?: string | null
           evidence?: string | null
           extraction_method?: Database["public"]["Enums"]["extraction_method"]
           id?: string
@@ -811,6 +834,7 @@ export type Database = {
           is_verified?: boolean | null
           last_seen_at?: string | null
           name?: string
+          original_ai_value?: Json | null
           project_id?: string
           reasoning?: string | null
           relevance_score?: number | null
@@ -1063,17 +1087,20 @@ export type Database = {
           created_at: string | null
           dependency_elements: Json | null
           description: string | null
+          edit_timestamp: string | null
           id: string
           is_flagged: boolean | null
           is_newly_extracted: boolean | null
           name: string
           narrative_sequence_id: string | null
+          original_ai_value: Json | null
           plot_thread_name: string | null
           project_id: string
           significance: string | null
           source_chapter_ids: Json | null
           temporal_markers: Json | null
           updated_at: string | null
+          user_edited: boolean | null
         }
         Insert: {
           ai_confidence?: number | null
@@ -1083,17 +1110,20 @@ export type Database = {
           created_at?: string | null
           dependency_elements?: Json | null
           description?: string | null
+          edit_timestamp?: string | null
           id?: string
           is_flagged?: boolean | null
           is_newly_extracted?: boolean | null
           name: string
           narrative_sequence_id?: string | null
+          original_ai_value?: Json | null
           plot_thread_name?: string | null
           project_id: string
           significance?: string | null
           source_chapter_ids?: Json | null
           temporal_markers?: Json | null
           updated_at?: string | null
+          user_edited?: boolean | null
         }
         Update: {
           ai_confidence?: number | null
@@ -1103,17 +1133,20 @@ export type Database = {
           created_at?: string | null
           dependency_elements?: Json | null
           description?: string | null
+          edit_timestamp?: string | null
           id?: string
           is_flagged?: boolean | null
           is_newly_extracted?: boolean | null
           name?: string
           narrative_sequence_id?: string | null
+          original_ai_value?: Json | null
           plot_thread_name?: string | null
           project_id?: string
           significance?: string | null
           source_chapter_ids?: Json | null
           temporal_markers?: Json | null
           updated_at?: string | null
+          user_edited?: boolean | null
         }
         Relationships: []
       }
@@ -1126,6 +1159,7 @@ export type Database = {
           confidence_score: number | null
           created_at: string | null
           dependency_elements: Json | null
+          edit_timestamp: string | null
           end_chapter_id: string | null
           evidence: string | null
           extraction_method:
@@ -1137,6 +1171,7 @@ export type Database = {
           is_verified: boolean | null
           key_events: Json | null
           narrative_sequence_id: string | null
+          original_ai_value: Json | null
           project_id: string
           resolution_status: string | null
           source_chapter_ids: Json | null
@@ -1146,6 +1181,7 @@ export type Database = {
           thread_status: string | null
           thread_type: string
           updated_at: string | null
+          user_edited: boolean | null
         }
         Insert: {
           ai_confidence_new?: number | null
@@ -1155,6 +1191,7 @@ export type Database = {
           confidence_score?: number | null
           created_at?: string | null
           dependency_elements?: Json | null
+          edit_timestamp?: string | null
           end_chapter_id?: string | null
           evidence?: string | null
           extraction_method?:
@@ -1166,6 +1203,7 @@ export type Database = {
           is_verified?: boolean | null
           key_events?: Json | null
           narrative_sequence_id?: string | null
+          original_ai_value?: Json | null
           project_id: string
           resolution_status?: string | null
           source_chapter_ids?: Json | null
@@ -1175,6 +1213,7 @@ export type Database = {
           thread_status?: string | null
           thread_type: string
           updated_at?: string | null
+          user_edited?: boolean | null
         }
         Update: {
           ai_confidence_new?: number | null
@@ -1184,6 +1223,7 @@ export type Database = {
           confidence_score?: number | null
           created_at?: string | null
           dependency_elements?: Json | null
+          edit_timestamp?: string | null
           end_chapter_id?: string | null
           evidence?: string | null
           extraction_method?:
@@ -1195,6 +1235,7 @@ export type Database = {
           is_verified?: boolean | null
           key_events?: Json | null
           narrative_sequence_id?: string | null
+          original_ai_value?: Json | null
           project_id?: string
           resolution_status?: string | null
           source_chapter_ids?: Json | null
@@ -1204,6 +1245,7 @@ export type Database = {
           thread_status?: string | null
           thread_type?: string
           updated_at?: string | null
+          user_edited?: boolean | null
         }
         Relationships: [
           {
@@ -1304,15 +1346,18 @@ export type Database = {
           chapter_id: string
           chunk_index: number
           content: string
+          content_hash: string | null
           created_at: string | null
           dialogue_present: boolean | null
           dialogue_speakers: Json | null
           discourse_markers: Json | null
+          embedding_status: string | null
           embeddings: string | null
           embeddings_model: string | null
           end_position: number
           entity_types: Json | null
           id: string
+          last_embedded_at: string | null
           named_entities: Json | null
           overlap_with_next: boolean | null
           overlap_with_previous: boolean | null
@@ -1328,15 +1373,18 @@ export type Database = {
           chapter_id: string
           chunk_index: number
           content: string
+          content_hash?: string | null
           created_at?: string | null
           dialogue_present?: boolean | null
           dialogue_speakers?: Json | null
           discourse_markers?: Json | null
+          embedding_status?: string | null
           embeddings?: string | null
           embeddings_model?: string | null
           end_position: number
           entity_types?: Json | null
           id?: string
+          last_embedded_at?: string | null
           named_entities?: Json | null
           overlap_with_next?: boolean | null
           overlap_with_previous?: boolean | null
@@ -1352,15 +1400,18 @@ export type Database = {
           chapter_id?: string
           chunk_index?: number
           content?: string
+          content_hash?: string | null
           created_at?: string | null
           dialogue_present?: boolean | null
           dialogue_speakers?: Json | null
           discourse_markers?: Json | null
+          embedding_status?: string | null
           embeddings?: string | null
           embeddings_model?: string | null
           end_position?: number
           entity_types?: Json | null
           id?: string
+          last_embedded_at?: string | null
           named_entities?: Json | null
           overlap_with_next?: boolean | null
           overlap_with_previous?: boolean | null
@@ -1532,6 +1583,7 @@ export type Database = {
           date_or_time_reference: string | null
           dependency_elements: Json | null
           duration_description: string | null
+          edit_timestamp: string | null
           event_date_in_story: string | null
           event_description: string | null
           event_importance: string | null
@@ -1549,6 +1601,7 @@ export type Database = {
           locations_involved: Json | null
           locations_involved_names: Json | null
           narrative_sequence_id: string | null
+          original_ai_value: Json | null
           plot_threads_affected: Json | null
           plot_threads_impacted_names: Json | null
           project_id: string
@@ -1556,6 +1609,7 @@ export type Database = {
           source_chapter_ids: Json | null
           temporal_markers: Json | null
           updated_at: string | null
+          user_edited: boolean | null
         }
         Insert: {
           ai_confidence_new?: number | null
@@ -1569,6 +1623,7 @@ export type Database = {
           date_or_time_reference?: string | null
           dependency_elements?: Json | null
           duration_description?: string | null
+          edit_timestamp?: string | null
           event_date_in_story?: string | null
           event_description?: string | null
           event_importance?: string | null
@@ -1586,6 +1641,7 @@ export type Database = {
           locations_involved?: Json | null
           locations_involved_names?: Json | null
           narrative_sequence_id?: string | null
+          original_ai_value?: Json | null
           plot_threads_affected?: Json | null
           plot_threads_impacted_names?: Json | null
           project_id: string
@@ -1593,6 +1649,7 @@ export type Database = {
           source_chapter_ids?: Json | null
           temporal_markers?: Json | null
           updated_at?: string | null
+          user_edited?: boolean | null
         }
         Update: {
           ai_confidence_new?: number | null
@@ -1606,6 +1663,7 @@ export type Database = {
           date_or_time_reference?: string | null
           dependency_elements?: Json | null
           duration_description?: string | null
+          edit_timestamp?: string | null
           event_date_in_story?: string | null
           event_description?: string | null
           event_importance?: string | null
@@ -1623,6 +1681,7 @@ export type Database = {
           locations_involved?: Json | null
           locations_involved_names?: Json | null
           narrative_sequence_id?: string | null
+          original_ai_value?: Json | null
           plot_threads_affected?: Json | null
           plot_threads_impacted_names?: Json | null
           project_id?: string
@@ -1630,6 +1689,7 @@ export type Database = {
           source_chapter_ids?: Json | null
           temporal_markers?: Json | null
           updated_at?: string | null
+          user_edited?: boolean | null
         }
         Relationships: [
           {
@@ -1913,6 +1973,24 @@ export type Database = {
           chunk_index: number
           chapter_id: string
           project_id: string
+        }[]
+      }
+      match_semantic_chunks_enhanced: {
+        Args: {
+          query_embedding: string
+          match_threshold?: number
+          match_count?: number
+          filter_project_id?: string
+          exclude_chapter_id?: string
+        }
+        Returns: {
+          id: string
+          content: string
+          similarity: number
+          chunk_index: number
+          chapter_id: string
+          project_id: string
+          content_hash: string
         }[]
       }
       sparsevec_out: {
