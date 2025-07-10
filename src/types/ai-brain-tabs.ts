@@ -22,4 +22,12 @@ export interface TabComponentProps {
   onToggleTimelineEventFlag: (id: string, isFlagged: boolean) => Promise<void>;
   onToggleCharacterRelationshipFlag: (id: string, isFlagged: boolean) => Promise<void>;
   onUpdateChapterSummary: (id: string, field: 'title' | 'summary_long', value: string) => Promise<void>;
+  // Delete handlers (optional)
+  onDeleteRelationship?: (id: string) => Promise<void>;
+  onDeletePlotPoint?: (id: string) => Promise<void>;
+  onDeletePlotThread?: (id: string) => Promise<void>;
+  onDeleteTimelineEvent?: (id: string) => Promise<void>;
+  // Type update handlers (optional)
+  onUpdatePlotThreadType?: (id: string, threadType: string) => Promise<void>;
+  onUpdateTimelineEventType?: (id: string, eventType: string) => Promise<void>;
 }
