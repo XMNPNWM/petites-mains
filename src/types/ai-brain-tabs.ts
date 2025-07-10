@@ -27,6 +27,7 @@ export interface TabComponentProps {
   onDeleteRelationship?: (id: string) => Promise<void>;
   onDeletePlotPoint?: (id: string) => Promise<void>;
   onDeletePlotThread?: (id: string) => Promise<void>;
+  onDeleteKnowledgeItem?: (id: string) => Promise<void>;
   onDeleteTimelineEvent?: (id: string) => Promise<void>;
   // Type update handlers (optional)
   onUpdatePlotThreadType?: (id: string, threadType: string) => Promise<void>;
