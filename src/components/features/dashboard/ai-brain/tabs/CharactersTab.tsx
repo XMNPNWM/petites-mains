@@ -7,7 +7,8 @@ export const CharactersTab: React.FC<TabComponentProps> = ({
   data,
   onUpdateKnowledge,
   onToggleKnowledgeFlag,
-  onDeleteKnowledgeItem
+  onDeleteKnowledgeItem,
+  onDataRefresh
 }) => {
   const characters = data.filter(k => k.category === 'character');
 
@@ -29,7 +30,10 @@ export const CharactersTab: React.FC<TabComponentProps> = ({
           onUpdateName={(id, value) => onUpdateKnowledge(id, 'name', value)}
           onUpdateDescription={(id, value) => onUpdateKnowledge(id, 'description', value)}
           onToggleFlag={onToggleKnowledgeFlag}
-          onDelete={onDeleteKnowledgeItem}
+          onDelete={async (id) => {
+            await onDeleteKnowledgeItem?.(id);
+            onDataRefresh?.();
+          }}
           nameFieldName="Character name"
           descriptionFieldName="Character description"
           namePlaceholder="Character name..."

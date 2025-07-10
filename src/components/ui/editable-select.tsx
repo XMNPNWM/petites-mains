@@ -176,13 +176,37 @@ export const EditableSelect: React.FC<EditableSelectProps> = ({
   }
 
   return (
-    <Badge 
-      variant={variant} 
-      className={`text-xs cursor-pointer hover:opacity-80 group ${className}`}
-      onClick={() => setIsEditing(true)}
-    >
-      {value}
-      <Edit3 className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-50 transition-opacity" />
-    </Badge>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Badge 
+          variant={variant} 
+          className={`text-xs cursor-pointer hover:opacity-80 group ${className}`}
+        >
+          {value}
+          <ChevronDown className="w-3 h-3 ml-1" />
+        </Badge>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-48 z-50">
+        {options.map((option) => (
+          <DropdownMenuItem
+            key={option}
+            onClick={() => handleSaveWithValue(option)}
+            className="text-xs"
+          >
+            {option}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuItem
+          onClick={() => {
+            setEditValue('');
+            setShowCustomInput(true);
+            setIsEditing(true);
+          }}
+          className="text-xs font-medium"
+        >
+          Custom...
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
