@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import InlineEditableField from '@/components/ui/inline-editable-field';
 import { ConfidenceBadge } from '@/components/ui/confidence-badge';
 import { FlagToggleButton } from '@/components/ui/flag-toggle-button';
+import { DeleteButton } from '@/components/ui/delete-button';
 
 interface EditableKnowledgeCardProps {
   item: {
@@ -17,6 +18,7 @@ interface EditableKnowledgeCardProps {
   onUpdateName: (id: string, value: string) => Promise<void>;
   onUpdateDescription: (id: string, value: string) => Promise<void>;
   onToggleFlag: (id: string, isFlagged: boolean) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
   nameFieldName: string;
   descriptionFieldName: string;
   namePlaceholder: string;
@@ -28,6 +30,7 @@ export const EditableKnowledgeCard: React.FC<EditableKnowledgeCardProps> = ({
   onUpdateName,
   onUpdateDescription,
   onToggleFlag,
+  onDelete,
   nameFieldName,
   descriptionFieldName,
   namePlaceholder,
@@ -54,6 +57,13 @@ export const EditableKnowledgeCard: React.FC<EditableKnowledgeCardProps> = ({
             isFlagged={item.is_flagged || false}
             onToggle={(isFlagged) => onToggleFlag(item.id, isFlagged)}
           />
+          {onDelete && (
+            <DeleteButton
+              onDelete={() => onDelete(item.id)}
+              itemName={item.name}
+              itemType="character"
+            />
+          )}
         </div>
       </div>
       <InlineEditableField

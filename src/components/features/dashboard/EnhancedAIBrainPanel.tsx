@@ -185,6 +185,11 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     await refresh();
   };
 
+  const handleDeleteKnowledgeItem = async (id: string) => {
+    await UnifiedUpdateService.deleteKnowledgeItem(id);
+    await refresh();
+  };
+
   // Type update handlers
   const handleUpdatePlotThreadType = async (id: string, threadType: string) => {
     await UnifiedUpdateService.updatePlotThreadType(id, threadType);
@@ -332,6 +337,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                     onDeletePlotPoint={handleDeletePlotPoint}
                     onDeletePlotThread={handleDeletePlotThread}
                     onDeleteTimelineEvent={handleDeleteTimelineEvent}
+                    onDeleteKnowledgeItem={handleDeleteKnowledgeItem}
                     onUpdatePlotThreadType={handleUpdatePlotThreadType}
                     onUpdateTimelineEventType={handleUpdateTimelineEventType}
                   />

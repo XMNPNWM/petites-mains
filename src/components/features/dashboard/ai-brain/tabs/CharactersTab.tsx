@@ -6,7 +6,8 @@ import { EditableKnowledgeCard } from '../cards/EditableKnowledgeCard';
 export const CharactersTab: React.FC<TabComponentProps> = ({
   data,
   onUpdateKnowledge,
-  onToggleKnowledgeFlag
+  onToggleKnowledgeFlag,
+  onDeleteKnowledgeItem
 }) => {
   const characters = data.filter(k => k.category === 'character');
 
@@ -28,6 +29,7 @@ export const CharactersTab: React.FC<TabComponentProps> = ({
           onUpdateName={(id, value) => onUpdateKnowledge(id, 'name', value)}
           onUpdateDescription={(id, value) => onUpdateKnowledge(id, 'description', value)}
           onToggleFlag={onToggleKnowledgeFlag}
+          onDelete={onDeleteKnowledgeItem}
           nameFieldName="Character name"
           descriptionFieldName="Character description"
           namePlaceholder="Character name..."
