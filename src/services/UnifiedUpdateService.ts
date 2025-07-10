@@ -37,6 +37,10 @@ export class UnifiedUpdateService {
     return AIBrainUpdateService.toggleCharacterRelationshipFlag(id, isFlagged);
   }
 
+  static async updateCharacterRelationshipType(id: string, relationshipType: string) {
+    return AIBrainUpdateService.updateCharacterRelationship(id, { relationship_type: relationshipType });
+  }
+
   static async updateChapterSummary(id: string, field: 'title' | 'summary_long', value: string) {
     return AIBrainUpdateService.updateChapterSummary(id, { [field]: value });
   }

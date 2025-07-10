@@ -5,7 +5,8 @@ import { RelationshipCard } from '../cards/RelationshipCard';
 
 export const RelationshipsTab: React.FC<TabComponentProps> = ({
   data,
-  onToggleCharacterRelationshipFlag
+  onToggleCharacterRelationshipFlag,
+  onDataRefresh
 }) => {
   if (data.length === 0) {
     return (
@@ -23,6 +24,7 @@ export const RelationshipsTab: React.FC<TabComponentProps> = ({
           key={relationship.id}
           item={relationship}
           onToggleFlag={onToggleCharacterRelationshipFlag}
+          onUpdate={onDataRefresh}
         />
       ))}
     </div>

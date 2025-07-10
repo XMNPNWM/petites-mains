@@ -107,9 +107,52 @@ export class AIBrainUpdateService {
   }
 
   // Update character relationship
-  static async updateCharacterRelationship(id: string, updates: { character_a_name?: string; character_b_name?: string }) {
+  static async updateCharacterRelationship(id: string, updates: { character_a_name?: string; character_b_name?: string; relationship_type?: string }) {
+    // Check for duplicate relationships if relationship_type is being updated
+    if (updates.relationship_type) {
+      const currentRelationship = await supabase
+        .from('character_relationships')
+        .select('character_a_name, character_b_name, project_id')
+        .eq('id', id)
+        .single();
+
+      if (currentRelationship.error) throw currentRelationship.error;
+
+      // Check for existing relationship with same character pair and type
+      const { data: existingRelationship } = await supabase
+        .from('character_relationships')
+        .select('id')
+        .eq('project_id', currentRelationship.data.project_id)
+        .eq('character_a_name', currentRelationship.data.character_a_name)
+        .eq('character_b_name', currentRelationship.data.character_b_name)
+        .eq('relationship_type', updates.relationship_type)
+        .neq('id', id)
+        .maybeSingle();
+
+      if (existingRelationship) {
+        throw new Error('A relationship of this type already exists between these characters');
+      }
+
+      // Also check reversed character pair
+      const { data: existingReversedRelationship } = await supabase
+        .from('character_relationships')
+        .select('id')
+        .eq('project_id', currentRelationship.data.project_id)
+        .eq('character_a_name', currentRelationship.data.character_b_name)
+        .eq('character_b_name', currentRelationship.data.character_a_name)
+        .eq('relationship_type', updates.relationship_type)
+        .neq('id', id)
+        .maybeSingle();
+
+      if (existingReversedRelationship) {
+        throw new Error('A relationship of this type already exists between these characters');
+      }
+    }
+
     const updateData: any = { ...updates };
     updateData.ai_confidence_new = 1.0;
+    updateData.user_edited = true;
+    updateData.edit_timestamp = new Date().toISOString();
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase

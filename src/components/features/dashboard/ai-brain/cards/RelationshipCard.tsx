@@ -1,8 +1,10 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { ConfidenceBadge } from '@/components/ui/confidence-badge';
 import { FlagToggleButton } from '@/components/ui/flag-toggle-button';
+import { EditableSelect } from '@/components/ui/editable-select';
+import { UnifiedUpdateService } from '@/services/UnifiedUpdateService';
+import { useToast } from '@/hooks/use-toast';
 
 interface RelationshipCardProps {
   item: {
@@ -15,12 +17,43 @@ interface RelationshipCardProps {
     evidence?: string;
   };
   onToggleFlag: (id: string, isFlagged: boolean) => Promise<void>;
+  onUpdate?: () => void;
 }
+
+const RELATIONSHIP_TYPES = [
+  'Friend',
+  'Enemy', 
+  'Family',
+  'Romantic',
+  'Mentor',
+  'Rival',
+  'Ally'
+];
 
 export const RelationshipCard: React.FC<RelationshipCardProps> = ({
   item,
-  onToggleFlag
+  onToggleFlag,
+  onUpdate
 }) => {
+  const { toast } = useToast();
+
+  const handleUpdateRelationshipType = async (newType: string) => {
+    try {
+      await UnifiedUpdateService.updateCharacterRelationshipType(item.id, newType);
+      toast({
+        title: "Relationship updated",
+        description: `Relationship type changed to "${newType}"`,
+      });
+      onUpdate?.();
+    } catch (error) {
+      toast({
+        title: "Update failed",
+        description: error instanceof Error ? error.message : 'Failed to update relationship type',
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
   return (
     <Card 
       className={`p-4 ${item.is_flagged ? 'border-red-200 bg-red-50/50' : ''}`}
@@ -30,9 +63,16 @@ export const RelationshipCard: React.FC<RelationshipCardProps> = ({
           <h5 className="font-medium text-slate-900">
             {item.character_a_name} ↔ {item.character_b_name}
           </h5>
-          <Badge variant="secondary" className="text-xs mt-1">
-            {item.relationship_type}
-          </Badge>
+          <div className="mt-1">
+            <EditableSelect
+              value={item.relationship_type}
+              options={RELATIONSHIP_TYPES}
+              onSave={handleUpdateRelationshipType}
+              variant="secondary"
+              className="text-xs"
+              maxLength={200}
+            />
+          </div>
         </div>
         <div className="flex items-center space-x-2 ml-2">
           <ConfidenceBadge 
