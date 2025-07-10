@@ -1,10 +1,67 @@
 import React from 'react';
 import { Globe } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { TabComponentProps } from '@/types/ai-brain-tabs';
+import { EditableWorldBuildingCard } from '../cards/EditableWorldBuildingCard';
+import { UnifiedUpdateService } from '@/services/UnifiedUpdateService';
+import { useToast } from '@/hooks/use-toast';
 
-export const WorldBuildingTab: React.FC<TabComponentProps> = ({ data }) => {
+export const WorldBuildingTab: React.FC<TabComponentProps> = ({ data, onDataRefresh }) => {
+  const { toast } = useToast();
+
+  const handleUpdateName = async (id: string, name: string) => {
+    try {
+      await UnifiedUpdateService.updateWorldBuildingName(id, name);
+      toast({
+        title: "Name updated",
+        description: `World building element name changed to "${name}"`,
+      });
+      onDataRefresh?.();
+    } catch (error) {
+      toast({
+        title: "Update failed",
+        description: error instanceof Error ? error.message : 'Failed to update name',
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const handleUpdateType = async (id: string, type: string) => {
+    try {
+      await UnifiedUpdateService.updateWorldBuildingType(id, type);
+      toast({
+        title: "Type updated",
+        description: `World building element type changed to "${type}"`,
+      });
+      onDataRefresh?.();
+    } catch (error) {
+      toast({
+        title: "Update failed",
+        description: error instanceof Error ? error.message : 'Failed to update type',
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await UnifiedUpdateService.deleteKnowledgeItem(id);
+      toast({
+        title: "Element deleted",
+        description: "World building element has been deleted",
+      });
+      onDataRefresh?.();
+    } catch (error) {
+      toast({
+        title: "Delete failed",
+        description: error instanceof Error ? error.message : 'Failed to delete element',
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   if (data.length === 0) {
     return (
       <div className="text-center py-8 text-slate-500">
@@ -17,13 +74,25 @@ export const WorldBuildingTab: React.FC<TabComponentProps> = ({ data }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {data.map((element) => (
-        <Card key={element.id} className="p-4">
-          <div className="flex items-start justify-between mb-2">
-            <h5 className="font-medium text-slate-900">{element.name}</h5>
-            <Badge variant="outline">{element.type}</Badge>
-          </div>
-          <p className="text-sm text-slate-600 mb-2">{element.description}</p>
-        </Card>
+        <EditableWorldBuildingCard
+          key={element.id}
+          item={element}
+          onUpdateName={handleUpdateName}
+          onUpdateType={handleUpdateType}
+          onToggleFlag={async (id, isFlagged) => {
+            try {
+              await UnifiedUpdateService.toggleKnowledgeFlag(id, isFlagged);
+              onDataRefresh?.();
+            } catch (error) {
+              toast({
+                title: "Flag update failed",
+                description: error instanceof Error ? error.message : 'Failed to update flag',
+                variant: "destructive",
+              });
+            }
+          }}
+          onDelete={handleDelete}
+        />
       ))}
     </div>
   );

@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import InlineEditableField from '@/components/ui/inline-editable-field';
 import { ConfidenceBadge } from '@/components/ui/confidence-badge';
 import { FlagToggleButton } from '@/components/ui/flag-toggle-button';
+import { EditableSelect } from '@/components/ui/editable-select';
+import { DeleteButton } from '@/components/ui/delete-button';
 
 interface EditableTimelineCardProps {
   item: {
@@ -17,14 +19,27 @@ interface EditableTimelineCardProps {
   };
   onUpdateEventName: (id: string, value: string) => Promise<void>;
   onUpdateEventDescription: (id: string, value: string) => Promise<void>;
+  onUpdateEventType?: (id: string, value: string) => Promise<void>;
   onToggleFlag: (id: string, isFlagged: boolean) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
 }
+
+const EVENT_TYPES = [
+  'Action',
+  'Dialogue',
+  'Discovery',
+  'Conflict',
+  'Resolution',
+  'Character Development'
+];
 
 export const EditableTimelineCard: React.FC<EditableTimelineCardProps> = ({
   item,
   onUpdateEventName,
   onUpdateEventDescription,
-  onToggleFlag
+  onUpdateEventType,
+  onToggleFlag,
+  onDelete
 }) => {
   return (
     <Card 
@@ -46,6 +61,13 @@ export const EditableTimelineCard: React.FC<EditableTimelineCardProps> = ({
             isFlagged={item.is_flagged || false}
             onToggle={(isFlagged) => onToggleFlag(item.id, isFlagged)}
           />
+          {onDelete && (
+            <DeleteButton
+              onDelete={() => onDelete(item.id)}
+              itemName={item.event_name}
+              itemType="timeline event"
+            />
+          )}
         </div>
       </div>
       <InlineEditableField
@@ -57,7 +79,18 @@ export const EditableTimelineCard: React.FC<EditableTimelineCardProps> = ({
         fieldName="Event description"
       />
       <div className="flex flex-wrap gap-2 text-xs">
-        <Badge variant="secondary">{item.event_type}</Badge>
+        {onUpdateEventType ? (
+          <EditableSelect
+            value={item.event_type}
+            options={EVENT_TYPES}
+            onSave={(value) => onUpdateEventType(item.id, value)}
+            variant="secondary"
+            className="text-xs"
+            maxLength={200}
+          />
+        ) : (
+          <Badge variant="secondary">{item.event_type}</Badge>
+        )}
         {item.characters_involved_names && item.characters_involved_names.length > 0 && (
           <Badge variant="outline">Characters: {item.characters_involved_names.join(', ')}</Badge>
         )}

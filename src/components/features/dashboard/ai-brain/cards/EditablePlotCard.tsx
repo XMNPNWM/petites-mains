@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import InlineEditableField from '@/components/ui/inline-editable-field';
 import { ConfidenceBadge } from '@/components/ui/confidence-badge';
 import { FlagToggleButton } from '@/components/ui/flag-toggle-button';
+import { EditableSelect } from '@/components/ui/editable-select';
+import { DeleteButton } from '@/components/ui/delete-button';
 
 interface EditablePlotCardProps {
   item: {
@@ -22,15 +24,28 @@ interface EditablePlotCardProps {
   };
   onUpdateName?: (id: string, value: string) => Promise<void>;
   onUpdateDescription?: (id: string, value: string) => Promise<void>;
+  onUpdateThreadType?: (id: string, value: string) => Promise<void>;
   onToggleFlag: (id: string, isFlagged: boolean) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
   type: 'plot-point' | 'plot-thread';
 }
+
+const PLOT_THREAD_TYPES = [
+  'Main Plot',
+  'Subplot', 
+  'Character Arc',
+  'Mystery',
+  'Romance',
+  'Action'
+];
 
 export const EditablePlotCard: React.FC<EditablePlotCardProps> = ({
   item,
   onUpdateName,
   onUpdateDescription,
+  onUpdateThreadType,
   onToggleFlag,
+  onDelete,
   type
 }) => {
   return (
@@ -53,6 +68,13 @@ export const EditablePlotCard: React.FC<EditablePlotCardProps> = ({
             isFlagged={item.is_flagged || false}
             onToggle={(isFlagged) => onToggleFlag(item.id, isFlagged)}
           />
+          {onDelete && (
+            <DeleteButton
+              onDelete={() => onDelete(item.id)}
+              itemName={type === 'plot-point' ? item.name || '' : item.thread_name || ''}
+              itemType={type === 'plot-point' ? 'plot point' : 'plot thread'}
+            />
+          )}
         </div>
       </div>
       
@@ -71,8 +93,15 @@ export const EditablePlotCard: React.FC<EditablePlotCardProps> = ({
         {type === 'plot-point' && item.plot_thread_name && (
           <Badge variant="secondary">Thread: {item.plot_thread_name}</Badge>
         )}
-        {type === 'plot-thread' && item.thread_type && (
-          <Badge variant="secondary">{item.thread_type}</Badge>
+        {type === 'plot-thread' && item.thread_type && onUpdateThreadType && (
+          <EditableSelect
+            value={item.thread_type}
+            options={PLOT_THREAD_TYPES}
+            onSave={(value) => onUpdateThreadType(item.id, value)}
+            variant="secondary"
+            className="text-xs"
+            maxLength={200}
+          />
         )}
         {type === 'plot-thread' && item.thread_status && (
           <Badge variant="outline">{item.thread_status}</Badge>

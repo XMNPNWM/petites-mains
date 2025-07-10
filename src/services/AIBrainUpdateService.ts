@@ -5,12 +5,14 @@ import { PlotThread, TimelineEvent, CharacterRelationship } from '@/types/ai-bra
 
 export class AIBrainUpdateService {
   // Update knowledge base item
-  static async updateKnowledgeItem(id: string, updates: { name?: string; description?: string }) {
+  static async updateKnowledgeItem(id: string, updates: { name?: string; description?: string; subcategory?: string }) {
     const updateData: any = { ...updates };
     
     // Set confidence to 1.0 when user edits
     updateData.confidence_score = 1.0;
     updateData.is_verified = true;
+    updateData.user_edited = true;
+    updateData.edit_timestamp = new Date().toISOString();
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
@@ -41,9 +43,11 @@ export class AIBrainUpdateService {
   }
 
   // Update plot thread
-  static async updatePlotThread(id: string, updates: { thread_name?: string }) {
+  static async updatePlotThread(id: string, updates: { thread_name?: string; thread_type?: string }) {
     const updateData: any = { ...updates };
     updateData.ai_confidence_new = 1.0;
+    updateData.user_edited = true;
+    updateData.edit_timestamp = new Date().toISOString();
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
@@ -74,9 +78,11 @@ export class AIBrainUpdateService {
   }
 
   // Update timeline event
-  static async updateTimelineEvent(id: string, updates: { event_name?: string; event_description?: string }) {
+  static async updateTimelineEvent(id: string, updates: { event_name?: string; event_description?: string; event_type?: string }) {
     const updateData: any = { ...updates };
     updateData.ai_confidence_new = 1.0;
+    updateData.user_edited = true;
+    updateData.edit_timestamp = new Date().toISOString();
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
@@ -234,4 +240,65 @@ export class AIBrainUpdateService {
 
   // Flag/unflag chapter summary (Note: chapter_summaries doesn't have is_flagged field in schema)
   // This would need to be added to the database schema if needed
+
+  // Delete methods
+  static async deleteCharacterRelationship(id: string) {
+    const { data, error } = await supabase
+      .from('character_relationships')
+      .delete()
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  static async deletePlotPoint(id: string) {
+    const { data, error } = await supabase
+      .from('plot_points')
+      .delete()
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  static async deletePlotThread(id: string) {
+    const { data, error } = await supabase
+      .from('plot_threads')
+      .delete()
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  static async deleteTimelineEvent(id: string) {
+    const { data, error } = await supabase
+      .from('timeline_events')
+      .delete()
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  static async deleteKnowledgeItem(id: string) {
+    const { data, error } = await supabase
+      .from('knowledge_base')
+      .delete()
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
 }

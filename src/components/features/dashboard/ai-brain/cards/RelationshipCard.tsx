@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { ConfidenceBadge } from '@/components/ui/confidence-badge';
 import { FlagToggleButton } from '@/components/ui/flag-toggle-button';
 import { EditableSelect } from '@/components/ui/editable-select';
+import { DeleteButton } from '@/components/ui/delete-button';
 import { UnifiedUpdateService } from '@/services/UnifiedUpdateService';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,6 +19,7 @@ interface RelationshipCardProps {
   };
   onToggleFlag: (id: string, isFlagged: boolean) => Promise<void>;
   onUpdate?: () => void;
+  onDelete?: (id: string) => Promise<void>;
 }
 
 const RELATIONSHIP_TYPES = [
@@ -33,7 +35,8 @@ const RELATIONSHIP_TYPES = [
 export const RelationshipCard: React.FC<RelationshipCardProps> = ({
   item,
   onToggleFlag,
-  onUpdate
+  onUpdate,
+  onDelete
 }) => {
   const { toast } = useToast();
 
@@ -82,6 +85,13 @@ export const RelationshipCard: React.FC<RelationshipCardProps> = ({
             isFlagged={item.is_flagged || false}
             onToggle={(isFlagged) => onToggleFlag(item.id, isFlagged)}
           />
+          {onDelete && (
+            <DeleteButton
+              onDelete={() => onDelete(item.id)}
+              itemName={`${item.character_a_name} ↔ ${item.character_b_name}`}
+              itemType="relationship"
+            />
+          )}
         </div>
       </div>
       {item.evidence && (
