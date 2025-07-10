@@ -72,6 +72,11 @@ const App = () => (
                   <WritingSpace />
                 </ProtectedRoute>
               } />
+              <Route path="/project/:projectId/chapter/:chapterId" element={
+                <ProtectedRoute>
+                  <WritingSpace />
+                </ProtectedRoute>
+              } />
               <Route path="/project/:projectId/refine" element={
                 <ProtectedRoute>
                   <RefinementSpace />
