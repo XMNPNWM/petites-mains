@@ -103,44 +103,177 @@ serve(async (req) => {
       themes: []
     };
 
-    // Phase 2: Perform extraction if not skipped
+    // Phase 2: Perform multi-pass extraction if not skipped
     if (!shouldSkipExtraction) {
-      console.log('📊 Proceeding with knowledge extraction...');
+      console.log('📊 Proceeding with multi-pass knowledge extraction...');
       
-      // Enhanced extraction with context awareness
-      const extractionPrompt = `Analyze the following text and extract comprehensive knowledge in JSON format. Focus on narrative elements that are clearly established and avoid speculation.
+      // Pass 1: Extract Characters
+      console.log('🎭 Pass 1: Extracting characters...');
+      const charactersPrompt = `Analyze the following text and extract ONLY characters in JSON format. Focus on clearly identifiable people, beings, or entities that appear in the narrative.
 
 Text to analyze: "${content}"
 
-Please return a JSON object with the following structure:
+Return a JSON object with this exact structure:
 {
-  "characters": [{"name": "", "description": "", "traits": [], "role": "", "confidence_score": 0.8}],
-  "relationships": [{"character_a_name": "", "character_b_name": "", "relationship_type": "", "relationship_strength": 5, "confidence_score": 0.8}],
+  "characters": [{"name": "", "description": "", "traits": [], "role": "", "confidence_score": 0.8}]
+}
+
+Extract only clearly evident characters. Assign confidence scores based on how explicit their presence and description is in the text.`;
+
+      const charactersResponse = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: charactersPrompt
+      });
+
+      try {
+        const charactersText = charactersResponse.text.replace(/```json\n?|\n?```/g, '').trim();
+        const charactersData = JSON.parse(charactersText);
+        extractionResults.characters = charactersData.characters || [];
+        console.log(`✅ Extracted ${extractionResults.characters.length} characters`);
+      } catch (error) {
+        console.error('Failed to parse characters:', error);
+      }
+
+      // Pass 2: Extract Relationships (based on identified characters)
+      if (extractionResults.characters.length > 0) {
+        console.log('🤝 Pass 2: Extracting relationships...');
+        const characterNames = extractionResults.characters.map(c => c.name).join(', ');
+        
+        const relationshipsPrompt = `Analyze the following text and extract ONLY relationships between the identified characters in JSON format.
+
+Known characters: ${characterNames}
+
+Text to analyze: "${content}"
+
+Return a JSON object with this exact structure:
+{
+  "relationships": [{"character_a_name": "", "character_b_name": "", "relationship_type": "", "relationship_strength": 5, "confidence_score": 0.8}]
+}
+
+Look for:
+- Direct interactions between characters
+- Mentions of one character by another
+- Implied relationships through dialogue or narration
+- Family, romantic, professional, or adversarial connections
+
+Only include relationships between the identified characters. Use exact character names from the list above.`;
+
+        const relationshipsResponse = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: relationshipsPrompt
+        });
+
+        try {
+          const relationshipsText = relationshipsResponse.text.replace(/```json\n?|\n?```/g, '').trim();
+          const relationshipsData = JSON.parse(relationshipsText);
+          extractionResults.relationships = relationshipsData.relationships || [];
+          console.log(`✅ Extracted ${extractionResults.relationships.length} relationships`);
+        } catch (error) {
+          console.error('Failed to parse relationships:', error);
+        }
+      }
+
+      // Pass 3: Extract Timeline Events (with character context)
+      console.log('⏰ Pass 3: Extracting timeline events...');
+      const characterContext = extractionResults.characters.length > 0 
+        ? `Known characters: ${extractionResults.characters.map(c => c.name).join(', ')}`
+        : '';
+      
+      const timelinePrompt = `Analyze the following text and extract ONLY timeline events in JSON format. Focus on specific actions, scenes, or occurrences that happen in sequence.
+
+${characterContext}
+
+Text to analyze: "${content}"
+
+Return a JSON object with this exact structure:
+{
+  "timelineEvents": [{"event_name": "", "event_type": "", "description": "", "chronological_order": 0, "characters_involved": [], "confidence_score": 0.8}]
+}
+
+Look for:
+- Specific actions that occur
+- Scene changes or transitions
+- Temporal markers (then, later, meanwhile, etc.)
+- Cause and effect sequences
+- Character actions and reactions
+
+If characters are involved, use exact names from the known characters list.`;
+
+      const timelineResponse = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: timelinePrompt
+      });
+
+      try {
+        const timelineText = timelineResponse.text.replace(/```json\n?|\n?```/g, '').trim();
+        const timelineData = JSON.parse(timelineText);
+        extractionResults.timelineEvents = timelineData.timelineEvents || [];
+        console.log(`✅ Extracted ${extractionResults.timelineEvents.length} timeline events`);
+      } catch (error) {
+        console.error('Failed to parse timeline events:', error);
+      }
+
+      // Pass 4: Extract Plot Elements
+      console.log('📖 Pass 4: Extracting plot elements...');
+      const plotPrompt = `Analyze the following text and extract plot threads, plot points, and chapter summaries in JSON format.
+
+Text to analyze: "${content}"
+
+Return a JSON object with this exact structure:
+{
   "plotThreads": [{"thread_name": "", "thread_type": "", "key_events": [], "status": "active", "confidence_score": 0.8}],
-  "timelineEvents": [{"event_name": "", "event_type": "", "description": "", "chronological_order": 0, "characters_involved": [], "confidence_score": 0.8}],
   "plotPoints": [{"name": "", "description": "", "significance": "", "confidence_score": 0.8}],
-  "chapterSummaries": [{"title": "", "summary_short": "", "summary_long": "", "key_events": [], "confidence_score": 0.8}],
+  "chapterSummaries": [{"title": "", "summary_short": "", "summary_long": "", "key_events": [], "confidence_score": 0.8}]
+}
+
+Extract story elements, narrative threads, and chapter-level information.`;
+
+      const plotResponse = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: plotPrompt
+      });
+
+      try {
+        const plotText = plotResponse.text.replace(/```json\n?|\n?```/g, '').trim();
+        const plotData = JSON.parse(plotText);
+        extractionResults.plotThreads = plotData.plotThreads || [];
+        extractionResults.plotPoints = plotData.plotPoints || [];
+        extractionResults.chapterSummaries = plotData.chapterSummaries || [];
+        console.log(`✅ Extracted ${extractionResults.plotThreads.length} plot threads, ${extractionResults.plotPoints.length} plot points, ${extractionResults.chapterSummaries.length} summaries`);
+      } catch (error) {
+        console.error('Failed to parse plot elements:', error);
+      }
+
+      // Pass 5: Extract World Building and Themes
+      console.log('🌍 Pass 5: Extracting world building and themes...');
+      const worldPrompt = `Analyze the following text and extract world building elements and themes in JSON format.
+
+Text to analyze: "${content}"
+
+Return a JSON object with this exact structure:
+{
   "worldBuilding": [{"name": "", "description": "", "category": "", "confidence_score": 0.8}],
   "themes": [{"name": "", "description": "", "significance": "", "confidence_score": 0.8}]
 }
 
-Important: Extract only clearly evident information. Assign appropriate confidence scores based on how explicit the information is in the text.`;
+Extract locations, objects, cultural elements, and thematic content.`;
 
-      const response = await ai.models.generateContent({
+      const worldResponse = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: extractionPrompt
+        contents: worldPrompt
       });
 
-      const extractedText = response.text;
-      
-      // Parse the JSON response
       try {
-        const cleanedText = extractedText.replace(/```json\n?|\n?```/g, '').trim();
-        extractionResults = JSON.parse(cleanedText);
-      } catch (parseError) {
-        console.error('Failed to parse extraction results:', parseError);
-        // Fallback to empty results but continue processing
+        const worldText = worldResponse.text.replace(/```json\n?|\n?```/g, '').trim();
+        const worldData = JSON.parse(worldText);
+        extractionResults.worldBuilding = worldData.worldBuilding || [];
+        extractionResults.themes = worldData.themes || [];
+        console.log(`✅ Extracted ${extractionResults.worldBuilding.length} world building elements, ${extractionResults.themes.length} themes`);
+      } catch (error) {
+        console.error('Failed to parse world building and themes:', error);
       }
+
+      console.log('🎯 Multi-pass extraction completed');
     }
 
     // Phase 3: Store results in database with current timestamp
