@@ -21,7 +21,19 @@ export const useAIBrainData = (projectId: string): AIBrainData => {
   const fetchAllData = async () => {
     try {
       console.log('🔄 Fetching all AI Brain data for project:', projectId);
-      setData(prev => ({ ...prev, isLoading: true, error: null }));
+      // Force complete state reset to ensure UI updates
+      setData({
+        knowledge: [],
+        chapterSummaries: [],
+        plotPoints: [],
+        plotThreads: [],
+        timelineEvents: [],
+        characterRelationships: [],
+        worldBuilding: [],
+        themes: [],
+        isLoading: true,
+        error: null
+      });
 
       // Fetch all data types in parallel
       const [

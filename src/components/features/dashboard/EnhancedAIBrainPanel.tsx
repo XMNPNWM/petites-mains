@@ -186,8 +186,20 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   };
 
   const handleDeleteKnowledgeItem = async (id: string) => {
-    await UnifiedUpdateService.deleteKnowledgeItem(id);
-    await refresh();
+    try {
+      await UnifiedUpdateService.deleteKnowledgeItem(id);
+      // Force immediate UI update by triggering a fresh data fetch
+      setTimeout(async () => {
+        await refresh();
+      }, 100);
+    } catch (error) {
+      console.error('Failed to delete knowledge item:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete item",
+        variant: "destructive"
+      });
+    }
   };
 
   // Type update handlers
