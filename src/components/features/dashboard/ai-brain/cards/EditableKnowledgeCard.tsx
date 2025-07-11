@@ -4,6 +4,7 @@ import InlineEditableField from '@/components/ui/inline-editable-field';
 import { ConfidenceBadge } from '@/components/ui/confidence-badge';
 import { FlagToggleButton } from '@/components/ui/flag-toggle-button';
 import { DeleteButton } from '@/components/ui/delete-button';
+import { EditableSelect } from '@/components/ui/editable-select';
 
 interface EditableKnowledgeCardProps {
   item: {
@@ -14,11 +15,14 @@ interface EditableKnowledgeCardProps {
     is_verified?: boolean;
     is_flagged?: boolean;
     evidence?: string;
+    category?: string;
+    subcategory?: string;
   };
   onUpdateName: (id: string, value: string) => Promise<void>;
   onUpdateDescription: (id: string, value: string) => Promise<void>;
   onToggleFlag: (id: string, isFlagged: boolean) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  onUpdateSubcategory?: (id: string, value: string) => Promise<void>;
   nameFieldName: string;
   descriptionFieldName: string;
   namePlaceholder: string;
@@ -31,11 +35,15 @@ export const EditableKnowledgeCard: React.FC<EditableKnowledgeCardProps> = ({
   onUpdateDescription,
   onToggleFlag,
   onDelete,
+  onUpdateSubcategory,
   nameFieldName,
   descriptionFieldName,
   namePlaceholder,
   descriptionPlaceholder
 }) => {
+  const worldBuildingTypes = [
+    'Location', 'Organization', 'Culture', 'Magic System', 'Technology', 'Religion', 'Custom'
+  ];
   return (
     <Card 
       className={`p-4 ${item.is_flagged ? 'border-red-200 bg-red-50/50' : ''}`}
@@ -74,6 +82,17 @@ export const EditableKnowledgeCard: React.FC<EditableKnowledgeCardProps> = ({
         className="text-sm text-slate-600 mb-2"
         fieldName={descriptionFieldName}
       />
+      {item.category === 'world_building' && onUpdateSubcategory && (
+        <div className="mb-2">
+          <EditableSelect
+            value={item.subcategory || 'Custom'}
+            options={worldBuildingTypes}
+            onSave={(value) => onUpdateSubcategory(item.id, value)}
+            placeholder="Select type..."
+            variant="secondary"
+          />
+        </div>
+      )}
       {item.evidence && (
         <p className="text-xs text-slate-500 italic">"{item.evidence}"</p>
       )}

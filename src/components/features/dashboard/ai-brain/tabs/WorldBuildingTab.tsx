@@ -36,6 +36,7 @@ export const WorldBuildingTab: React.FC<TabComponentProps> = ({
           onDelete={async (id) => {
             await onDeleteKnowledgeItem?.(id);
           }}
+          onUpdateSubcategory={(id, value) => onUpdateKnowledge(id, 'subcategory', value)}
           nameFieldName="World building element name"
           descriptionFieldName="World building description"
           namePlaceholder="World building element name..."

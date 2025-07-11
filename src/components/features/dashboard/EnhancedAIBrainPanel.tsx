@@ -114,7 +114,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   };
 
   // Unified update handlers using the service
-  const handleUpdateKnowledge = async (id: string, field: 'name' | 'description', value: string) => {
+  const handleUpdateKnowledge = async (id: string, field: 'name' | 'description' | 'subcategory', value: string) => {
     await UnifiedUpdateService.updateKnowledgeItem(id, field, value);
     await refresh();
   };
@@ -248,7 +248,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       case 'timeline':
         return filteredData.timelineEvents;
       case 'world-building':
-        return filteredData.worldBuilding;
+        return filteredData.knowledge.filter((k: any) => k.category === 'world_building');
       case 'summaries':
         return filteredData.chapterSummaries;
       case 'themes':
