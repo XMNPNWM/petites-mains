@@ -17,11 +17,40 @@ export class EnhancedContentHashService {
   private static readonly ANALYSIS_VERSION = '2.0';
 
   static async generateContentHash(content: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(content);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    try {
+      console.log('🔒 Generating content hash via server-side function');
+      
+      const { data, error } = await supabase.functions.invoke('generate-content-hash', {
+        body: { content }
+      });
+
+      if (error) {
+        console.error('Error calling hash function:', error);
+        // Fallback: use timestamp-based hash for offline scenarios
+        return this.generateFallbackHash(content);
+      }
+
+      if (!data?.hash) {
+        console.warn('No hash returned from function, using fallback');
+        return this.generateFallbackHash(content);
+      }
+
+      return data.hash;
+    } catch (error) {
+      console.error('Failed to generate hash via edge function:', error);
+      // Fallback: use timestamp-based hash
+      return this.generateFallbackHash(content);
+    }
+  }
+
+  /**
+   * Fallback hash generation for offline scenarios
+   */
+  private static generateFallbackHash(content: string): string {
+    // Simple fallback using timestamp and content length
+    const timestamp = Date.now().toString();
+    const contentSignature = content.length.toString() + content.slice(0, 100);
+    return timestamp + '-' + btoa(contentSignature).slice(0, 16);
   }
 
   static async updateContentHashWithDependencies(

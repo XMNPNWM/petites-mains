@@ -1,6 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
 import { EmbeddingsService, SimilarityResult } from './EmbeddingsService';
-import crypto from 'crypto';
 
 interface ChunkSimilarityResult {
   id: string;
@@ -301,14 +300,12 @@ export class EnhancedEmbeddingsService extends EmbeddingsService {
   }
   
   /**
-   * Generate content hash for change detection using browser-compatible crypto
+   * Generate content hash for change detection using server-side function
    */
   private static async generateContentHash(content: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(content.trim());
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    // Delegate to EnhancedContentHashService for consistent hash generation
+    const { EnhancedContentHashService } = await import('./EnhancedContentHashService');
+    return EnhancedContentHashService.generateContentHash(content);
   }
   
   /**

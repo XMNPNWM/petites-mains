@@ -12,10 +12,31 @@ export class ContentHashService {
 
   static async generateParagraphHashes(content: string): Promise<string[]> {
     const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-    const hashes = await Promise.all(
-      paragraphs.map(paragraph => this.generateContentHash(paragraph.trim()))
-    );
-    return hashes;
+    
+    // Use batch hash generation for better performance
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-content-hash', {
+        body: { contents: paragraphs.map(p => p.trim()) }
+      });
+
+      if (error || !data?.hashes) {
+        console.warn('Batch hash generation failed, falling back to individual hashes');
+        // Fallback to individual hash generation
+        const hashes = await Promise.all(
+          paragraphs.map(paragraph => this.generateContentHash(paragraph.trim()))
+        );
+        return hashes;
+      }
+
+      return data.hashes;
+    } catch (error) {
+      console.error('Error in batch hash generation:', error);
+      // Fallback to individual hash generation
+      const hashes = await Promise.all(
+        paragraphs.map(paragraph => this.generateContentHash(paragraph.trim()))
+      );
+      return hashes;
+    }
   }
 
   static async updateContentHash(chapterId: string, content: string): Promise<ContentHash> {
