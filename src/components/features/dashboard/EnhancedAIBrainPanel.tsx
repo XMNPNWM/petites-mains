@@ -248,7 +248,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       case 'timeline':
         return filteredData.timelineEvents;
       case 'world-building':
-        return filteredData.knowledge.filter((k: any) => k.category === 'world_building');
+        return filteredData.worldBuilding;
       case 'summaries':
         return filteredData.chapterSummaries;
       case 'themes':
