@@ -850,7 +850,51 @@ export class SmartAnalysisOrchestrator {
 
   // Intelligent relationship deduplication and merging
   static async storeOrUpdateRelationship(projectId: string, relationship: any, sourceChapterIds: string[]) {
-    // Check for existing relationship by character names and type
+    // PHASE 1: Pre-storage semantic similarity checking
+    const { SemanticDeduplicationService } = await import('./SemanticDeduplicationService');
+    const similarityResult = await SemanticDeduplicationService.checkSemanticSimilarity(
+      projectId,
+      'character_relationships',
+      relationship
+    );
+
+    if (similarityResult.hasSimilar && similarityResult.existingItem) {
+      console.log(`🔀 Found similar relationship (${similarityResult.similarityScore.toFixed(2)}): ${relationship.character_a_name} - ${relationship.character_b_name}`);
+      
+      if (similarityResult.suggestedAction === 'merge_with_existing') {
+        // Merge with existing item
+        const existingRel = similarityResult.existingItem;
+        const updateData = {
+          relationship_strength: Math.max(existingRel.relationship_strength, relationship.relationship_strength || 5),
+          confidence_score: Math.max(existingRel.confidence_score || 0.5, relationship.ai_confidence || 0.5),
+          ai_confidence_new: Math.max(existingRel.ai_confidence_new || 0.5, relationship.ai_confidence || 0.5),
+          source_chapter_ids: [...new Set([
+            ...(existingRel.source_chapter_ids as string[] || []),
+            ...sourceChapterIds
+          ])],
+          evidence: [existingRel.evidence, relationship.evidence].filter(Boolean).join(' | '),
+          key_interactions: [...new Set([
+            ...(existingRel.key_interactions || []),
+            ...(relationship.key_interactions || [])
+          ])],
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: updateError } = await supabase
+          .from('character_relationships')
+          .update(updateData)
+          .eq('id', existingRel.id);
+
+        if (updateError) {
+          console.error('Error updating relationship:', updateError);
+        } else {
+          console.log(`✅ Merged relationship: ${relationship.character_a_name} - ${relationship.character_b_name}`);
+        }
+        return;
+      }
+    }
+
+    // Check for existing relationship by character names and type (exact match fallback)
     const { data: existingRelationships, error: searchError } = await supabase
       .from('character_relationships')
       .select('*')
@@ -918,7 +962,60 @@ export class SmartAnalysisOrchestrator {
 
   // Intelligent plot thread deduplication and merging
   static async storeOrUpdatePlotThread(projectId: string, plotThread: any, sourceChapterIds: string[]) {
-    // Check for existing plot thread by name and type
+    // PHASE 1: Pre-storage semantic similarity checking
+    const { SemanticDeduplicationService } = await import('./SemanticDeduplicationService');
+    const similarityResult = await SemanticDeduplicationService.checkSemanticSimilarity(
+      projectId,
+      'plot_threads',
+      plotThread
+    );
+
+    if (similarityResult.hasSimilar && similarityResult.existingItem) {
+      console.log(`🔀 Found similar plot thread (${similarityResult.similarityScore.toFixed(2)}): ${plotThread.thread_name}`);
+      
+      if (similarityResult.suggestedAction === 'merge_with_existing') {
+        // Merge with existing thread
+        const existingThread = similarityResult.existingItem;
+        
+        const mergedEvents = [...new Set([
+          ...(existingThread.key_events as string[] || []),
+          ...(plotThread.key_events || [])
+        ])];
+
+        const mergedChars = [...new Set([
+          ...(existingThread.characters_involved_names as string[] || []),
+          ...(plotThread.characters_involved_names || [])
+        ])];
+
+        const updateData = {
+          thread_status: plotThread.thread_status || existingThread.thread_status,
+          key_events: mergedEvents,
+          characters_involved_names: mergedChars,
+          confidence_score: Math.max(existingThread.confidence_score || 0.5, plotThread.ai_confidence || 0.5),
+          ai_confidence_new: Math.max(existingThread.ai_confidence_new || 0.5, plotThread.ai_confidence || 0.5),
+          source_chapter_ids: [...new Set([
+            ...(existingThread.source_chapter_ids as string[] || []),
+            ...sourceChapterIds
+          ])],
+          evidence: [existingThread.evidence, plotThread.evidence].filter(Boolean).join(' | '),
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: updateError } = await supabase
+          .from('plot_threads')
+          .update(updateData)
+          .eq('id', existingThread.id);
+
+        if (updateError) {
+          console.error('Error updating plot thread:', updateError);
+        } else {
+          console.log(`✅ Merged plot thread: ${plotThread.thread_name}`);
+        }
+        return;
+      }
+    }
+
+    // Check for existing plot thread by name and type (exact match fallback)
     const { data: existingThreads, error: searchError } = await supabase
       .from('plot_threads')
       .select('*')
@@ -998,7 +1095,68 @@ export class SmartAnalysisOrchestrator {
   static async storeOrUpdateTimelineEvent(projectId: string, event: any, sourceChapterIds: string[]) {
     const eventName = event.event_name || event.event_summary || 'Unnamed Event';
     
-    // Check for existing timeline event by name and type
+    // PHASE 1: Pre-storage semantic similarity checking
+    const { SemanticDeduplicationService } = await import('./SemanticDeduplicationService');
+    const similarityResult = await SemanticDeduplicationService.checkSemanticSimilarity(
+      projectId,
+      'timeline_events',
+      event
+    );
+
+    if (similarityResult.hasSimilar && similarityResult.existingItem) {
+      console.log(`🔀 Found similar timeline event (${similarityResult.similarityScore.toFixed(2)}): ${eventName}`);
+      
+      if (similarityResult.suggestedAction === 'merge_with_existing') {
+        // Merge with existing event
+        const existingEvent = similarityResult.existingItem;
+        
+        const mergedChars = [...new Set([
+          ...(existingEvent.characters_involved_names as string[] || []),
+          ...(event.characters_involved_names || [])
+        ])];
+
+        const mergedLocs = [...new Set([
+          ...(existingEvent.locations_involved_names as string[] || []),
+          ...(event.locations_involved_names || [])
+        ])];
+
+        const mergedThreads = [...new Set([
+          ...(existingEvent.plot_threads_impacted_names as string[] || []),
+          ...(event.plot_threads_impacted_names || [])
+        ])];
+
+        const updateData = {
+          event_summary: [existingEvent.event_summary, event.event_summary].filter(Boolean).join(' - '),
+          chronological_order: event.chronological_order || existingEvent.chronological_order,
+          date_or_time_reference: event.date_or_time_reference || existingEvent.date_or_time_reference,
+          significance: [existingEvent.significance, event.significance].filter(Boolean).join(' | '),
+          characters_involved_names: mergedChars,
+          plot_threads_impacted_names: mergedThreads,
+          locations_involved_names: mergedLocs,
+          confidence_score: Math.max(existingEvent.confidence_score || 0.5, event.ai_confidence || 0.5),
+          ai_confidence_new: Math.max(existingEvent.ai_confidence_new || 0.5, event.ai_confidence || 0.5),
+          source_chapter_ids: [...new Set([
+            ...(existingEvent.source_chapter_ids as string[] || []),
+            ...sourceChapterIds
+          ])],
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: updateError } = await supabase
+          .from('timeline_events')
+          .update(updateData)
+          .eq('id', existingEvent.id);
+
+        if (updateError) {
+          console.error('Error updating timeline event:', updateError);
+        } else {
+          console.log(`✅ Merged timeline event: ${eventName}`);
+        }
+        return;
+      }
+    }
+    
+    // Check for existing timeline event by name and type (exact match fallback)
     const { data: existingEvents, error: searchError } = await supabase
       .from('timeline_events')
       .select('*')
@@ -1089,7 +1247,53 @@ export class SmartAnalysisOrchestrator {
 
   // Intelligent plot point deduplication and merging
   static async storeOrUpdatePlotPoint(projectId: string, plotPoint: any, sourceChapterIds: string[]) {
-    // Check for existing plot point by name and plot thread
+    // PHASE 1: Pre-storage semantic similarity checking
+    const { SemanticDeduplicationService } = await import('./SemanticDeduplicationService');
+    const similarityResult = await SemanticDeduplicationService.checkSemanticSimilarity(
+      projectId,
+      'plot_points',
+      plotPoint
+    );
+
+    if (similarityResult.hasSimilar && similarityResult.existingItem) {
+      console.log(`🔀 Found similar plot point (${similarityResult.similarityScore.toFixed(2)}): ${plotPoint.name}`);
+      
+      if (similarityResult.suggestedAction === 'merge_with_existing') {
+        // Merge with existing point
+        const existingPoint = similarityResult.existingItem;
+        
+        const mergedChars = [...new Set([
+          ...(existingPoint.characters_involved_names as string[] || []),
+          ...(plotPoint.characters_involved_names || [])
+        ])];
+
+        const updateData = {
+          description: [existingPoint.description, plotPoint.description].filter(Boolean).join(' | '),
+          significance: [existingPoint.significance, plotPoint.significance].filter(Boolean).join(' | '),
+          characters_involved_names: mergedChars,
+          ai_confidence: Math.max(existingPoint.ai_confidence || 0.5, plotPoint.ai_confidence || 0.5),
+          source_chapter_ids: [...new Set([
+            ...(existingPoint.source_chapter_ids as string[] || []),
+            ...sourceChapterIds
+          ])],
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: updateError } = await supabase
+          .from('plot_points')
+          .update(updateData)
+          .eq('id', existingPoint.id);
+
+        if (updateError) {
+          console.error('Error updating plot point:', updateError);
+        } else {
+          console.log(`✅ Merged plot point: ${plotPoint.name}`);
+        }
+        return;
+      }
+    }
+
+    // Check for existing plot point by name and plot thread (exact match fallback)
     const { data: existingPoints, error: searchError } = await supabase
       .from('plot_points')
       .select('*')
