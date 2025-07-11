@@ -13,7 +13,8 @@ export const WorldBuildingTab: React.FC<TabComponentProps> = ({
   onDeleteKnowledgeItem
 }) => {
   const { toast } = useToast();
-  const worldBuildingElements = data.filter(k => k.category === 'world_building');
+  // Data is already filtered to world_building elements in useAIBrainData
+  const worldBuildingElements = data;
 
   if (worldBuildingElements.length === 0) {
     return (

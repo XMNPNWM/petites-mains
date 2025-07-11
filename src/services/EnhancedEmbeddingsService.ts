@@ -193,7 +193,7 @@ export class EnhancedEmbeddingsService extends EmbeddingsService {
       let embeddingsGenerated = 0;
       
       for (const chunk of contentChunks) {
-        const contentHash = this.generateContentHash(chunk.content);
+        const contentHash = await this.generateContentHash(chunk.content);
         
         // Check if chunk already exists with same hash
         const { data: existingChunk, error } = await supabase
@@ -301,10 +301,14 @@ export class EnhancedEmbeddingsService extends EmbeddingsService {
   }
   
   /**
-   * Generate content hash for change detection
+   * Generate content hash for change detection using browser-compatible crypto
    */
-  private static generateContentHash(content: string): string {
-    return crypto.createHash('md5').update(content.trim()).digest('hex');
+  private static async generateContentHash(content: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(content.trim());
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
   
   /**

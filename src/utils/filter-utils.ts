@@ -1,6 +1,6 @@
 
 import { KnowledgeBase } from '@/types/knowledge';
-import { PlotThread, TimelineEvent, CharacterRelationship, WorldBuildingElement } from '@/types/ai-brain';
+import { PlotThread, TimelineEvent, CharacterRelationship } from '@/types/ai-brain';
 import { FilterState } from '@/components/features/dashboard/ai-brain/SearchFilterPanel';
 
 // Generic filter function for AI Brain data
@@ -124,14 +124,15 @@ export const filterCharacterRelationships = (relationships: CharacterRelationshi
   );
 };
 
-export const filterWorldBuilding = (worldBuilding: WorldBuildingElement[], filters: FilterState) => {
+export const filterWorldBuilding = (worldBuilding: KnowledgeBase[], filters: FilterState) => {
   return applyFilters(
     worldBuilding,
     filters,
-    (item) => `${item.name} ${item.description}`,
-    () => 1,
-    () => false,
-    () => false,
-    () => false,
+    (item) => `${item.name} ${item.description} ${item.evidence}`,
+    (item) => item.confidence_score,
+    (item) => item.is_newly_extracted || false,
+    (item) => item.is_flagged || false,
+    (item) => item.is_verified || false,
+    (item) => item.subcategory || 'general'
   );
 };

@@ -101,20 +101,11 @@ export const useAIBrainData = (projectId: string): AIBrainData => {
       }));
 
       // Extract world building elements from knowledge_base where category='world_building'
-      const worldBuilding: WorldBuildingElement[] = allKnowledge
-        .filter(item => item.category === 'world_building')
-        .map(item => ({
-          id: item.id,
-          project_id: item.project_id,
-          name: item.name,
-          type: item.subcategory || 'general',
-          description: item.description,
-          details: item.details,
-          created_at: item.created_at,
-          updated_at: item.updated_at
-        }));
+      // Keep the full KnowledgeBase structure to preserve all required fields
+      const worldBuilding = allKnowledge.filter(item => item.category === 'world_building');
 
       const themes = allKnowledge.filter(item => item.category === 'theme');
+      // Include characters in the main knowledge array for the Characters tab
       const generalKnowledge = allKnowledge.filter(item => 
         item.category !== 'theme' && item.category !== 'world_building'
       );

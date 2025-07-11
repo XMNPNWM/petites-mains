@@ -72,7 +72,7 @@ export interface AIBrainData {
   plotThreads: PlotThread[];
   timelineEvents: TimelineEvent[];
   characterRelationships: CharacterRelationship[];
-  worldBuilding: WorldBuildingElement[];
+  worldBuilding: KnowledgeBase[];
   themes: KnowledgeBase[];
   isLoading: boolean;
   error: string | null;

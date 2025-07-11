@@ -457,7 +457,7 @@ const AIBrainPanel = ({ projectId }: AIBrainPanelProps) => {
                     <Card key={element.id} className="p-4">
                       <div className="flex items-start justify-between mb-2">
                         <h5 className="font-medium text-slate-900">{element.name}</h5>
-                        <Badge variant="secondary">{element.type}</Badge>
+                        <Badge variant="secondary">{element.subcategory || 'general'}</Badge>
                       </div>
                       <p className="text-sm text-slate-600">{element.description}</p>
                     </Card>
