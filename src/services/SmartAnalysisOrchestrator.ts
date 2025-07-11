@@ -81,94 +81,19 @@ export class SmartAnalysisOrchestrator {
   }
 
   static async forceReAnalyzeProject(projectId: string, contentTypes: string[]): Promise<any> {
-    try {
-      console.log('🔥 [FORCE] Starting force re-analysis for project:', projectId, 'types:', contentTypes);
-
-      // Get all chapters for the project
-      const { data: chapters, error: chaptersError } = await supabase
-        .from('chapters')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('created_at');
-
-      if (chaptersError) {
-        console.error('Error fetching chapters:', chaptersError);
-        throw new Error(`Failed to fetch chapters: ${chaptersError.message}`);
-      }
-
-      if (!chapters || chapters.length === 0) {
-        throw new Error('No chapters found for this project');
-      }
-
-      let totalExtracted = 0;
-      const processingStats = {
-        chunksProcessed: 0,
-        semanticMergesPerformed: 0,
-        extractionSkipped: false
-      };
-
-      // Process each chapter with force re-extraction
-      for (const chapter of chapters) {
-        if (!chapter.content || chapter.content.trim().length === 0) {
-          console.log(`⏭️ Skipping empty chapter: ${chapter.id}`);
-          continue;
-        }
-
-        console.log(`🔥 Force processing chapter: ${chapter.id} (${chapter.content.length} chars)`);
-
-        try {
-          // Call extract-knowledge with force re-extraction flag
-          const { data: extractionResult, error: extractionError } = await supabase.functions.invoke('extract-knowledge', {
-            body: {
-              projectId: projectId,
-              chapterId: chapter.id,
-              content: chapter.content,
-              options: {
-                forceReExtraction: true,
-                contentTypesToExtract: contentTypes,
-                useEmbeddingsBasedProcessing: true
-              }
-            }
-          });
-
-          if (extractionError) {
-            console.error(`❌ Force extraction failed for chapter ${chapter.id}:`, extractionError);
-            continue;
-          }
-
-          if (extractionResult?.success) {
-            const chapterExtracted = extractionResult.totalExtracted || 0;
-            totalExtracted += chapterExtracted;
-            console.log(`✅ Force extracted ${chapterExtracted} items from chapter ${chapter.id}`);
-          }
-        } catch (chapterError) {
-          console.error(`❌ Error force processing chapter ${chapter.id}:`, chapterError);
-          continue;
-        }
-      }
-
-      console.log(`🎉 Force re-analysis completed! Total extracted: ${totalExtracted}`);
-
-      return {
-        success: true,
-        totalExtracted,
-        processingStats,
-        message: `Force re-analysis completed for ${contentTypes.length} content types`
-      };
-
-    } catch (error) {
-      console.error('❌ Force re-analysis orchestrator error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-        totalExtracted: 0
-      };
-    }
+    console.log('🔥 [FORCE] Force re-analysis using standard analysis flow:', projectId, 'types:', contentTypes);
+    
+    // Simply call analyzeProject with force options
+    return this.analyzeProject(projectId, {
+      forceReExtraction: true,
+      contentTypesToExtract: contentTypes
+    });
   }
 
-  static async analyzeProject(projectId: string): Promise<any> {
+  static async analyzeProject(projectId: string, options: { forceReExtraction?: boolean; contentTypesToExtract?: string[] } = {}): Promise<any> {
     try {
-      console.log('🚀 [SMART] Starting comprehensive project analysis:', projectId);
+      const { forceReExtraction = false, contentTypesToExtract = [] } = options;
+      console.log('🚀 [SMART] Starting comprehensive project analysis:', projectId, { forceReExtraction, contentTypesToExtract });
 
       // PHASE 0: Cleanup existing duplicates
       console.log('🧹 Phase 0: Cleaning up existing duplicates');
@@ -265,31 +190,37 @@ export class SmartAnalysisOrchestrator {
         };
       }
 
-      // PHASE 1.5: Embeddings-based content similarity check
-      console.log('🔍 Phase 1.5: Checking content similarity using embeddings...');
+      // PHASE 1.5: Embeddings-based content similarity check (skip if force re-extraction)
       let embeddingsSkipped = 0;
       let embeddingsFiltered = [];
       
-      for (const chapter of chaptersNeedingAnalysis) {
-        try {
-          const processingCheck = await EmbeddingsBasedProcessingService.checkContentProcessingNeed(
-            projectId,
-            chapter.content || '',
-            chapter.id
-          );
-          
-          if (processingCheck.shouldSkipExtraction) {
-            console.log(`⏭️ Skipping chapter "${chapter.title}" - too similar to existing content`);
-            embeddingsSkipped++;
-          } else {
-            embeddingsFiltered.push(chapter);
-            if (processingCheck.similarContent) {
-              console.log(`🔄 Chapter "${chapter.title}" has similar content - will apply enhanced deduplication`);
+      if (forceReExtraction) {
+        console.log('🔥 Phase 1.5: Skipping embeddings similarity check due to force re-extraction');
+        embeddingsFiltered = chaptersNeedingAnalysis;
+      } else {
+        console.log('🔍 Phase 1.5: Checking content similarity using embeddings...');
+        
+        for (const chapter of chaptersNeedingAnalysis) {
+          try {
+            const processingCheck = await EmbeddingsBasedProcessingService.checkContentProcessingNeed(
+              projectId,
+              chapter.content || '',
+              chapter.id
+            );
+            
+            if (processingCheck.shouldSkipExtraction) {
+              console.log(`⏭️ Skipping chapter "${chapter.title}" - too similar to existing content`);
+              embeddingsSkipped++;
+            } else {
+              embeddingsFiltered.push(chapter);
+              if (processingCheck.similarContent) {
+                console.log(`🔄 Chapter "${chapter.title}" has similar content - will apply enhanced deduplication`);
+              }
             }
+          } catch (embeddingsError) {
+            console.warn(`⚠️ Embeddings check failed for chapter ${chapter.id}, including in analysis:`, embeddingsError);
+            embeddingsFiltered.push(chapter);
           }
-        } catch (embeddingsError) {
-          console.warn(`⚠️ Embeddings check failed for chapter ${chapter.id}, including in analysis:`, embeddingsError);
-          embeddingsFiltered.push(chapter);
         }
       }
       
@@ -346,7 +277,12 @@ export class SmartAnalysisOrchestrator {
           content: testContent,
           projectId: projectId,
           extractionType: 'comprehensive',
-          chapterId: primaryChapterId
+          chapterId: primaryChapterId,
+          options: {
+            forceReExtraction,
+            contentTypesToExtract,
+            useEmbeddingsBasedProcessing: true
+          }
         }
       });
 
@@ -375,8 +311,8 @@ export class SmartAnalysisOrchestrator {
           extractionStats: knowledgeResult.storageDetails?.extractionStats || {}
         });
 
-        // Store the extracted knowledge in the database
-        const storedItems = await this.storeComprehensiveKnowledge(projectId, knowledgeResult.extractedData, chaptersNeedingAnalysis);
+        // Store the extracted knowledge in the database with force flag
+        const storedItems = await this.storeComprehensiveKnowledge(projectId, knowledgeResult.extractedData, chaptersNeedingAnalysis, forceReExtraction);
         totalKnowledgeExtracted = storedItems;
         
         console.log(`📚 Stored ${totalKnowledgeExtracted} knowledge items in database`);
@@ -459,7 +395,7 @@ export class SmartAnalysisOrchestrator {
   }
 
   // Enhanced method to store all extracted knowledge types in database with intelligent deduplication
-  static async storeComprehensiveKnowledge(projectId: string, extractedData: any, sourceChapters: any[]): Promise<number> {
+  static async storeComprehensiveKnowledge(projectId: string, extractedData: any, sourceChapters: any[], forceReExtraction: boolean = false): Promise<number> {
     let storedCount = 0;
     const sourceChapterIds = sourceChapters.map(c => c.id);
 
@@ -468,7 +404,7 @@ export class SmartAnalysisOrchestrator {
       if (extractedData.characters && extractedData.characters.length > 0) {
         for (const character of extractedData.characters) {
           try {
-            await this.storeOrUpdateCharacter(projectId, character, sourceChapterIds);
+            await this.storeOrUpdateCharacter(projectId, character, sourceChapterIds, forceReExtraction);
             storedCount++;
           } catch (charError) {
             console.error('Error processing character:', character, charError);
@@ -480,7 +416,7 @@ export class SmartAnalysisOrchestrator {
       if (extractedData.worldBuilding && extractedData.worldBuilding.length > 0) {
         for (const worldElement of extractedData.worldBuilding) {
           try {
-            await this.storeOrUpdateWorldBuilding(projectId, worldElement, sourceChapterIds);
+            await this.storeOrUpdateWorldBuilding(projectId, worldElement, sourceChapterIds, forceReExtraction);
             storedCount++;
           } catch (worldError) {
             console.error('Error processing world building:', worldElement, worldError);
@@ -492,7 +428,7 @@ export class SmartAnalysisOrchestrator {
       if (extractedData.themes && extractedData.themes.length > 0) {
         for (const theme of extractedData.themes) {
           try {
-            await this.storeOrUpdateTheme(projectId, theme, sourceChapterIds);
+            await this.storeOrUpdateTheme(projectId, theme, sourceChapterIds, forceReExtraction);
             storedCount++;
           } catch (themeError) {
             console.error('Error processing theme:', theme, themeError);
@@ -504,7 +440,7 @@ export class SmartAnalysisOrchestrator {
       if (extractedData.relationships && extractedData.relationships.length > 0) {
         for (const relationship of extractedData.relationships) {
           try {
-            await this.storeOrUpdateRelationship(projectId, relationship, sourceChapterIds);
+            await this.storeOrUpdateRelationship(projectId, relationship, sourceChapterIds, forceReExtraction);
             storedCount++;
           } catch (relError) {
             console.error('Error processing relationship:', relationship, relError);
@@ -516,7 +452,7 @@ export class SmartAnalysisOrchestrator {
       if (extractedData.plotThreads && extractedData.plotThreads.length > 0) {
         for (const plotThread of extractedData.plotThreads) {
           try {
-            await this.storeOrUpdatePlotThread(projectId, plotThread, sourceChapterIds);
+            await this.storeOrUpdatePlotThread(projectId, plotThread, sourceChapterIds, forceReExtraction);
             storedCount++;
           } catch (plotError) {
             console.error('Error processing plot thread:', plotThread, plotError);
@@ -528,7 +464,7 @@ export class SmartAnalysisOrchestrator {
       if (extractedData.timelineEvents && extractedData.timelineEvents.length > 0) {
         for (const event of extractedData.timelineEvents) {
           try {
-            await this.storeOrUpdateTimelineEvent(projectId, event, sourceChapterIds);
+            await this.storeOrUpdateTimelineEvent(projectId, event, sourceChapterIds, forceReExtraction);
             storedCount++;
           } catch (eventError) {
             console.error('Error processing timeline event:', event, eventError);
@@ -540,7 +476,7 @@ export class SmartAnalysisOrchestrator {
       if (extractedData.plotPoints && extractedData.plotPoints.length > 0) {
         for (const plotPoint of extractedData.plotPoints) {
           try {
-            await this.storeOrUpdatePlotPoint(projectId, plotPoint, sourceChapterIds);
+            await this.storeOrUpdatePlotPoint(projectId, plotPoint, sourceChapterIds, forceReExtraction);
             storedCount++;
           } catch (plotPointError) {
             console.error('Error processing plot point:', plotPoint, plotPointError);
@@ -552,7 +488,7 @@ export class SmartAnalysisOrchestrator {
       if (extractedData.chapterSummaries && extractedData.chapterSummaries.length > 0) {
         for (const summary of extractedData.chapterSummaries) {
           try {
-            await this.storeOrUpdateChapterSummary(projectId, summary, sourceChapters);
+            await this.storeOrUpdateChapterSummary(projectId, summary, sourceChapters, forceReExtraction);
             storedCount++;
           } catch (summaryError) {
             console.error('Error processing chapter summary:', summary, summaryError);
@@ -570,7 +506,7 @@ export class SmartAnalysisOrchestrator {
   }
 
   // Intelligent character deduplication and merging
-  static async storeOrUpdateCharacter(projectId: string, character: any, sourceChapterIds: string[]) {
+  static async storeOrUpdateCharacter(projectId: string, character: any, sourceChapterIds: string[], forceReExtraction: boolean = false) {
     const relevanceScore = await this.calculateRelevanceScore('character', character.description || '', character);
     
     // Check for existing character by name
@@ -590,8 +526,8 @@ export class SmartAnalysisOrchestrator {
       // Character exists - intelligently merge information
       const existingChar = existingCharacters[0];
       
-      // Don't overwrite user-edited content
-      if (existingChar.user_edited) {
+      // Don't overwrite user-edited content (unless forced)
+      if (existingChar.user_edited && !forceReExtraction) {
         console.log(`⏭️ Skipping user-edited character: ${character.name}`);
         return;
       }
@@ -667,7 +603,7 @@ export class SmartAnalysisOrchestrator {
   }
 
   // Store or update world building elements
-  static async storeOrUpdateWorldBuilding(projectId: string, worldElement: any, sourceChapterIds: string[]) {
+  static async storeOrUpdateWorldBuilding(projectId: string, worldElement: any, sourceChapterIds: string[], forceReExtraction: boolean = false) {
     const { error } = await supabase
       .from('knowledge_base')
       .insert({
@@ -691,7 +627,7 @@ export class SmartAnalysisOrchestrator {
   }
 
   // Store or update themes
-  static async storeOrUpdateTheme(projectId: string, theme: any, sourceChapterIds: string[]) {
+  static async storeOrUpdateTheme(projectId: string, theme: any, sourceChapterIds: string[], forceReExtraction: boolean = false) {
     const { error } = await supabase
       .from('knowledge_base')
       .insert({
@@ -935,16 +871,17 @@ export class SmartAnalysisOrchestrator {
   }
 
   // Intelligent relationship deduplication and merging
-  static async storeOrUpdateRelationship(projectId: string, relationship: any, sourceChapterIds: string[]) {
-    // PHASE 1: Pre-storage semantic similarity checking
-    const { SemanticDeduplicationService } = await import('./SemanticDeduplicationService');
-    const similarityResult = await SemanticDeduplicationService.checkSemanticSimilarity(
-      projectId,
-      'character_relationships',
-      relationship
-    );
+  static async storeOrUpdateRelationship(projectId: string, relationship: any, sourceChapterIds: string[], forceReExtraction: boolean = false) {
+    // PHASE 1: Pre-storage semantic similarity checking (skip if force re-extraction)
+    if (!forceReExtraction) {
+      const { SemanticDeduplicationService } = await import('./SemanticDeduplicationService');
+      const similarityResult = await SemanticDeduplicationService.checkSemanticSimilarity(
+        projectId,
+        'character_relationships',
+        relationship
+      );
 
-    if (similarityResult.hasSimilar && similarityResult.existingItem) {
+      if (similarityResult.hasSimilar && similarityResult.existingItem) {
       console.log(`🔀 Found similar relationship (${similarityResult.similarityScore.toFixed(2)}): ${relationship.character_a_name} - ${relationship.character_b_name}`);
       
       if (similarityResult.suggestedAction === 'merge_with_existing') {
@@ -976,8 +913,9 @@ export class SmartAnalysisOrchestrator {
         } else {
           console.log(`✅ Merged relationship: ${relationship.character_a_name} - ${relationship.character_b_name}`);
         }
-        return;
+         return;
       }
+    }
     }
 
     // Check for existing relationship by character names and type (exact match fallback)
@@ -1047,14 +985,15 @@ export class SmartAnalysisOrchestrator {
   }
 
   // Intelligent plot thread deduplication and merging
-  static async storeOrUpdatePlotThread(projectId: string, plotThread: any, sourceChapterIds: string[]) {
-    // PHASE 1: Pre-storage semantic similarity checking
-    const { SemanticDeduplicationService } = await import('./SemanticDeduplicationService');
-    const similarityResult = await SemanticDeduplicationService.checkSemanticSimilarity(
-      projectId,
-      'plot_threads',
-      plotThread
-    );
+  static async storeOrUpdatePlotThread(projectId: string, plotThread: any, sourceChapterIds: string[], forceReExtraction: boolean = false) {
+    // PHASE 1: Pre-storage semantic similarity checking (skip if force re-extraction)
+    if (!forceReExtraction) {
+      const { SemanticDeduplicationService } = await import('./SemanticDeduplicationService');
+      const similarityResult = await SemanticDeduplicationService.checkSemanticSimilarity(
+        projectId,
+        'plot_threads',
+        plotThread
+      );
 
     if (similarityResult.hasSimilar && similarityResult.existingItem) {
       console.log(`🔀 Found similar plot thread (${similarityResult.similarityScore.toFixed(2)}): ${plotThread.thread_name}`);
@@ -1097,8 +1036,9 @@ export class SmartAnalysisOrchestrator {
         } else {
           console.log(`✅ Merged plot thread: ${plotThread.thread_name}`);
         }
-        return;
+         return;
       }
+    }
     }
 
     // Check for existing plot thread by name and type (exact match fallback)
@@ -1178,11 +1118,12 @@ export class SmartAnalysisOrchestrator {
   }
 
   // Intelligent timeline event deduplication and merging
-  static async storeOrUpdateTimelineEvent(projectId: string, event: any, sourceChapterIds: string[]) {
+  static async storeOrUpdateTimelineEvent(projectId: string, event: any, sourceChapterIds: string[], forceReExtraction: boolean = false) {
     const eventName = event.event_name || event.event_summary || 'Unnamed Event';
     
-    // PHASE 1: Pre-storage semantic similarity checking
-    const { SemanticDeduplicationService } = await import('./SemanticDeduplicationService');
+    // PHASE 1: Pre-storage semantic similarity checking (skip if force re-extraction)
+    if (!forceReExtraction) {
+      const { SemanticDeduplicationService } = await import('./SemanticDeduplicationService');
     const similarityResult = await SemanticDeduplicationService.checkSemanticSimilarity(
       projectId,
       'timeline_events',
@@ -1238,8 +1179,9 @@ export class SmartAnalysisOrchestrator {
         } else {
           console.log(`✅ Merged timeline event: ${eventName}`);
         }
-        return;
+         return;
       }
+    }
     }
     
     // Check for existing timeline event by name and type (exact match fallback)
@@ -1332,14 +1274,15 @@ export class SmartAnalysisOrchestrator {
   }
 
   // Intelligent plot point deduplication and merging
-  static async storeOrUpdatePlotPoint(projectId: string, plotPoint: any, sourceChapterIds: string[]) {
-    // PHASE 1: Pre-storage semantic similarity checking
-    const { SemanticDeduplicationService } = await import('./SemanticDeduplicationService');
-    const similarityResult = await SemanticDeduplicationService.checkSemanticSimilarity(
-      projectId,
-      'plot_points',
-      plotPoint
-    );
+  static async storeOrUpdatePlotPoint(projectId: string, plotPoint: any, sourceChapterIds: string[], forceReExtraction: boolean = false) {
+    // PHASE 1: Pre-storage semantic similarity checking (skip if force re-extraction)
+    if (!forceReExtraction) {
+      const { SemanticDeduplicationService } = await import('./SemanticDeduplicationService');
+      const similarityResult = await SemanticDeduplicationService.checkSemanticSimilarity(
+        projectId,
+        'plot_points',
+        plotPoint
+      );
 
     if (similarityResult.hasSimilar && similarityResult.existingItem) {
       console.log(`🔀 Found similar plot point (${similarityResult.similarityScore.toFixed(2)}): ${plotPoint.name}`);
@@ -1375,8 +1318,9 @@ export class SmartAnalysisOrchestrator {
         } else {
           console.log(`✅ Merged plot point: ${plotPoint.name}`);
         }
-        return;
+         return;
       }
+    }
     }
 
     // Check for existing plot point by name and plot thread (exact match fallback)
@@ -1448,7 +1392,7 @@ export class SmartAnalysisOrchestrator {
   }
 
   // Intelligent chapter summary deduplication and merging
-  static async storeOrUpdateChapterSummary(projectId: string, summary: any, sourceChapters: any[]) {
+  static async storeOrUpdateChapterSummary(projectId: string, summary: any, sourceChapters: any[], forceReExtraction: boolean = false) {
     const chapterId = sourceChapters[0]?.id;
     
     // Check for existing chapter summary by chapter ID
