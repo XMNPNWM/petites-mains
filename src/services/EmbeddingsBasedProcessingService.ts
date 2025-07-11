@@ -379,10 +379,9 @@ export class EmbeddingsBasedProcessingService {
         }
       }
       
-      // Step 3: Apply traditional deduplication for remaining items
-      const deduplicationResult = await SemanticDeduplicationService.applyEnhancedDeduplication(
-        projectId,
-        0.8
+      // Step 3: Apply conservative deduplication (only exact duplicates)
+      const deduplicationResult = await SemanticDeduplicationService.applyConservativeDeduplication(
+        projectId
       );
       
       const totalDuplicatesRemoved = deduplicationResult.relationshipsRemoved +

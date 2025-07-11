@@ -1886,8 +1886,8 @@ export type Database = {
           suggested_action: string
         }[]
       }
-      enhanced_semantic_deduplication: {
-        Args: { p_project_id: string; p_similarity_threshold?: number }
+      conservative_deduplication: {
+        Args: { p_project_id: string }
         Returns: {
           relationships_removed: number
           plot_threads_removed: number

@@ -819,16 +819,15 @@ export class SmartAnalysisOrchestrator {
 
   // Phase 1 Deduplication Methods Implementation
 
-  // Cleanup existing duplicates using enhanced semantic deduplication
+  // Cleanup existing duplicates using conservative deduplication (exact duplicates only)
   static async cleanupExistingDuplicates(projectId: string): Promise<void> {
     try {
-      const { data, error } = await supabase.rpc('enhanced_semantic_deduplication', {
-        p_project_id: projectId,
-        p_similarity_threshold: 0.8
+      const { data, error } = await supabase.rpc('conservative_deduplication', {
+        p_project_id: projectId
       });
 
       if (error) {
-        console.error('❌ Error with enhanced semantic deduplication:', error);
+        console.error('❌ Error with conservative deduplication:', error);
         return;
       }
 

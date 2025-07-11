@@ -103,11 +103,10 @@ export class SemanticDeduplicationService {
   }
 
   /**
-   * Apply enhanced semantic deduplication to a project
+   * Apply conservative deduplication to a project (only removes exact duplicates)
    */
-  static async applyEnhancedDeduplication(
-    projectId: string,
-    similarityThreshold: number = 0.8
+  static async applyConservativeDeduplication(
+    projectId: string
   ): Promise<{
     relationshipsRemoved: number;
     plotThreadsRemoved: number;
@@ -119,21 +118,20 @@ export class SemanticDeduplicationService {
     semanticMergesPerformed: number;
   }> {
     try {
-      console.log(`🧹 Applying enhanced semantic deduplication to project ${projectId}`);
+      console.log(`🧹 Applying conservative deduplication to project ${projectId}`);
       
-      const { data: result, error } = await supabase.rpc('enhanced_semantic_deduplication', {
-        p_project_id: projectId,
-        p_similarity_threshold: similarityThreshold
+      const { data: result, error } = await supabase.rpc('conservative_deduplication', {
+        p_project_id: projectId
       });
 
       if (error) {
-        console.error('Error in enhanced semantic deduplication:', error);
+        console.error('Error in conservative deduplication:', error);
         throw new Error(`Deduplication failed: ${error.message}`);
       }
 
       if (result && Array.isArray(result) && result.length > 0) {
         const deduplicationResult = result[0];
-        console.log('✅ Enhanced semantic deduplication completed:', deduplicationResult);
+        console.log('✅ Conservative deduplication completed:', deduplicationResult);
         
         return {
           relationshipsRemoved: deduplicationResult.relationships_removed || 0,
@@ -158,7 +156,7 @@ export class SemanticDeduplicationService {
         semanticMergesPerformed: 0
       };
     } catch (error) {
-      console.error('Enhanced semantic deduplication failed:', error);
+      console.error('Conservative deduplication failed:', error);
       throw error;
     }
   }
