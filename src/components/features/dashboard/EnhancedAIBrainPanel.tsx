@@ -15,6 +15,7 @@ import { QualityReviewPanel } from './ai-brain/QualityReviewPanel';
 import SearchFilterPanel from './ai-brain/SearchFilterPanel';
 import { UnifiedUpdateService } from '@/services/UnifiedUpdateService';
 import { getTabConfiguration } from '@/utils/tabConfiguration';
+import { ForceReAnalysisDialog } from './ai-brain/ForceReAnalysisDialog';
 
 interface EnhancedAIBrainPanelProps {
   projectId: string;
@@ -46,6 +47,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   const { analysisStatus, refreshAnalysisStatus } = useAnalysisStatus(projectId);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [showForceReAnalysisDialog, setShowForceReAnalysisDialog] = useState(false);
   const { toast } = useToast();
 
   const jobManager = new AnalysisJobManager();
@@ -110,6 +112,44 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
           variant: "destructive"
         });
       }
+    }
+  };
+
+  const handleForceReAnalysis = () => {
+    setShowForceReAnalysisDialog(true);
+  };
+
+  const handleForceReAnalysisConfirm = async (selectedTypes: string[]) => {
+    setShowForceReAnalysisDialog(false);
+    setIsAnalyzing(true);
+    
+    try {
+      console.log('🔥 Starting force re-analysis for project:', projectId, 'types:', selectedTypes);
+      
+      const result = await SmartAnalysisOrchestrator.forceReAnalyzeProject(projectId, selectedTypes);
+      
+      if (result.success) {
+        const stats = result.processingStats;
+        toast({
+          title: "Force Re-Analysis Complete",
+          description: `Re-extracted ${result.totalExtracted || 0} items for ${selectedTypes.length} content types`,
+        });
+        if (refresh) {
+          await refresh();
+        }
+      } else {
+        throw new Error(result.error || 'Force re-analysis failed');
+      }
+    } catch (error) {
+      console.error('❌ Force re-analysis failed:', error);
+      toast({
+        title: "Force Re-Analysis Failed",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAnalyzing(false);
+      await refreshAnalysisStatus();
     }
   };
 
@@ -279,6 +319,14 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         onAnalyzeProject={handleAnalyzeProject}
         onRetryAnalysis={handleRetryAnalysis}
         onCancelAnalysis={handleCancelAnalysis}
+        onForceReAnalysis={handleForceReAnalysis}
+      />
+
+      <ForceReAnalysisDialog
+        open={showForceReAnalysisDialog}
+        onOpenChange={setShowForceReAnalysisDialog}
+        onConfirm={handleForceReAnalysisConfirm}
+        isProcessing={isAnalyzing}
       />
 
       <AIBrainStatusCards

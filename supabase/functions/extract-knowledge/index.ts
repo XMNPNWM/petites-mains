@@ -31,7 +31,16 @@ serve(async (req) => {
       throw new Error('Missing required parameters: projectId, chapterId, or content');
     }
 
+    // Extract force re-extraction options
+    const forceReExtraction = options.forceReExtraction || false;
+    const contentTypesToExtract = options.contentTypesToExtract || [];
+    
     console.log(`🚀 Starting knowledge extraction for chapter: ${chapterId}`);
+    console.log('📋 Extraction options:', { 
+      forceReExtraction, 
+      contentTypesToExtract: contentTypesToExtract.length > 0 ? contentTypesToExtract : 'all',
+      useEmbeddingsBasedProcessing: options.useEmbeddingsBasedProcessing 
+    });
 
     // Check if embeddings-based processing is enabled
     const useEmbeddingsBasedProcessing = options.useEmbeddingsBasedProcessing !== false;
@@ -39,8 +48,8 @@ serve(async (req) => {
     let shouldSkipExtraction = false;
     let processingReason = 'Processing new content';
 
-    // Phase 1: Embeddings-based similarity check if enabled
-    if (useEmbeddingsBasedProcessing) {
+    // Phase 1: Embeddings-based similarity check if enabled (unless force re-extraction)
+    if (useEmbeddingsBasedProcessing && !forceReExtraction) {
       console.log('🔍 Checking content similarity using embeddings...');
       
       // Generate embedding for content using correct model
@@ -78,6 +87,9 @@ serve(async (req) => {
           }
         }
       }
+    } else if (forceReExtraction) {
+      console.log('🔥 Force re-extraction mode: bypassing similarity checks');
+      processingReason = 'Force re-extraction requested';
     }
 
     let extractionResults = {
@@ -166,6 +178,36 @@ Important: Extract only clearly evident information. Assign appropriate confiden
             processed_at: currentTimestamp
           });
         }
+      }
+    }
+
+    // Filter extracted data by content types if specified (for force re-extraction)
+    if (contentTypesToExtract.length > 0) {
+      console.log(`🎯 Filtering extraction for content types: ${contentTypesToExtract.join(', ')}`);
+      
+      if (!contentTypesToExtract.includes('characters')) {
+        extractionResults.characters = [];
+      }
+      if (!contentTypesToExtract.includes('relationships')) {
+        extractionResults.relationships = [];
+      }
+      if (!contentTypesToExtract.includes('timeline_events')) {
+        extractionResults.timelineEvents = [];
+      }
+      if (!contentTypesToExtract.includes('plot_points')) {
+        extractionResults.plotPoints = [];
+      }
+      if (!contentTypesToExtract.includes('plot_threads')) {
+        extractionResults.plotThreads = [];
+      }
+      if (!contentTypesToExtract.includes('world_building')) {
+        extractionResults.worldBuilding = [];
+      }
+      if (!contentTypesToExtract.includes('chapter_summaries')) {
+        extractionResults.chapterSummaries = [];
+      }
+      if (!contentTypesToExtract.includes('themes')) {
+        extractionResults.themes = [];
       }
     }
 

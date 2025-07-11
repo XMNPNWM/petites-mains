@@ -80,6 +80,92 @@ export class SmartAnalysisOrchestrator {
     }
   }
 
+  static async forceReAnalyzeProject(projectId: string, contentTypes: string[]): Promise<any> {
+    try {
+      console.log('🔥 [FORCE] Starting force re-analysis for project:', projectId, 'types:', contentTypes);
+
+      // Get all chapters for the project
+      const { data: chapters, error: chaptersError } = await supabase
+        .from('chapters')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at');
+
+      if (chaptersError) {
+        console.error('Error fetching chapters:', chaptersError);
+        throw new Error(`Failed to fetch chapters: ${chaptersError.message}`);
+      }
+
+      if (!chapters || chapters.length === 0) {
+        throw new Error('No chapters found for this project');
+      }
+
+      let totalExtracted = 0;
+      const processingStats = {
+        chunksProcessed: 0,
+        semanticMergesPerformed: 0,
+        extractionSkipped: false
+      };
+
+      // Process each chapter with force re-extraction
+      for (const chapter of chapters) {
+        if (!chapter.content || chapter.content.trim().length === 0) {
+          console.log(`⏭️ Skipping empty chapter: ${chapter.id}`);
+          continue;
+        }
+
+        console.log(`🔥 Force processing chapter: ${chapter.id} (${chapter.content.length} chars)`);
+
+        try {
+          // Call extract-knowledge with force re-extraction flag
+          const { data: extractionResult, error: extractionError } = await supabase.functions.invoke('extract-knowledge', {
+            body: {
+              projectId: projectId,
+              chapterId: chapter.id,
+              content: chapter.content,
+              options: {
+                forceReExtraction: true,
+                contentTypesToExtract: contentTypes,
+                useEmbeddingsBasedProcessing: true
+              }
+            }
+          });
+
+          if (extractionError) {
+            console.error(`❌ Force extraction failed for chapter ${chapter.id}:`, extractionError);
+            continue;
+          }
+
+          if (extractionResult?.success) {
+            const chapterExtracted = extractionResult.totalExtracted || 0;
+            totalExtracted += chapterExtracted;
+            console.log(`✅ Force extracted ${chapterExtracted} items from chapter ${chapter.id}`);
+          }
+        } catch (chapterError) {
+          console.error(`❌ Error force processing chapter ${chapter.id}:`, chapterError);
+          continue;
+        }
+      }
+
+      console.log(`🎉 Force re-analysis completed! Total extracted: ${totalExtracted}`);
+
+      return {
+        success: true,
+        totalExtracted,
+        processingStats,
+        message: `Force re-analysis completed for ${contentTypes.length} content types`
+      };
+
+    } catch (error) {
+      console.error('❌ Force re-analysis orchestrator error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        totalExtracted: 0
+      };
+    }
+  }
+
   static async analyzeProject(projectId: string): Promise<any> {
     try {
       console.log('🚀 [SMART] Starting comprehensive project analysis:', projectId);
