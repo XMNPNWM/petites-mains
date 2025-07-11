@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 import { GoogleGenAI } from "https://esm.sh/@google/genai@1.7.0";
@@ -276,45 +275,7 @@ Extract locations, objects, cultural elements, and thematic content.`;
       console.log('🎯 Multi-pass extraction completed');
     }
 
-    // Phase 3: Store results in database with current timestamp
-    const currentTimestamp = new Date().toISOString();
-    
-    // Store semantic chunks with embeddings if not skipped
-    if (!shouldSkipExtraction && useEmbeddingsBasedProcessing) {
-      // Create semantic chunks for future similarity checking
-      const chunks = content.split(/\n\s*\n/).filter(chunk => chunk.trim().length > 50);
-      
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        
-        // Generate embedding for this chunk
-        const chunkEmbeddingResponse = await ai.models.embedContent({
-          model: "text-embedding-004",
-          content: {
-            parts: [{ text: chunk }]
-          }
-        });
-
-        if (chunkEmbeddingResponse.embedding?.values) {
-          const chunkEmbedding = chunkEmbeddingResponse.embedding.values;
-          
-          await supabase.from('semantic_chunks').insert({
-            project_id: projectId,
-            chapter_id: chapterId,
-            content: chunk,
-            chunk_index: i,
-            start_position: 0,
-            end_position: chunk.length,
-            breakpoint_score: 0.7,
-            embeddings: JSON.stringify(chunkEmbedding),
-            embeddings_model: 'text-embedding-004',
-            processed_at: currentTimestamp
-          });
-        }
-      }
-    }
-
-    // Filter extracted data by content types if specified (for force re-extraction)
+    // Phase 3: Filter extracted data by content types if specified (for force re-extraction)
     if (contentTypesToExtract.length > 0) {
       console.log(`🎯 Filtering extraction for content types: ${contentTypesToExtract.join(', ')}`);
       
@@ -344,139 +305,40 @@ Extract locations, objects, cultural elements, and thematic content.`;
       }
     }
 
-    // Store extracted knowledge with proper timestamps
-    let totalInserted = 0;
+    // Calculate total extracted items
+    const totalExtracted = Object.values(extractionResults).reduce((total, items) => 
+      total + (Array.isArray(items) ? items.length : 0), 0
+    );
 
-    // Store all extracted data types
-    for (const [dataType, items] of Object.entries(extractionResults)) {
-      if (Array.isArray(items) && items.length > 0) {
-        for (const item of items) {
-          const baseData = {
-            project_id: projectId,
-            source_chapter_id: chapterId,
-            confidence_score: item.confidence_score || 0.7,
-            created_at: currentTimestamp,
-            updated_at: currentTimestamp,
-            is_newly_extracted: true
-          };
+    console.log(`✅ Knowledge extraction completed: ${totalExtracted} items extracted`);
+    console.log('📊 Extraction breakdown:', {
+      characters: extractionResults.characters.length,
+      relationships: extractionResults.relationships.length,
+      timelineEvents: extractionResults.timelineEvents.length,
+      plotThreads: extractionResults.plotThreads.length,
+      plotPoints: extractionResults.plotPoints.length,
+      chapterSummaries: extractionResults.chapterSummaries.length,
+      worldBuilding: extractionResults.worldBuilding.length,
+      themes: extractionResults.themes.length
+    });
 
-          try {
-            switch (dataType) {
-              case 'characters':
-                await supabase.from('knowledge_base').insert({
-                  ...baseData,
-                  category: 'character',
-                  name: item.name,
-                  description: item.description,
-                  details: { traits: item.traits, role: item.role }
-                });
-                break;
-
-              case 'relationships':
-                await supabase.from('character_relationships').insert({
-                  ...baseData,
-                  character_a_name: item.character_a_name,
-                  character_b_name: item.character_b_name,
-                  relationship_type: item.relationship_type,
-                  relationship_strength: item.relationship_strength || 5
-                });
-                break;
-
-              case 'plotThreads':
-                await supabase.from('plot_threads').insert({
-                  ...baseData,
-                  thread_name: item.thread_name,
-                  thread_type: item.thread_type,
-                  key_events: item.key_events || [],
-                  thread_status: item.status || 'active'
-                });
-                break;
-
-              case 'timelineEvents':
-                await supabase.from('timeline_events').insert({
-                  ...baseData,
-                  event_name: item.event_name,
-                  event_type: item.event_type,
-                  event_summary: item.description,
-                  chronological_order: item.chronological_order || 0,
-                  characters_involved_names: item.characters_involved || []
-                });
-                break;
-
-              case 'plotPoints':
-                await supabase.from('plot_points').insert({
-                  ...baseData,
-                  name: item.name,
-                  description: item.description,
-                  significance: item.significance
-                });
-                break;
-
-              case 'chapterSummaries':
-                await supabase.from('chapter_summaries').insert({
-                  ...baseData,
-                  chapter_id: chapterId,
-                  title: item.title,
-                  summary_short: item.summary_short,
-                  summary_long: item.summary_long,
-                  key_events_in_chapter: item.key_events || []
-                });
-                break;
-
-              case 'worldBuilding':
-                await supabase.from('knowledge_base').insert({
-                  ...baseData,
-                  category: 'world_building',
-                  name: item.name,
-                  description: item.description,
-                  subcategory: item.category
-                });
-                break;
-
-              case 'themes':
-                await supabase.from('knowledge_base').insert({
-                  ...baseData,
-                  category: 'theme',
-                  name: item.name,
-                  description: item.description,
-                  details: { significance: item.significance }
-                });
-                break;
-            }
-            totalInserted++;
-          } catch (insertError) {
-            console.error(`Error inserting ${dataType}:`, insertError);
-          }
-        }
-      }
-    }
-
-    // Update processing job status with current timestamp
-    await supabase
-      .from('knowledge_processing_jobs')
-      .update({
-        state: 'done',
-        completed_at: currentTimestamp,
-        progress_percentage: 100,
-        results_summary: {
-          total_extracted: totalInserted,
-          processing_reason: processingReason,
-          embeddings_enabled: useEmbeddingsBasedProcessing,
-          extraction_skipped: shouldSkipExtraction
-        }
-      })
-      .eq('project_id', projectId)
-      .eq('chapter_id', chapterId);
-
-    console.log(`✅ Knowledge extraction completed: ${totalInserted} items processed`);
-
+    // Return extracted data for orchestrator to store
     return new Response(JSON.stringify({
       success: true,
-      totalExtracted: totalInserted,
-      processingReason,
-      embeddingsEnabled: useEmbeddingsBasedProcessing,
-      extractionSkipped: shouldSkipExtraction,
-      processedAt: currentTimestamp
+      extractedData: extractionResults,
+      storageDetails: {
+        language: 'detected_from_content',
+        extractionStats: {
+          totalExtracted,
+          processingReason,
+          embeddingsEnabled: useEmbeddingsBasedProcessing,
+          extractionSkipped: shouldSkipExtraction,
+          processedAt: new Date().toISOString()
+        }
+      },
+      validation: {
+        issues: shouldSkipExtraction ? ['Content extraction was skipped due to similarity'] : []
+      }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

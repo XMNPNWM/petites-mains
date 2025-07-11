@@ -274,9 +274,8 @@ export class SmartAnalysisOrchestrator {
       
       const { data: knowledgeResult, error: knowledgeError } = await supabase.functions.invoke('extract-knowledge', {
         body: { 
-          content: testContent,
+          content: contentToAnalyze,
           projectId: projectId,
-          extractionType: 'comprehensive',
           chapterId: primaryChapterId,
           options: {
             forceReExtraction,
