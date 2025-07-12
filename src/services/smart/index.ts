@@ -1,4 +1,5 @@
 
+export { UnifiedAnalysisOrchestrator } from '../UnifiedAnalysisOrchestrator';
 export { SmartAnalysisOrchestrator } from '../SmartAnalysisOrchestrator';
 export { AnalysisJobManager } from '../AnalysisJobManager';
 export { ContextAssembler } from '../ContextAssembler';

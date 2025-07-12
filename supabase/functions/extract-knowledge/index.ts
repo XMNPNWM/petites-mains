@@ -198,7 +198,7 @@ Text to analyze: "${content}"
 
 Return a JSON object with this exact structure:
 {
-  "timelineEvents": [{"event_name": "", "event_type": "", "description": "", "chronological_order": 0, "characters_involved": [], "confidence_score": 0.8}]
+  "timelineEvents": [{"event_name": "", "event_type": "", "event_summary": "", "chronological_order": 0, "characters_involved_names": [], "confidence_score": 0.8}]
 }
 
 Look for:

@@ -14,6 +14,7 @@ import { AIBrainStatusCards } from './ai-brain/AIBrainStatusCards';
 import { QualityReviewPanel } from './ai-brain/QualityReviewPanel';
 import SearchFilterPanel from './ai-brain/SearchFilterPanel';
 import { UnifiedUpdateService } from '@/services/UnifiedUpdateService';
+import { UnifiedAnalysisOrchestrator } from '@/services/UnifiedAnalysisOrchestrator';
 import { getTabConfiguration } from '@/utils/tabConfiguration';
 import { ForceReAnalysisDialog } from './ai-brain/ForceReAnalysisDialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -169,10 +170,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
       // Clear content hashes to force complete re-processing
       await clearContentHashes(projectId);
       
-      const result = await EnhancedAnalysisOrchestrator.analyzeProject(projectId, {
-        forceReExtraction: true,
-        contentTypesToExtract: selectedTypes
-      });
+      const result = await UnifiedAnalysisOrchestrator.forceReAnalyzeProject(projectId, selectedTypes);
       
       if (result.success) {
         const stats = result.processingStats;
