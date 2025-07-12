@@ -28,7 +28,8 @@ export class EnhancedAnalysisOrchestrator extends SmartAnalysisOrchestrator {
   /**
    * Enhanced project analysis that follows the complete workflow
    */
-  static async analyzeProject(projectId: string): Promise<EnhancedAnalysisResult> {
+  static async analyzeProject(projectId: string, options: { forceReExtraction?: boolean; contentTypesToExtract?: string[] } = {}): Promise<EnhancedAnalysisResult> {
+    const { forceReExtraction = false } = options;
     try {
       console.log('🚀 Starting enhanced project analysis for:', projectId);
       
@@ -71,10 +72,14 @@ export class EnhancedAnalysisOrchestrator extends SmartAnalysisOrchestrator {
         console.log(`📖 Processing chapter: ${chapter.title}`);
         
         // Step 1: Content Change Verification (Hash-based Detection)
-        const hashChanged = await this.checkContentHashChanged(chapter.id, chapter.content);
-        if (!hashChanged) {
+        const hashChanged = await this.checkContentHashChanged(chapter.id, chapter.content, forceReExtraction);
+        if (!hashChanged && !forceReExtraction) {
           console.log(`⏭️ Skipping unchanged chapter: ${chapter.title}`);
           continue;
+        }
+        
+        if (forceReExtraction) {
+          console.log(`🔄 Force re-extraction enabled for chapter: ${chapter.title}`);
         }
         
         // Step 2: Incremental Embeddings Processing
@@ -207,7 +212,12 @@ export class EnhancedAnalysisOrchestrator extends SmartAnalysisOrchestrator {
   /**
    * Check if content hash has changed since last processing
    */
-  private static async checkContentHashChanged(chapterId: string, content: string): Promise<boolean> {
+  private static async checkContentHashChanged(chapterId: string, content: string, forceReExtraction = false): Promise<boolean> {
+    // If force re-extraction is enabled, always return true to bypass hash check
+    if (forceReExtraction) {
+      console.log(`🔄 Bypassing hash check for chapter ${chapterId} due to force re-extraction`);
+      return true;
+    }
     try {
       const { data: hashData } = await supabase
         .from('content_hashes')

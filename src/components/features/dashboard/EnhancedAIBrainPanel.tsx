@@ -16,6 +16,7 @@ import SearchFilterPanel from './ai-brain/SearchFilterPanel';
 import { UnifiedUpdateService } from '@/services/UnifiedUpdateService';
 import { getTabConfiguration } from '@/utils/tabConfiguration';
 import { ForceReAnalysisDialog } from './ai-brain/ForceReAnalysisDialog';
+import { supabase } from '@/integrations/supabase/client';
 
 interface EnhancedAIBrainPanelProps {
   projectId: string;
@@ -119,6 +120,45 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     setShowForceReAnalysisDialog(true);
   };
 
+  // Helper function to clear content hashes for force re-processing
+  const clearContentHashes = async (projectId: string) => {
+    try {
+      console.log('🧹 Clearing content hashes for project:', projectId);
+      
+      // First get all chapter IDs for this project
+      const { data: chapters, error: chaptersError } = await supabase
+        .from('chapters')
+        .select('id')
+        .eq('project_id', projectId);
+      
+      if (chaptersError) {
+        console.error('Error fetching chapters:', chaptersError);
+        return;
+      }
+      
+      if (!chapters || chapters.length === 0) {
+        console.log('No chapters found for project');
+        return;
+      }
+      
+      const chapterIds = chapters.map(c => c.id);
+      
+      // Now delete content hashes for these chapters
+      const { error } = await supabase
+        .from('content_hashes')
+        .delete()
+        .in('chapter_id', chapterIds);
+      
+      if (error) {
+        console.error('Error clearing content hashes:', error);
+      } else {
+        console.log('✅ Content hashes cleared successfully for', chapterIds.length, 'chapters');
+      }
+    } catch (error) {
+      console.error('Error clearing content hashes:', error);
+    }
+  };
+
   const handleForceReAnalysisConfirm = async (selectedTypes: string[]) => {
     setShowForceReAnalysisDialog(false);
     setIsAnalyzing(true);
@@ -126,7 +166,13 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     try {
       console.log('🔥 Starting force re-analysis for project:', projectId, 'types:', selectedTypes);
       
-      const result = await SmartAnalysisOrchestrator.forceReAnalyzeProject(projectId, selectedTypes);
+      // Clear content hashes to force complete re-processing
+      await clearContentHashes(projectId);
+      
+      const result = await EnhancedAnalysisOrchestrator.analyzeProject(projectId, {
+        forceReExtraction: true,
+        contentTypesToExtract: selectedTypes
+      });
       
       if (result.success) {
         const stats = result.processingStats;
