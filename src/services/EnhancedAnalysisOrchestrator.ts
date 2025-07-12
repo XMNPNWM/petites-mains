@@ -112,7 +112,56 @@ export class EnhancedAnalysisOrchestrator extends SmartAnalysisOrchestrator {
         // Step 5: LLM Analysis / Data Extraction (if not skipped)
         console.log(`🤖 Performing LLM analysis for: ${chapter.title}`);
         
-        // Use enhanced analysis with context from existing knowledge
+        // FIXED: Call the extract-knowledge edge function directly for knowledge extraction
+        console.log('🔧 DEBUG: About to call extract-knowledge edge function for chapter:', chapter.title);
+        
+        const { data: knowledgeResult, error: knowledgeError } = await supabase.functions.invoke('extract-knowledge', {
+          body: { 
+            content: chapter.content,
+            projectId: projectId,
+            chapterId: chapter.id,
+            options: {
+              forceReExtraction: true, // Always extract for enhanced analysis
+              useEmbeddingsBasedProcessing: true
+            }
+          }
+        });
+
+        console.log('📥 extract-knowledge response for chapter:', chapter.title, {
+          hasData: !!knowledgeResult,
+          hasError: !!knowledgeError,
+          success: knowledgeResult?.success,
+          extractedDataKeys: knowledgeResult?.extractedData ? Object.keys(knowledgeResult.extractedData) : []
+        });
+
+        if (knowledgeError) {
+          console.error('❌ Knowledge extraction failed for chapter:', chapter.title, knowledgeError);
+          // Continue with content enhancement as fallback
+          const analysisResult = await this.performEnhancedLLMAnalysis(projectId, chapter);
+        } else if (knowledgeResult?.success && knowledgeResult.extractedData) {
+          console.log('✅ Knowledge extraction completed for chapter:', chapter.title);
+          console.log('📊 Extracted data:', {
+            characters: knowledgeResult.extractedData.characters?.length || 0,
+            relationships: knowledgeResult.extractedData.relationships?.length || 0,
+            timelineEvents: knowledgeResult.extractedData.timelineEvents?.length || 0,
+            plotThreads: knowledgeResult.extractedData.plotThreads?.length || 0,
+            plotPoints: knowledgeResult.extractedData.plotPoints?.length || 0,
+            chapterSummaries: knowledgeResult.extractedData.chapterSummaries?.length || 0,
+            worldBuilding: knowledgeResult.extractedData.worldBuilding?.length || 0,
+            themes: knowledgeResult.extractedData.themes?.length || 0
+          });
+          
+          // Store the extracted knowledge using the base class method
+          const storedItems = await SmartAnalysisOrchestrator.storeComprehensiveKnowledge(
+            projectId, 
+            knowledgeResult.extractedData, 
+            [chapter], 
+            true // force flag
+          );
+          totalExtracted += storedItems;
+        }
+
+        // Also run content enhancement for refinement
         const analysisResult = await this.performEnhancedLLMAnalysis(projectId, chapter);
         
         if (analysisResult.success) {
