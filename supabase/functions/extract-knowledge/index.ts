@@ -119,6 +119,8 @@ Return a JSON object with this exact structure:
 
 Extract only clearly evident characters. Assign confidence scores based on how explicit their presence and description is in the text.`;
 
+      console.log('📝 Characters prompt length:', charactersPrompt.length);
+      
       const charactersResponse = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: charactersPrompt
@@ -126,17 +128,20 @@ Extract only clearly evident characters. Assign confidence scores based on how e
 
       try {
         const charactersText = charactersResponse.text.replace(/```json\n?|\n?```/g, '').trim();
+        console.log('🎭 Raw characters AI response:', charactersText.substring(0, 500) + '...');
         const charactersData = JSON.parse(charactersText);
         extractionResults.characters = charactersData.characters || [];
-        console.log(`✅ Extracted ${extractionResults.characters.length} characters`);
+        console.log(`✅ Extracted ${extractionResults.characters.length} characters:`, extractionResults.characters.map(c => c.name));
       } catch (error) {
-        console.error('Failed to parse characters:', error);
+        console.error('❌ Failed to parse characters:', error);
+        console.error('Raw response that failed:', charactersResponse.text);
       }
 
       // Pass 2: Extract Relationships (based on identified characters)
       if (extractionResults.characters.length > 0) {
         console.log('🤝 Pass 2: Extracting relationships...');
         const characterNames = extractionResults.characters.map(c => c.name).join(', ');
+        console.log('👥 Character names for relationship extraction:', characterNames);
         
         const relationshipsPrompt = `Analyze the following text and extract ONLY relationships between the identified characters in JSON format.
 
@@ -157,6 +162,8 @@ Look for:
 
 Only include relationships between the identified characters. Use exact character names from the list above.`;
 
+        console.log('📝 Relationships prompt length:', relationshipsPrompt.length);
+
         const relationshipsResponse = await ai.models.generateContent({
           model: "gemini-2.5-flash",
           contents: relationshipsPrompt
@@ -164,12 +171,16 @@ Only include relationships between the identified characters. Use exact characte
 
         try {
           const relationshipsText = relationshipsResponse.text.replace(/```json\n?|\n?```/g, '').trim();
+          console.log('🤝 Raw relationships AI response:', relationshipsText.substring(0, 500) + '...');
           const relationshipsData = JSON.parse(relationshipsText);
           extractionResults.relationships = relationshipsData.relationships || [];
-          console.log(`✅ Extracted ${extractionResults.relationships.length} relationships`);
+          console.log(`✅ Extracted ${extractionResults.relationships.length} relationships:`, extractionResults.relationships);
         } catch (error) {
-          console.error('Failed to parse relationships:', error);
+          console.error('❌ Failed to parse relationships:', error);
+          console.error('Raw response that failed:', relationshipsResponse.text);
         }
+      } else {
+        console.log('⚠️ Skipping relationship extraction: no characters found');
       }
 
       // Pass 3: Extract Timeline Events (with character context)
@@ -177,6 +188,7 @@ Only include relationships between the identified characters. Use exact characte
       const characterContext = extractionResults.characters.length > 0 
         ? `Known characters: ${extractionResults.characters.map(c => c.name).join(', ')}`
         : '';
+      console.log('📋 Character context for timeline:', characterContext || 'No characters found');
       
       const timelinePrompt = `Analyze the following text and extract ONLY timeline events in JSON format. Focus on specific actions, scenes, or occurrences that happen in sequence.
 
@@ -198,6 +210,8 @@ Look for:
 
 If characters are involved, use exact names from the known characters list.`;
 
+      console.log('📝 Timeline prompt length:', timelinePrompt.length);
+
       const timelineResponse = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: timelinePrompt
@@ -205,11 +219,13 @@ If characters are involved, use exact names from the known characters list.`;
 
       try {
         const timelineText = timelineResponse.text.replace(/```json\n?|\n?```/g, '').trim();
+        console.log('⏰ Raw timeline AI response:', timelineText.substring(0, 500) + '...');
         const timelineData = JSON.parse(timelineText);
         extractionResults.timelineEvents = timelineData.timelineEvents || [];
-        console.log(`✅ Extracted ${extractionResults.timelineEvents.length} timeline events`);
+        console.log(`✅ Extracted ${extractionResults.timelineEvents.length} timeline events:`, extractionResults.timelineEvents);
       } catch (error) {
-        console.error('Failed to parse timeline events:', error);
+        console.error('❌ Failed to parse timeline events:', error);
+        console.error('Raw response that failed:', timelineResponse.text);
       }
 
       // Pass 4: Extract Plot Elements

@@ -272,6 +272,17 @@ export class SmartAnalysisOrchestrator {
       
       console.log('🔧 DEBUG: Testing with reduced content length:', testContent.length);
       
+      console.log('🚀 Calling extract-knowledge edge function with parameters:', {
+        contentLength: contentToAnalyze.length,
+        projectId: projectId,
+        chapterId: primaryChapterId,
+        options: {
+          forceReExtraction,
+          contentTypesToExtract,
+          useEmbeddingsBasedProcessing: true
+        }
+      });
+
       const { data: knowledgeResult, error: knowledgeError } = await supabase.functions.invoke('extract-knowledge', {
         body: { 
           content: contentToAnalyze,
@@ -285,12 +296,27 @@ export class SmartAnalysisOrchestrator {
         }
       });
 
-      console.log('🔧 DEBUG: extract-knowledge response:', {
+      console.log('📥 extract-knowledge edge function response:', {
         hasData: !!knowledgeResult,
         hasError: !!knowledgeError,
         errorDetails: knowledgeError,
-        dataKeys: knowledgeResult ? Object.keys(knowledgeResult) : []
+        dataKeys: knowledgeResult ? Object.keys(knowledgeResult) : [],
+        success: knowledgeResult?.success,
+        extractedDataKeys: knowledgeResult?.extractedData ? Object.keys(knowledgeResult.extractedData) : []
       });
+
+      if (knowledgeResult?.extractedData) {
+        console.log('📊 Detailed extraction results from edge function:', {
+          characters: knowledgeResult.extractedData.characters?.length || 0,
+          relationships: knowledgeResult.extractedData.relationships?.length || 0,
+          timelineEvents: knowledgeResult.extractedData.timelineEvents?.length || 0,
+          plotThreads: knowledgeResult.extractedData.plotThreads?.length || 0,
+          plotPoints: knowledgeResult.extractedData.plotPoints?.length || 0,
+          chapterSummaries: knowledgeResult.extractedData.chapterSummaries?.length || 0,
+          worldBuilding: knowledgeResult.extractedData.worldBuilding?.length || 0,
+          themes: knowledgeResult.extractedData.themes?.length || 0
+        });
+      }
 
       if (knowledgeError) {
         console.error('❌ Comprehensive knowledge extraction failed:', knowledgeError);
