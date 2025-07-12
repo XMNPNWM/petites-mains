@@ -96,7 +96,8 @@ export class EnhancedAnalysisOrchestrator extends SmartAnalysisOrchestrator {
         const similarityResult = await EnhancedEmbeddingsService.checkChunkLevelSimilarity(
           projectId,
           chapter.content,
-          chapter.id
+          chapter.id,
+          forceReExtraction
         );
         
         if (similarityResult.shouldSkipExtraction) {

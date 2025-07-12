@@ -29,7 +29,8 @@ export class EnhancedEmbeddingsService extends EmbeddingsService {
   static async checkChunkLevelSimilarity(
     projectId: string,
     content: string,
-    excludeChapterId?: string
+    excludeChapterId?: string,
+    forceReExtraction = false
   ): Promise<{
     shouldSkipExtraction: boolean;
     similarityScore: number;
@@ -39,6 +40,18 @@ export class EnhancedEmbeddingsService extends EmbeddingsService {
   }> {
     try {
       console.log('🔍 Enhanced chunk-level similarity check starting...');
+      
+      // If force re-extraction is enabled, skip similarity checks and proceed
+      if (forceReExtraction) {
+        console.log('🔄 Force re-extraction mode: Bypassing similarity check and proceeding with extraction');
+        return {
+          shouldSkipExtraction: false,
+          similarityScore: 0,
+          similarChunks: [],
+          recommendedAction: 'proceed_normal',
+          reasoning: 'Force re-extraction mode - bypassing similarity check'
+        };
+      }
       
       // Break content into semantic chunks
       const contentChunks = await this.createSemanticChunks(content);
