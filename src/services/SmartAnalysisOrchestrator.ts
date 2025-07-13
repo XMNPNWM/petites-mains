@@ -463,14 +463,19 @@ export class SmartAnalysisOrchestrator {
 
       // Store relationships with intelligent deduplication
       if (extractedData.relationships && extractedData.relationships.length > 0) {
+        console.log(`🤝 Processing ${extractedData.relationships.length} relationships (forceReExtraction: ${forceReExtraction})`);
         for (const relationship of extractedData.relationships) {
           try {
+            console.log(`🎯 About to store relationship: ${relationship.character_a_name} - ${relationship.character_b_name}`);
             await this.storeOrUpdateRelationship(projectId, relationship, sourceChapterIds, forceReExtraction);
             storedCount++;
+            console.log(`✅ Successfully stored relationship ${storedCount}`);
           } catch (relError) {
-            console.error('Error processing relationship:', relationship, relError);
+            console.error('❌ Error processing relationship:', relationship, relError);
           }
         }
+      } else {
+        console.log(`⚠️ No relationships to process (extracted: ${extractedData.relationships?.length || 0})`);
       }
 
       // Store plot threads with intelligent deduplication
@@ -487,14 +492,19 @@ export class SmartAnalysisOrchestrator {
 
       // Store timeline events with intelligent deduplication
       if (extractedData.timelineEvents && extractedData.timelineEvents.length > 0) {
+        console.log(`📅 Processing ${extractedData.timelineEvents.length} timeline events (forceReExtraction: ${forceReExtraction})`);
         for (const event of extractedData.timelineEvents) {
           try {
+            console.log(`🎯 About to store timeline event: ${event.event_name || event.event_summary}`);
             await this.storeOrUpdateTimelineEvent(projectId, event, sourceChapterIds, forceReExtraction);
             storedCount++;
+            console.log(`✅ Successfully stored timeline event ${storedCount}`);
           } catch (eventError) {
-            console.error('Error processing timeline event:', event, eventError);
+            console.error('❌ Error processing timeline event:', event, eventError);
           }
         }
+      } else {
+        console.log(`⚠️ No timeline events to process (extracted: ${extractedData.timelineEvents?.length || 0})`);
       }
 
       // Store plot points with intelligent deduplication
@@ -897,8 +907,12 @@ export class SmartAnalysisOrchestrator {
 
   // Intelligent relationship deduplication and merging
   static async storeOrUpdateRelationship(projectId: string, relationship: any, sourceChapterIds: string[], forceReExtraction: boolean = false) {
-    // PHASE 1: Pre-storage semantic similarity checking (skip if force re-extraction)
+    console.log(`🤝 Processing relationship: ${relationship.character_a_name} - ${relationship.character_b_name} (forceReExtraction: ${forceReExtraction})`);
+    console.log('📋 Relationship data:', relationship);
+    
+    // PHASE 1: Pre-storage semantic similarity checking (SKIP if force re-extraction or gap-filling mode)
     if (!forceReExtraction) {
+      console.log('🔍 Checking semantic similarity for relationship...');
       const { SemanticDeduplicationService } = await import('./SemanticDeduplicationService');
       const similarityResult = await SemanticDeduplicationService.checkSemanticSimilarity(
         projectId,
@@ -985,21 +999,26 @@ export class SmartAnalysisOrchestrator {
       }
     } else {
       // New relationship - create
+      console.log(`📝 Creating new relationship: ${relationship.character_a_name} - ${relationship.character_b_name}`);
+      const insertData = {
+        project_id: projectId,
+        character_a_name: relationship.character_a_name,
+        character_b_name: relationship.character_b_name,
+        relationship_type: relationship.relationship_type,
+        relationship_strength: relationship.relationship_strength || 5,
+        confidence_score: relationship.ai_confidence || 0.5,
+        extraction_method: 'llm_direct' as const,
+        source_chapter_ids: sourceChapterIds,
+        is_newly_extracted: true,
+        ai_confidence_new: relationship.ai_confidence || 0.5,
+        evidence: relationship.evidence || null
+      };
+      
+      console.log('📋 Insert data for relationship:', insertData);
+      
       const { error } = await supabase
         .from('character_relationships')
-        .insert({
-          project_id: projectId,
-          character_a_name: relationship.character_a_name,
-          character_b_name: relationship.character_b_name,
-          relationship_type: relationship.relationship_type,
-          relationship_strength: relationship.relationship_strength || 5,
-          confidence_score: relationship.ai_confidence || 0.5,
-          extraction_method: 'llm_direct',
-          source_chapter_ids: sourceChapterIds,
-          is_newly_extracted: true,
-          ai_confidence_new: relationship.ai_confidence || 0.5,
-          evidence: relationship.evidence || null
-        });
+        .insert(insertData);
 
       if (error) {
         console.error('Error storing new relationship:', relationship, error);
@@ -1146,8 +1165,12 @@ export class SmartAnalysisOrchestrator {
   static async storeOrUpdateTimelineEvent(projectId: string, event: any, sourceChapterIds: string[], forceReExtraction: boolean = false) {
     const eventName = event.event_name || event.event_summary || 'Unnamed Event';
     
-    // PHASE 1: Pre-storage semantic similarity checking (skip if force re-extraction)
+    console.log(`🎯 Processing timeline event: ${eventName} (forceReExtraction: ${forceReExtraction})`);
+    console.log('📋 Event data:', { event_name: eventName, event_type: event.event_type, event_summary: event.event_summary });
+    
+    // PHASE 1: Pre-storage semantic similarity checking (SKIP if force re-extraction or gap-filling mode)
     if (!forceReExtraction) {
+      console.log('🔍 Checking semantic similarity for timeline event...');
       const { SemanticDeduplicationService } = await import('./SemanticDeduplicationService');
     const similarityResult = await SemanticDeduplicationService.checkSemanticSimilarity(
       projectId,
@@ -1178,7 +1201,8 @@ export class SmartAnalysisOrchestrator {
         ])];
 
         const updateData = {
-          event_summary: [existingEvent.event_summary, event.event_summary].filter(Boolean).join(' - '),
+          event_description: [existingEvent.event_description, event.event_summary].filter(Boolean).join(' - '),
+          event_summary: event.event_summary || existingEvent.event_summary,
           chronological_order: event.chronological_order || existingEvent.chronological_order,
           date_or_time_reference: event.date_or_time_reference || existingEvent.date_or_time_reference,
           significance: [existingEvent.significance, event.significance].filter(Boolean).join(' | '),
@@ -1242,6 +1266,7 @@ export class SmartAnalysisOrchestrator {
       const mergedThreads = [...new Set([...existingThreads, ...newThreads])];
 
       const updateData = {
+        event_description: event.event_summary || existingEvent.event_description,
         event_summary: event.event_summary || existingEvent.event_summary,
         chronological_order: event.chronological_order || existingEvent.chronological_order,
         date_or_time_reference: event.date_or_time_reference || existingEvent.date_or_time_reference,
@@ -1270,25 +1295,31 @@ export class SmartAnalysisOrchestrator {
       }
     } else {
       // New timeline event - create
+      console.log(`📝 Creating new timeline event: ${eventName}`);
+      const insertData = {
+        project_id: projectId,
+        event_name: eventName,
+        event_type: event.event_type || 'general',
+        event_description: event.event_summary, // Map event_summary to event_description
+        event_summary: event.event_summary,
+        chronological_order: event.chronological_order || 0,
+        date_or_time_reference: event.date_or_time_reference,
+        significance: event.significance,
+        characters_involved_names: event.characters_involved_names || [],
+        plot_threads_impacted_names: event.plot_threads_impacted_names || [],
+        locations_involved_names: event.locations_involved_names || [],
+        confidence_score: event.ai_confidence || 0.5,
+          extraction_method: 'llm_direct' as const,
+        source_chapter_ids: sourceChapterIds,
+        is_newly_extracted: true,
+        ai_confidence_new: event.ai_confidence || 0.5
+      };
+      
+      console.log('📋 Insert data for timeline event:', insertData);
+      
       const { error } = await supabase
         .from('timeline_events')
-        .insert({
-          project_id: projectId,
-          event_name: eventName,
-          event_type: event.event_type || 'general',
-          event_summary: event.event_summary,
-          chronological_order: event.chronological_order || 0,
-          date_or_time_reference: event.date_or_time_reference,
-          significance: event.significance,
-          characters_involved_names: event.characters_involved_names || [],
-          plot_threads_impacted_names: event.plot_threads_impacted_names || [],
-          locations_involved_names: event.locations_involved_names || [],
-          confidence_score: event.ai_confidence || 0.5,
-          extraction_method: 'llm_direct',
-          source_chapter_ids: sourceChapterIds,
-          is_newly_extracted: true,
-          ai_confidence_new: event.ai_confidence || 0.5
-        });
+        .insert(insertData);
 
       if (error) {
         console.error('Error storing new timeline event:', event, error);
