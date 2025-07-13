@@ -7,6 +7,7 @@ import { EnhancedAnalysisOrchestrator } from '@/services/EnhancedAnalysisOrchest
 import { AnalysisJobManager } from '@/services/AnalysisJobManager';
 import { useToast } from '@/hooks/use-toast';
 import { GapAwareAnalysisOrchestrator } from '@/services/smart';
+import { GapOnlyAnalysisService } from '@/services/GapOnlyAnalysisService';
 import { useAIBrainData } from '@/hooks/useAIBrainData';
 import { useSearchAndFilter } from '@/hooks/useSearchAndFilter';
 import { useAnalysisStatus } from '@/hooks/useAnalysisStatus';
@@ -17,7 +18,7 @@ import SearchFilterPanel from './ai-brain/SearchFilterPanel';
 import { UnifiedUpdateService } from '@/services/UnifiedUpdateService';
 import { UnifiedAnalysisOrchestrator } from '@/services/UnifiedAnalysisOrchestrator';
 import { getTabConfiguration } from '@/utils/tabConfiguration';
-import { ForceReAnalysisDialog } from './ai-brain/ForceReAnalysisDialog';
+
 import { supabase } from '@/integrations/supabase/client';
 
 interface EnhancedAIBrainPanelProps {
@@ -50,7 +51,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   const { analysisStatus, refreshAnalysisStatus } = useAnalysisStatus(projectId);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [showForceReAnalysisDialog, setShowForceReAnalysisDialog] = useState(false);
+  
   const { toast } = useToast();
 
   const jobManager = new AnalysisJobManager();
@@ -60,22 +61,66 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     
     setIsAnalyzing(true);
     try {
-      console.log('🚀 Starting enhanced comprehensive analysis for project:', projectId);
+      console.log('🚀 Starting intelligent project analysis for project:', projectId);
       
-      const result = await GapAwareAnalysisOrchestrator.analyzeProject(projectId);
+      // Three-Tier Analysis Logic
+      const totalDataCount = Object.values(brainData).reduce((sum, category) => {
+        return sum + (Array.isArray(category) ? category.length : 0);
+      }, 0);
+
+      let result;
       
-      if (result.success) {
-        const stats = result.processingStats;
-        toast({
-          title: "Gap-Aware Analysis Complete",
-          description: `Extracted ${result.totalExtracted || 0} items, processed ${stats?.chunksProcessed || 0} chunks, merged ${stats?.itemsMerged || 0} items${stats?.gapAnalysisApplied ? ', filled category gaps' : ''}`,
-        });
-        if (refresh) {
-          await refresh();
+      if (totalDataCount === 0) {
+        // Empty Project Analysis - Full pipeline
+        console.log('📊 Scenario: Empty Project - Running full analysis');
+        result = await GapAwareAnalysisOrchestrator.analyzeProject(projectId);
+        
+        if (result.success) {
+          toast({
+            title: "Project Analysis Complete",
+            description: `Initial extraction completed: ${result.totalExtracted || 0} items extracted`,
+          });
         }
       } else {
-        throw new Error(result.error || 'Analysis failed');
+        // Check for gaps
+        const gaps = await GapOnlyAnalysisService.detectEmptyCategories(projectId);
+        const hasEmptyCategories = Object.values(gaps).some(isEmpty => isEmpty);
+        
+        if (hasEmptyCategories) {
+          // Gap Analysis - Independent gap-filling
+          console.log('🎯 Scenario: Gap Analysis - Filling empty categories');
+          const gapResult = await GapOnlyAnalysisService.executeGapAnalysis(projectId);
+          
+          if (gapResult.success) {
+            toast({
+              title: "Gap Analysis Complete",
+              description: `Filled ${gapResult.gapsFilled.length} empty categories, extracted ${gapResult.totalExtracted} new items`,
+            });
+          } else {
+            throw new Error(gapResult.error || 'Gap analysis failed');
+          }
+          result = { success: gapResult.success };
+        } else {
+          // Standard Analysis - Full pipeline with existing data
+          console.log('🔄 Scenario: Standard Analysis - Full pipeline');
+          result = await GapAwareAnalysisOrchestrator.analyzeProject(projectId);
+          
+          if (result.success) {
+            const stats = result.processingStats;
+            toast({
+              title: "Analysis Complete",
+              description: `Updated analysis: processed ${stats?.chunksProcessed || 0} chunks, merged ${stats?.itemsMerged || 0} items`,
+            });
+          }
+        }
       }
+      
+      if (result.success && refresh) {
+        await refresh();
+      } else if (!result.success) {
+        throw new Error('Analysis failed');
+      }
+      
     } catch (error) {
       console.error('❌ Analysis failed:', error);
       toast({
@@ -118,9 +163,6 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     }
   };
 
-  const handleForceReAnalysis = () => {
-    setShowForceReAnalysisDialog(true);
-  };
 
   // Helper function to clear content hashes for force re-processing
   const clearContentHashes = async (projectId: string) => {
@@ -161,42 +203,6 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     }
   };
 
-  const handleForceReAnalysisConfirm = async (selectedTypes: string[]) => {
-    setShowForceReAnalysisDialog(false);
-    setIsAnalyzing(true);
-    
-    try {
-      console.log('🔥 Starting force re-analysis for project:', projectId, 'types:', selectedTypes);
-      
-      // Clear content hashes to force complete re-processing
-      await clearContentHashes(projectId);
-      
-      const result = await UnifiedAnalysisOrchestrator.forceReAnalyzeProject(projectId, selectedTypes);
-      
-      if (result.success) {
-        const stats = result.processingStats;
-        toast({
-          title: "Force Re-Analysis Complete",
-          description: `Re-extracted ${result.totalExtracted || 0} items for ${selectedTypes.length} content types`,
-        });
-        if (refresh) {
-          await refresh();
-        }
-      } else {
-        throw new Error(result.error || 'Force re-analysis failed');
-      }
-    } catch (error) {
-      console.error('❌ Force re-analysis failed:', error);
-      toast({
-        title: "Force Re-Analysis Failed",
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
-        variant: "destructive"
-      });
-    } finally {
-      setIsAnalyzing(false);
-      await refreshAnalysisStatus();
-    }
-  };
 
   // Unified update handlers using the service
   const handleUpdateKnowledge = async (id: string, field: 'name' | 'description' | 'subcategory', value: string) => {
@@ -364,15 +370,9 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         onAnalyzeProject={handleAnalyzeProject}
         onRetryAnalysis={handleRetryAnalysis}
         onCancelAnalysis={handleCancelAnalysis}
-        onForceReAnalysis={handleForceReAnalysis}
+        
       />
 
-      <ForceReAnalysisDialog
-        open={showForceReAnalysisDialog}
-        onOpenChange={setShowForceReAnalysisDialog}
-        onConfirm={handleForceReAnalysisConfirm}
-        isProcessing={isAnalyzing}
-      />
 
       <AIBrainStatusCards
         totalKnowledgeItems={totalKnowledgeItems}

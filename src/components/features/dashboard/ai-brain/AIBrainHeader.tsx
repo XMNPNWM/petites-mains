@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Brain, Loader2, RotateCcw, XCircle, Clock, RefreshCcw } from 'lucide-react';
+import { Brain, Loader2, RotateCcw, XCircle, Clock } from 'lucide-react';
 import { AnalysisStatus } from '@/types/knowledge';
 
 interface AIBrainHeaderProps {
@@ -12,7 +12,7 @@ interface AIBrainHeaderProps {
   onAnalyzeProject: () => void;
   onRetryAnalysis: () => void;
   onCancelAnalysis: () => void;
-  onForceReAnalysis?: () => void;
+  
 }
 
 export const AIBrainHeader = ({
@@ -22,7 +22,7 @@ export const AIBrainHeader = ({
   onAnalyzeProject,
   onRetryAnalysis,
   onCancelAnalysis,
-  onForceReAnalysis
+  
 }: AIBrainHeaderProps) => {
   return (
     <>
@@ -68,17 +68,6 @@ export const AIBrainHeader = ({
             </Button>
           )}
           
-          {onForceReAnalysis && (
-            <Button
-              onClick={onForceReAnalysis}
-              disabled={analysisStatus.isProcessing || isAnalyzing || isRetrying}
-              variant="outline"
-              className="flex items-center space-x-2 text-orange-600 hover:text-orange-700 border-orange-200 hover:border-orange-300"
-            >
-              <RefreshCcw className="w-4 h-4" />
-              <span>Force Re-analysis</span>
-            </Button>
-          )}
           
           <Button
             onClick={onAnalyzeProject}
