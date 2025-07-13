@@ -37,7 +37,7 @@ serve(async (req) => {
     
     console.log(`🚀 Starting knowledge extraction for chapter: ${chapterId}`);
     console.log('📋 Extraction mode:', mode || 'standard');
-    console.log('📋 Target categories:', isGapFillMode ? targetCategories : 'all');
+    console.log('🎯 EXACT TARGET CATEGORIES RECEIVED:', JSON.stringify(targetCategories));
     console.log('📋 Options:', { 
       forceReExtraction, 
       contentTypesToExtract: contentTypesToExtract.length > 0 ? contentTypesToExtract : 'all',
@@ -151,7 +151,7 @@ Extract only clearly evident characters. Assign confidence scores based on how e
 
       // Pass 2: Extract Relationships - Enhanced for gap-fill mode
       if (!isGapFillMode || targetCategories.includes('character_relationships')) {
-        console.log('🤝 Pass 2: Extracting relationships...');
+        console.log('🤝 RELATIONSHIP EXTRACTION BLOCK EXECUTING');
         
         let characterNames = '';
         
@@ -164,6 +164,12 @@ Extract only clearly evident characters. Assign confidence scores based on how e
             .select('name')
             .eq('project_id', projectId)
             .eq('category', 'character');
+          
+          console.log('🔍 CHARACTER DATABASE QUERY RESULT:', {
+            error: charactersError,
+            characterCount: existingCharacters?.length || 0,
+            characters: existingCharacters?.map(c => c.name) || []
+          });
           
           if (!charactersError && existingCharacters && existingCharacters.length > 0) {
             characterNames = existingCharacters.map(c => c.name).join(', ');
