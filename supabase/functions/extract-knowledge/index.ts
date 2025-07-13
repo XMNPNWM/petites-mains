@@ -181,24 +181,28 @@ Extract only clearly evident characters. Assign confidence scores based on how e
         }
         
         if (characterNames) {
-          const relationshipsPrompt = `Analyser le texte suivant et extraire UNIQUEMENT les relations entre les personnages identifiés au format JSON.
+          const relationshipsPrompt = `Analyser le texte suivant et extraire UNIQUEMENT les relations entre personnages au format JSON strict.
 
-Personnages connus: ${characterNames}
+Personnages disponibles: ${characterNames}
 
 Texte à analyser: "${content}"
 
-Retourner un objet JSON avec cette structure exacte:
+Retourner UNIQUEMENT un objet JSON valide (sans texte supplémentaire, sans commentaires):
 {
-  "relationships": [{"character_a_name": "", "character_b_name": "", "relationship_type": "", "relationship_strength": 5, "confidence_score": 0.8}]
+  "relationships": [
+    {
+      "character_a_name": "nom exact",
+      "character_b_name": "nom exact", 
+      "relationship_type": "type",
+      "relationship_strength": 5,
+      "confidence_score": 0.8
+    }
+  ]
 }
 
-Rechercher:
-- Interactions directes entre personnages
-- Mentions d'un personnage par un autre
-- Relations implicites à travers le dialogue ou la narration
-- Connexions familiales, romantiques, professionnelles ou adverses
-
-N'inclure que les relations entre les personnages identifiés. Utiliser les noms exacts de la liste ci-dessus.`;
+Types valides: famille, ami, ennemi, allié, mentor, rival, amoureux, collègue.
+Utiliser UNIQUEMENT les noms exacts de la liste des personnages.
+Si aucune relation trouvée, retourner: {"relationships": []}`;
 
           console.log('📝 Relationships prompt length:', relationshipsPrompt.length);
 
@@ -207,24 +211,63 @@ N'inclure que les relations entre les personnages identifiés. Utiliser les noms
             contents: relationshipsPrompt
           });
 
+          // **ENHANCED: Improved JSON parsing with multiple fallback strategies**
           try {
-            const relationshipsText = relationshipsResponse.text.replace(/```json\n?|\n?```/g, '').trim();
-            console.log('🤝 Raw relationships AI response:', relationshipsText.substring(0, 500) + '...');
-            const relationshipsData = JSON.parse(relationshipsText);
-            extractionResults.relationships = relationshipsData.relationships || [];
-            console.log(`✅ Extracted ${extractionResults.relationships.length} relationships:`, extractionResults.relationships);
-          } catch (error) {
-            console.error('❌ Failed to parse relationships:', error);
-            console.error('Raw response that failed:', relationshipsResponse.text);
+            let relationshipsText = relationshipsResponse.text;
+            console.log('🤝 Full raw relationships AI response:', relationshipsText);
             
-            // Fallback: try to extract relationships with simpler JSON structure
+            // Strategy 1: Clean up common JSON formatting issues
+            relationshipsText = relationshipsText
+              .replace(/```json\n?|\n?```/g, '') // Remove code blocks
+              .replace(/```\n?|\n?```/g, '') // Remove any remaining code blocks
+              .replace(/^\s*[\w\s]*?({.*})\s*$/s, '$1') // Extract JSON from surrounding text
+              .trim();
+            
+            console.log('🧹 Cleaned relationships text:', relationshipsText);
+            
+            // Strategy 2: Try to parse the cleaned JSON
+            let relationshipsData;
             try {
-              const fallbackData = { relationships: [] };
-              extractionResults.relationships = fallbackData.relationships;
-            } catch (fallbackError) {
-              console.error('❌ Fallback parsing also failed:', fallbackError);
+              relationshipsData = JSON.parse(relationshipsText);
+            } catch (parseError) {
+              console.log('⚠️ First parse failed, trying fallback strategies...');
+              
+              // Strategy 3: Try to extract JSON object from text
+              const jsonMatch = relationshipsText.match(/{.*}/s);
+              if (jsonMatch) {
+                console.log('🔍 Found JSON match:', jsonMatch[0]);
+                relationshipsData = JSON.parse(jsonMatch[0]);
+              } else {
+                throw new Error('No JSON object found in response');
+              }
+            }
+            
+            // **ENHANCED: Validate the structure before storing**
+            if (relationshipsData && Array.isArray(relationshipsData.relationships)) {
+              // Validate each relationship has required fields
+              const validRelationships = relationshipsData.relationships.filter(rel => 
+                rel.character_a_name && 
+                rel.character_b_name && 
+                rel.relationship_type &&
+                rel.character_a_name !== rel.character_b_name // Avoid self-relationships
+              );
+              
+              extractionResults.relationships = validRelationships;
+              console.log(`✅ Extracted ${extractionResults.relationships.length} valid relationships:`, extractionResults.relationships);
+              
+              // Log each relationship for debugging
+              extractionResults.relationships.forEach((rel, index) => {
+                console.log(`   ${index + 1}. ${rel.character_a_name} -> ${rel.character_b_name} (${rel.relationship_type})`);
+              });
+            } else {
+              console.log('⚠️ Invalid relationships structure, using empty array');
               extractionResults.relationships = [];
             }
+            
+          } catch (error) {
+            console.error('❌ All relationship parsing strategies failed:', error);
+            console.error('Raw response that failed all strategies:', relationshipsResponse.text);
+            extractionResults.relationships = [];
           }
         } else {
           console.log('⚠️ Skipping relationship extraction: no characters available');

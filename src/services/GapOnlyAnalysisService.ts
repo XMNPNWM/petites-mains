@@ -229,34 +229,63 @@ export class GapOnlyAnalysisService {
     const categoriesStored: string[] = [];
 
     try {
-      // Store character relationships
+      // Store character relationships with enhanced validation
       if (extractedData.relationships && extractedData.relationships.length > 0) {
         console.log(`💾 Storing ${extractedData.relationships.length} relationships...`);
         
-        const relationshipsToStore = extractedData.relationships.map((rel: any) => ({
-          project_id: projectId,
-          character_a_name: rel.character_a_name,
-          character_b_name: rel.character_b_name,
-          relationship_type: rel.relationship_type,
-          relationship_strength: rel.relationship_strength || 5,
-          ai_confidence_new: rel.confidence_score || 0.5,
-          source_chapter_ids: [chapterId],
-          is_newly_extracted: true,
-          extraction_method: 'llm_direct'
-        }));
+        // **ENHANCED: Validate relationships before storing**
+        const validRelationships = extractedData.relationships.filter((rel: any) => {
+          const isValid = rel.character_a_name && 
+                         rel.character_b_name && 
+                         rel.relationship_type &&
+                         rel.character_a_name !== rel.character_b_name;
+          
+          if (!isValid) {
+            console.log('⚠️ Skipping invalid relationship:', rel);
+          }
+          return isValid;
+        });
+        
+        if (validRelationships.length > 0) {
+          const relationshipsToStore = validRelationships.map((rel: any) => ({
+            project_id: projectId,
+            character_a_name: rel.character_a_name,
+            character_b_name: rel.character_b_name,
+            relationship_type: rel.relationship_type,
+            relationship_strength: rel.relationship_strength || 5,
+            ai_confidence_new: rel.confidence_score || 0.5,
+            source_chapter_ids: [chapterId],
+            is_newly_extracted: true,
+            extraction_method: 'llm_direct'
+          }));
 
-        const { data: relationshipsData, error: relationshipsError } = await supabase
-          .from('character_relationships')
-          .insert(relationshipsToStore)
-          .select();
+          console.log('📋 Preparing to store relationships:', relationshipsToStore.map(r => 
+            `${r.character_a_name} -> ${r.character_b_name} (${r.relationship_type})`
+          ));
 
-        if (!relationshipsError && relationshipsData) {
-          totalStored += relationshipsData.length;
-          categoriesStored.push('relationships');
-          console.log(`✅ Stored ${relationshipsData.length} relationships`);
+          const { data: relationshipsData, error: relationshipsError } = await supabase
+            .from('character_relationships')
+            .insert(relationshipsToStore)
+            .select();
+
+          if (!relationshipsError && relationshipsData) {
+            totalStored += relationshipsData.length;
+            categoriesStored.push('relationships');
+            console.log(`✅ Successfully stored ${relationshipsData.length} relationships`);
+            
+            // Log each stored relationship for verification
+            relationshipsData.forEach((rel: any, index: number) => {
+              console.log(`   ${index + 1}. ${rel.character_a_name} -> ${rel.character_b_name} (${rel.relationship_type}) [ID: ${rel.id}]`);
+            });
+          } else {
+            console.error('❌ Failed to store relationships:', relationshipsError);
+            console.error('❌ Attempted to store:', relationshipsToStore);
+          }
         } else {
-          console.error('❌ Failed to store relationships:', relationshipsError);
+          console.log('⚠️ No valid relationships to store after filtering');
         }
+      } else {
+        console.log('ℹ️ No relationships found in extracted data');
       }
 
       // Store timeline events with correct field mapping
