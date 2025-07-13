@@ -14,6 +14,7 @@ interface EditableKnowledgeCardProps {
     confidence_score?: number;
     is_verified?: boolean;
     is_flagged?: boolean;
+    is_newly_extracted?: boolean;
     evidence?: string;
     category?: string;
     subcategory?: string;
@@ -44,10 +45,25 @@ export const EditableKnowledgeCard: React.FC<EditableKnowledgeCardProps> = ({
   const worldBuildingTypes = [
     'Location', 'Organization', 'Culture', 'Magic System', 'Technology', 'Religion', 'Custom'
   ];
+  
+  // Determine card styling based on status
+  const getCardClassName = () => {
+    let baseClass = 'p-4 transition-all duration-200';
+    
+    if (item.is_flagged) {
+      return `${baseClass} border-red-200 bg-red-50/50`;
+    }
+    
+    // Phase 4: Color-coded visual indicator for new extractions (deep green)
+    if (item.is_newly_extracted) {
+      return `${baseClass} border-emerald-500 bg-emerald-50/30 shadow-sm shadow-emerald-200`;
+    }
+    
+    return baseClass;
+  };
+  
   return (
-    <Card 
-      className={`p-4 ${item.is_flagged ? 'border-red-200 bg-red-50/50' : ''}`}
-    >
+    <Card className={getCardClassName()}>
       <div className="flex items-start justify-between mb-2">
         <InlineEditableField
           value={item.name}

@@ -6,6 +6,7 @@ import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator'
 import { EnhancedAnalysisOrchestrator } from '@/services/EnhancedAnalysisOrchestrator';
 import { AnalysisJobManager } from '@/services/AnalysisJobManager';
 import { useToast } from '@/hooks/use-toast';
+import { GapAwareAnalysisOrchestrator } from '@/services/smart';
 import { useAIBrainData } from '@/hooks/useAIBrainData';
 import { useSearchAndFilter } from '@/hooks/useSearchAndFilter';
 import { useAnalysisStatus } from '@/hooks/useAnalysisStatus';
@@ -61,13 +62,13 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     try {
       console.log('🚀 Starting enhanced comprehensive analysis for project:', projectId);
       
-      const result = await EnhancedAnalysisOrchestrator.analyzeProject(projectId);
+      const result = await GapAwareAnalysisOrchestrator.analyzeProject(projectId);
       
       if (result.success) {
         const stats = result.processingStats;
         toast({
-          title: "Enhanced Analysis Complete",
-          description: `Extracted ${result.totalExtracted || 0} items, processed ${stats?.chunksProcessed || 0} chunks, performed ${stats?.semanticMergesPerformed || 0} merges${stats?.extractionSkipped ? ', skipped duplicate content' : ''}`,
+          title: "Gap-Aware Analysis Complete",
+          description: `Extracted ${result.totalExtracted || 0} items, processed ${stats?.chunksProcessed || 0} chunks, merged ${stats?.itemsMerged || 0} items${stats?.gapAnalysisApplied ? ', filled category gaps' : ''}`,
         });
         if (refresh) {
           await refresh();
