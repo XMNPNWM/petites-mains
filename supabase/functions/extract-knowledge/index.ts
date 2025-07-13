@@ -149,98 +149,162 @@ Extract only clearly evident characters. Assign confidence scores based on how e
       }
     }
 
-      // Pass 2: Extract Relationships (skip in gap-fill mode unless needed)
-      if ((!isGapFillMode || targetCategories.includes('character_relationships')) && extractionResults.characters.length > 0) {
+      // Pass 2: Extract Relationships - Enhanced for gap-fill mode
+      if (!isGapFillMode || targetCategories.includes('character_relationships')) {
         console.log('🤝 Pass 2: Extracting relationships...');
-        const characterNames = extractionResults.characters.map(c => c.name).join(', ');
-        console.log('👥 Character names for relationship extraction:', characterNames);
         
-        const relationshipsPrompt = `Analyze the following text and extract ONLY relationships between the identified characters in JSON format.
+        let characterNames = '';
+        
+        // **CRITICAL FIX: Use existing characters from database for gap-fill mode**
+        if (isGapFillMode) {
+          console.log('🔍 Gap-fill mode: Fetching existing characters from database...');
+          
+          const { data: existingCharacters, error: charactersError } = await supabase
+            .from('knowledge_base')
+            .select('name')
+            .eq('project_id', projectId)
+            .eq('category', 'character');
+          
+          if (!charactersError && existingCharacters && existingCharacters.length > 0) {
+            characterNames = existingCharacters.map(c => c.name).join(', ');
+            console.log('👥 Using existing characters for relationships:', characterNames);
+          } else {
+            console.log('⚠️ No existing characters found in database for relationship extraction');
+            characterNames = '';
+          }
+        } else {
+          // Standard mode: use characters extracted in this session
+          if (extractionResults.characters.length > 0) {
+            characterNames = extractionResults.characters.map(c => c.name).join(', ');
+            console.log('👥 Using session-extracted characters:', characterNames);
+          }
+        }
+        
+        if (characterNames) {
+          const relationshipsPrompt = `Analyser le texte suivant et extraire UNIQUEMENT les relations entre les personnages identifiés au format JSON.
 
-Known characters: ${characterNames}
+Personnages connus: ${characterNames}
 
-Text to analyze: "${content}"
+Texte à analyser: "${content}"
 
-Return a JSON object with this exact structure:
+Retourner un objet JSON avec cette structure exacte:
 {
   "relationships": [{"character_a_name": "", "character_b_name": "", "relationship_type": "", "relationship_strength": 5, "confidence_score": 0.8}]
 }
 
-Look for:
-- Direct interactions between characters
-- Mentions of one character by another
-- Implied relationships through dialogue or narration
-- Family, romantic, professional, or adversarial connections
+Rechercher:
+- Interactions directes entre personnages
+- Mentions d'un personnage par un autre
+- Relations implicites à travers le dialogue ou la narration
+- Connexions familiales, romantiques, professionnelles ou adverses
 
-Only include relationships between the identified characters. Use exact character names from the list above.`;
+N'inclure que les relations entre les personnages identifiés. Utiliser les noms exacts de la liste ci-dessus.`;
 
-        console.log('📝 Relationships prompt length:', relationshipsPrompt.length);
+          console.log('📝 Relationships prompt length:', relationshipsPrompt.length);
 
-        const relationshipsResponse = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: relationshipsPrompt
-        });
+          const relationshipsResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: relationshipsPrompt
+          });
 
-        try {
-          const relationshipsText = relationshipsResponse.text.replace(/```json\n?|\n?```/g, '').trim();
-          console.log('🤝 Raw relationships AI response:', relationshipsText.substring(0, 500) + '...');
-          const relationshipsData = JSON.parse(relationshipsText);
-          extractionResults.relationships = relationshipsData.relationships || [];
-          console.log(`✅ Extracted ${extractionResults.relationships.length} relationships:`, extractionResults.relationships);
-        } catch (error) {
-          console.error('❌ Failed to parse relationships:', error);
-          console.error('Raw response that failed:', relationshipsResponse.text);
+          try {
+            const relationshipsText = relationshipsResponse.text.replace(/```json\n?|\n?```/g, '').trim();
+            console.log('🤝 Raw relationships AI response:', relationshipsText.substring(0, 500) + '...');
+            const relationshipsData = JSON.parse(relationshipsText);
+            extractionResults.relationships = relationshipsData.relationships || [];
+            console.log(`✅ Extracted ${extractionResults.relationships.length} relationships:`, extractionResults.relationships);
+          } catch (error) {
+            console.error('❌ Failed to parse relationships:', error);
+            console.error('Raw response that failed:', relationshipsResponse.text);
+            
+            // Fallback: try to extract relationships with simpler JSON structure
+            try {
+              const fallbackData = { relationships: [] };
+              extractionResults.relationships = fallbackData.relationships;
+            } catch (fallbackError) {
+              console.error('❌ Fallback parsing also failed:', fallbackError);
+              extractionResults.relationships = [];
+            }
+          }
+        } else {
+          console.log('⚠️ Skipping relationship extraction: no characters available');
+          extractionResults.relationships = [];
         }
-      } else {
-        console.log('⚠️ Skipping relationship extraction: no characters found');
       }
 
-      // Pass 3: Extract Timeline Events (skip in gap-fill mode unless needed)
+      // Pass 3: Extract Timeline Events - Enhanced for gap-fill mode  
       if (!isGapFillMode || targetCategories.includes('timeline_events')) {
         console.log('⏰ Pass 3: Extracting timeline events...');
-      const characterContext = extractionResults.characters.length > 0 
-        ? `Known characters: ${extractionResults.characters.map(c => c.name).join(', ')}`
-        : '';
-      console.log('📋 Character context for timeline:', characterContext || 'No characters found');
-      
-      const timelinePrompt = `Analyze the following text and extract ONLY timeline events in JSON format. Focus on specific actions, scenes, or occurrences that happen in sequence.
+        
+        let characterContext = '';
+        
+        // **ENHANCED: Get character context for gap-fill mode**
+        if (isGapFillMode) {
+          console.log('🔍 Gap-fill mode: Using existing characters for timeline context...');
+          
+          const { data: existingCharacters, error: charactersError } = await supabase
+            .from('knowledge_base')
+            .select('name')
+            .eq('project_id', projectId)
+            .eq('category', 'character');
+          
+          if (!charactersError && existingCharacters && existingCharacters.length > 0) {
+            characterContext = `Personnages connus: ${existingCharacters.map(c => c.name).join(', ')}`;
+            console.log('👥 Using existing characters for timeline context:', characterContext);
+          } else {
+            console.log('⚠️ No existing characters found for timeline context');
+            characterContext = '';
+          }
+        } else {
+          // Standard mode: use session-extracted characters
+          characterContext = extractionResults.characters.length > 0 
+            ? `Personnages connus: ${extractionResults.characters.map(c => c.name).join(', ')}`
+            : '';
+        }
+        
+        console.log('📋 Character context for timeline:', characterContext || 'Aucun personnage trouvé');
+        
+        const timelinePrompt = `Analyser le texte suivant et extraire UNIQUEMENT les événements de la chronologie au format JSON. Se concentrer sur les actions spécifiques, les scènes ou les événements qui se déroulent en séquence.
 
 ${characterContext}
 
-Text to analyze: "${content}"
+Texte à analyser: "${content}"
 
-Return a JSON object with this exact structure:
+Retourner un objet JSON avec cette structure exacte:
 {
   "timelineEvents": [{"event_name": "", "event_type": "", "event_summary": "", "chronological_order": 0, "characters_involved_names": [], "confidence_score": 0.8}]
 }
 
-Look for:
-- Specific actions that occur
-- Scene changes or transitions
-- Temporal markers (then, later, meanwhile, etc.)
-- Cause and effect sequences
-- Character actions and reactions
+Rechercher:
+- Actions spécifiques qui se produisent
+- Changements de scène ou transitions
+- Marqueurs temporels (puis, plus tard, pendant ce temps, etc.)
+- Séquences de cause à effet
+- Actions et réactions des personnages
 
-If characters are involved, use exact names from the known characters list.`;
+Si des personnages sont impliqués, utiliser les noms exacts de la liste des personnages connus.`;
 
-      console.log('📝 Timeline prompt length:', timelinePrompt.length);
+        console.log('📝 Timeline prompt length:', timelinePrompt.length);
 
-      const timelineResponse = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: timelinePrompt
-      });
+        const timelineResponse = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: timelinePrompt
+        });
 
-      try {
-        const timelineText = timelineResponse.text.replace(/```json\n?|\n?```/g, '').trim();
-        console.log('⏰ Raw timeline AI response:', timelineText.substring(0, 500) + '...');
-        const timelineData = JSON.parse(timelineText);
-        extractionResults.timelineEvents = timelineData.timelineEvents || [];
-        console.log(`✅ Extracted ${extractionResults.timelineEvents.length} timeline events:`, extractionResults.timelineEvents);
-      } catch (error) {
-        console.error('❌ Failed to parse timeline events:', error);
-        console.error('Raw response that failed:', timelineResponse.text);
+        try {
+          const timelineText = timelineResponse.text.replace(/```json\n?|\n?```/g, '').trim();
+          console.log('⏰ Raw timeline AI response:', timelineText.substring(0, 500) + '...');
+          const timelineData = JSON.parse(timelineText);
+          extractionResults.timelineEvents = timelineData.timelineEvents || [];
+          console.log(`✅ Extracted ${extractionResults.timelineEvents.length} timeline events:`, extractionResults.timelineEvents);
+        } catch (error) {
+          console.error('❌ Failed to parse timeline events:', error);
+          console.error('Raw response that failed:', timelineResponse.text);
+          
+          // Fallback: ensure we have empty array
+          extractionResults.timelineEvents = [];
+        }
       }
-    }
 
       // Pass 4: Extract Plot Elements (skip in gap-fill mode unless needed)
       if (!isGapFillMode || targetCategories.some(cat => ['plot_threads', 'plot_points', 'chapter_summaries'].includes(cat))) {

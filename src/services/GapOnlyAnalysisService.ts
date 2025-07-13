@@ -197,17 +197,136 @@ export class GapOnlyAnalysisService {
         return { success: false, extractedCount: 0, categoriesFilled: [] };
       }
 
-      console.log(`✅ Extracted ${result.totalExtracted || 0} items from chapter ${chapter.title}`);
+      console.log(`✅ Edge function returned:`, result);
+
+      // **CRITICAL FIX: Actually store the extracted data to the database**
+      const storageResult = await this.storeExtractedData(result.extractedData, projectId, chapter.id);
+      
+      console.log(`💾 Stored ${storageResult.totalStored} items to database from chapter ${chapter.title}`);
 
       return {
         success: true,
-        extractedCount: result.totalExtracted || 0,
-        categoriesFilled: extractionTypes
+        extractedCount: storageResult.totalStored,
+        categoriesFilled: storageResult.categoriesStored
       };
 
     } catch (error) {
       console.error(`❌ Error processing chapter ${chapter.title}:`, error);
       return { success: false, extractedCount: 0, categoriesFilled: [] };
+    }
+  }
+
+  /**
+   * Store extracted data to the database with proper field mapping
+   */
+  private static async storeExtractedData(
+    extractedData: any,
+    projectId: string,
+    chapterId: string
+  ): Promise<{ totalStored: number; categoriesStored: string[] }> {
+    
+    let totalStored = 0;
+    const categoriesStored: string[] = [];
+
+    try {
+      // Store character relationships
+      if (extractedData.relationships && extractedData.relationships.length > 0) {
+        console.log(`💾 Storing ${extractedData.relationships.length} relationships...`);
+        
+        const relationshipsToStore = extractedData.relationships.map((rel: any) => ({
+          project_id: projectId,
+          character_a_name: rel.character_a_name,
+          character_b_name: rel.character_b_name,
+          relationship_type: rel.relationship_type,
+          relationship_strength: rel.relationship_strength || 5,
+          ai_confidence_new: rel.confidence_score || 0.5,
+          source_chapter_ids: [chapterId],
+          is_newly_extracted: true,
+          extraction_method: 'llm_direct'
+        }));
+
+        const { data: relationshipsData, error: relationshipsError } = await supabase
+          .from('character_relationships')
+          .insert(relationshipsToStore)
+          .select();
+
+        if (!relationshipsError && relationshipsData) {
+          totalStored += relationshipsData.length;
+          categoriesStored.push('relationships');
+          console.log(`✅ Stored ${relationshipsData.length} relationships`);
+        } else {
+          console.error('❌ Failed to store relationships:', relationshipsError);
+        }
+      }
+
+      // Store timeline events with correct field mapping
+      if (extractedData.timelineEvents && extractedData.timelineEvents.length > 0) {
+        console.log(`💾 Storing ${extractedData.timelineEvents.length} timeline events...`);
+        
+        const timelineToStore = extractedData.timelineEvents.map((event: any) => ({
+          project_id: projectId,
+          event_name: event.event_name,
+          event_type: event.event_type,
+          event_description: event.event_summary, // **CRITICAL FIX: Map event_summary to event_description**
+          chronological_order: event.chronological_order || 0,
+          characters_involved_names: event.characters_involved_names || [],
+          ai_confidence_new: event.confidence_score || 0.5,
+          source_chapter_ids: [chapterId],
+          is_newly_extracted: true,
+          extraction_method: 'llm_direct'
+        }));
+
+        const { data: timelineData, error: timelineError } = await supabase
+          .from('timeline_events')
+          .insert(timelineToStore)
+          .select();
+
+        if (!timelineError && timelineData) {
+          totalStored += timelineData.length;
+          categoriesStored.push('timelineEvents');
+          console.log(`✅ Stored ${timelineData.length} timeline events`);
+        } else {
+          console.error('❌ Failed to store timeline events:', timelineError);
+        }
+      }
+
+      // Store plot threads
+      if (extractedData.plotThreads && extractedData.plotThreads.length > 0) {
+        console.log(`💾 Storing ${extractedData.plotThreads.length} plot threads...`);
+        
+        const plotThreadsToStore = extractedData.plotThreads.map((thread: any) => ({
+          project_id: projectId,
+          thread_name: thread.thread_name,
+          thread_type: thread.thread_type,
+          key_events: thread.key_events || [],
+          thread_status: thread.status || 'active',
+          ai_confidence_new: thread.confidence_score || 0.5,
+          source_chapter_ids: [chapterId],
+          is_newly_extracted: true,
+          extraction_method: 'llm_direct'
+        }));
+
+        const { data: plotThreadsData, error: plotThreadsError } = await supabase
+          .from('plot_threads')
+          .insert(plotThreadsToStore)
+          .select();
+
+        if (!plotThreadsError && plotThreadsData) {
+          totalStored += plotThreadsData.length;
+          categoriesStored.push('plotThreads');
+          console.log(`✅ Stored ${plotThreadsData.length} plot threads`);
+        } else {
+          console.error('❌ Failed to store plot threads:', plotThreadsError);
+        }
+      }
+
+      console.log(`💾 Storage complete: ${totalStored} items stored across ${categoriesStored.length} categories`);
+      
+      return { totalStored, categoriesStored };
+
+    } catch (error) {
+      console.error('❌ Error storing extracted data:', error);
+      return { totalStored: 0, categoriesStored: [] };
     }
   }
 
