@@ -27,7 +27,7 @@ export class GapOnlyAnalysisService {
    * Phase 1: Lightweight gap detection across entire project
    */
   static async detectEmptyCategories(projectId: string): Promise<GapDetectionResult> {
-    console.log('🔍 Detecting empty categories for project:', projectId);
+    console.log('🔍 [GAP DETECTION] Starting for project:', projectId);
     
     try {
       const [
@@ -46,6 +46,16 @@ export class GapOnlyAnalysisService {
         supabase.from('knowledge_base').select('id', { count: 'exact', head: true }).eq('project_id', projectId).eq('category', 'theme')
       ]);
 
+      // Log individual query results
+      console.log('🔢 [GAP DETECTION] Raw counts:', {
+        relationships: { count: relationshipsCount.count, error: relationshipsCount.error },
+        timelineEvents: { count: timelineEventsCount.count, error: timelineEventsCount.error },
+        plotThreads: { count: plotThreadsCount.count, error: plotThreadsCount.error },
+        chapterSummaries: { count: chapterSummariesCount.count, error: chapterSummariesCount.error },
+        worldBuilding: { count: worldBuildingCount.count, error: worldBuildingCount.error },
+        themes: { count: themesCount.count, error: themesCount.error }
+      });
+
       const gaps = {
         relationships: (relationshipsCount.count || 0) === 0,
         timelineEvents: (timelineEventsCount.count || 0) === 0,
@@ -55,7 +65,22 @@ export class GapOnlyAnalysisService {
         themes: (themesCount.count || 0) === 0
       };
 
-      console.log('📊 Gap detection results:', gaps);
+      // Validate gap detection against actual counts
+      const actualCounts = {
+        relationships: relationshipsCount.count || 0,
+        timelineEvents: timelineEventsCount.count || 0,
+        plotThreads: plotThreadsCount.count || 0,
+        chapterSummaries: chapterSummariesCount.count || 0,
+        worldBuilding: worldBuildingCount.count || 0,
+        themes: themesCount.count || 0
+      };
+
+      console.log('📊 [GAP DETECTION] Final results:', {
+        gaps,
+        actualCounts,
+        emptyCategories: Object.entries(gaps).filter(([_, isEmpty]) => isEmpty).map(([category]) => category)
+      });
+      
       return gaps;
     } catch (error) {
       console.error('❌ Error detecting gaps:', error);

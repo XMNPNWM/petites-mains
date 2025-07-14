@@ -68,6 +68,19 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         return sum + (Array.isArray(category) ? category.length : 0);
       }, 0);
 
+      console.log('📊 [ANALYSIS ROUTING] Decision factors:', {
+        totalDataCount,
+        hasData: totalDataCount > 0,
+        dataBreakdown: {
+          relationships: brainData.characterRelationships?.length || 0,
+          timelineEvents: brainData.timelineEvents?.length || 0,
+          plotThreads: brainData.plotThreads?.length || 0,
+          chapterSummaries: brainData.chapterSummaries?.length || 0,
+          worldBuilding: brainData.worldBuilding?.length || 0,
+          themes: brainData.themes?.length || 0
+        }
+      });
+
       let result;
       
       if (totalDataCount === 0) {
@@ -82,9 +95,23 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
           });
         }
       } else {
-        // Check for gaps
+        // Check for gaps with detailed logging
+        console.log('🔍 Starting gap detection for project:', projectId);
+        console.log('📊 Current data counts:', {
+          relationships: brainData.characterRelationships?.length || 0,
+          timelineEvents: brainData.timelineEvents?.length || 0,
+          plotThreads: brainData.plotThreads?.length || 0,
+          chapterSummaries: brainData.chapterSummaries?.length || 0,
+          worldBuilding: brainData.worldBuilding?.length || 0,
+          themes: brainData.themes?.length || 0
+        });
+        
         const gaps = await GapOnlyAnalysisService.detectEmptyCategories(projectId);
+        console.log('🎯 EXACT GAPS OBJECT:', JSON.stringify(gaps, null, 2));
+        
         const hasEmptyCategories = Object.values(gaps).some(isEmpty => isEmpty);
+        console.log('❓ HAS EMPTY CATEGORIES EVALUATION:', hasEmptyCategories);
+        console.log('📋 Empty categories found:', Object.entries(gaps).filter(([_, isEmpty]) => isEmpty).map(([category]) => category));
         
         if (hasEmptyCategories) {
           // Gap Analysis - Independent gap-filling
