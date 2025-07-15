@@ -24,7 +24,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const ai = new GoogleGenAI({ apiKey: googleAIKey });
 
-    const { projectId, chapterId, content, mode, targetCategories, options = {} } = await req.json();
+    const { projectId, chapterId, content, mode, targetCategories, categoriesToStore, options = {} } = await req.json();
 
     if (!projectId || !chapterId || !content) {
       throw new Error('Missing required parameters: projectId, chapterId, or content');
@@ -32,26 +32,30 @@ serve(async (req) => {
 
     // Handle different extraction modes
     const isGapFillMode = mode === 'gap_fill_only';
+    const isEnhancedGapFillMode = mode === 'enhanced_gap_fill';
     const forceReExtraction = options.forceReExtraction || false;
-    const contentTypesToExtract = isGapFillMode ? targetCategories : (options.contentTypesToExtract || []);
+    const contentTypesToExtract = (isGapFillMode || isEnhancedGapFillMode) ? targetCategories : (options.contentTypesToExtract || []);
     
     console.log(`🚀 Starting knowledge extraction for chapter: ${chapterId}`);
     console.log('📋 Extraction mode:', mode || 'standard');
-    console.log('🎯 EXACT TARGET CATEGORIES RECEIVED:', JSON.stringify(targetCategories));
+    console.log('🎯 TARGET CATEGORIES RECEIVED:', JSON.stringify(targetCategories));
+    console.log('💾 CATEGORIES TO STORE:', JSON.stringify(categoriesToStore));
     console.log('📋 Options:', { 
       forceReExtraction, 
       contentTypesToExtract: contentTypesToExtract.length > 0 ? contentTypesToExtract : 'all',
       useEmbeddingsBasedProcessing: options.useEmbeddingsBasedProcessing 
     });
 
-    // For gap-fill mode, always process and skip similarity checks
-    const useEmbeddingsBasedProcessing = isGapFillMode ? false : (options.useEmbeddingsBasedProcessing !== false);
+    // For gap-fill modes, always process and skip similarity checks
+    const useEmbeddingsBasedProcessing = (isGapFillMode || isEnhancedGapFillMode) ? false : (options.useEmbeddingsBasedProcessing !== false);
 
     let shouldSkipExtraction = false;
-    let processingReason = isGapFillMode ? 'Gap-fill extraction for empty categories' : 'Processing new content';
+    let processingReason = isEnhancedGapFillMode ? 'Enhanced gap-fill with dependency context' : 
+                          isGapFillMode ? 'Gap-fill extraction for empty categories' : 
+                          'Processing new content';
 
     // Phase 1: Embeddings-based similarity check if enabled (unless force re-extraction or gap-fill mode)
-    if (useEmbeddingsBasedProcessing && !forceReExtraction && !isGapFillMode) {
+    if (useEmbeddingsBasedProcessing && !forceReExtraction && !isGapFillMode && !isEnhancedGapFillMode) {
       console.log('🔍 Checking content similarity using embeddings...');
       
       // Generate embedding for content using correct model
@@ -109,15 +113,17 @@ serve(async (req) => {
     if (!shouldSkipExtraction) {
       console.log('📊 Proceeding with knowledge extraction...');
       
-      // For gap-fill mode, only extract what's needed
-      if (isGapFillMode) {
+      // Handle different extraction modes
+      if (isEnhancedGapFillMode) {
+        console.log(`🎯 Enhanced gap-fill mode: analyzing ${targetCategories.join(', ')}, storing ${categoriesToStore?.join(', ') || 'all'}`);
+      } else if (isGapFillMode) {
         console.log(`🎯 Gap-fill mode: extracting only ${targetCategories.join(', ')}`);
       } else {
         console.log('📊 Standard mode: full multi-pass extraction');
       }
       
       // Pass 1: Extract Characters (skip in gap-fill mode unless needed)
-      if (!isGapFillMode || targetCategories.includes('characters')) {
+      if (!isGapFillMode || targetCategories.includes('characters') || isEnhancedGapFillMode) {
         console.log('🎭 Pass 1: Extracting characters...');
       const charactersPrompt = `Analyze the following text and extract ONLY characters in JSON format. Focus on clearly identifiable people, beings, or entities that appear in the narrative.
 
@@ -150,13 +156,13 @@ Extract only clearly evident characters. Assign confidence scores based on how e
     }
 
       // Pass 2: Extract Relationships - Enhanced for gap-fill mode
-      if (!isGapFillMode || targetCategories.includes('character_relationships')) {
+      if (!isGapFillMode || targetCategories.includes('character_relationships') || isEnhancedGapFillMode) {
         console.log('🤝 RELATIONSHIP EXTRACTION BLOCK EXECUTING');
         
         let characterNames = '';
         
-        // **CRITICAL FIX: Use existing characters from database for gap-fill mode**
-        if (isGapFillMode) {
+        // **CRITICAL FIX: Use existing characters from database for gap-fill modes**
+        if (isGapFillMode || isEnhancedGapFillMode) {
           console.log('🔍 Gap-fill mode: Fetching existing characters from database...');
           
           const { data: existingCharacters, error: charactersError } = await supabase
@@ -282,13 +288,13 @@ Si aucune relation trouvée, retourner: {"relationships": []}`;
       }
 
       // Pass 3: Extract Timeline Events - Enhanced for gap-fill mode  
-      if (!isGapFillMode || targetCategories.includes('timeline_events')) {
+      if (!isGapFillMode || targetCategories.includes('timeline_events') || isEnhancedGapFillMode) {
         console.log('⏰ Pass 3: Extracting timeline events...');
         
         let characterContext = '';
         
-        // **ENHANCED: Get character context for gap-fill mode**
-        if (isGapFillMode) {
+        // **ENHANCED: Get character context for gap-fill modes**
+        if (isGapFillMode || isEnhancedGapFillMode) {
           console.log('🔍 Gap-fill mode: Using existing characters for timeline context...');
           
           const { data: existingCharacters, error: charactersError } = await supabase
@@ -356,7 +362,7 @@ Si des personnages sont impliqués, utiliser les noms exacts de la liste des per
       }
 
       // Pass 4: Extract Plot Elements (skip in gap-fill mode unless needed)
-      if (!isGapFillMode || targetCategories.some(cat => ['plot_threads', 'plot_points', 'chapter_summaries'].includes(cat))) {
+      if (!isGapFillMode || targetCategories.some(cat => ['plot_threads', 'plot_points', 'chapter_summaries'].includes(cat)) || isEnhancedGapFillMode) {
         console.log('📖 Pass 4: Extracting plot elements...');
       const plotPrompt = `Analyze the following text and extract plot threads, plot points, and chapter summaries in JSON format.
 
@@ -389,7 +395,7 @@ Extract story elements, narrative threads, and chapter-level information.`;
     }
 
       // Pass 5: Extract World Building and Themes (skip in gap-fill mode unless needed)
-      if (!isGapFillMode || targetCategories.some(cat => ['world_building', 'themes'].includes(cat))) {
+      if (!isGapFillMode || targetCategories.some(cat => ['world_building', 'themes'].includes(cat)) || isEnhancedGapFillMode) {
         console.log('🌍 Pass 5: Extracting world building and themes...');
       const worldPrompt = `Analyze the following text and extract world building elements and themes in JSON format.
 

@@ -9,11 +9,19 @@ interface GapDetectionResult {
   themes: boolean;
 }
 
+interface DependencyAnalysisPlan {
+  emptyCategories: string[];
+  requiredDependencies: string[];
+  categoriesToAnalyze: string[];
+  categoriesToStore: string[];
+}
+
 interface GapAnalysisResult {
   success: boolean;
   totalExtracted: number;
   gapsDetected: GapDetectionResult;
   gapsFilled: string[];
+  dependencyPlan?: DependencyAnalysisPlan;
   error?: string;
 }
 
@@ -23,6 +31,60 @@ interface GapAnalysisResult {
  */
 export class GapOnlyAnalysisService {
   
+  /**
+   * Dependency mapping system for categories
+   */
+  private static getCategoryDependencies(): Record<string, string[]> {
+    return {
+      relationships: ['characters'], // Relationships need character context
+      timelineEvents: [], // Standalone but benefits from character context
+      plotThreads: ['characters'], // Benefits from character + timeline context
+      plotPoints: ['plotThreads'], // Benefits from plot_threads context
+      chapterSummaries: [], // Standalone
+      worldBuilding: [], // Standalone
+      themes: [] // Standalone
+    };
+  }
+
+  /**
+   * Create comprehensive analysis plan with dependencies
+   */
+  private static createDependencyAnalysisPlan(gaps: GapDetectionResult): DependencyAnalysisPlan {
+    const emptyCategories = Object.entries(gaps)
+      .filter(([_, isEmpty]) => isEmpty)
+      .map(([category]) => category);
+
+    const dependencies = this.getCategoryDependencies();
+    const requiredDependencies = new Set<string>();
+
+    // Find all dependencies for empty categories
+    emptyCategories.forEach(category => {
+      const deps = dependencies[category] || [];
+      deps.forEach(dep => requiredDependencies.add(dep));
+    });
+
+    const categoriesToAnalyze = [
+      ...emptyCategories,
+      ...Array.from(requiredDependencies)
+    ];
+
+    const plan: DependencyAnalysisPlan = {
+      emptyCategories,
+      requiredDependencies: Array.from(requiredDependencies),
+      categoriesToAnalyze,
+      categoriesToStore: emptyCategories // Only store results for originally empty categories
+    };
+
+    console.log('🎯 [DEPENDENCY PLAN]:', {
+      emptyCategories: plan.emptyCategories,
+      requiredDependencies: plan.requiredDependencies,
+      toAnalyze: plan.categoriesToAnalyze,
+      toStore: plan.categoriesToStore
+    });
+
+    return plan;
+  }
+
   /**
    * Phase 1: Lightweight gap detection across entire project
    */
@@ -89,12 +151,26 @@ export class GapOnlyAnalysisService {
   }
 
   /**
-   * Phase 2: Focused extraction for empty categories only
+   * Phase 2: Enhanced gap-filling with dependency-aware analysis
    */
   static async fillCategoryGaps(projectId: string, gaps: GapDetectionResult): Promise<GapAnalysisResult> {
-    console.log('🎯 Starting gap-only extraction for project:', projectId);
+    console.log('🎯 Starting enhanced gap-only extraction for project:', projectId);
     
     try {
+      // Create comprehensive analysis plan with dependencies
+      const dependencyPlan = this.createDependencyAnalysisPlan(gaps);
+
+      if (dependencyPlan.emptyCategories.length === 0) {
+        console.log('✅ No gaps detected, skipping extraction');
+        return {
+          success: true,
+          totalExtracted: 0,
+          gapsDetected: gaps,
+          gapsFilled: [],
+          dependencyPlan
+        };
+      }
+
       // Get all chapters with content
       const { data: chapters, error: chaptersError } = await supabase
         .from('chapters')
@@ -112,61 +188,43 @@ export class GapOnlyAnalysisService {
           success: true,
           totalExtracted: 0,
           gapsDetected: gaps,
-          gapsFilled: []
+          gapsFilled: [],
+          dependencyPlan
         };
       }
 
-      // Identify which categories need extraction
-      const emptyCategories = Object.entries(gaps)
-        .filter(([_, isEmpty]) => isEmpty)
-        .map(([category, _]) => category);
+      console.log('🎯 Enhanced extraction plan:', {
+        emptyCategories: dependencyPlan.emptyCategories,
+        willAnalyze: dependencyPlan.categoriesToAnalyze,
+        willStore: dependencyPlan.categoriesToStore
+      });
 
-      if (emptyCategories.length === 0) {
-        console.log('✅ No gaps detected, skipping extraction');
-        return {
-          success: true,
-          totalExtracted: 0,
-          gapsDetected: gaps,
-          gapsFilled: []
-        };
-      }
+      // Combine all chapter content for comprehensive analysis
+      const combinedContent = chapters.map(chapter => 
+        `=== ${chapter.title} ===\n${chapter.content}`
+      ).join('\n\n');
 
-      console.log('🎯 Extracting data for empty categories:', emptyCategories);
+      console.log(`📖 Combined content length: ${combinedContent.length} characters from ${chapters.length} chapters`);
+      
+      // Single comprehensive extraction with dependency context
+      const extractionResult = await this.extractWithDependencyContext(
+        combinedContent,
+        projectId,
+        dependencyPlan
+      );
 
-      let totalExtracted = 0;
-      const gapsFilled: string[] = [];
-
-      // Process chapters sequentially to avoid overwhelming the edge function
-      for (const chapter of chapters) {
-        console.log(`📖 Processing chapter for gaps: ${chapter.title}`);
-        
-        const extractionResult = await this.extractForEmptyCategories(
-          chapter,
-          projectId,
-          emptyCategories
-        );
-
-        if (extractionResult.success) {
-          totalExtracted += extractionResult.extractedCount;
-          extractionResult.categoriesFilled.forEach(category => {
-            if (!gapsFilled.includes(category)) {
-              gapsFilled.push(category);
-            }
-          });
-        }
-      }
-
-      console.log(`✅ Gap extraction complete. Total extracted: ${totalExtracted}, Categories filled: ${gapsFilled}`);
+      console.log(`✅ Enhanced gap extraction complete. Total extracted: ${extractionResult.extractedCount}`);
 
       return {
         success: true,
-        totalExtracted,
+        totalExtracted: extractionResult.extractedCount,
         gapsDetected: gaps,
-        gapsFilled
+        gapsFilled: extractionResult.categoriesFilled,
+        dependencyPlan
       };
 
     } catch (error) {
-      console.error('❌ Gap extraction failed:', error);
+      console.error('❌ Enhanced gap extraction failed:', error);
       return {
         success: false,
         totalExtracted: 0,
@@ -178,17 +236,30 @@ export class GapOnlyAnalysisService {
   }
 
   /**
-   * Extract data only for specified empty categories
+   * Enhanced extraction with dependency context - single comprehensive analysis
    */
-  private static async extractForEmptyCategories(
-    chapter: { id: string; title: string; content: string },
+  private static async extractWithDependencyContext(
+    combinedContent: string,
     projectId: string,
-    emptyCategories: string[]
+    dependencyPlan: DependencyAnalysisPlan
   ): Promise<{ success: boolean; extractedCount: number; categoriesFilled: string[] }> {
     
     try {
-      // Create focused extraction request for only empty categories
-      const extractionTypes = emptyCategories.map(category => {
+      // Convert category names to edge function format
+      const targetCategories = dependencyPlan.categoriesToAnalyze.map(category => {
+        switch (category) {
+          case 'relationships': return 'character_relationships';
+          case 'timelineEvents': return 'timeline_events';
+          case 'plotThreads': return 'plot_threads';
+          case 'chapterSummaries': return 'chapter_summaries';
+          case 'worldBuilding': return 'world_building';
+          case 'themes': return 'themes';
+          case 'characters': return 'characters';
+          default: return category;
+        }
+      });
+
+      const categoriesToStore = dependencyPlan.categoriesToStore.map(category => {
         switch (category) {
           case 'relationships': return 'character_relationships';
           case 'timelineEvents': return 'timeline_events';
@@ -200,34 +271,39 @@ export class GapOnlyAnalysisService {
         }
       });
 
-      console.log(`🤖 Calling edge function for chapter ${chapter.title}, categories: ${extractionTypes}`);
+      console.log(`🤖 Calling edge function with comprehensive analysis:`, {
+        analyzing: targetCategories,
+        storing: categoriesToStore
+      });
 
       const { data: result, error } = await supabase.functions.invoke('extract-knowledge', {
         body: {
           projectId,
-          chapterId: chapter.id,
-          content: chapter.content,
-          mode: 'gap_fill_only',
-          targetCategories: extractionTypes
+          chapterId: 'combined-chapters', // Special identifier for combined analysis
+          content: combinedContent,
+          mode: 'enhanced_gap_fill',
+          targetCategories: targetCategories,
+          categoriesToStore: categoriesToStore
         }
       });
 
       if (error) {
-        console.error(`❌ Edge function error for chapter ${chapter.title}:`, error);
+        console.error(`❌ Edge function error for comprehensive analysis:`, error);
         return { success: false, extractedCount: 0, categoriesFilled: [] };
       }
 
       if (!result || !result.success) {
-        console.error(`❌ Extraction failed for chapter ${chapter.title}:`, result?.error);
+        console.error(`❌ Comprehensive extraction failed:`, result?.error);
         return { success: false, extractedCount: 0, categoriesFilled: [] };
       }
 
-      console.log(`✅ Edge function returned:`, result);
+      console.log(`✅ Comprehensive extraction returned:`, result);
 
-      // **CRITICAL FIX: Actually store the extracted data to the database**
-      const storageResult = await this.storeExtractedData(result.extractedData, projectId, chapter.id);
+      // Store only the results for originally empty categories
+      const filteredData = this.filterDataForStorage(result.extractedData, dependencyPlan.categoriesToStore);
+      const storageResult = await this.storeExtractedData(filteredData, projectId, 'combined-chapters');
       
-      console.log(`💾 Stored ${storageResult.totalStored} items to database from chapter ${chapter.title}`);
+      console.log(`💾 Stored ${storageResult.totalStored} items to database from comprehensive analysis`);
 
       return {
         success: true,
@@ -236,9 +312,36 @@ export class GapOnlyAnalysisService {
       };
 
     } catch (error) {
-      console.error(`❌ Error processing chapter ${chapter.title}:`, error);
+      console.error(`❌ Error in comprehensive extraction:`, error);
       return { success: false, extractedCount: 0, categoriesFilled: [] };
     }
+  }
+
+  /**
+   * Filter extracted data to only include categories that should be stored
+   */
+  private static filterDataForStorage(extractedData: any, categoriesToStore: string[]): any {
+    const filtered: any = {};
+
+    const categoryMap: Record<string, string> = {
+      'character_relationships': 'relationships',
+      'timeline_events': 'timelineEvents',
+      'plot_threads': 'plotThreads',
+      'chapter_summaries': 'chapterSummaries',
+      'world_building': 'worldBuilding',
+      'themes': 'themes'
+    };
+
+    categoriesToStore.forEach(category => {
+      const dataKey = categoryMap[category] || category;
+      if (extractedData[dataKey]) {
+        filtered[dataKey] = extractedData[dataKey];
+        console.log(`📋 Including ${dataKey} for storage: ${extractedData[dataKey].length} items`);
+      }
+    });
+
+    console.log('🔄 Filtered data for storage:', Object.keys(filtered));
+    return filtered;
   }
 
   /**
