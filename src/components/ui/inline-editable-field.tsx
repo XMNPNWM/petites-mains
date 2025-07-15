@@ -21,7 +21,7 @@ const InlineEditableField = ({
   onSave, 
   placeholder = "Click to edit...", 
   multiline = false,
-  maxLength = 500,
+  maxLength,
   className = "text-slate-600",
   fieldName = "field"
 }: InlineEditableFieldProps) => {
