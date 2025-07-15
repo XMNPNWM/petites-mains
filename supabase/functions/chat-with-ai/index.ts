@@ -179,21 +179,12 @@ serve(async (req) => {
     
     console.log('📝 Story context generated, length:', storyContext.length);
 
-    // Prepare messages with story context as system prompt
-    const messagesWithContext = [
-      {
-        role: 'system',
-        parts: [{ text: storyContext }]
-      },
-      {
-        role: 'user', 
-        parts: [{ text: message }]
-      }
-    ];
+    // Combine story context with user message for @google/genai format
+    const combinedPrompt = `${storyContext}\n\nUser: ${message}`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-lite-preview-06-17",
-      contents: messagesWithContext
+      contents: combinedPrompt
     });
 
     const aiResponse = response.text;
