@@ -151,10 +151,10 @@ export class GapOnlyAnalysisService {
   }
 
   /**
-   * Phase 2: Enhanced gap-filling with dependency-aware analysis
+   * Phase 2: Sequential gap-filling with dependency-aware processing
    */
   static async fillCategoryGaps(projectId: string, gaps: GapDetectionResult): Promise<GapAnalysisResult> {
-    console.log('🎯 Starting enhanced gap-only extraction for project:', projectId);
+    console.log('🎯 Starting SEQUENTIAL gap-only extraction for project:', projectId);
     
     try {
       // Create comprehensive analysis plan with dependencies
@@ -193,27 +193,27 @@ export class GapOnlyAnalysisService {
         };
       }
 
-      console.log('🎯 Enhanced extraction plan:', {
+      console.log('🔄 SEQUENTIAL extraction plan:', {
         emptyCategories: dependencyPlan.emptyCategories,
-        willAnalyze: dependencyPlan.categoriesToAnalyze,
+        requiredDependencies: dependencyPlan.requiredDependencies,
         willStore: dependencyPlan.categoriesToStore
       });
 
-      // Combine all chapter content for comprehensive analysis
+      // Combine all chapter content for analysis
       const combinedContent = chapters.map(chapter => 
         `=== ${chapter.title} ===\n${chapter.content}`
       ).join('\n\n');
 
       console.log(`📖 Combined content length: ${combinedContent.length} characters from ${chapters.length} chapters`);
       
-      // Single comprehensive extraction with dependency context
-      const extractionResult = await this.extractWithDependencyContext(
+      // **NEW: Sequential processing with dependency chaining**
+      const extractionResult = await this.executeSequentialProcessing(
         combinedContent,
         projectId,
         dependencyPlan
       );
 
-      console.log(`✅ Enhanced gap extraction complete. Total extracted: ${extractionResult.extractedCount}`);
+      console.log(`✅ Sequential gap extraction complete. Total extracted: ${extractionResult.extractedCount}`);
 
       return {
         success: true,
@@ -224,7 +224,7 @@ export class GapOnlyAnalysisService {
       };
 
     } catch (error) {
-      console.error('❌ Enhanced gap extraction failed:', error);
+      console.error('❌ Sequential gap extraction failed:', error);
       return {
         success: false,
         totalExtracted: 0,
@@ -236,84 +236,189 @@ export class GapOnlyAnalysisService {
   }
 
   /**
-   * Enhanced extraction with dependency context - single comprehensive analysis
+   * NEW: Sequential processing with dependency chaining
+   * Process categories in proper dependency order, using fresh data as context
    */
-  private static async extractWithDependencyContext(
+  private static async executeSequentialProcessing(
     combinedContent: string,
     projectId: string,
     dependencyPlan: DependencyAnalysisPlan
   ): Promise<{ success: boolean; extractedCount: number; categoriesFilled: string[] }> {
     
     try {
-      // Convert category names to edge function format
-      const targetCategories = dependencyPlan.categoriesToAnalyze.map(category => {
-        switch (category) {
-          case 'relationships': return 'character_relationships';
-          case 'timelineEvents': return 'timeline_events';
-          case 'plotThreads': return 'plot_threads';
-          case 'chapterSummaries': return 'chapter_summaries';
-          case 'worldBuilding': return 'world_building';
-          case 'themes': return 'themes';
-          case 'characters': return 'characters';
-          default: return category;
+      console.log('🔄 Starting sequential processing with dependency chaining...');
+      
+      let totalExtracted = 0;
+      const categoriesFilled: string[] = [];
+      const freshContext: Record<string, any[]> = {};
+
+      // Step 1: Process dependencies first (extract fresh data, don't store)
+      for (const dependency of dependencyPlan.requiredDependencies) {
+        console.log(`📍 Processing dependency: ${dependency}`);
+        
+        const dependencyCategory = this.convertToEdgeFunctionFormat(dependency);
+        const dependencyResult = await this.extractSingleCategory(
+          combinedContent,
+          projectId,
+          dependencyCategory,
+          freshContext
+        );
+        
+        if (dependencyResult.success && dependencyResult.extractedData) {
+          freshContext[dependency] = dependencyResult.extractedData;
+          console.log(`✅ Extracted ${dependencyResult.extractedData.length} ${dependency} for context`);
+        } else {
+          console.log(`⚠️ No ${dependency} extracted for context`);
         }
-      });
+      }
 
-      const categoriesToStore = dependencyPlan.categoriesToStore.map(category => {
-        switch (category) {
-          case 'relationships': return 'character_relationships';
-          case 'timelineEvents': return 'timeline_events';
-          case 'plotThreads': return 'plot_threads';
-          case 'chapterSummaries': return 'chapter_summaries';
-          case 'worldBuilding': return 'world_building';
-          case 'themes': return 'themes';
-          default: return category;
+      // Step 2: Process empty categories with fresh context (extract and store)
+      for (const category of dependencyPlan.emptyCategories) {
+        console.log(`🎯 Processing empty category: ${category} with fresh context`);
+        
+        const edgeFunctionCategory = this.convertToEdgeFunctionFormat(category);
+        const categoryResult = await this.extractSingleCategory(
+          combinedContent,
+          projectId,
+          edgeFunctionCategory,
+          freshContext
+        );
+        
+        if (categoryResult.success && categoryResult.extractedData && categoryResult.extractedData.length > 0) {
+          // Store the results for empty categories
+          const storageResult = await this.storeSingleCategory(
+            categoryResult.extractedData,
+            projectId,
+            edgeFunctionCategory
+          );
+          
+          if (storageResult.success) {
+            totalExtracted += storageResult.totalStored;
+            categoriesFilled.push(category);
+            console.log(`✅ Stored ${storageResult.totalStored} ${category} items`);
+          }
+        } else {
+          console.log(`⚠️ No ${category} extracted`);
         }
-      });
+      }
 
-      console.log(`🤖 Calling edge function with comprehensive analysis:`, {
-        analyzing: targetCategories,
-        storing: categoriesToStore
-      });
+      console.log(`🎯 Sequential processing complete. Total stored: ${totalExtracted}`);
 
+      return {
+        success: true,
+        extractedCount: totalExtracted,
+        categoriesFilled
+      };
+
+    } catch (error) {
+      console.error(`❌ Error in sequential processing:`, error);
+      return { success: false, extractedCount: 0, categoriesFilled: [] };
+    }
+  }
+
+  /**
+   * Extract a single category with fresh context
+   */
+  private static async extractSingleCategory(
+    content: string,
+    projectId: string,
+    category: string,
+    freshContext: Record<string, any[]>
+  ): Promise<{ success: boolean; extractedData: any[] | null }> {
+    
+    try {
+      console.log(`🔍 Extracting single category: ${category}`);
+      
       const { data: result, error } = await supabase.functions.invoke('extract-knowledge', {
         body: {
           projectId,
-          chapterId: 'combined-chapters', // Special identifier for combined analysis
-          content: combinedContent,
-          mode: 'enhanced_gap_fill',
-          targetCategories: targetCategories,
-          categoriesToStore: categoriesToStore
+          chapterId: 'sequential-processing',
+          content,
+          mode: 'sequential_gap_fill',
+          targetCategory: category,
+          freshContext: freshContext
         }
       });
 
       if (error) {
-        console.error(`❌ Edge function error for comprehensive analysis:`, error);
-        return { success: false, extractedCount: 0, categoriesFilled: [] };
+        console.error(`❌ Edge function error for ${category}:`, error);
+        return { success: false, extractedData: null };
       }
 
       if (!result || !result.success) {
-        console.error(`❌ Comprehensive extraction failed:`, result?.error);
-        return { success: false, extractedCount: 0, categoriesFilled: [] };
+        console.error(`❌ Extraction failed for ${category}:`, result?.error);
+        return { success: false, extractedData: null };
       }
 
-      console.log(`✅ Comprehensive extraction returned:`, result);
-
-      // Store only the results for originally empty categories
-      const filteredData = this.filterDataForStorage(result.extractedData, dependencyPlan.categoriesToStore);
-      const storageResult = await this.storeExtractedData(filteredData, projectId, 'combined-chapters');
-      
-      console.log(`💾 Stored ${storageResult.totalStored} items to database from comprehensive analysis`);
+      const extractedData = result.extractedData?.[this.convertFromEdgeFunctionFormat(category)] || [];
+      console.log(`✅ Single category extraction for ${category}:`, extractedData.length, 'items');
 
       return {
         success: true,
-        extractedCount: storageResult.totalStored,
-        categoriesFilled: storageResult.categoriesStored
+        extractedData
       };
 
     } catch (error) {
-      console.error(`❌ Error in comprehensive extraction:`, error);
-      return { success: false, extractedCount: 0, categoriesFilled: [] };
+      console.error(`❌ Error extracting ${category}:`, error);
+      return { success: false, extractedData: null };
+    }
+  }
+
+  /**
+   * Store data for a single category
+   */
+  private static async storeSingleCategory(
+    data: any[],
+    projectId: string,
+    category: string
+  ): Promise<{ success: boolean; totalStored: number }> {
+    
+    try {
+      const categoryKey = this.convertFromEdgeFunctionFormat(category);
+      const dataToStore = { [categoryKey]: data };
+      
+      const storageResult = await this.storeExtractedData(dataToStore, projectId, 'sequential-processing');
+      
+      return {
+        success: true,
+        totalStored: storageResult.totalStored
+      };
+      
+    } catch (error) {
+      console.error(`❌ Error storing ${category}:`, error);
+      return { success: false, totalStored: 0 };
+    }
+  }
+
+  /**
+   * Convert category names to edge function format
+   */
+  private static convertToEdgeFunctionFormat(category: string): string {
+    switch (category) {
+      case 'relationships': return 'character_relationships';
+      case 'timelineEvents': return 'timeline_events';
+      case 'plotThreads': return 'plot_threads';
+      case 'chapterSummaries': return 'chapter_summaries';
+      case 'worldBuilding': return 'world_building';
+      case 'themes': return 'themes';
+      case 'characters': return 'characters';
+      default: return category;
+    }
+  }
+
+  /**
+   * Convert edge function format back to internal format
+   */
+  private static convertFromEdgeFunctionFormat(category: string): string {
+    switch (category) {
+      case 'character_relationships': return 'relationships';
+      case 'timeline_events': return 'timelineEvents';
+      case 'plot_threads': return 'plotThreads';
+      case 'chapter_summaries': return 'chapterSummaries';
+      case 'world_building': return 'worldBuilding';
+      case 'themes': return 'themes';
+      case 'characters': return 'characters';
+      default: return category;
     }
   }
 

@@ -7,6 +7,240 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Sequential extraction handler for single category with fresh context
+async function handleSequentialExtraction(content: string, projectId: string, targetCategory: string, freshContext: any, ai: any) {
+  console.log(`🔄 Sequential extraction for category: ${targetCategory}`);
+  console.log('🔄 Fresh context available:', Object.keys(freshContext || {}));
+
+  let extractionResult = {};
+
+  try {
+    switch (targetCategory) {
+      case 'characters':
+        extractionResult = await extractCharactersSequential(content, ai);
+        break;
+      case 'character_relationships':
+        extractionResult = await extractRelationshipsSequential(content, freshContext, ai);
+        break;
+      case 'timeline_events':
+        extractionResult = await extractTimelineSequential(content, freshContext, ai);
+        break;
+      case 'plot_threads':
+        extractionResult = await extractPlotThreadsSequential(content, freshContext, ai);
+        break;
+      default:
+        console.log(`⚠️ Unsupported category for sequential extraction: ${targetCategory}`);
+        extractionResult = { [targetCategory]: [] };
+    }
+
+    const totalExtracted = Object.values(extractionResult).reduce((total, items) => 
+      total + (Array.isArray(items) ? items.length : 0), 0
+    );
+
+    console.log(`✅ Sequential extraction complete for ${targetCategory}: ${totalExtracted} items`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      extractedData: extractionResult,
+      storageDetails: {
+        extractionMode: 'sequential',
+        targetCategory,
+        freshContextUsed: Object.keys(freshContext || {}),
+        totalExtracted,
+        processedAt: new Date().toISOString()
+      }
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error(`❌ Sequential extraction failed for ${targetCategory}:`, error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message,
+      targetCategory
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// Extract characters in sequential mode
+async function extractCharactersSequential(content: string, ai: any) {
+  console.log('🎭 Sequential: Extracting characters...');
+  
+  const charactersPrompt = `Analyze the following text and extract ONLY characters in JSON format. Focus on clearly identifiable people, beings, or entities that appear in the narrative.
+
+Text to analyze: "${content}"
+
+Return a JSON object with this exact structure:
+{
+  "characters": [{"name": "", "description": "", "traits": [], "role": "", "confidence_score": 0.8}]
+}
+
+Extract only clearly evident characters. Assign confidence scores based on how explicit their presence and description is in the text.`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: charactersPrompt
+  });
+
+  try {
+    const text = response.text.replace(/```json\n?|\n?```/g, '').trim();
+    const data = JSON.parse(text);
+    console.log(`✅ Sequential characters extracted: ${data.characters?.length || 0}`);
+    return { characters: data.characters || [] };
+  } catch (error) {
+    console.error('❌ Failed to parse sequential characters:', error);
+    return { characters: [] };
+  }
+}
+
+// Extract relationships in sequential mode with fresh character context
+async function extractRelationshipsSequential(content: string, freshContext: any, ai: any) {
+  console.log('🤝 Sequential: Extracting relationships with fresh character context...');
+  
+  const characters = freshContext?.characters || [];
+  if (characters.length === 0) {
+    console.log('⚠️ No fresh characters available for relationship extraction');
+    return { relationships: [] };
+  }
+
+  const characterNames = characters.map(c => c.name).join(', ');
+  console.log('👥 Using fresh characters for relationships:', characterNames);
+
+  const relationshipsPrompt = `Analyser le texte suivant et extraire UNIQUEMENT les relations entre personnages au format JSON strict.
+
+Personnages disponibles (FRESH DATA): ${characterNames}
+
+Texte à analyser: "${content}"
+
+Retourner UNIQUEMENT un objet JSON valide (sans texte supplémentaire, sans commentaires):
+{
+  "relationships": [
+    {
+      "character_a_name": "nom exact",
+      "character_b_name": "nom exact", 
+      "relationship_type": "type",
+      "relationship_strength": 5,
+      "confidence_score": 0.8
+    }
+  ]
+}
+
+Types valides: famille, ami, ennemi, allié, mentor, rival, amoureux, collègue.
+Utiliser UNIQUEMENT les noms exacts de la liste des personnages disponibles.
+Si aucune relation trouvée, retourner: {"relationships": []}`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: relationshipsPrompt
+  });
+
+  try {
+    let text = response.text;
+    console.log('🤝 Sequential relationships raw response:', text);
+    
+    // Clean up JSON
+    text = text
+      .replace(/```json\n?|\n?```/g, '')
+      .replace(/```\n?|\n?```/g, '')
+      .replace(/^\s*[\w\s]*?({.*})\s*$/s, '$1')
+      .trim();
+
+    const data = JSON.parse(text);
+    
+    if (data && Array.isArray(data.relationships)) {
+      const validRelationships = data.relationships.filter(rel => 
+        rel.character_a_name && 
+        rel.character_b_name && 
+        rel.relationship_type &&
+        rel.character_a_name !== rel.character_b_name
+      );
+      
+      console.log(`✅ Sequential relationships extracted: ${validRelationships.length}`);
+      validRelationships.forEach((rel, index) => {
+        console.log(`   ${index + 1}. ${rel.character_a_name} -> ${rel.character_b_name} (${rel.relationship_type})`);
+      });
+      
+      return { relationships: validRelationships };
+    }
+    
+    return { relationships: [] };
+    
+  } catch (error) {
+    console.error('❌ Failed to parse sequential relationships:', error);
+    return { relationships: [] };
+  }
+}
+
+// Extract timeline events in sequential mode
+async function extractTimelineSequential(content: string, freshContext: any, ai: any) {
+  console.log('⏰ Sequential: Extracting timeline events...');
+  
+  const characters = freshContext?.characters || [];
+  const characterContext = characters.length > 0 
+    ? `Personnages connus: ${characters.map(c => c.name).join(', ')}`
+    : '';
+
+  const timelinePrompt = `Analyser le texte suivant et extraire UNIQUEMENT les événements de la chronologie au format JSON.
+
+${characterContext}
+
+Texte à analyser: "${content}"
+
+Retourner un objet JSON avec cette structure exacte:
+{
+  "timelineEvents": [{"event_name": "", "event_type": "", "event_summary": "", "chronological_order": 0, "characters_involved_names": [], "confidence_score": 0.8}]
+}`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: timelinePrompt
+  });
+
+  try {
+    const text = response.text.replace(/```json\n?|\n?```/g, '').trim();
+    const data = JSON.parse(text);
+    console.log(`✅ Sequential timeline events extracted: ${data.timelineEvents?.length || 0}`);
+    return { timelineEvents: data.timelineEvents || [] };
+  } catch (error) {
+    console.error('❌ Failed to parse sequential timeline events:', error);
+    return { timelineEvents: [] };
+  }
+}
+
+// Extract plot threads in sequential mode
+async function extractPlotThreadsSequential(content: string, freshContext: any, ai: any) {
+  console.log('📖 Sequential: Extracting plot threads...');
+  
+  const plotPrompt = `Analyze the following text and extract plot threads in JSON format.
+
+Text to analyze: "${content}"
+
+Return a JSON object with this exact structure:
+{
+  "plotThreads": [{"thread_name": "", "thread_type": "", "key_events": [], "status": "active", "confidence_score": 0.8}]
+}`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: plotPrompt
+  });
+
+  try {
+    const text = response.text.replace(/```json\n?|\n?```/g, '').trim();
+    const data = JSON.parse(text);
+    console.log(`✅ Sequential plot threads extracted: ${data.plotThreads?.length || 0}`);
+    return { plotThreads: data.plotThreads || [] };
+  } catch (error) {
+    console.error('❌ Failed to parse sequential plot threads:', error);
+    return { plotThreads: [] };
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -24,7 +258,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const ai = new GoogleGenAI({ apiKey: googleAIKey });
 
-    const { projectId, chapterId, content, mode, targetCategories, categoriesToStore, options = {} } = await req.json();
+    const { projectId, chapterId, content, mode, targetCategories, categoriesToStore, targetCategory, freshContext, options = {} } = await req.json();
 
     if (!projectId || !chapterId || !content) {
       throw new Error('Missing required parameters: projectId, chapterId, or content');
@@ -33,13 +267,16 @@ serve(async (req) => {
     // Handle different extraction modes
     const isGapFillMode = mode === 'gap_fill_only';
     const isEnhancedGapFillMode = mode === 'enhanced_gap_fill';
+    const isSequentialMode = mode === 'sequential_gap_fill';
     const forceReExtraction = options.forceReExtraction || false;
     const contentTypesToExtract = (isGapFillMode || isEnhancedGapFillMode) ? targetCategories : (options.contentTypesToExtract || []);
     
     console.log(`🚀 Starting knowledge extraction for chapter: ${chapterId}`);
     console.log('📋 Extraction mode:', mode || 'standard');
     console.log('🎯 TARGET CATEGORIES RECEIVED:', JSON.stringify(targetCategories));
+    console.log('🎯 TARGET CATEGORY (sequential):', targetCategory);
     console.log('💾 CATEGORIES TO STORE:', JSON.stringify(categoriesToStore));
+    console.log('🔄 FRESH CONTEXT:', freshContext ? Object.keys(freshContext) : 'none');
     console.log('📋 Options:', { 
       forceReExtraction, 
       contentTypesToExtract: contentTypesToExtract.length > 0 ? contentTypesToExtract : 'all',
@@ -47,15 +284,16 @@ serve(async (req) => {
     });
 
     // For gap-fill modes, always process and skip similarity checks
-    const useEmbeddingsBasedProcessing = (isGapFillMode || isEnhancedGapFillMode) ? false : (options.useEmbeddingsBasedProcessing !== false);
+    const useEmbeddingsBasedProcessing = (isGapFillMode || isEnhancedGapFillMode || isSequentialMode) ? false : (options.useEmbeddingsBasedProcessing !== false);
 
     let shouldSkipExtraction = false;
-    let processingReason = isEnhancedGapFillMode ? 'Enhanced gap-fill with dependency context' : 
+    let processingReason = isSequentialMode ? 'Sequential gap-fill processing with fresh context' :
+                          isEnhancedGapFillMode ? 'Enhanced gap-fill with dependency context' : 
                           isGapFillMode ? 'Gap-fill extraction for empty categories' : 
                           'Processing new content';
 
     // Phase 1: Embeddings-based similarity check if enabled (unless force re-extraction or gap-fill mode)
-    if (useEmbeddingsBasedProcessing && !forceReExtraction && !isGapFillMode && !isEnhancedGapFillMode) {
+    if (useEmbeddingsBasedProcessing && !forceReExtraction && !isGapFillMode && !isEnhancedGapFillMode && !isSequentialMode) {
       console.log('🔍 Checking content similarity using embeddings...');
       
       // Generate embedding for content using correct model
@@ -114,7 +352,10 @@ serve(async (req) => {
       console.log('📊 Proceeding with knowledge extraction...');
       
       // Handle different extraction modes
-      if (isEnhancedGapFillMode) {
+      if (isSequentialMode) {
+        console.log(`🔄 Sequential mode: extracting single category ${targetCategory} with fresh context`);
+        return await handleSequentialExtraction(content, projectId, targetCategory, freshContext, ai);
+      } else if (isEnhancedGapFillMode) {
         console.log(`🎯 Enhanced gap-fill mode: analyzing ${targetCategories.join(', ')}, storing ${categoriesToStore?.join(', ') || 'all'}`);
       } else if (isGapFillMode) {
         console.log(`🎯 Gap-fill mode: extracting only ${targetCategories.join(', ')}`);
