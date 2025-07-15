@@ -99,15 +99,16 @@ const SimpleChatPopup = ({
     >
       <div className="h-full flex flex-col">
         <div ref={dragRef}>
-          <ChatHeader
-            selectedText={selectedText}
-            isMinimized={isMinimized}
-            showDeleteConfirm={showDeleteConfirm}
-            onMouseDown={handleMouseDown}
-            onMinimize={handleMinimize}
-            onClose={handleClose}
-            onDelete={handleDelete}
-          />
+            <ChatHeader
+              selectedText={selectedText}
+              isMinimized={isMinimized}
+              showDeleteConfirm={showDeleteConfirm}
+              projectId={projectId}
+              onMouseDown={handleMouseDown}
+              onMinimize={handleMinimize}
+              onClose={handleClose}
+              onDelete={handleDelete}
+            />
         </div>
 
         {bannerState && (

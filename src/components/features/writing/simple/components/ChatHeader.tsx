@@ -1,12 +1,15 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, Minimize2, Maximize2, X, Trash2 } from 'lucide-react';
+import { MessageSquare, Minimize2, Maximize2, X, Trash2, Brain, Loader2 } from 'lucide-react';
+import { GapAwareAnalysisOrchestrator } from '@/services/smart';
+import { useToast } from '@/hooks/use-toast';
 
 interface ChatHeaderProps {
   selectedText?: string;
   isMinimized: boolean;
   showDeleteConfirm?: boolean;
+  projectId?: string;
   onMouseDown: (e: React.MouseEvent) => void;
   onMinimize: () => void;
   onClose: () => void;
@@ -17,11 +20,46 @@ const ChatHeader = ({
   selectedText, 
   isMinimized, 
   showDeleteConfirm = false,
+  projectId,
   onMouseDown, 
   onMinimize, 
   onClose,
   onDelete
 }: ChatHeaderProps) => {
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { toast } = useToast();
+
+  const handleTriggerAnalysis = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!projectId || isAnalyzing) return;
+
+    setIsAnalyzing(true);
+    try {
+      console.log('🧠 Triggering analysis from chat popup for project:', projectId);
+      
+      const result = await GapAwareAnalysisOrchestrator.analyzeProject(projectId);
+      
+      if (result.success) {
+        toast({
+          title: "Analysis Complete",
+          description: "Project analysis has been updated successfully",
+        });
+      } else {
+        throw new Error('Analysis failed');
+      }
+    } catch (error) {
+      console.error('❌ Analysis failed:', error);
+      toast({
+        title: "Analysis Failed",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
   return (
     <div 
       className="flex items-center justify-between p-4 border-b bg-blue-50 cursor-move"
@@ -38,6 +76,22 @@ const ChatHeader = ({
       </div>
       
       <div className="flex items-center space-x-1">
+        {projectId && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleTriggerAnalysis}
+            disabled={isAnalyzing}
+            className="h-8 w-8 p-0 hover:bg-purple-100"
+            title="Trigger AI Analysis"
+          >
+            {isAnalyzing ? (
+              <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
+            ) : (
+              <Brain className="w-4 h-4 text-purple-600" />
+            )}
+          </Button>
+        )}
         {onDelete && (
           <Button
             variant="ghost"
