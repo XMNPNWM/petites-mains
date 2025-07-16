@@ -76,7 +76,7 @@ serve(async (req) => {
           price_data: {
             currency: "usd",
             product_data: { 
-              name: priceId === 'price_une_main' ? 'Une Main Subscription' : 'Deux Mains Subscription'
+              name: priceId === 'price_une_main' ? 'Une Main Subscription - 50 AI credits/month' : 'Deux Mains Subscription - 120 AI credits/month'
             },
             unit_amount: parseInt(unitAmount),
             recurring: { interval: "month" },

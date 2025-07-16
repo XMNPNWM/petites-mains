@@ -97,7 +97,7 @@ const SubscriptionPlans = ({ subscriptionData, usageData }: SubscriptionPlansPro
         'Unlimited projects',
         'Unlimited words',
         'Unlimited worldbuilding elements',
-        '100 AI credits per month',
+        '120 AI credits per month',
         'Advanced writing tools',
         'Advanced analytics'
       ],
@@ -105,7 +105,7 @@ const SubscriptionPlans = ({ subscriptionData, usageData }: SubscriptionPlansPro
         projects: -1, // unlimited
         words: -1, // unlimited
         worldbuilding: -1, // unlimited
-        aiCredits: 100
+        aiCredits: 120
       },
       buttonText: 'Upgrade to Deux Mains',
       buttonVariant: 'default' as const,

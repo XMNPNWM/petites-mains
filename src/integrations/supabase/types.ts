@@ -2078,6 +2078,10 @@ export type Database = {
           content_hash: string
         }[]
       }
+      recalculate_all_usage: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       sparsevec_out: {
         Args: { "": unknown }
         Returns: unknown

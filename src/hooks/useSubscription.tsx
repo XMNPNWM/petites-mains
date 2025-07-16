@@ -186,8 +186,9 @@ export const useSubscription = () => {
       case 'une_main':
         return usageData.ai_credits_used < 50;
       case 'deux_mains':
+        return usageData.ai_credits_used < 120;
       case 'enterprise':
-        return usageData.ai_credits_used < usageData.ai_credits_limit;
+        return true; // Enterprise has unlimited AI credits
       default:
         return false;
     }
