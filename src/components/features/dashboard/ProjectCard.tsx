@@ -33,10 +33,13 @@ const ProjectCard = ({ project, onProjectUpdate }: ProjectCardProps) => {
     try {
       setIsLoadingContent(true);
       
+      // Get the most recent chapter with actual content
       const { data, error } = await supabase
         .from('chapters')
-        .select('content')
+        .select('content, updated_at')
         .eq('project_id', project.id)
+        .not('content', 'is', null)
+        .neq('content', '')
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
