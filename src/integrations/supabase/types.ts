@@ -191,9 +191,12 @@ export type Database = {
           chapter_id: string
           context_summary: string | null
           created_at: string | null
+          creation_import_version: number | null
           enhanced_content: string | null
           id: string
+          last_creation_sync_at: string | null
           original_content: string | null
+          original_content_version: number | null
           refinement_status: string
           updated_at: string | null
           user_preferences: Json | null
@@ -203,9 +206,12 @@ export type Database = {
           chapter_id: string
           context_summary?: string | null
           created_at?: string | null
+          creation_import_version?: number | null
           enhanced_content?: string | null
           id?: string
+          last_creation_sync_at?: string | null
           original_content?: string | null
+          original_content_version?: number | null
           refinement_status?: string
           updated_at?: string | null
           user_preferences?: Json | null
@@ -215,9 +221,12 @@ export type Database = {
           chapter_id?: string
           context_summary?: string | null
           created_at?: string | null
+          creation_import_version?: number | null
           enhanced_content?: string | null
           id?: string
+          last_creation_sync_at?: string | null
           original_content?: string | null
+          original_content_version?: number | null
           refinement_status?: string
           updated_at?: string | null
           user_preferences?: Json | null
@@ -307,8 +316,11 @@ export type Database = {
       chapters: {
         Row: {
           content: string | null
+          content_version_number: number
           created_at: string | null
+          enhancement_source_refinement_id: string | null
           id: string
+          last_enhancement_import_at: string | null
           order_index: number
           project_id: string
           status: string | null
@@ -318,8 +330,11 @@ export type Database = {
         }
         Insert: {
           content?: string | null
+          content_version_number?: number
           created_at?: string | null
+          enhancement_source_refinement_id?: string | null
           id?: string
+          last_enhancement_import_at?: string | null
           order_index: number
           project_id: string
           status?: string | null
@@ -329,8 +344,11 @@ export type Database = {
         }
         Update: {
           content?: string | null
+          content_version_number?: number
           created_at?: string | null
+          enhancement_source_refinement_id?: string | null
           id?: string
+          last_enhancement_import_at?: string | null
           order_index?: number
           project_id?: string
           status?: string | null
@@ -344,6 +362,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_chapters_enhancement_source"
+            columns: ["enhancement_source_refinement_id"]
+            isOneToOne: false
+            referencedRelation: "chapter_refinements"
             referencedColumns: ["id"]
           },
         ]
@@ -720,6 +745,66 @@ export type Database = {
             columns: ["chapter_id"]
             isOneToOne: true
             referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_versions: {
+        Row: {
+          change_summary: string | null
+          chapter_id: string
+          content: string
+          content_type: string
+          created_at: string
+          created_from_refinement_id: string | null
+          enhancement_options: Json | null
+          id: string
+          refinement_status: string | null
+          user_notes: string | null
+          version_number: number
+          word_count: number | null
+        }
+        Insert: {
+          change_summary?: string | null
+          chapter_id: string
+          content: string
+          content_type: string
+          created_at?: string
+          created_from_refinement_id?: string | null
+          enhancement_options?: Json | null
+          id?: string
+          refinement_status?: string | null
+          user_notes?: string | null
+          version_number?: number
+          word_count?: number | null
+        }
+        Update: {
+          change_summary?: string | null
+          chapter_id?: string
+          content?: string
+          content_type?: string
+          created_at?: string
+          created_from_refinement_id?: string | null
+          enhancement_options?: Json | null
+          id?: string
+          refinement_status?: string | null
+          user_notes?: string | null
+          version_number?: number
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_content_versions_chapter_id"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_content_versions_refinement_id"
+            columns: ["created_from_refinement_id"]
+            isOneToOne: false
+            referencedRelation: "chapter_refinements"
             referencedColumns: ["id"]
           },
         ]

@@ -23,6 +23,7 @@ const RefinementSpace = () => {
     handleChangeDecision,
     handleBackClick,
     handleSave,
+    handleImportToCreation,
     refreshData
   } = useRefinementSpace(projectId);
 

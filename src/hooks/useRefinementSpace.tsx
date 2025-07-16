@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useProjectData } from './useProjectData';
 import { RefinementService } from '@/services/RefinementService';
 import { ChapterNavigationService } from '@/services/ChapterNavigationService';
+import { ContentVersioningService } from '@/services/ContentVersioningService';
 import { Chapter, RefinementData } from '@/types/shared';
 
 export const useRefinementSpace = (projectId: string | undefined) => {
@@ -118,6 +119,38 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     navigate(`/project/${projectId}/write`);
   }, [navigate, projectId]);
 
+  const handleImportToCreation = useCallback(async () => {
+    if (!currentChapter || !refinementData) return;
+    
+    try {
+      const result = await ContentVersioningService.importEnhancedToCreation(
+        currentChapter.id,
+        refinementData.id,
+        refinementData.enhanced_content,
+        {} // enhancement options if needed
+      );
+      
+      if (result.success) {
+        toast({
+          title: "Content Imported",
+          description: "Enhanced content has been imported to creation space. A backup was created automatically.",
+        });
+        
+        // Optionally navigate to writing space
+        // navigate(`/project/${projectId}/write/${currentChapter.id}`);
+      } else {
+        throw new Error(result.error || 'Import failed');
+      }
+    } catch (error) {
+      console.error('Error importing content:', error);
+      toast({
+        title: "Import Failed",
+        description: error instanceof Error ? error.message : "Failed to import enhanced content",
+        variant: "destructive"
+      });
+    }
+  }, [currentChapter, refinementData, toast]);
+
   const refreshData = useCallback(() => {
     if (currentChapter) {
       fetchRefinementData(currentChapter.id);
@@ -154,6 +187,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     handleChangeDecision,
     handleBackClick,
     handleSave,
+    handleImportToCreation,
     refreshData
   };
 };

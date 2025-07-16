@@ -22,6 +22,8 @@ interface ChangeTrackingPanelProps {
   onChangeClick?: (change: AIChange) => void;
   scrollPosition?: number;
   onScrollSync?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
+  chapterId?: string;
+  chapterTitle?: string;
 }
 
 // Type casting function to handle database type mismatches
@@ -46,7 +48,9 @@ const ChangeTrackingPanel = ({
   onChangeDecision, 
   onChangeClick,
   scrollPosition = 0,
-  onScrollSync
+  onScrollSync,
+  chapterId,
+  chapterTitle
 }: ChangeTrackingPanelProps) => {
   const [changes, setChanges] = useState<AIChange[]>([]);
   const [loading, setLoading] = useState(false);
@@ -112,7 +116,11 @@ const ChangeTrackingPanel = ({
 
   return (
     <div className="h-full bg-slate-50 p-4 flex flex-col">
-      <ChangeTrackingHeader changesCount={changes.length} />
+      <ChangeTrackingHeader 
+        changesCount={changes.length} 
+        chapterId={chapterId}
+        chapterTitle={chapterTitle}
+      />
       
       <Card className="flex-1 flex flex-col">
         <CardHeader className="pb-3">

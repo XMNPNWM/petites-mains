@@ -22,7 +22,8 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
     refinementData,
     handleChapterSelect,
     handleContentChange,
-    handleChangeDecision
+    handleChangeDecision,
+    handleImportToCreation
   } = useRefinementSpace(projectId);
 
   const handleAnalyzeChapter = useCallback(async () => {
@@ -74,6 +75,7 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
               onChapterSelect={handleChapterSelect}
               onContentChange={handleContentChange}
               onChangeDecision={handleChangeDecision}
+              onImportToCreation={handleImportToCreation}
               isEnhancing={isAnalyzing}
               onEnhanceChapter={handleAnalyzeChapter}
               hasEnhancedContent={!!refinementData?.enhanced_content && refinementData.enhanced_content !== refinementData.original_content}

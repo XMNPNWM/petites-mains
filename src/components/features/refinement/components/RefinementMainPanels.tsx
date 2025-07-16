@@ -53,7 +53,7 @@ interface RefinementMainPanelsProps {
   onContentChange?: (content: string) => void;
   onChangeDecision?: (changeId: string, decision: 'accepted' | 'rejected') => void;
   onChangeClick?: (change: AIChange) => void;
-  onImportToCreation?: () => void;
+  onImportToCreation?: () => Promise<void>;
   scrollPositions?: {
     original: number;
     enhanced: number;
@@ -84,7 +84,7 @@ const RefinementMainPanels = ({
   onContentChange = () => {},
   onChangeDecision = () => {},
   onChangeClick = () => {},
-  onImportToCreation = () => {},
+  onImportToCreation = async () => {},
   scrollPositions = { original: 0, enhanced: 0, changeTracking: 0 },
   handleScrollSync = () => {},
   highlightedRange = null,
