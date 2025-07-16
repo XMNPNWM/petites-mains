@@ -118,10 +118,10 @@ export class NovelEnhancementService {
         options
       );
 
-      // Call the enhance-chapter edge function (to be created in Phase 2)
+      // Call the enhance-chapter edge function
       const { data: result, error: enhanceError } = await supabase.functions.invoke('enhance-chapter', {
         body: {
-          prompt,
+          content: chapter.content,
           projectId,
           chapterId,
           options

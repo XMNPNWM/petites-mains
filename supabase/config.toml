@@ -1,1 +1,4 @@
 project_id = "zayyumerqynmimokwcro"
+
+[functions.enhance-chapter]
+verify_jwt = false
