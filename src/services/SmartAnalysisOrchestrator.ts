@@ -9,7 +9,7 @@ import { EmbeddingBasedSemanticMerger } from './EmbeddingBasedSemanticMerger';
 import { KnowledgeBase, ChapterSummary, PlotPoint } from '@/types/knowledge';
 
 export class SmartAnalysisOrchestrator {
-  static async analyzeChapter(projectId: string, chapterId: string): Promise<void> {
+  static async analyzeChapter(projectId: string, chapterId: string, onComplete?: () => void): Promise<void> {
     try {
       console.log('Starting chapter analysis:', { projectId, chapterId });
 
@@ -86,12 +86,22 @@ export class SmartAnalysisOrchestrator {
           console.warn('Enhancement service returned no enhanced content, using original content');
           await RefinementService.updateRefinementContent(refinementData.id, chapter.content);
         }
+        
+        // Call the completion callback to refresh UI
+        if (onComplete) {
+          onComplete();
+        }
       } catch (aiError) {
         console.error('AI enhancement failed:', aiError);
         // Graceful fallback - use original content
         const fallbackContent = chapter.content + '\n\n[AI enhancement unavailable - content preserved as-is]';
         await RefinementService.updateRefinementContent(refinementData.id, fallbackContent);
         console.log('Using fallback content due to enhancement failure');
+        
+        // Call the completion callback even on fallback
+        if (onComplete) {
+          onComplete();
+        }
       }
 
       console.log('Chapter analysis completed successfully');

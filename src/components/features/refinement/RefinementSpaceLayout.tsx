@@ -32,10 +32,7 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
     
     try {
       setIsAnalyzing(true);
-      await SmartAnalysisOrchestrator.analyzeChapter(projectId, currentChapter.id);
-      
-      // Refresh the refinement data to show the enhanced content
-      refreshData();
+      await SmartAnalysisOrchestrator.analyzeChapter(projectId, currentChapter.id, refreshData);
       
     } catch (error) {
       console.error('Error analyzing chapter:', error);
