@@ -23,7 +23,8 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
     handleChapterSelect,
     handleContentChange,
     handleChangeDecision,
-    handleImportToCreation
+    handleImportToCreation,
+    refreshData
   } = useRefinementSpace(projectId);
 
   const handleAnalyzeChapter = useCallback(async () => {
@@ -32,12 +33,17 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
     try {
       setIsAnalyzing(true);
       await SmartAnalysisOrchestrator.analyzeChapter(projectId, currentChapter.id);
+      
+      // Refresh the refinement data to show the enhanced content
+      refreshData();
+      
     } catch (error) {
       console.error('Error analyzing chapter:', error);
+      // You could add a toast notification here for better UX
     } finally {
       setIsAnalyzing(false);
     }
-  }, [projectId, currentChapter]);
+  }, [projectId, currentChapter, refreshData]);
 
   // Set initial chapter if available
   useEffect(() => {
