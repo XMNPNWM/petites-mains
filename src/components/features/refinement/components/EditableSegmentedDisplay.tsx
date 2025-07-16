@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import RichTextBubbleMenu from './RichTextBubbleMenu';
 import EditorCore from './EditorCore';
 import ScrollSyncHandler from './ScrollSyncHandler';
 import ContentProcessor from './ContentProcessor';
 import EditorStylesProvider from './EditorStylesProvider';
+import ErrorBoundary from './ErrorBoundary';
 
 interface EditableSegmentedDisplayProps {
   content: string;
@@ -28,55 +29,97 @@ const EditableSegmentedDisplay = ({
   readOnly = false
 }: EditableSegmentedDisplayProps) => {
   const [editor, setEditor] = useState<any>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previousReadOnlyRef = useRef(readOnly);
 
-  const handleEditorReady = (editorInstance: any) => {
+  // Enhanced editor ready handler with transition management
+  const handleEditorReady = useCallback((editorInstance: any) => {
+    if (!editorInstance || editorInstance.isDestroyed) return;
+    
     setEditor(editorInstance);
     
-    // Apply read-only state if needed
-    if (readOnly && editorInstance && !editorInstance.isDestroyed) {
-      editorInstance.setEditable(!readOnly);
+    // Apply read-only state with transition buffer
+    if (readOnly && !editorInstance.isDestroyed) {
+      try {
+        editorInstance.setEditable(!readOnly);
+      } catch (e) {
+        console.warn('Failed to set editor editable state on ready:', e);
+      }
     }
     
     if (onEditorReady) {
       onEditorReady(editorInstance);
     }
-  };
+  }, [readOnly, onEditorReady]);
 
-  // Update editor read-only state when prop changes
+  // Enhanced read-only state management with transition buffering
   React.useEffect(() => {
-    if (editor && !editor.isDestroyed) {
-      editor.setEditable(!readOnly);
+    // If readOnly state is changing, add a transition buffer
+    if (previousReadOnlyRef.current !== readOnly) {
+      setIsTransitioning(true);
+      
+      // Clear any existing timeout
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+      
+      // Buffer the transition to prevent rapid state changes
+      transitionTimeoutRef.current = setTimeout(() => {
+        if (editor && !editor.isDestroyed) {
+          try {
+            editor.setEditable(!readOnly);
+          } catch (e) {
+            console.warn('Failed to update editor editable state:', e);
+          }
+        }
+        setIsTransitioning(false);
+        previousReadOnlyRef.current = readOnly;
+      }, 150); // 150ms buffer to prevent rapid transitions
     }
+    
+    return () => {
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+    };
   }, [editor, readOnly]);
 
   // Always render the editor container, even when loading
   // This prevents the "Loading editor..." state from persisting
 
   return (
-    <EditorStylesProvider>
-      <div className="flex-1 flex flex-col relative h-full">
-        {!readOnly && editor && <RichTextBubbleMenu editor={editor} />}
-        <ScrollSyncHandler onScrollSync={onScrollSync} scrollPosition={scrollPosition}>
-          <ContentProcessor content={content || ""} linesPerPage={linesPerPage}>
-            {(processedContent) => (
-              <EditorCore
-                content={processedContent}
-                onContentChange={onContentChange}
-                onEditorReady={handleEditorReady}
-                placeholder={placeholder}
-              />
-            )}
-          </ContentProcessor>
-        </ScrollSyncHandler>
-        
-        {/* Show loading overlay only when editor is not ready */}
-        {!editor && (
-          <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-            <div className="text-slate-500">Loading editor...</div>
-          </div>
-        )}
-      </div>
-    </EditorStylesProvider>
+    <ErrorBoundary>
+      <EditorStylesProvider>
+        <div className="flex-1 flex flex-col relative h-full">
+          {!readOnly && editor && !isTransitioning && <RichTextBubbleMenu editor={editor} />}
+          <ScrollSyncHandler onScrollSync={onScrollSync} scrollPosition={scrollPosition}>
+            <ContentProcessor content={content || ""} linesPerPage={linesPerPage}>
+              {(processedContent) => (
+                <ErrorBoundary>
+                  <EditorCore
+                    content={processedContent}
+                    onContentChange={onContentChange}
+                    onEditorReady={handleEditorReady}
+                    placeholder={placeholder}
+                    readOnly={readOnly}
+                  />
+                </ErrorBoundary>
+              )}
+            </ContentProcessor>
+          </ScrollSyncHandler>
+          
+          {/* Show loading overlay when editor is not ready or transitioning */}
+          {(!editor || isTransitioning) && (
+            <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+              <div className="text-slate-500">
+                {isTransitioning ? "Updating editor..." : "Loading editor..."}
+              </div>
+            </div>
+          )}
+        </div>
+      </EditorStylesProvider>
+    </ErrorBoundary>
   );
 };
 
