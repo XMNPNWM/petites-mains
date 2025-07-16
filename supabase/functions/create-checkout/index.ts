@@ -61,8 +61,8 @@ serve(async (req) => {
     
     // Create price mapping
     const priceMapping: Record<string, string> = {
-      'price_une_main': '500', // $5.00
-      'price_deux_mains': '1000' // $10.00
+      'price_une_main': '700', // $7.00
+      'price_deux_mains': '1200' // $12.00
     };
 
     const unitAmount = priceMapping[priceId];

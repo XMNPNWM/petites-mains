@@ -63,10 +63,10 @@ serve(async (req) => {
           price_data: {
             currency: "usd",
             product_data: { 
-              name: 'AI Credit Booster - 40 Credits',
-              description: '40 AI credits for enhanced writing assistance'
+              name: 'AI Credit Booster - 50 Credits',
+              description: '50 AI credits for enhanced writing assistance'
             },
-            unit_amount: 300, // $3.00
+            unit_amount: 500, // $5.00
           },
           quantity: 1,
         },
@@ -77,7 +77,7 @@ serve(async (req) => {
       metadata: {
         user_id: user.id,
         product_type: 'ai_credits',
-        credits_amount: '40'
+        credits_amount: '50'
       }
     });
 

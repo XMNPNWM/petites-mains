@@ -65,7 +65,7 @@ const SubscriptionPlans = ({ subscriptionData, usageData }: SubscriptionPlansPro
     {
       id: 'une_main',
       name: 'Une Main',
-      price: '$5',
+      price: '$7',
       period: 'month',
       description: 'For dedicated writers',
       features: [
@@ -90,7 +90,7 @@ const SubscriptionPlans = ({ subscriptionData, usageData }: SubscriptionPlansPro
     {
       id: 'deux_mains',
       name: 'Deux Mains',
-      price: '$10',
+      price: '$12',
       period: 'month',
       description: 'For professional writers',
       features: [
@@ -122,6 +122,12 @@ const SubscriptionPlans = ({ subscriptionData, usageData }: SubscriptionPlansPro
         'Custom AI credit limits',
         'Priority support'
       ],
+      limits: {
+        projects: -1, // unlimited
+        words: -1, // unlimited
+        worldbuilding: -1, // unlimited
+        aiCredits: -1 // unlimited
+      },
       buttonText: 'Contact Sales',
       buttonVariant: 'outline' as const,
       isEnterprise: true
@@ -141,20 +147,33 @@ const SubscriptionPlans = ({ subscriptionData, usageData }: SubscriptionPlansPro
 
     const usage = [];
     
+    // For enterprise tier, show unlimited
+    if (planId === 'enterprise') {
+      return 'Unlimited usage';
+    }
+    
     if (plan.limits.projects > 0) {
       usage.push(`${usageData.current_projects}/${plan.limits.projects} projects`);
+    } else if (plan.limits.projects === -1) {
+      usage.push(`${usageData.current_projects} projects (unlimited)`);
     }
     
     if (plan.limits.words > 0) {
-      usage.push(`${usageData.total_word_count}/${plan.limits.words} words`);
+      usage.push(`${usageData.total_word_count.toLocaleString()}/${plan.limits.words.toLocaleString()} words`);
+    } else if (plan.limits.words === -1) {
+      usage.push(`${usageData.total_word_count.toLocaleString()} words (unlimited)`);
     }
     
     if (plan.limits.worldbuilding > 0) {
       usage.push(`${usageData.worldbuilding_elements_count}/${plan.limits.worldbuilding} elements`);
+    } else if (plan.limits.worldbuilding === -1) {
+      usage.push(`${usageData.worldbuilding_elements_count} elements (unlimited)`);
     }
     
-    if (plan.limits.aiCredits) {
+    if (plan.limits.aiCredits && plan.limits.aiCredits > 0) {
       usage.push(`${usageData.ai_credits_used}/${plan.limits.aiCredits} AI credits`);
+    } else if (plan.limits.aiCredits === -1) {
+      usage.push(`${usageData.ai_credits_used} AI credits (unlimited)`);
     }
 
     return usage.length > 0 ? usage.join(' • ') : null;

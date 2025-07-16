@@ -40,7 +40,7 @@ const AICreditBooster = () => {
             <CardTitle className="text-xl text-purple-800">AI Credit Booster</CardTitle>
           </div>
           <div className="text-2xl font-bold text-purple-900">
-            $3<span className="text-sm font-normal text-purple-600">/40 credits</span>
+            $5<span className="text-sm font-normal text-purple-600">/50 credits</span>
           </div>
           <CardDescription className="text-purple-700">
             Get extra AI assistance when you need it most
@@ -54,7 +54,7 @@ const AICreditBooster = () => {
             </p>
             <div className="bg-white/60 rounded-lg p-3 mb-4">
               <p className="text-xs text-purple-600 font-medium">
-                • 40 AI credits = 40 AI messages
+                • 50 AI credits = 50 AI messages
                 <br />
                 • One-time purchase, no subscription
                 <br />
