@@ -67,6 +67,16 @@ export class SmartAnalysisOrchestrator {
           }
         });
 
+        // DEBUG: Log the complete enhancement result as requested
+        console.log('🔍 Enhancement Result Full Debug:', {
+          data: enhancementResult,
+          error: enhancementError,
+          dataType: typeof enhancementResult,
+          enhancedContentExists: !!enhancementResult?.enhancedContent,
+          enhancedContentLength: enhancementResult?.enhancedContent?.length || 0,
+          allDataKeys: enhancementResult ? Object.keys(enhancementResult) : []
+        });
+
         console.log('📥 Enhancement edge function response:', {
           hasData: !!enhancementResult,
           hasError: !!enhancementError,

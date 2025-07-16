@@ -4,7 +4,7 @@ import { Separator } from '@/components/ui/separator';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import RefinementSpaceHeader from './RefinementSpaceHeader';
 import RefinementMainPanels from './components/RefinementMainPanels';
-import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator';
+import { EnhancementService } from '@/services/EnhancementService';
 import { useRefinementSpace } from '@/hooks/useRefinementSpace';
 
 interface RefinementSpaceLayoutProps {
@@ -32,7 +32,7 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
     
     try {
       setIsAnalyzing(true);
-      await SmartAnalysisOrchestrator.analyzeChapter(projectId, currentChapter.id, refreshData);
+      await EnhancementService.enhanceChapter(projectId, currentChapter.id, refreshData);
       
     } catch (error) {
       console.error('Error analyzing chapter:', error);
