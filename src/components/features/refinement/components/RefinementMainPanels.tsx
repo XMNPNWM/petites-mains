@@ -167,6 +167,8 @@ const RefinementMainPanels = ({
             onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
               handleScrollSync('changeTracking', scrollTop, scrollHeight, clientHeight)
             }
+            chapterId={chapterId}
+            chapterTitle={currentChapter?.title || ''}
           />
         </SimpleRightClickMenu>
       </ResizablePanel>
