@@ -9,11 +9,12 @@ interface ContentProcessorProps {
 }
 
 const ContentProcessor = ({ content, linesPerPage, children }: ContentProcessorProps) => {
-  // Convert content to include page breaks
+  // Call hook at top level (React Rules of Hooks)
+  const segments = useLineBasedSegmentation(content || '', linesPerPage);
+  
+  // Process segments into final content
   const processedContent = useMemo(() => {
     if (!content) return '';
-    
-    const segments = useLineBasedSegmentation(content, linesPerPage);
     if (segments.length <= 1) return content;
     
     // Insert page breaks between segments
@@ -25,7 +26,7 @@ const ContentProcessor = ({ content, linesPerPage, children }: ContentProcessorP
         return segment.content + '<div data-type="page-break"></div>';
       })
       .join('');
-  }, [content, linesPerPage]);
+  }, [content, segments]);
 
   return <>{children(processedContent)}</>;
 };
