@@ -6,6 +6,8 @@ import { Sparkles, Loader2 } from 'lucide-react';
 import EditableSegmentedDisplay from '../components/EditableSegmentedDisplay';
 import EnhancedRichTextToolbar from '../components/EnhancedRichTextToolbar';
 import EnhancedFindReplaceBar from '../components/EnhancedFindReplaceBar';
+import EnhancementOptionsDialog from '../dialogs/EnhancementOptionsDialog';
+import { EnhancementOptions } from '@/types/enhancement';
 
 interface EnhancedEditorPanelProps {
   content: string;
@@ -14,7 +16,7 @@ interface EnhancedEditorPanelProps {
   onScrollSync?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
   scrollPosition?: number;
   isEnhancing?: boolean;
-  onEnhanceChapter?: () => void;
+  onEnhanceChapter?: (options: EnhancementOptions) => void;
   hasEnhancedContent?: boolean;
 }
 
@@ -30,6 +32,20 @@ const EnhancedEditorPanel = ({
 }: EnhancedEditorPanelProps) => {
   const [editor, setEditor] = useState<any>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
+  const [showEnhancementDialog, setShowEnhancementDialog] = useState(false);
+
+  const handleEnhanceClick = () => {
+    if (onEnhanceChapter) {
+      setShowEnhancementDialog(true);
+    }
+  };
+
+  const handleEnhancementSubmit = (options: EnhancementOptions) => {
+    setShowEnhancementDialog(false);
+    if (onEnhanceChapter) {
+      onEnhanceChapter(options);
+    }
+  };
 
   return (
     <div className="h-full flex flex-col bg-slate-50 overflow-hidden">
@@ -42,7 +58,7 @@ const EnhancedEditorPanel = ({
             {/* Enhance Chapter Button */}
             {onEnhanceChapter && (
               <Button
-                onClick={onEnhanceChapter}
+                onClick={handleEnhanceClick}
                 disabled={isEnhancing}
                 variant={hasEnhancedContent ? "outline" : "default"}
                 size="sm"
@@ -114,6 +130,14 @@ const EnhancedEditorPanel = ({
           </div>
         )}
       </div>
+
+      {/* Enhancement Options Dialog */}
+      <EnhancementOptionsDialog
+        isOpen={showEnhancementDialog}
+        onClose={() => setShowEnhancementDialog(false)}
+        onSubmit={handleEnhancementSubmit}
+        isProcessing={isEnhancing}
+      />
     </div>
   );
 };

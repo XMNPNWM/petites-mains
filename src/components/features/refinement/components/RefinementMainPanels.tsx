@@ -70,7 +70,7 @@ interface RefinementMainPanelsProps {
   metricsExpanded?: boolean;
   onMetricsToggle?: () => void;
   isEnhancing?: boolean;
-  onEnhanceChapter?: () => void;
+  onEnhanceChapter?: (options: any) => void;
   hasEnhancedContent?: boolean;
 }
 
