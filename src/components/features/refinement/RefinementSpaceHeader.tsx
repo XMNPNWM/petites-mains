@@ -31,8 +31,6 @@ interface RefinementSpaceHeaderProps {
   onSave?: () => void;
   isSaving?: boolean;
   lastSaved?: Date | null;
-  isAnalyzing?: boolean;
-  onAnalyze?: () => Promise<void>;
 }
 
 const RefinementSpaceHeader = ({ 
@@ -41,9 +39,7 @@ const RefinementSpaceHeader = ({
   onBackClick,
   onSave,
   isSaving = false,
-  lastSaved,
-  isAnalyzing = false,
-  onAnalyze
+  lastSaved
 }: RefinementSpaceHeaderProps) => {
   const [showExportDialog, setShowExportDialog] = React.useState(false);
   const { chapters } = useProjectData(project?.id || '');
@@ -95,27 +91,6 @@ const RefinementSpaceHeader = ({
           
           <div className="h-6 w-px bg-slate-200" />
 
-          {/* Analysis functionality */}
-          {onAnalyze && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onAnalyze}
-                disabled={isAnalyzing}
-                className="flex items-center space-x-2"
-              >
-                {isAnalyzing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-                <span>{isAnalyzing ? 'Analyzing...' : 'Analyze'}</span>
-              </Button>
-              
-              <div className="h-6 w-px bg-slate-200" />
-            </>
-          )}
 
           {/* Save functionality */}
           {onSave && (

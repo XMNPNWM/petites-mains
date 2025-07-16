@@ -121,6 +121,12 @@ const RefinementMainPanels = ({
             }
             scrollPosition={scrollPositions.original}
             highlightedRange={highlightedRange}
+            hasContentConflict={
+              currentChapter?.content !== undefined && 
+              refinementData?.original_content !== undefined &&
+              currentChapter.content !== refinementData.original_content
+            }
+            currentChapterContent={currentChapter?.content}
           />
         </SimpleRightClickMenu>
       </ResizablePanel>

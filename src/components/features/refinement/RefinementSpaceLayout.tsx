@@ -57,8 +57,6 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
         project={project}
         currentChapter={currentChapter}
         onBackClick={onClose}
-        isAnalyzing={isAnalyzing}
-        onAnalyze={handleAnalyzeChapter}
       />
       
       <Separator />
