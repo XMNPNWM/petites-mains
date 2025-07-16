@@ -42,14 +42,36 @@ export class SmartAnalysisOrchestrator {
 
       console.log('Refinement data ready:', refinementData.id);
 
-      // Enhance content using the chat-with-ai edge function with gemini-2.5-flash-lite-preview-06-17
+      // Enhance content using the enhance-chapter edge function
       try {
-        const { data: enhancementResult, error: enhancementError } = await supabase.functions.invoke('chat-with-ai', {
+        console.log('🎯 Calling enhance-chapter edge function with content length:', chapter.content.length);
+        
+        const { data: enhancementResult, error: enhancementError } = await supabase.functions.invoke('enhance-chapter', {
           body: { 
-            message: `Please enhance the following text for grammar, style, and readability while preserving the original meaning and tone:\n\n${chapter.content}`,
+            content: chapter.content,
             projectId: projectId,
-            chapterId: chapterId
+            chapterId: chapterId,
+            options: {
+              enhancementLevel: 'moderate',
+              preserveAuthorVoice: true,
+              applyGrammarFixes: true,
+              applyPunctuationFixes: true,
+              applyFormattingFixes: true,
+              improveReadability: true,
+              improveStyle: true,
+              improveShowVsTell: false,
+              refinePacing: false,
+              enhanceCharacterVoice: true,
+              addSensoryDetails: false
+            }
           }
+        });
+
+        console.log('📥 Enhancement edge function response:', {
+          hasData: !!enhancementResult,
+          hasError: !!enhancementError,
+          dataKeys: enhancementResult ? Object.keys(enhancementResult) : [],
+          errorDetails: enhancementError
         });
 
         if (enhancementError) {
@@ -57,11 +79,11 @@ export class SmartAnalysisOrchestrator {
           throw new Error(`Content enhancement failed: ${enhancementError.message}`);
         }
 
-        if (enhancementResult?.success && enhancementResult?.response) {
-          await RefinementService.updateRefinementContent(refinementData.id, enhancementResult.response);
-          console.log('Content enhanced successfully');
+        if (enhancementResult?.enhancedContent) {
+          await RefinementService.updateRefinementContent(refinementData.id, enhancementResult.enhancedContent);
+          console.log('✅ Content enhanced successfully, length:', enhancementResult.enhancedContent.length);
         } else {
-          console.warn('Enhancement service returned invalid response, using original content');
+          console.warn('Enhancement service returned no enhanced content, using original content');
           await RefinementService.updateRefinementContent(refinementData.id, chapter.content);
         }
       } catch (aiError) {
