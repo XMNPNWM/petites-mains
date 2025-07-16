@@ -49,20 +49,15 @@ const EditableSegmentedDisplay = ({
     }
   }, [editor, readOnly]);
 
-  if (!editor) {
-    return (
-      <div className="flex-1 p-4 flex items-center justify-center">
-        <div className="text-slate-500">Loading editor...</div>
-      </div>
-    );
-  }
+  // Always render the editor container, even when loading
+  // This prevents the "Loading editor..." state from persisting
 
   return (
     <EditorStylesProvider>
       <div className="flex-1 flex flex-col relative h-full">
-        {!readOnly && <RichTextBubbleMenu editor={editor} />}
+        {!readOnly && editor && <RichTextBubbleMenu editor={editor} />}
         <ScrollSyncHandler onScrollSync={onScrollSync} scrollPosition={scrollPosition}>
-          <ContentProcessor content={content} linesPerPage={linesPerPage}>
+          <ContentProcessor content={content || ""} linesPerPage={linesPerPage}>
             {(processedContent) => (
               <EditorCore
                 content={processedContent}
@@ -73,6 +68,13 @@ const EditableSegmentedDisplay = ({
             )}
           </ContentProcessor>
         </ScrollSyncHandler>
+        
+        {/* Show loading overlay only when editor is not ready */}
+        {!editor && (
+          <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+            <div className="text-slate-500">Loading editor...</div>
+          </div>
+        )}
       </div>
     </EditorStylesProvider>
   );

@@ -62,15 +62,32 @@ export class RefinementService {
   }
 
   static async updateRefinementContent(refinementId: string, content: string): Promise<void> {
-    const { error } = await supabase
-      .from('chapter_refinements')
-      .update({
-        enhanced_content: content,
-        refinement_status: 'in_progress',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', refinementId);
+    try {
+      console.log('📝 RefinementService: Updating refinement content:', {
+        refinementId,
+        contentLength: content?.length || 0,
+        contentPreview: content?.substring(0, 100) || '[empty]'
+      });
 
-    if (error) throw error;
+      const { data, error } = await supabase
+        .from('chapter_refinements')
+        .update({
+          enhanced_content: content,
+          refinement_status: 'in_progress',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', refinementId)
+        .select();
+
+      if (error) {
+        console.error('❌ RefinementService: Update failed:', error);
+        throw error;
+      }
+
+      console.log('✅ RefinementService: Content updated successfully:', data);
+    } catch (error) {
+      console.error('❌ RefinementService: Error updating refinement content:', error);
+      throw error;
+    }
   }
 }
