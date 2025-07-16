@@ -14,13 +14,14 @@ export const useLineBasedSegmentation = (content: string, linesPerPage: number =
     // Add proper null/undefined checks
     if (!content || typeof content !== 'string') return [];
     
-    // Clean content and preserve structure
+    // Clean content and preserve structure while maintaining proper spacing
     const cleanContent = content
-      .replace(/<p>/g, '\n')
-      .replace(/<\/p>/g, '\n')
+      .replace(/<p>/g, '\n\n')  // Add double line breaks for paragraphs
+      .replace(/<\/p>/g, '')    // Remove closing p tags
       .replace(/<br\s*\/?>/g, '\n')
-      .replace(/<[^>]*>/g, '') // Remove other HTML tags
-      .replace(/\n\s*\n/g, '\n\n') // Normalize multiple line breaks
+      .replace(/<[^>]*>/g, '')  // Remove other HTML tags
+      .replace(/\n{3,}/g, '\n\n')  // Normalize excessive line breaks to double
+      .replace(/^\n+|\n+$/g, '')   // Remove leading/trailing newlines
       .trim();
     
     // Handle empty content after cleaning

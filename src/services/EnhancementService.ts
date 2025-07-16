@@ -88,6 +88,12 @@ export class EnhancementService {
         if (enhancementResult?.enhancedContent) {
           await RefinementService.updateRefinementContent(refinementData.id, enhancementResult.enhancedContent);
           console.log('✅ Content enhanced successfully, length:', enhancementResult.enhancedContent.length);
+          
+          // Process and save individual changes to the ai_change_tracking table
+          if (enhancementResult.changes && Array.isArray(enhancementResult.changes)) {
+            console.log('💾 Saving change tracking data, count:', enhancementResult.changes.length);
+            await EnhancementService.saveChangeTrackingData(refinementData.id, enhancementResult.changes);
+          }
         } else {
           console.warn('Enhancement service returned no enhanced content, using original content');
           await RefinementService.updateRefinementContent(refinementData.id, chapter.content);
@@ -118,6 +124,49 @@ export class EnhancementService {
     } catch (error) {
       console.error('EnhancementService error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Save individual changes to the ai_change_tracking table
+   */
+  static async saveChangeTrackingData(refinementId: string, changes: any[]): Promise<void> {
+    try {
+      console.log('💾 Saving change tracking data for refinement:', refinementId);
+      
+      // First, clear existing changes for this refinement
+      await supabase
+        .from('ai_change_tracking')
+        .delete()
+        .eq('refinement_id', refinementId);
+      
+      // Insert new changes
+      const changeRecords = changes.map(change => ({
+        refinement_id: refinementId,
+        change_type: change.change_type || 'style',
+        original_text: change.original_text || '',
+        enhanced_text: change.enhanced_text || '',
+        position_start: change.position_start || 0,
+        position_end: change.position_end || 0,
+        confidence_score: change.confidence_score || 0.5,
+        user_decision: change.user_decision || 'pending'
+      }));
+      
+      if (changeRecords.length > 0) {
+        const { error } = await supabase
+          .from('ai_change_tracking')
+          .insert(changeRecords);
+        
+        if (error) {
+          console.error('Error saving change tracking data:', error);
+          throw error;
+        }
+        
+        console.log('✅ Successfully saved', changeRecords.length, 'change tracking records');
+      }
+    } catch (error) {
+      console.error('Error in saveChangeTrackingData:', error);
+      // Don't throw error here as change tracking is not critical for the main functionality
     }
   }
 }

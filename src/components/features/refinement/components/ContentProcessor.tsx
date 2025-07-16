@@ -17,13 +17,18 @@ const ContentProcessor = ({ content, linesPerPage, children }: ContentProcessorP
     if (!content) return '';
     if (segments.length <= 1) return content;
     
-    // Insert page breaks between segments
+    // Insert page breaks between segments while preserving formatting
     return segments
       .map((segment, index) => {
+        // Preserve content formatting and spacing
+        const formattedContent = segment.content
+          .replace(/\n/g, '<br>')  // Convert newlines to HTML breaks
+          .replace(/\n\n/g, '<br><br>');  // Double breaks for paragraphs
+        
         if (index === segments.length - 1) {
-          return segment.content;
+          return formattedContent;
         }
-        return segment.content + '<div data-type="page-break"></div>';
+        return formattedContent + '<div data-type="page-break"></div>';
       })
       .join('');
   }, [content, segments]);

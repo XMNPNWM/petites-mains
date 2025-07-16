@@ -273,6 +273,100 @@ function calculateShowVsTellRatio(content: string): number {
 }
 
 /**
+ * Generate change tracking data by comparing original and enhanced content
+ */
+function generateChangeTrackingData(originalContent: string, enhancedContent: string): any[] {
+  const changes: any[] = [];
+  
+  // Split content into sentences for comparison
+  const originalSentences = originalContent.split(/[.!?]+/).filter(s => s.trim());
+  const enhancedSentences = enhancedContent.split(/[.!?]+/).filter(s => s.trim());
+  
+  // Simple sentence-by-sentence comparison
+  let originalIndex = 0;
+  let enhancedIndex = 0;
+  let positionOffset = 0;
+  
+  while (originalIndex < originalSentences.length && enhancedIndex < enhancedSentences.length) {
+    const originalSentence = originalSentences[originalIndex]?.trim();
+    const enhancedSentence = enhancedSentences[enhancedIndex]?.trim();
+    
+    if (originalSentence && enhancedSentence) {
+      // Check if sentences are different enough to be considered a change
+      const similarity = calculateSimilarity(originalSentence, enhancedSentence);
+      
+      if (similarity < 0.85) { // If less than 85% similar, consider it a change
+        const changeType = determineChangeType(originalSentence, enhancedSentence);
+        const positionStart = positionOffset;
+        const positionEnd = positionOffset + originalSentence.length;
+        
+        changes.push({
+          change_type: changeType,
+          original_text: originalSentence,
+          enhanced_text: enhancedSentence,
+          position_start: positionStart,
+          position_end: positionEnd,
+          confidence_score: Math.max(0.6, similarity), // Use similarity as confidence
+          user_decision: 'pending'
+        });
+      }
+      
+      positionOffset += originalSentence.length + 1; // +1 for punctuation
+    }
+    
+    originalIndex++;
+    enhancedIndex++;
+  }
+  
+  return changes;
+}
+
+/**
+ * Calculate similarity between two strings (0-1 scale)
+ */
+function calculateSimilarity(str1: string, str2: string): number {
+  const words1 = str1.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+  const words2 = str2.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+  
+  const allWords = new Set([...words1, ...words2]);
+  const common = words1.filter(w => words2.includes(w)).length;
+  
+  return allWords.size > 0 ? (common * 2) / (words1.length + words2.length) : 0;
+}
+
+/**
+ * Determine the type of change based on content analysis
+ */
+function determineChangeType(original: string, enhanced: string): string {
+  // Simple heuristics to determine change type
+  const originalWords = original.split(/\s+/).length;
+  const enhancedWords = enhanced.split(/\s+/).length;
+  
+  // Check for grammar indicators
+  if (enhanced.match(/[.!?]/) && !original.match(/[.!?]/)) {
+    return 'grammar';
+  }
+  
+  // Check for punctuation changes
+  if (original.replace(/[^\w\s]/g, '') === enhanced.replace(/[^\w\s]/g, '')) {
+    return 'grammar';
+  }
+  
+  // Check for dialogue formatting
+  if (enhanced.includes('"') && original.includes('"')) {
+    return 'dialogue';
+  }
+  
+  // Check for structural changes
+  if (Math.abs(originalWords - enhancedWords) > 3) {
+    return 'structure';
+  }
+  
+  // Default to style for other changes
+  return 'style';
+}
+
+/**
  * Build sophisticated enhancement prompt
  */
 function buildEnhancementPrompt(
@@ -468,9 +562,18 @@ serve(async (req) => {
       readabilityImprovement: (improvedMetrics.readingEase - currentMetrics.readingEase).toFixed(2)
     });
 
+    // Generate change tracking data by comparing original and enhanced content
+    const changes = generateChangeTrackingData(contentToEnhance, enhancedContent);
+    
+    console.log('🔍 Generated change tracking data:', {
+      changesCount: changes.length,
+      changeTypes: changes.map(c => c.change_type)
+    });
+
     return new Response(JSON.stringify({
       success: true,
       enhancedContent,
+      changes: changes, // Include change tracking data
       metrics: {
         before: currentMetrics,
         after: improvedMetrics,
