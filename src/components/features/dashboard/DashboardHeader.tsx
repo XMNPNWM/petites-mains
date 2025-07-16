@@ -5,12 +5,14 @@ import { useNavigate } from 'react-router-dom';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProfile } from '@/hooks/useProfile';
 const DashboardHeader = () => {
   const navigate = useNavigate();
   const {
     user,
     signOut
   } = useAuth();
+  const { profile } = useProfile();
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
@@ -39,9 +41,9 @@ const DashboardHeader = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src="/placeholder.svg" alt="User avatar" />
+                    <AvatarImage src={profile?.avatar_url || undefined} alt="User avatar" />
                     <AvatarFallback>
-                      {getInitials(user?.user_metadata?.full_name)}
+                      {getInitials(profile?.full_name || user?.user_metadata?.full_name)}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
