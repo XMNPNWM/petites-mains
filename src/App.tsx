@@ -12,6 +12,7 @@ import ProjectDashboard from "./pages/ProjectDashboard";
 import WritingSpace from "./pages/WritingSpace";
 import RefinementSpace from "./pages/RefinementSpace";
 import AuthPage from "./pages/AuthPage";
+import LandingPage from "./pages/LandingPage";
 import ProfilePage from "./pages/ProfilePage";
 import SubscriptionPage from "./pages/SubscriptionPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
@@ -36,6 +37,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
+              <Route path="/landing" element={<LandingPage />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/" element={
                 <ProtectedRoute>
