@@ -140,7 +140,7 @@ const RefinementMainPanels = ({
       <ResizablePanel defaultSize={28} minSize={20} maxSize={40}>
         <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
           <EnhancedEditorPanel
-            content={refinementData?.enhanced_content || ''}
+            content={hasEnhancedContent ? (refinementData?.enhanced_content || '') : ''}
             onContentChange={onContentChange}
             chapterTitle={currentChapter?.title || ''}
             chapterId={currentChapter?.id}
