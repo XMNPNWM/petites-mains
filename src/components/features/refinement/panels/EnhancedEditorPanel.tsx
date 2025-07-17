@@ -14,6 +14,7 @@ interface EnhancedEditorPanelProps {
   content: string;
   onContentChange: (content: string) => void;
   chapterTitle: string;
+  chapterId?: string;
   onScrollSync?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
   scrollPosition?: number;
   isEnhancing?: boolean;
@@ -25,6 +26,7 @@ const EnhancedEditorPanel = ({
   content,
   onContentChange,
   chapterTitle,
+  chapterId,
   onScrollSync,
   scrollPosition,
   isEnhancing = false,
@@ -119,6 +121,7 @@ const EnhancedEditorPanel = ({
                 onEditorReady={setEditor}
                 linesPerPage={25}
                 readOnly={isEnhancing}
+                chapterKey={chapterId}
               />
             </div>
           </Card>

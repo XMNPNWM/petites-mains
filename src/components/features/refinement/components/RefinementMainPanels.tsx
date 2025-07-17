@@ -143,6 +143,7 @@ const RefinementMainPanels = ({
             content={refinementData?.enhanced_content || ''}
             onContentChange={onContentChange}
             chapterTitle={currentChapter?.title || ''}
+            chapterId={currentChapter?.id}
             onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
               handleScrollSync('enhanced', scrollTop, scrollHeight, clientHeight)
             }

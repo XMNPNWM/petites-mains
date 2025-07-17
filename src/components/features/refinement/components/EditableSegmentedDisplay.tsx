@@ -16,6 +16,7 @@ interface EditableSegmentedDisplayProps {
   onEditorReady?: (editor: any) => void;
   linesPerPage?: number;
   readOnly?: boolean;
+  chapterKey?: string; // Force remount when chapter changes
 }
 
 const EditableSegmentedDisplay = ({ 
@@ -26,7 +27,8 @@ const EditableSegmentedDisplay = ({
   placeholder = "Start writing...",
   onEditorReady,
   linesPerPage = 25,
-  readOnly = false
+  readOnly = false,
+  chapterKey
 }: EditableSegmentedDisplayProps) => {
   const [editor, setEditor] = useState<any>(null);
 
@@ -69,8 +71,9 @@ const EditableSegmentedDisplay = ({
           <ScrollSyncHandler onScrollSync={onScrollSync} scrollPosition={scrollPosition}>
             <ContentProcessor content={content || ""} linesPerPage={linesPerPage}>
               {(processedContent) => (
-                <ErrorBoundary>
+                <ErrorBoundary key={`editor-${chapterKey}`}>
                   <EditorCore
+                    key={`core-${chapterKey}`}
                     content={processedContent}
                     onContentChange={onContentChange}
                     onEditorReady={handleEditorReady}

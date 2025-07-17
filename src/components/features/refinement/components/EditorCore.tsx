@@ -75,20 +75,47 @@ const EditorCore = ({
   useEffect(() => {
     if (editor && !editor.isDestroyed && !isDestroyingRef.current) {
       const currentContent = editor.getHTML().replace(/<div[^>]*data-type="page-break"[^>]*>.*?<\/div>/g, '');
-      if (currentContent !== content) {
+      const incomingContent = content || '';
+      
+      // Debug logging
+      console.log('EditorCore content update:', {
+        incomingContentLength: incomingContent.length,
+        currentContentLength: currentContent.length,
+        contentChanged: currentContent !== incomingContent,
+        incomingPreview: incomingContent.substring(0, 100) + '...',
+        currentPreview: currentContent.substring(0, 100) + '...'
+      });
+      
+      // Always update if content is different, including empty content
+      if (currentContent !== incomingContent) {
         setIsUpdatingFromProp(true);
         
         try {
-          const { from, to } = editor.state.selection;
-          editor.commands.setContent(content, false);
+          // Store current selection if any
+          let selection = null;
+          try {
+            selection = editor.state.selection;
+          } catch (e) {
+            // Selection might not be available, that's ok
+          }
           
-          // Restore selection 
+          // Set new content
+          editor.commands.setContent(incomingContent, false);
+          console.log('EditorCore: Content updated successfully');
+          
+          // Restore selection if we had one and content is not empty
           setTimeout(() => {
             if (!editor.isDestroyed && !isDestroyingRef.current) {
-              try {
-                editor.commands.setTextSelection({ from, to });
-              } catch (e) {
-                // Selection restoration failed, ignore silently
+              if (selection && incomingContent.length > 0) {
+                try {
+                  const { from, to } = selection;
+                  const docSize = editor.state.doc.content.size;
+                  const safeFrom = Math.min(from, docSize);
+                  const safeTo = Math.min(to, docSize);
+                  editor.commands.setTextSelection({ from: safeFrom, to: safeTo });
+                } catch (e) {
+                  // Selection restoration failed, ignore silently
+                }
               }
               setIsUpdatingFromProp(false);
             }
@@ -97,6 +124,8 @@ const EditorCore = ({
           console.warn('Editor content update failed:', e);
           setIsUpdatingFromProp(false);
         }
+      } else {
+        console.log('EditorCore: Content unchanged, skipping update');
       }
     }
   }, [content, editor]);
