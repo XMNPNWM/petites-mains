@@ -35,6 +35,8 @@ const EditableSegmentedDisplay = ({
 
   // Enhanced editor ready handler with transition management
   const handleEditorReady = useCallback((editorInstance: any) => {
+    console.log('EditableSegmentedDisplay - Editor ready:', !!editorInstance, 'Content length:', content?.length || 0);
+    
     if (!editorInstance || editorInstance.isDestroyed) return;
     
     setEditor(editorInstance);
@@ -43,6 +45,7 @@ const EditableSegmentedDisplay = ({
     if (readOnly && !editorInstance.isDestroyed) {
       try {
         editorInstance.setEditable(!readOnly);
+        console.log('EditableSegmentedDisplay - Editor set to read-only');
       } catch (e) {
         console.warn('Failed to set editor editable state on ready:', e);
       }
@@ -51,7 +54,7 @@ const EditableSegmentedDisplay = ({
     if (onEditorReady) {
       onEditorReady(editorInstance);
     }
-  }, [readOnly, onEditorReady]);
+  }, [readOnly, onEditorReady, content]);
 
   // Enhanced read-only state management with transition buffering
   React.useEffect(() => {
@@ -69,6 +72,7 @@ const EditableSegmentedDisplay = ({
         if (editor && !editor.isDestroyed) {
           try {
             editor.setEditable(!readOnly);
+            console.log('EditableSegmentedDisplay - Editor editable state updated to:', !readOnly);
           } catch (e) {
             console.warn('Failed to update editor editable state:', e);
           }

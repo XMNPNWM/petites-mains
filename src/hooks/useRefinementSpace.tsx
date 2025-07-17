@@ -7,6 +7,7 @@ import { RefinementService } from '@/services/RefinementService';
 import { ChapterNavigationService } from '@/services/ChapterNavigationService';
 import { ContentVersioningService } from '@/services/ContentVersioningService';
 import { Chapter, RefinementData } from '@/types/shared';
+import { applyTextReplacement, optimizeParagraphs } from '@/lib/textUtils';
 
 export const useRefinementSpace = (projectId: string | undefined) => {
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
@@ -51,13 +52,19 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     if (!refinementData) return;
     
     try {
-      await RefinementService.updateRefinementContent(refinementData.id, content);
+      // Optimize paragraph organization
+      const optimizedContent = optimizeParagraphs(content);
+      
+      await RefinementService.updateRefinementContent(refinementData.id, optimizedContent);
       
       setRefinementData(prev => prev ? {
         ...prev,
-        enhanced_content: content,
+        enhanced_content: optimizedContent,
         refinement_status: 'in_progress'
       } : null);
+      
+      // Auto-save after content change
+      setLastSaved(new Date());
     } catch (error) {
       console.error('Error updating content:', error);
       toast({
@@ -69,13 +76,39 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   }, [refinementData, toast]);
 
   const handleChangeDecision = useCallback(async (changeId: string, decision: 'accepted' | 'rejected') => {
+    if (!refinementData) return;
+    
     try {
+      // First get the change details
+      const { data: change, error: changeError } = await supabase
+        .from('ai_change_tracking')
+        .select('*')
+        .eq('id', changeId)
+        .single();
+
+      if (changeError) throw changeError;
+
+      // Update the change decision in database
       const { error } = await supabase
         .from('ai_change_tracking')
         .update({ user_decision: decision })
         .eq('id', changeId);
 
       if (error) throw error;
+
+      // If change is rejected, apply the original text to enhanced content
+      if (decision === 'rejected' && change) {
+        const currentContent = refinementData.enhanced_content || '';
+        const newContent = applyTextReplacement(
+          currentContent,
+          change.position_start,
+          change.position_end,
+          change.original_text
+        );
+        
+        // Update the enhanced content
+        await handleContentChange(newContent);
+      }
       
       toast({
         title: "Change Updated",
@@ -89,9 +122,9 @@ export const useRefinementSpace = (projectId: string | undefined) => {
         variant: "destructive"
       });
     }
-  }, [toast]);
+  }, [toast, refinementData, handleContentChange]);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (isAutoSave = false) => {
     if (!refinementData || isSaving) return;
     
     setIsSaving(true);
@@ -99,10 +132,13 @@ export const useRefinementSpace = (projectId: string | undefined) => {
       await RefinementService.updateRefinementContent(refinementData.id, refinementData.enhanced_content);
       setLastSaved(new Date());
       
-      toast({
-        title: "Saved",
-        description: "Enhanced content saved successfully",
-      });
+      // Only show success toast for manual saves (not auto-saves)
+      if (!isAutoSave) {
+        toast({
+          title: "Saved",
+          description: "Enhanced content saved successfully",
+        });
+      }
     } catch (error) {
       console.error('Error saving:', error);
       toast({
