@@ -56,14 +56,19 @@ const EditableSegmentedDisplay = ({
     
     setEditor(editorInstance);
     
-    // Apply read-only state with transition buffer
+    // Clear transition state immediately when editor is ready - this fixes the loading overlay
+    setIsTransitioning(false);
+    
+    // Apply read-only state after clearing transition
     if (readOnly && !editorInstance.isDestroyed) {
-      try {
-        editorInstance.setEditable(!readOnly);
-        console.log('EditableSegmentedDisplay - Editor set to read-only');
-      } catch (e) {
-        console.warn('Failed to set editor editable state on ready:', e);
-      }
+      setTimeout(() => {
+        try {
+          editorInstance.setEditable(!readOnly);
+          console.log('EditableSegmentedDisplay - Editor set to read-only');
+        } catch (e) {
+          console.warn('Failed to set editor editable state on ready:', e);
+        }
+      }, 50);
     }
     
     if (onEditorReady) {

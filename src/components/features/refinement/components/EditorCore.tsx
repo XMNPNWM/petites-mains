@@ -59,9 +59,11 @@ const EditorCore = ({
       }
     },
     onCreate: ({ editor }) => {
+      console.log('EditorCore - Editor created, setting stable');
       // Mark editor as stable after creation
       setTimeout(() => {
         if (!isDestroyingRef.current) {
+          console.log('EditorCore - Editor marked as stable');
           setIsEditorStable(true);
         }
       }, 100);
@@ -119,6 +121,7 @@ const EditorCore = ({
   // Notify parent when editor is ready and stable
   useEffect(() => {
     if (editor && isEditorStable && onEditorReady && !isDestroyingRef.current) {
+      console.log('EditorCore - Notifying parent that editor is ready');
       onEditorReady(editor);
     }
   }, [editor, isEditorStable, onEditorReady]);
