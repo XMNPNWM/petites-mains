@@ -25,6 +25,7 @@ const EditorCore = ({
   const [isUpdatingFromProp, setIsUpdatingFromProp] = useState(false);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isDestroyingRef = useRef(false);
+  const lastContentRef = useRef<string>('');
 
   // Debounced content change handler 
   const debouncedContentChange = useCallback((content: string) => {
@@ -49,7 +50,7 @@ const EditorCore = ({
       SearchReplaceExtension,
       PageBreakExtension,
     ],
-    content,
+    content: content || '',
     editable: !readOnly,
     onUpdate: ({ editor }) => {
       if (!editor.isDestroyed && !isUpdatingFromProp) {
@@ -60,7 +61,20 @@ const EditorCore = ({
       }
     },
     onCreate: ({ editor }) => {
-      // Notify parent immediately when editor is created
+      console.log('EditorCore: Editor created for chapter:', chapterKey || 'none');
+      // Set initial content explicitly
+      const initialContent = content || '';
+      if (initialContent && !editor.isDestroyed) {
+        try {
+          editor.commands.setContent(initialContent, false);
+          lastContentRef.current = initialContent;
+          console.log('EditorCore: Initial content set, length:', initialContent.length);
+        } catch (e) {
+          console.warn('EditorCore: Failed to set initial content:', e);
+        }
+      }
+      
+      // Notify parent when editor is ready
       if (onEditorReady && !isDestroyingRef.current) {
         onEditorReady(editor);
       }
@@ -71,67 +85,45 @@ const EditorCore = ({
         spellcheck: 'true',
       },
     },
-  });
+  }, [chapterKey]); // Recreate editor when chapter changes
 
-  // Update editor content when content prop changes
+  // Force content update when content prop changes
   useEffect(() => {
-    if (editor && !editor.isDestroyed && !isDestroyingRef.current) {
-      const currentContent = editor.getHTML().replace(/<div[^>]*data-type="page-break"[^>]*>.*?<\/div>/g, '');
-      const incomingContent = content || '';
+    if (!editor || editor.isDestroyed || isDestroyingRef.current) return;
+    
+    const incomingContent = content || '';
+    
+    // Skip if content hasn't actually changed
+    if (lastContentRef.current === incomingContent) {
+      console.log('EditorCore: Content unchanged, skipping update');
+      return;
+    }
+    
+    console.log('EditorCore: Forcing content update for chapter:', chapterKey || 'none', {
+      incomingLength: incomingContent.length,
+      lastLength: lastContentRef.current.length,
+      preview: incomingContent.substring(0, 200) + (incomingContent.length > 200 ? '...' : '')
+    });
+    
+    setIsUpdatingFromProp(true);
+    
+    try {
+      // Force set content regardless of current state
+      editor.commands.setContent(incomingContent, false);
+      lastContentRef.current = incomingContent;
+      console.log('EditorCore: Content force-updated successfully');
       
-      // Debug logging with chapter key
-      console.log('EditorCore content update:', {
-        chapterKey: chapterKey || 'none',
-        incomingContentLength: incomingContent.length,
-        currentContentLength: currentContent.length,
-        contentChanged: currentContent !== incomingContent,
-        incomingPreview: incomingContent.substring(0, 100) + '...',
-        currentPreview: currentContent.substring(0, 100) + '...'
-      });
-      
-      // Always update if content is different, including empty content
-      if (currentContent !== incomingContent) {
-        setIsUpdatingFromProp(true);
-        
-        try {
-          // Store current selection if any
-          let selection = null;
-          try {
-            selection = editor.state.selection;
-          } catch (e) {
-            // Selection might not be available, that's ok
-          }
-          
-          // Set new content
-          editor.commands.setContent(incomingContent, false);
-          console.log('EditorCore: Content updated successfully');
-          
-          // Restore selection if we had one and content is not empty
-          setTimeout(() => {
-            if (!editor.isDestroyed && !isDestroyingRef.current) {
-              if (selection && incomingContent.length > 0) {
-                try {
-                  const { from, to } = selection;
-                  const docSize = editor.state.doc.content.size;
-                  const safeFrom = Math.min(from, docSize);
-                  const safeTo = Math.min(to, docSize);
-                  editor.commands.setTextSelection({ from: safeFrom, to: safeTo });
-                } catch (e) {
-                  // Selection restoration failed, ignore silently
-                }
-              }
-              setIsUpdatingFromProp(false);
-            }
-          }, 50);
-        } catch (e) {
-          console.warn('Editor content update failed:', e);
+      // Reset updating flag after a short delay
+      setTimeout(() => {
+        if (!isDestroyingRef.current) {
           setIsUpdatingFromProp(false);
         }
-      } else {
-        console.log('EditorCore: Content unchanged, skipping update');
-      }
+      }, 100);
+    } catch (error) {
+      console.error('EditorCore: Failed to update content:', error);
+      setIsUpdatingFromProp(false);
     }
-  }, [content, editor]);
+  }, [content, editor, chapterKey]);
 
   // Update read-only state
   useEffect(() => {
