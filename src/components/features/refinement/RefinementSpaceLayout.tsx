@@ -79,7 +79,10 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
               onImportToCreation={handleImportToCreation}
               isEnhancing={isAnalyzing}
               onEnhanceChapter={handleAnalyzeChapter}
-              hasEnhancedContent={!!refinementData?.enhanced_content && refinementData.enhanced_content !== refinementData.original_content}
+              hasEnhancedContent={!!refinementData?.enhanced_content && 
+                refinementData.enhanced_content !== refinementData.original_content &&
+                refinementData.enhanced_content.trim() !== '' &&
+                !(refinementData.original_content === '' && refinementData.enhanced_content)}
             />
           </ResizablePanel>
         </ResizablePanelGroup>
