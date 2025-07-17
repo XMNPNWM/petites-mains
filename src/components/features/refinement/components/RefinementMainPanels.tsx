@@ -114,7 +114,7 @@ const RefinementMainPanels = ({
       <ResizablePanel defaultSize={28} minSize={20} maxSize={40}>
         <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
           <OriginalTextPanel
-            content={refinementData?.original_content || ''}
+            content={currentChapter?.content || ''}
             chapterTitle={currentChapter?.title || ''}
             onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
               handleScrollSync('original', scrollTop, scrollHeight, clientHeight)

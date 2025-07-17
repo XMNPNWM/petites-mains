@@ -45,6 +45,14 @@ export const useRefinementSpace = (projectId: string | undefined) => {
           console.log('useRefinementSpace - Creating new refinement data for chapter:', chapter.title);
           data = await RefinementService.createRefinementData(chapterId, chapter.content || '');
         }
+      } else {
+        // Update original_content if it doesn't match current chapter content
+        const chapter = chapters.find(c => c.id === chapterId);
+        if (chapter && chapter.content !== data.original_content) {
+          console.log('useRefinementSpace - Syncing original_content with current chapter content');
+          await RefinementService.updateOriginalContent(data.id, chapter.content || '');
+          data.original_content = chapter.content || '';
+        }
       }
       
       console.log('useRefinementSpace - Final refinement data set:', {
