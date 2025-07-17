@@ -21,11 +21,10 @@ const EditorCore = ({
   readOnly = false
 }: EditorCoreProps) => {
   const [isUpdatingFromProp, setIsUpdatingFromProp] = useState(false);
-  const [isEditorStable, setIsEditorStable] = useState(false);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isDestroyingRef = useRef(false);
 
-  // Debounced content change handler to prevent rapid updates during state transitions
+  // Debounced content change handler 
   const debouncedContentChange = useCallback((content: string) => {
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
@@ -51,7 +50,7 @@ const EditorCore = ({
     content,
     editable: !readOnly,
     onUpdate: ({ editor }) => {
-      if (!editor.isDestroyed && !isUpdatingFromProp && isEditorStable) {
+      if (!editor.isDestroyed && !isUpdatingFromProp) {
         // Remove page break nodes when saving content
         const htmlContent = editor.getHTML();
         const cleanContent = htmlContent.replace(/<div[^>]*data-type="page-break"[^>]*>.*?<\/div>/g, '');
@@ -59,14 +58,10 @@ const EditorCore = ({
       }
     },
     onCreate: ({ editor }) => {
-      console.log('EditorCore - Editor created, setting stable');
-      // Mark editor as stable after creation
-      setTimeout(() => {
-        if (!isDestroyingRef.current) {
-          console.log('EditorCore - Editor marked as stable');
-          setIsEditorStable(true);
-        }
-      }, 100);
+      // Notify parent immediately when editor is created
+      if (onEditorReady && !isDestroyingRef.current) {
+        onEditorReady(editor);
+      }
     },
     editorProps: {
       attributes: {
@@ -76,9 +71,9 @@ const EditorCore = ({
     },
   });
 
-  // Update editor content when content prop changes with proper error handling
+  // Update editor content when content prop changes
   useEffect(() => {
-    if (editor && !editor.isDestroyed && isEditorStable && !isDestroyingRef.current) {
+    if (editor && !editor.isDestroyed && !isDestroyingRef.current) {
       const currentContent = editor.getHTML().replace(/<div[^>]*data-type="page-break"[^>]*>.*?<\/div>/g, '');
       if (currentContent !== content) {
         setIsUpdatingFromProp(true);
@@ -87,7 +82,7 @@ const EditorCore = ({
           const { from, to } = editor.state.selection;
           editor.commands.setContent(content, false);
           
-          // Restore selection with error handling
+          // Restore selection 
           setTimeout(() => {
             if (!editor.isDestroyed && !isDestroyingRef.current) {
               try {
@@ -99,34 +94,25 @@ const EditorCore = ({
             }
           }, 50);
         } catch (e) {
-          // Content update failed
           console.warn('Editor content update failed:', e);
           setIsUpdatingFromProp(false);
         }
       }
     }
-  }, [content, editor, isEditorStable]);
+  }, [content, editor]);
 
-  // Update read-only state with proper synchronization
+  // Update read-only state
   useEffect(() => {
-    if (editor && !editor.isDestroyed && isEditorStable && !isDestroyingRef.current) {
+    if (editor && !editor.isDestroyed && !isDestroyingRef.current) {
       try {
         editor.setEditable(!readOnly);
       } catch (e) {
         console.warn('Failed to update editor editable state:', e);
       }
     }
-  }, [editor, readOnly, isEditorStable]);
+  }, [editor, readOnly]);
 
-  // Notify parent when editor is ready and stable
-  useEffect(() => {
-    if (editor && isEditorStable && onEditorReady && !isDestroyingRef.current) {
-      console.log('EditorCore - Notifying parent that editor is ready');
-      onEditorReady(editor);
-    }
-  }, [editor, isEditorStable, onEditorReady]);
-
-  // Cleanup on unmount with proper error handling
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       isDestroyingRef.current = true;

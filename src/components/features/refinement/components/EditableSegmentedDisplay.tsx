@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import RichTextBubbleMenu from './RichTextBubbleMenu';
 import EditorCore from './EditorCore';
 import ScrollSyncHandler from './ScrollSyncHandler';
@@ -30,24 +30,8 @@ const EditableSegmentedDisplay = ({
 }: EditableSegmentedDisplayProps) => {
   const [editor, setEditor] = useState<any>(null);
 
-  // Debug content changes
-  React.useEffect(() => {
-    console.log('EditableSegmentedDisplay - Content prop changed:', {
-      hasContent: !!content,
-      contentLength: content?.length || 0,
-      contentPreview: content?.substring(0, 100) + (content?.length > 100 ? '...' : ''),
-      hasEditor: !!editor
-    });
-  }, [content, editor]);
-
-  // Simplified editor ready handler - no complex state management
+  // Simplified editor ready handler - immediate callback
   const handleEditorReady = useCallback((editorInstance: any) => {
-    console.log('EditableSegmentedDisplay - Editor ready:', {
-      hasEditor: !!editorInstance,
-      contentLength: content?.length || 0,
-      readOnly
-    });
-    
     if (!editorInstance || editorInstance.isDestroyed) return;
     
     setEditor(editorInstance);
@@ -56,7 +40,6 @@ const EditableSegmentedDisplay = ({
     if (readOnly && !editorInstance.isDestroyed) {
       try {
         editorInstance.setEditable(!readOnly);
-        console.log('EditableSegmentedDisplay - Editor set to read-only');
       } catch (e) {
         console.warn('Failed to set editor editable state on ready:', e);
       }
@@ -72,15 +55,11 @@ const EditableSegmentedDisplay = ({
     if (editor && !editor.isDestroyed) {
       try {
         editor.setEditable(!readOnly);
-        console.log('EditableSegmentedDisplay - Editor editable state updated to:', !readOnly);
       } catch (e) {
         console.warn('Failed to update editor editable state:', e);
       }
     }
   }, [editor, readOnly]);
-
-  // Always render the editor container, even when loading
-  // This prevents the "Loading editor..." state from persisting
 
   return (
     <ErrorBoundary>
@@ -102,13 +81,6 @@ const EditableSegmentedDisplay = ({
               )}
             </ContentProcessor>
           </ScrollSyncHandler>
-          
-          {/* Show loading overlay only when editor is not ready */}
-          {!editor && (
-            <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-              <div className="text-slate-500">Loading editor...</div>
-            </div>
-          )}
         </div>
       </EditorStylesProvider>
     </ErrorBoundary>
