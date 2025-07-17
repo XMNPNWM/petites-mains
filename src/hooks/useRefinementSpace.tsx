@@ -62,7 +62,17 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     }
   }, [chapters]);
 
-  const handleChapterSelect = useCallback((chapter: Chapter) => {
+  const handleChapterSelect = useCallback(async (chapter: Chapter) => {
+    // Save current changes before switching chapters
+    if (refinementData && isSaving === false) {
+      try {
+        await RefinementService.updateRefinementContent(refinementData.id, refinementData.enhanced_content);
+        console.log('useRefinementSpace - Saved changes before chapter switch');
+      } catch (error) {
+        console.error('Error saving before chapter switch:', error);
+      }
+    }
+    
     setCurrentChapter(chapter);
     
     // Save selected chapter for cross-space navigation
@@ -72,10 +82,20 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     
     // Navigate to the new chapter URL to sync URL with selected chapter
     navigate(`/project/${projectId}/refine/${chapter.id}`);
-  }, [projectId, navigate]);
+  }, [projectId, navigate, refinementData, isSaving]);
 
-  const handleContentChange = useCallback(async (content: string) => {
+  const handleContentChange = useCallback(async (content: string, isUserEdit = true) => {
     if (!refinementData) return;
+    
+    // Only save to database if this is a real user edit
+    if (!isUserEdit) {
+      // Just update local state for display purposes
+      setRefinementData(prev => prev ? {
+        ...prev,
+        enhanced_content: content
+      } : null);
+      return;
+    }
     
     try {
       // Optimize paragraph organization
