@@ -47,7 +47,7 @@ export class RefinementService {
         .insert({
           chapter_id: chapterId,
           original_content: originalContent,
-          enhanced_content: originalContent,
+          enhanced_content: null, // Set to null for new refinement records
           refinement_status: 'untouched'
         })
         .select()
