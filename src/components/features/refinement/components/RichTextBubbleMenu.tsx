@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Editor, BubbleMenu } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
 import { Bold, Italic } from 'lucide-react';
@@ -9,17 +9,46 @@ interface RichTextBubbleMenuProps {
 }
 
 const RichTextBubbleMenu = ({ editor }: RichTextBubbleMenuProps) => {
-  if (!editor || editor.isDestroyed) return null;
+  const [isStable, setIsStable] = useState(false);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) {
+      setIsStable(false);
+      return;
+    }
+
+    // Add small delay to ensure editor is fully initialized
+    const timer = setTimeout(() => {
+      if (!editor.isDestroyed) {
+        setIsStable(true);
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      setIsStable(false);
+    };
+  }, [editor]);
+
+  if (!editor || editor.isDestroyed || !isStable) return null;
 
   const handleBold = () => {
-    if (!editor.isDestroyed) {
-      editor.chain().focus().toggleBold().run();
+    try {
+      if (!editor.isDestroyed) {
+        editor.chain().focus().toggleBold().run();
+      }
+    } catch (error) {
+      console.warn('Error toggling bold:', error);
     }
   };
 
   const handleItalic = () => {
-    if (!editor.isDestroyed) {
-      editor.chain().focus().toggleItalic().run();
+    try {
+      if (!editor.isDestroyed) {
+        editor.chain().focus().toggleItalic().run();
+      }
+    } catch (error) {
+      console.warn('Error toggling italic:', error);
     }
   };
 
@@ -28,17 +57,21 @@ const RichTextBubbleMenu = ({ editor }: RichTextBubbleMenuProps) => {
       editor={editor} 
       tippyOptions={{ 
         duration: 100,
-        appendTo: () => document.body,
         placement: 'top',
         zIndex: 1000,
         interactive: true,
-        trigger: 'mouseenter focus',
         hideOnClick: false
       }}
       shouldShow={({ editor, state }) => {
-        const { selection } = state;
-        const { empty } = selection;
-        return !empty && !editor.isDestroyed;
+        try {
+          if (!editor || editor.isDestroyed) return false;
+          const { selection } = state;
+          const { empty } = selection;
+          return !empty && !editor.isDestroyed;
+        } catch (error) {
+          console.warn('Error in BubbleMenu shouldShow:', error);
+          return false;
+        }
       }}
     >
       <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-1 flex items-center space-x-1 z-50">
