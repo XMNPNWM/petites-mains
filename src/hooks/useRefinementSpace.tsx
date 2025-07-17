@@ -25,8 +25,6 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     
     console.log('useRefinementSpace - Fetching refinement data for chapter:', chapterId);
     
-    // Clear existing data immediately to prevent showing wrong content
-    setRefinementData(null);
     setIsLoadingRefinementData(true);
     
     try {
