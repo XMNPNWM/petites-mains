@@ -248,8 +248,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
       const targetChapter = chapters.find(c => c.id === urlChapterId);
       if (targetChapter && (!currentChapter || currentChapter.id !== urlChapterId)) {
         console.log('useRefinementSpace - URL mismatch, setting current chapter from URL:', targetChapter.title, urlChapterId);
-        // Clear refinement data immediately to prevent showing wrong content
-        setRefinementData(null);
+        // Only set current chapter - let the main chapter effect handle data fetching
         setCurrentChapter(targetChapter);
       }
     }
