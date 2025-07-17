@@ -22,19 +22,38 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   const fetchRefinementData = useCallback(async (chapterId: string) => {
     if (!chapterId) return;
     
+    console.log('useRefinementSpace - Fetching refinement data for chapter:', chapterId);
+    
     try {
       let data = await RefinementService.fetchRefinementData(chapterId);
+      
+      console.log('useRefinementSpace - Initial refinement data fetch result:', {
+        hasData: !!data,
+        chapterId: data?.chapter_id,
+        hasOriginalContent: !!data?.original_content,
+        hasEnhancedContent: !!data?.enhanced_content,
+        enhancedContentLength: data?.enhanced_content?.length || 0,
+        status: data?.refinement_status
+      });
       
       if (!data) {
         const chapter = chapters.find(c => c.id === chapterId);
         if (chapter) {
+          console.log('useRefinementSpace - Creating new refinement data for chapter:', chapter.title);
           data = await RefinementService.createRefinementData(chapterId, chapter.content || '');
         }
       }
       
+      console.log('useRefinementSpace - Final refinement data set:', {
+        hasData: !!data,
+        hasEnhancedContent: !!data?.enhanced_content,
+        enhancedContentLength: data?.enhanced_content?.length || 0
+      });
+      
       setRefinementData(data);
     } catch (error) {
       console.error('Error fetching refinement data:', error);
+      setRefinementData(null);
     }
   }, [chapters]);
 
@@ -210,9 +229,22 @@ export const useRefinementSpace = (projectId: string | undefined) => {
 
   useEffect(() => {
     if (currentChapter) {
+      console.log('useRefinementSpace - Current chapter changed, fetching refinement data for:', currentChapter.title, currentChapter.id);
       fetchRefinementData(currentChapter.id);
     }
   }, [currentChapter, fetchRefinementData]);
+
+  // Handle URL chapter ID synchronization
+  useEffect(() => {
+    const urlChapterId = window.location.pathname.split('/').pop();
+    if (urlChapterId && chapters.length > 0) {
+      const targetChapter = chapters.find(c => c.id === urlChapterId);
+      if (targetChapter && (!currentChapter || currentChapter.id !== urlChapterId)) {
+        console.log('useRefinementSpace - URL mismatch, setting current chapter from URL:', targetChapter.title, urlChapterId);
+        setCurrentChapter(targetChapter);
+      }
+    }
+  }, [chapters, currentChapter]);
 
   return {
     project,

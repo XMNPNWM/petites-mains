@@ -33,9 +33,24 @@ const EditableSegmentedDisplay = ({
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previousReadOnlyRef = useRef(readOnly);
 
+  // Debug content changes
+  React.useEffect(() => {
+    console.log('EditableSegmentedDisplay - Content prop changed:', {
+      hasContent: !!content,
+      contentLength: content?.length || 0,
+      contentPreview: content?.substring(0, 100) + (content?.length > 100 ? '...' : ''),
+      hasEditor: !!editor
+    });
+  }, [content, editor]);
+
   // Enhanced editor ready handler with transition management
   const handleEditorReady = useCallback((editorInstance: any) => {
-    console.log('EditableSegmentedDisplay - Editor ready:', !!editorInstance, 'Content length:', content?.length || 0);
+    console.log('EditableSegmentedDisplay - Editor ready:', {
+      hasEditor: !!editorInstance,
+      contentLength: content?.length || 0,
+      content: content?.substring(0, 100) + (content?.length > 100 ? '...' : ''),
+      readOnly
+    });
     
     if (!editorInstance || editorInstance.isDestroyed) return;
     
