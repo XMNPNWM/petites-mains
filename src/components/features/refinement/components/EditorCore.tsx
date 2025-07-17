@@ -87,31 +87,25 @@ const EditorCore = ({
     },
   }, [chapterKey]); // Recreate editor when chapter changes
 
-  // Force content update when content prop changes
+  // Force content update when content prop changes - simplified and more reliable
   useEffect(() => {
     if (!editor || editor.isDestroyed || isDestroyingRef.current) return;
     
     const incomingContent = content || '';
     
-    // Skip if content hasn't actually changed
-    if (lastContentRef.current === incomingContent) {
-      console.log('EditorCore: Content unchanged, skipping update');
-      return;
-    }
-    
-    console.log('EditorCore: Forcing content update for chapter:', chapterKey || 'none', {
+    console.log('EditorCore: Content prop changed for chapter:', chapterKey || 'none', {
       incomingLength: incomingContent.length,
-      lastLength: lastContentRef.current.length,
-      preview: incomingContent.substring(0, 200) + (incomingContent.length > 200 ? '...' : '')
+      currentEditorLength: editor.getHTML().length,
+      preview: incomingContent.substring(0, 100) + (incomingContent.length > 100 ? '...' : '')
     });
     
     setIsUpdatingFromProp(true);
     
     try {
-      // Force set content regardless of current state
+      // Always set content to ensure synchronization
       editor.commands.setContent(incomingContent, false);
       lastContentRef.current = incomingContent;
-      console.log('EditorCore: Content force-updated successfully');
+      console.log('EditorCore: Content updated successfully');
       
       // Reset updating flag after a short delay
       setTimeout(() => {
@@ -123,7 +117,35 @@ const EditorCore = ({
       console.error('EditorCore: Failed to update content:', error);
       setIsUpdatingFromProp(false);
     }
-  }, [content, editor, chapterKey]);
+  }, [content, editor]);
+
+  // Separate effect for chapter key changes - ensures clean state per chapter
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || isDestroyingRef.current) return;
+    
+    console.log('EditorCore: Chapter key changed:', chapterKey);
+    
+    // Force refresh content when chapter changes
+    const currentContent = content || '';
+    if (currentContent) {
+      console.log('EditorCore: Forcing content refresh for new chapter, length:', currentContent.length);
+      setIsUpdatingFromProp(true);
+      
+      try {
+        editor.commands.setContent(currentContent, false);
+        lastContentRef.current = currentContent;
+        
+        setTimeout(() => {
+          if (!isDestroyingRef.current) {
+            setIsUpdatingFromProp(false);
+          }
+        }, 100);
+      } catch (error) {
+        console.error('EditorCore: Failed to refresh content for chapter change:', error);
+        setIsUpdatingFromProp(false);
+      }
+    }
+  }, [chapterKey, editor]);
 
   // Update read-only state
   useEffect(() => {
