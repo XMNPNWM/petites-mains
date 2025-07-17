@@ -64,7 +64,6 @@ export const useRefinementSpace = (projectId: string | undefined) => {
 
   const handleChapterSelect = useCallback((chapter: Chapter) => {
     setCurrentChapter(chapter);
-    fetchRefinementData(chapter.id);
     
     // Save selected chapter for cross-space navigation
     if (projectId) {
@@ -73,7 +72,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     
     // Navigate to the new chapter URL to sync URL with selected chapter
     navigate(`/project/${projectId}/refine/${chapter.id}`);
-  }, [fetchRefinementData, projectId, navigate]);
+  }, [projectId, navigate]);
 
   const handleContentChange = useCallback(async (content: string) => {
     if (!refinementData) return;
