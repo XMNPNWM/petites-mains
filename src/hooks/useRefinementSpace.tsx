@@ -46,7 +46,10 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     if (projectId) {
       ChapterNavigationService.setCurrentChapter(projectId, chapter.id);
     }
-  }, [fetchRefinementData, projectId]);
+    
+    // Navigate to the new chapter URL to sync URL with selected chapter
+    navigate(`/project/${projectId}/refine/${chapter.id}`);
+  }, [fetchRefinementData, projectId, navigate]);
 
   const handleContentChange = useCallback(async (content: string) => {
     if (!refinementData) return;

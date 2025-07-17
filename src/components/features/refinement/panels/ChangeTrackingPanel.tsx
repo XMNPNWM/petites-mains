@@ -115,22 +115,23 @@ const ChangeTrackingPanel = ({
   };
 
   return (
-    <div className="h-full bg-slate-50 p-4 flex flex-col">
+    <div className="h-full bg-slate-50 p-4 flex flex-col overflow-hidden">
       <ChangeTrackingHeader 
         changesCount={changes.length} 
         chapterId={chapterId}
         chapterTitle={chapterTitle}
       />
       
-      <Card className="flex-1 flex flex-col">
-        <CardHeader className="pb-3">
+      <Card className="flex-1 flex flex-col min-h-0">
+        <CardHeader className="pb-3 flex-shrink-0">
           <CardTitle className="text-sm text-slate-700">AI Modifications</CardTitle>
         </CardHeader>
-        <CardContent className="flex-1 pt-0 overflow-hidden">
+        <CardContent className="flex-1 pt-0 overflow-hidden min-h-0">
           <div 
             ref={scrollContainerRef}
-            className="h-full overflow-y-auto"
+            className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100"
             onScroll={handleScroll}
+            style={{ maxHeight: '100%' }}
           >
             <ChangeList
               changes={changes}
