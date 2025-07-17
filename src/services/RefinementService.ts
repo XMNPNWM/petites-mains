@@ -61,13 +61,36 @@ export class RefinementService {
     }
   }
 
-  static async updateRefinementContent(refinementId: string, content: string): Promise<void> {
+  static async updateRefinementContent(refinementId: string, content: string, expectedChapterId?: string): Promise<void> {
     try {
       console.log('📝 RefinementService: Updating refinement content:', {
         refinementId,
+        expectedChapterId,
         contentLength: content?.length || 0,
         contentPreview: content?.substring(0, 100) || '[empty]'
       });
+
+      // Validation: Verify refinement belongs to expected chapter
+      if (expectedChapterId) {
+        const { data: existingData, error: fetchError } = await supabase
+          .from('chapter_refinements')
+          .select('chapter_id, id')
+          .eq('id', refinementId)
+          .single();
+
+        if (fetchError) {
+          console.error('❌ RefinementService: Failed to validate refinement:', fetchError);
+          throw fetchError;
+        }
+
+        if (existingData.chapter_id !== expectedChapterId) {
+          const error = new Error(`Chapter ID mismatch! Expected: ${expectedChapterId}, Found: ${existingData.chapter_id}`);
+          console.error('❌ RefinementService: Chapter validation failed:', error.message);
+          throw error;
+        }
+
+        console.log('✅ RefinementService: Chapter validation passed');
+      }
 
       const { data, error } = await supabase
         .from('chapter_refinements')
@@ -77,14 +100,14 @@ export class RefinementService {
           updated_at: new Date().toISOString()
         })
         .eq('id', refinementId)
-        .select();
+        .select('id, chapter_id');
 
       if (error) {
         console.error('❌ RefinementService: Update failed:', error);
         throw error;
       }
 
-      console.log('✅ RefinementService: Content updated successfully:', data);
+      console.log('✅ RefinementService: Content updated successfully for chapter:', data?.[0]?.chapter_id);
     } catch (error) {
       console.error('❌ RefinementService: Error updating refinement content:', error);
       throw error;

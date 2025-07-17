@@ -81,7 +81,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
       // Optimize paragraph organization
       const optimizedContent = optimizeParagraphs(content);
       
-      await RefinementService.updateRefinementContent(refinementData.id, optimizedContent);
+      await RefinementService.updateRefinementContent(refinementData.id, optimizedContent, currentChapter?.id);
       
       setRefinementData(prev => prev ? {
         ...prev,
@@ -155,7 +155,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     
     setIsSaving(true);
     try {
-      await RefinementService.updateRefinementContent(refinementData.id, refinementData.enhanced_content);
+      await RefinementService.updateRefinementContent(refinementData.id, refinementData.enhanced_content, currentChapter?.id);
       setLastSaved(new Date());
       
       // Only show success toast for manual saves (not auto-saves)
