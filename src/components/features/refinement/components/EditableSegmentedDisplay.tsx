@@ -29,9 +29,6 @@ const EditableSegmentedDisplay = ({
   readOnly = false
 }: EditableSegmentedDisplayProps) => {
   const [editor, setEditor] = useState<any>(null);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const previousReadOnlyRef = useRef(readOnly);
 
   // Debug content changes
   React.useEffect(() => {
@@ -43,12 +40,11 @@ const EditableSegmentedDisplay = ({
     });
   }, [content, editor]);
 
-  // Enhanced editor ready handler with transition management
+  // Simplified editor ready handler - no complex state management
   const handleEditorReady = useCallback((editorInstance: any) => {
     console.log('EditableSegmentedDisplay - Editor ready:', {
       hasEditor: !!editorInstance,
       contentLength: content?.length || 0,
-      content: content?.substring(0, 100) + (content?.length > 100 ? '...' : ''),
       readOnly
     });
     
@@ -56,57 +52,31 @@ const EditableSegmentedDisplay = ({
     
     setEditor(editorInstance);
     
-    // Clear transition state immediately when editor is ready - this fixes the loading overlay
-    setIsTransitioning(false);
-    
-    // Apply read-only state after clearing transition
+    // Apply read-only state immediately if needed
     if (readOnly && !editorInstance.isDestroyed) {
-      setTimeout(() => {
-        try {
-          editorInstance.setEditable(!readOnly);
-          console.log('EditableSegmentedDisplay - Editor set to read-only');
-        } catch (e) {
-          console.warn('Failed to set editor editable state on ready:', e);
-        }
-      }, 50);
+      try {
+        editorInstance.setEditable(!readOnly);
+        console.log('EditableSegmentedDisplay - Editor set to read-only');
+      } catch (e) {
+        console.warn('Failed to set editor editable state on ready:', e);
+      }
     }
     
     if (onEditorReady) {
       onEditorReady(editorInstance);
     }
-  }, [readOnly, onEditorReady, content]);
+  }, [readOnly, onEditorReady]);
 
-  // Enhanced read-only state management with transition buffering
+  // Simple read-only state management
   React.useEffect(() => {
-    // If readOnly state is changing, add a transition buffer
-    if (previousReadOnlyRef.current !== readOnly) {
-      setIsTransitioning(true);
-      
-      // Clear any existing timeout
-      if (transitionTimeoutRef.current) {
-        clearTimeout(transitionTimeoutRef.current);
+    if (editor && !editor.isDestroyed) {
+      try {
+        editor.setEditable(!readOnly);
+        console.log('EditableSegmentedDisplay - Editor editable state updated to:', !readOnly);
+      } catch (e) {
+        console.warn('Failed to update editor editable state:', e);
       }
-      
-      // Buffer the transition to prevent rapid state changes
-      transitionTimeoutRef.current = setTimeout(() => {
-        if (editor && !editor.isDestroyed) {
-          try {
-            editor.setEditable(!readOnly);
-            console.log('EditableSegmentedDisplay - Editor editable state updated to:', !readOnly);
-          } catch (e) {
-            console.warn('Failed to update editor editable state:', e);
-          }
-        }
-        setIsTransitioning(false);
-        previousReadOnlyRef.current = readOnly;
-      }, 150); // 150ms buffer to prevent rapid transitions
     }
-    
-    return () => {
-      if (transitionTimeoutRef.current) {
-        clearTimeout(transitionTimeoutRef.current);
-      }
-    };
   }, [editor, readOnly]);
 
   // Always render the editor container, even when loading
@@ -116,7 +86,7 @@ const EditableSegmentedDisplay = ({
     <ErrorBoundary>
       <EditorStylesProvider>
         <div className="flex-1 flex flex-col relative h-full">
-          {!readOnly && editor && !isTransitioning && <RichTextBubbleMenu editor={editor} />}
+          {!readOnly && editor && <RichTextBubbleMenu editor={editor} />}
           <ScrollSyncHandler onScrollSync={onScrollSync} scrollPosition={scrollPosition}>
             <ContentProcessor content={content || ""} linesPerPage={linesPerPage}>
               {(processedContent) => (
@@ -133,12 +103,10 @@ const EditableSegmentedDisplay = ({
             </ContentProcessor>
           </ScrollSyncHandler>
           
-          {/* Show loading overlay when editor is not ready or transitioning */}
-          {(!editor || isTransitioning) && (
+          {/* Show loading overlay only when editor is not ready */}
+          {!editor && (
             <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-              <div className="text-slate-500">
-                {isTransitioning ? "Updating editor..." : "Loading editor..."}
-              </div>
+              <div className="text-slate-500">Loading editor...</div>
             </div>
           )}
         </div>

@@ -274,55 +274,58 @@ function calculateShowVsTellRatio(content: string): number {
 
 /**
  * Generate change tracking data by comparing original and enhanced content
+ * Uses paragraph-aware comparison to preserve formatting structure
  */
 function generateChangeTrackingData(originalContent: string, enhancedContent: string): any[] {
   const changes: any[] = [];
   
-  // Split content into sentences for comparison
-  const originalSentences = originalContent.split(/[.!?]+/).filter(s => s.trim());
-  const enhancedSentences = enhancedContent.split(/[.!?]+/).filter(s => s.trim());
+  // Split content into paragraphs first to maintain structure
+  const originalParagraphs = originalContent.split(/\n\s*\n/).filter(p => p.trim());
+  const enhancedParagraphs = enhancedContent.split(/\n\s*\n/).filter(p => p.trim());
   
-  // Simple sentence-by-sentence comparison
-  let originalIndex = 0;
-  let enhancedIndex = 0;
+  // Paragraph-by-paragraph comparison
   let positionOffset = 0;
+  const maxParagraphs = Math.max(originalParagraphs.length, enhancedParagraphs.length);
   
-  while (originalIndex < originalSentences.length && enhancedIndex < enhancedSentences.length) {
-    const originalSentence = originalSentences[originalIndex]?.trim();
-    const enhancedSentence = enhancedSentences[enhancedIndex]?.trim();
+  for (let i = 0; i < maxParagraphs; i++) {
+    const originalParagraph = originalParagraphs[i]?.trim() || '';
+    const enhancedParagraph = enhancedParagraphs[i]?.trim() || '';
     
-    if (originalSentence && enhancedSentence) {
-      // Check if sentences are different enough to be considered a change
-      const similarity = calculateSimilarity(originalSentence, enhancedSentence);
+    if (originalParagraph && enhancedParagraph) {
+      // Calculate paragraph-level similarity using word-based comparison
+      const similarity = calculateParagraphSimilarity(originalParagraph, enhancedParagraph);
       
-      if (similarity < 0.85) { // If less than 85% similar, consider it a change
-        const changeType = determineChangeType(originalSentence, enhancedSentence);
-        const positionStart = positionOffset;
-        const positionEnd = positionOffset + originalSentence.length;
+      // Only flag as change if similarity is below threshold AND changes are substantial
+      if (similarity < 0.75 && Math.abs(originalParagraph.length - enhancedParagraph.length) > 20) {
+        const changeType = determineChangeType(originalParagraph, enhancedParagraph);
+        
+        // Skip "structure" changes if they're just formatting differences
+        if (changeType === 'structure' && similarity > 0.6) {
+          continue; // This is likely just formatting, not a real structural change
+        }
         
         changes.push({
           change_type: changeType,
-          original_text: originalSentence,
-          enhanced_text: enhancedSentence,
-          position_start: positionStart,
-          position_end: positionEnd,
-          confidence_score: Math.max(0.6, similarity), // Use similarity as confidence
+          original_text: originalParagraph,
+          enhanced_text: enhancedParagraph,
+          position_start: positionOffset,
+          position_end: positionOffset + originalParagraph.length,
+          confidence_score: Math.max(0.7, similarity), // Higher baseline confidence
           user_decision: 'pending'
         });
       }
       
-      positionOffset += originalSentence.length + 1; // +1 for punctuation
+      positionOffset += originalParagraph.length + 2; // +2 for paragraph break
+    } else {
+      positionOffset += originalParagraph.length + 2;
     }
-    
-    originalIndex++;
-    enhancedIndex++;
   }
   
   return changes;
 }
 
 /**
- * Calculate similarity between two strings (0-1 scale)
+ * Calculate similarity between two strings using word overlap (0-1 scale)
  */
 function calculateSimilarity(str1: string, str2: string): number {
   const words1 = str1.toLowerCase().split(/\s+/).filter(w => w.length > 0);
@@ -335,34 +338,113 @@ function calculateSimilarity(str1: string, str2: string): number {
 }
 
 /**
+ * Calculate paragraph-level similarity with better semantic understanding
+ */
+function calculateParagraphSimilarity(paragraph1: string, paragraph2: string): number {
+  // Remove punctuation and normalize text for better comparison
+  const normalize = (text: string) => text.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  const norm1 = normalize(paragraph1);
+  const norm2 = normalize(paragraph2);
+  
+  // If paragraphs are very similar after normalization, high similarity
+  if (norm1 === norm2) return 1.0;
+  
+  // Calculate word-level similarity
+  const words1 = norm1.split(/\s+/).filter(w => w.length > 2); // Filter short words
+  const words2 = norm2.split(/\s+/).filter(w => w.length > 2);
+  
+  if (words1.length === 0 && words2.length === 0) return 1.0;
+  if (words1.length === 0 || words2.length === 0) return 0.0;
+  
+  // Calculate Jaccard similarity for better semantic matching
+  const set1 = new Set(words1);
+  const set2 = new Set(words2);
+  const intersection = new Set([...set1].filter(x => set2.has(x)));
+  const union = new Set([...set1, ...set2]);
+  
+  const jaccardSimilarity = intersection.size / union.size;
+  
+  // Calculate sequence similarity (order matters)
+  const commonSequence = longestCommonSubsequence(words1, words2);
+  const sequenceSimilarity = (commonSequence * 2) / (words1.length + words2.length);
+  
+  // Combine both metrics
+  return (jaccardSimilarity * 0.6) + (sequenceSimilarity * 0.4);
+}
+
+/**
+ * Find longest common subsequence length between two arrays
+ */
+function longestCommonSubsequence(arr1: string[], arr2: string[]): number {
+  const m = arr1.length;
+  const n = arr2.length;
+  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+  
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (arr1[i - 1] === arr2[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+  
+  return dp[m][n];
+}
+
+/**
  * Determine the type of change based on content analysis
  */
 function determineChangeType(original: string, enhanced: string): string {
-  // Simple heuristics to determine change type
-  const originalWords = original.split(/\s+/).length;
-  const enhancedWords = enhanced.split(/\s+/).length;
+  // Normalize both texts for comparison
+  const normalize = (text: string) => text.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
   
-  // Check for grammar indicators
-  if (enhanced.match(/[.!?]/) && !original.match(/[.!?]/)) {
+  const normalizedOriginal = normalize(original);
+  const normalizedEnhanced = normalize(enhanced);
+  
+  const originalWords = original.split(/\s+/).filter(w => w.length > 0);
+  const enhancedWords = enhanced.split(/\s+/).filter(w => w.length > 0);
+  
+  // If normalized content is identical, it's just punctuation/grammar
+  if (normalizedOriginal === normalizedEnhanced) {
     return 'grammar';
   }
   
-  // Check for punctuation changes
-  if (original.replace(/[^\w\s]/g, '') === enhanced.replace(/[^\w\s]/g, '')) {
+  // Check for punctuation-only changes
+  const originalPunct = original.match(/[^\w\s]/g) || [];
+  const enhancedPunct = enhanced.match(/[^\w\s]/g) || [];
+  if (normalizedOriginal === normalizedEnhanced && originalPunct.length !== enhancedPunct.length) {
     return 'grammar';
   }
   
-  // Check for dialogue formatting
-  if (enhanced.includes('"') && original.includes('"')) {
+  // Check for dialogue formatting changes
+  const originalQuotes = (original.match(/"/g) || []).length;
+  const enhancedQuotes = (enhanced.match(/"/g) || []).length;
+  if (originalQuotes > 0 || enhancedQuotes > 0) {
     return 'dialogue';
   }
   
-  // Check for structural changes
-  if (Math.abs(originalWords - enhancedWords) > 3) {
+  // Check word count difference for structure changes
+  const wordDifference = Math.abs(originalWords.length - enhancedWords.length);
+  const relativeDifference = wordDifference / Math.max(originalWords.length, 1);
+  
+  // Only classify as structure if there's a significant word count change
+  if (relativeDifference > 0.25) { // 25% change in word count
     return 'structure';
   }
   
-  // Default to style for other changes
+  // Check for substantial content changes (low similarity)
+  const similarity = calculateParagraphSimilarity(original, enhanced);
+  if (similarity < 0.5) {
+    return 'structure'; // Major rewrite
+  }
+  
+  // Default to style for moderate changes
   return 'style';
 }
 
@@ -473,12 +555,21 @@ ${enhancementDirectives.join('\n')}
 ## SPECIFIC GUIDELINES
 ${specificInstructions.join('\n')}
 
+## CRITICAL FORMATTING REQUIREMENTS
+🚨 PRESERVE PARAGRAPH STRUCTURE EXACTLY:
+- Maintain ALL paragraph breaks and line spacing from the original
+- Do NOT remove blank lines between paragraphs
+- Keep the same number of paragraphs as the original
+- Preserve dialogue formatting with proper paragraph breaks
+- Each paragraph should remain as a separate paragraph after enhancement
+
 ## OUTPUT REQUIREMENTS
 - Return ONLY the enhanced text
 - No explanations, comments, or formatting markers
 - If no changes are needed, return the original content exactly
-- Maintain paragraph structure and chapter formatting
+- MUST maintain exact paragraph structure and line breaks
 - Preserve all intentional stylistic choices that align with the story context
+- Focus on word-level and sentence-level improvements within existing paragraphs
 
 ## ORIGINAL CONTENT TO ENHANCE:
 ${content}`;
