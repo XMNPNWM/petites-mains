@@ -122,6 +122,7 @@ const EnhancedEditorPanel = ({
                 linesPerPage={25}
                 readOnly={isEnhancing}
                 chapterKey={chapterId}
+                isLoading={isEnhancing}
               />
             </div>
           </Card>

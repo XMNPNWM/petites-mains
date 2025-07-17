@@ -17,6 +17,7 @@ interface EditableSegmentedDisplayProps {
   linesPerPage?: number;
   readOnly?: boolean;
   chapterKey?: string; // Force remount when chapter changes
+  isLoading?: boolean;
 }
 
 const EditableSegmentedDisplay = ({ 
@@ -28,7 +29,8 @@ const EditableSegmentedDisplay = ({
   onEditorReady,
   linesPerPage = 25,
   readOnly = false,
-  chapterKey
+  chapterKey,
+  isLoading = false
 }: EditableSegmentedDisplayProps) => {
   const [editor, setEditor] = useState<any>(null);
 
@@ -79,6 +81,7 @@ const EditableSegmentedDisplay = ({
                     onEditorReady={handleEditorReady}
                     placeholder={placeholder}
                     readOnly={readOnly}
+                    chapterKey={chapterKey}
                   />
                 </ErrorBoundary>
               )}

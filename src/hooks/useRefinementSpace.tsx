@@ -12,6 +12,7 @@ import { applyTextReplacement, optimizeParagraphs } from '@/lib/textUtils';
 export const useRefinementSpace = (projectId: string | undefined) => {
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
   const [refinementData, setRefinementData] = useState<RefinementData | null>(null);
+  const [isLoadingRefinementData, setIsLoadingRefinementData] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const navigate = useNavigate();
@@ -23,6 +24,10 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     if (!chapterId) return;
     
     console.log('useRefinementSpace - Fetching refinement data for chapter:', chapterId);
+    
+    // Clear existing data immediately to prevent showing wrong content
+    setRefinementData(null);
+    setIsLoadingRefinementData(true);
     
     try {
       let data = await RefinementService.fetchRefinementData(chapterId);
@@ -54,6 +59,8 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     } catch (error) {
       console.error('Error fetching refinement data:', error);
       setRefinementData(null);
+    } finally {
+      setIsLoadingRefinementData(false);
     }
   }, [chapters]);
 
@@ -234,13 +241,15 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     }
   }, [currentChapter, fetchRefinementData]);
 
-  // Handle URL chapter ID synchronization
+  // Handle URL chapter ID synchronization - prioritize URL over saved state
   useEffect(() => {
     const urlChapterId = window.location.pathname.split('/').pop();
     if (urlChapterId && chapters.length > 0) {
       const targetChapter = chapters.find(c => c.id === urlChapterId);
       if (targetChapter && (!currentChapter || currentChapter.id !== urlChapterId)) {
         console.log('useRefinementSpace - URL mismatch, setting current chapter from URL:', targetChapter.title, urlChapterId);
+        // Clear refinement data immediately to prevent showing wrong content
+        setRefinementData(null);
         setCurrentChapter(targetChapter);
       }
     }
@@ -251,6 +260,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     chapters,
     currentChapter,
     refinementData,
+    isLoadingRefinementData,
     isSaving,
     lastSaved,
     handleChapterSelect,

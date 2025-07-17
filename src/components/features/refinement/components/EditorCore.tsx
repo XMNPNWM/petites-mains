@@ -11,6 +11,7 @@ interface EditorCoreProps {
   onEditorReady?: (editor: any) => void;
   placeholder?: string;
   readOnly?: boolean;
+  chapterKey?: string; // Force remount when chapter changes
 }
 
 const EditorCore = ({ 
@@ -18,7 +19,8 @@ const EditorCore = ({
   onContentChange, 
   onEditorReady,
   placeholder = "Start writing...",
-  readOnly = false
+  readOnly = false,
+  chapterKey
 }: EditorCoreProps) => {
   const [isUpdatingFromProp, setIsUpdatingFromProp] = useState(false);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -77,8 +79,9 @@ const EditorCore = ({
       const currentContent = editor.getHTML().replace(/<div[^>]*data-type="page-break"[^>]*>.*?<\/div>/g, '');
       const incomingContent = content || '';
       
-      // Debug logging
+      // Debug logging with chapter key
       console.log('EditorCore content update:', {
+        chapterKey: chapterKey || 'none',
         incomingContentLength: incomingContent.length,
         currentContentLength: currentContent.length,
         contentChanged: currentContent !== incomingContent,
