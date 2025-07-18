@@ -21,6 +21,7 @@ interface EnhancedEditorPanelProps {
   onEnhanceChapter?: (options: EnhancementOptions) => void;
   hasEnhancedContent?: boolean;
   isTransitioning?: boolean; // New prop for transition awareness
+  preserveContent?: boolean; // New prop to help preserve content
 }
 
 const EnhancedEditorPanel = ({
@@ -33,11 +34,23 @@ const EnhancedEditorPanel = ({
   isEnhancing = false,
   onEnhanceChapter,
   hasEnhancedContent = false,
-  isTransitioning = false
+  isTransitioning = false,
+  preserveContent = false
 }: EnhancedEditorPanelProps) => {
   const [editor, setEditor] = useState<any>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [showEnhancementDialog, setShowEnhancementDialog] = useState(false);
+  const [lastValidContent, setLastValidContent] = useState<string>(''); // Preserve last valid content
+
+  // CRITICAL FIX: Preserve content during transitions
+  useEffect(() => {
+    if (content && !isTransitioning) {
+      setLastValidContent(content);
+    }
+  }, [content, isTransitioning]);
+
+  // CRITICAL FIX: Use preserved content during transitions if needed
+  const effectiveContent = content || (preserveContent && isTransitioning ? lastValidContent : '');
 
   // Close find/replace during transitions
   useEffect(() => {
@@ -125,7 +138,7 @@ const EnhancedEditorPanel = ({
           <Card className="m-4 h-[calc(100%-2rem)] flex flex-col overflow-hidden">
             <div className="flex-1 overflow-hidden">
               <EditableSegmentedDisplay
-                content={content}
+                content={effectiveContent}
                 onContentChange={onContentChange}
                 onScrollSync={onScrollSync}
                 scrollPosition={scrollPosition}
@@ -136,25 +149,23 @@ const EnhancedEditorPanel = ({
                 chapterKey={chapterId}
                 isLoading={isEnhancing}
                 isTransitioning={isTransitioning}
+                preserveContent={preserveContent} // Pass preserve flag
               />
             </div>
           </Card>
 
-          {/* Enhanced Loading Overlay */}
-          {(isEnhancing || isTransitioning) && (
+          {/* Enhanced Loading Overlay - Only show for enhancement, not transitions */}
+          {isEnhancing && (
             <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-50">
               <div className="bg-white rounded-lg p-6 shadow-lg border flex flex-col items-center space-y-4 max-w-md">
                 <div className="flex items-center space-x-3">
                   <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
                   <span className="text-lg font-medium text-slate-800">
-                    {isTransitioning ? 'Switching Chapters' : 'Enhancing Chapter'}
+                    Enhancing Chapter
                   </span>
                 </div>
                 <p className="text-sm text-slate-600 text-center">
-                  {isTransitioning 
-                    ? 'Loading chapter content and preparing editor...'
-                    : 'AI is analyzing and enhancing your content. This may take a few moments...'
-                  }
+                  AI is analyzing and enhancing your content. This may take a few moments...
                 </p>
               </div>
             </div>

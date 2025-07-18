@@ -19,6 +19,7 @@ interface EditableSegmentedDisplayProps {
   chapterKey?: string;
   isLoading?: boolean;
   isTransitioning?: boolean; // New prop for transition awareness
+  preserveContent?: boolean; // New prop to help preserve content
 }
 
 const EditableSegmentedDisplay = ({ 
@@ -32,10 +33,22 @@ const EditableSegmentedDisplay = ({
   readOnly = false,
   chapterKey,
   isLoading = false,
-  isTransitioning = false
+  isTransitioning = false,
+  preserveContent = false
 }: EditableSegmentedDisplayProps) => {
   const [editor, setEditor] = useState<any>(null);
   const [isEditorReady, setIsEditorReady] = useState(false);
+  const [preservedContent, setPreservedContent] = useState<string>('');
+
+  // CRITICAL FIX: Preserve content during transitions
+  useEffect(() => {
+    if (content && !isTransitioning) {
+      setPreservedContent(content);
+    }
+  }, [content, isTransitioning]);
+
+  // CRITICAL FIX: Use preserved content during transitions if needed
+  const effectiveContent = content || (preserveContent && isTransitioning ? preservedContent : '');
 
   // Enhanced editor ready handler with transition awareness
   const handleEditorReady = useCallback((editorInstance: any) => {
@@ -89,7 +102,7 @@ const EditableSegmentedDisplay = ({
             />
           )}
           <ScrollSyncHandler onScrollSync={onScrollSync} scrollPosition={scrollPosition}>
-            <ContentProcessor content={content || ""} linesPerPage={linesPerPage}>
+            <ContentProcessor content={effectiveContent || ""} linesPerPage={linesPerPage}>
               {(processedContent) => (
                 <ErrorBoundary key={`editor-${chapterKey}`}>
                   <EditorCore
@@ -101,6 +114,7 @@ const EditableSegmentedDisplay = ({
                     readOnly={readOnly}
                     chapterKey={chapterKey}
                     isTransitioning={isTransitioning}
+                    preserveContent={preserveContent} // Pass preserve flag
                   />
                 </ErrorBoundary>
               )}

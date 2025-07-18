@@ -13,6 +13,7 @@ interface EditorCoreProps {
   readOnly?: boolean;
   chapterKey?: string;
   isTransitioning?: boolean; // New prop to handle transitions
+  preserveContent?: boolean; // New prop to help preserve content
 }
 
 const EditorCore = ({ 
@@ -22,14 +23,26 @@ const EditorCore = ({
   placeholder = "Start writing...",
   readOnly = false,
   chapterKey,
-  isTransitioning = false
+  isTransitioning = false,
+  preserveContent = false
 }: EditorCoreProps) => {
   const [isUpdatingFromProp, setIsUpdatingFromProp] = useState(false);
   const [editorReady, setEditorReady] = useState(false);
+  const [preservedContent, setPreservedContent] = useState<string>('');
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isDestroyingRef = useRef(false);
   const lastContentRef = useRef<string>('');
   const editorInstanceRef = useRef<any>(null);
+
+  // CRITICAL FIX: Preserve content during transitions
+  useEffect(() => {
+    if (content && !isTransitioning) {
+      setPreservedContent(content);
+    }
+  }, [content, isTransitioning]);
+
+  // CRITICAL FIX: Use effective content during transitions
+  const effectiveContent = content || (preserveContent && isTransitioning ? preservedContent : '');
 
   // Debounced content change handler with transition awareness
   const debouncedContentChange = useCallback((content: string) => {
@@ -61,7 +74,7 @@ const EditorCore = ({
       SearchReplaceExtension,
       PageBreakExtension,
     ],
-    content: content || '',
+    content: effectiveContent || '',
     editable: !readOnly,
     onUpdate: ({ editor }) => {
       if (!editor.isDestroyed && !isUpdatingFromProp && editorReady) {
@@ -79,7 +92,7 @@ const EditorCore = ({
       editorInstanceRef.current = editor;
       
       // Set initial content with error handling
-      const initialContent = content || '';
+      const initialContent = effectiveContent || '';
       if (initialContent && !editor.isDestroyed) {
         try {
           editor.commands.setContent(initialContent, false);
@@ -113,11 +126,20 @@ const EditorCore = ({
     },
   }, [chapterKey]); // Recreate editor when chapter changes
 
-  // Enhanced content synchronization with transition awareness
+  // CRITICAL FIX: Enhanced content synchronization with better preservation
   useEffect(() => {
-    if (!editor || editor.isDestroyed || isDestroyingRef.current || isTransitioning) return;
+    if (!editor || editor.isDestroyed || isDestroyingRef.current) return;
     
-    const incomingContent = content || '';
+    const incomingContent = effectiveContent || '';
+    
+    // CRITICAL FIX: Skip updates during transitions unless content is significantly different
+    if (isTransitioning && preserveContent) {
+      const currentEditorContent = editor.getHTML();
+      if (currentEditorContent && currentEditorContent.length > 0) {
+        console.log('⏸️ Preserving editor content during transition');
+        return;
+      }
+    }
     
     // Skip unnecessary updates if content hasn't actually changed
     if (lastContentRef.current === incomingContent) {
@@ -127,7 +149,8 @@ const EditorCore = ({
     console.log('EditorCore: Content prop changed for chapter:', chapterKey || 'none', {
       incomingLength: incomingContent.length,
       currentEditorLength: editor.getHTML().length,
-      isTransitioning
+      isTransitioning,
+      preserveContent
     });
     
     setIsUpdatingFromProp(true);
@@ -146,7 +169,7 @@ const EditorCore = ({
       console.error('EditorCore: Failed to update content:', error);
       setIsUpdatingFromProp(false);
     }
-  }, [content, editor, chapterKey, isTransitioning]);
+  }, [effectiveContent, editor, chapterKey, isTransitioning, preserveContent]);
 
   // Update read-only state safely
   useEffect(() => {
