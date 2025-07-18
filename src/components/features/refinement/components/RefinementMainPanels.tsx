@@ -96,18 +96,24 @@ const RefinementMainPanels = ({
   hasEnhancedContent = false
 }: RefinementMainPanelsProps) => {
   
-  // CRITICAL VALIDATION: Only render enhanced content if it belongs to the current chapter
-  const shouldShowEnhancedContent = hasEnhancedContent && 
-    refinementData?.chapter_id === currentChapter?.id &&
+  // CRITICAL VALIDATION: Enhanced content display logic with proper status checking
+  const shouldShowEnhancedContent = refinementData?.chapter_id === currentChapter?.id &&
     refinementData?.enhanced_content &&
-    refinementData.enhanced_content.trim().length > 0;
+    refinementData.enhanced_content.trim().length > 0 &&
+    (refinementData.refinement_status === 'completed' || refinementData.refinement_status === 'in_progress');
 
-  console.log('🎛️ RefinementMainPanels - Render state:', {
+  // Enhanced content availability for UI controls
+  const hasValidEnhancedContent = shouldShowEnhancedContent && 
+    refinementData?.refinement_status === 'completed';
+
+  console.log('🎛️ RefinementMainPanels - Enhanced content display logic:', {
     currentChapterId: currentChapter?.id,
     refinementChapterId: refinementData?.chapter_id,
-    hasEnhancedContent,
+    refinementStatus: refinementData?.refinement_status,
+    hasEnhancedContent: !!refinementData?.enhanced_content,
+    enhancedContentLength: refinementData?.enhanced_content?.length || 0,
     shouldShowEnhancedContent,
-    enhancedContentLength: refinementData?.enhanced_content?.length || 0
+    hasValidEnhancedContent
   });
 
   return (
@@ -165,7 +171,7 @@ const RefinementMainPanels = ({
             scrollPosition={scrollPositions.enhanced}
             isEnhancing={isEnhancing}
             onEnhanceChapter={onEnhanceChapter}
-            hasEnhancedContent={shouldShowEnhancedContent}
+            hasEnhancedContent={hasValidEnhancedContent}
           />
         </SimpleRightClickMenu>
       </ResizablePanel>

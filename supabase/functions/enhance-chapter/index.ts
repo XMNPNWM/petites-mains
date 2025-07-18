@@ -593,7 +593,8 @@ serve(async (req) => {
     // CRITICAL: Log chapter isolation check
     console.log('🔒 CHAPTER ISOLATION CHECK:', {
       targetChapterId: chapterId,
-      requestTimestamp: new Date().toISOString()
+      requestTimestamp: new Date().toISOString(),
+      processingStatus: 'starting_enhancement'
     });
 
     // Get API key
@@ -629,6 +630,7 @@ serve(async (req) => {
     );
 
     console.log('📊 Quality metrics calculated:', {
+      chapterId,
       fleschKincaid: currentMetrics.fleschKincaid.toFixed(2),
       readingEase: currentMetrics.readingEase.toFixed(2),
       passiveVoice: currentMetrics.passiveVoice.toFixed(1),
@@ -654,17 +656,28 @@ serve(async (req) => {
     const improvedMetrics = calculateQualityMetrics(enhancedContent);
     
     console.log('✅ Enhancement completed successfully:', {
+      chapterId,
       originalLength: contentToEnhance.length,
       enhancedLength: enhancedContent.length,
-      readabilityImprovement: (improvedMetrics.readingEase - currentMetrics.readingEase).toFixed(2)
+      readabilityImprovement: (improvedMetrics.readingEase - currentMetrics.readingEase).toFixed(2),
+      processingStatus: 'enhancement_complete'
     });
 
     // Generate change tracking data by comparing original and enhanced content
     const changes = generateChangeTrackingData(contentToEnhance, enhancedContent);
     
     console.log('🔍 Generated change tracking data:', {
+      chapterId,
       changesCount: changes.length,
-      changeTypes: changes.map(c => c.change_type)
+      changeTypes: changes.map(c => c.change_type),
+      processingStatus: 'change_tracking_complete'
+    });
+
+    // CRITICAL: Log successful completion for this specific chapter
+    console.log('🎉 CHAPTER ENHANCEMENT SUCCESS:', {
+      targetChapterId: chapterId,
+      completionTimestamp: new Date().toISOString(),
+      processingStatus: 'ready_for_status_update'
     });
 
     return new Response(JSON.stringify({

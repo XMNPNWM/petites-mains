@@ -63,6 +63,10 @@ export class EnhancementService {
         originalContentLength: refinementData.original_content?.length || 0
       });
 
+      // CRITICAL: Set status to "in_progress" at the start of enhancement
+      console.log('🔄 Setting refinement status to "in_progress"');
+      await EnhancementService.updateRefinementStatus(refinementData.id, 'in_progress', chapterId);
+
       // Enhance content using the enhance-chapter edge function
       try {
         console.log('🚀 Calling enhance-chapter edge function');
@@ -105,6 +109,8 @@ export class EnhancementService {
 
         if (enhancementError) {
           console.error('❌ Content enhancement failed:', enhancementError);
+          // Set status back to previous state on error
+          await EnhancementService.updateRefinementStatus(refinementData.id, 'untouched', chapterId);
           throw new Error(`Content enhancement failed: ${enhancementError.message}`);
         }
 
@@ -132,6 +138,10 @@ export class EnhancementService {
           
           console.log('✅ Enhanced content saved successfully');
           
+          // CRITICAL: Set status to "completed" after successful enhancement and save
+          console.log('🎉 Setting refinement status to "completed"');
+          await EnhancementService.updateRefinementStatus(refinementData.id, 'completed', chapterId);
+          
           // Process and save individual changes to the ai_change_tracking table
           if (enhancementResult.changes && Array.isArray(enhancementResult.changes)) {
             console.log('💾 Saving change tracking data, count:', enhancementResult.changes.length);
@@ -144,6 +154,8 @@ export class EnhancementService {
             chapter.content,
             chapterId
           );
+          // Set status to completed even with fallback content
+          await EnhancementService.updateRefinementStatus(refinementData.id, 'completed', chapterId);
         }
         
         // Call the completion callback to refresh UI
@@ -154,6 +166,10 @@ export class EnhancementService {
 
       } catch (aiError) {
         console.error('❌ AI enhancement failed:', aiError);
+        
+        // CRITICAL: Set status back to previous state on failure
+        await EnhancementService.updateRefinementStatus(refinementData.id, 'untouched', chapterId);
+        
         // Graceful fallback - use original content
         const fallbackContent = chapter.content + '\n\n[AI enhancement unavailable - content preserved as-is]';
         await RefinementService.updateRefinementContent(
@@ -174,6 +190,75 @@ export class EnhancementService {
 
     } catch (error) {
       console.error('❌ EnhancementService error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update refinement status with strict chapter isolation
+   */
+  static async updateRefinementStatus(
+    refinementId: string, 
+    status: 'untouched' | 'in_progress' | 'completed', 
+    expectedChapterId: string
+  ): Promise<void> {
+    try {
+      console.log('🔄 Updating refinement status:', {
+        refinementId,
+        newStatus: status,
+        expectedChapterId
+      });
+
+      // CRITICAL VALIDATION: Verify refinement belongs to expected chapter
+      const { data: existingData, error: fetchError } = await supabase
+        .from('chapter_refinements')
+        .select('chapter_id, id, refinement_status')
+        .eq('id', refinementId)
+        .single();
+
+      if (fetchError) {
+        console.error('❌ Failed to validate refinement for status update:', fetchError);
+        throw fetchError;
+      }
+
+      if (existingData.chapter_id !== expectedChapterId) {
+        const error = new Error(`CRITICAL: Status update chapter mismatch! Expected: ${expectedChapterId}, Found: ${existingData.chapter_id}`);
+        console.error('❌ Status update validation failed:', error.message);
+        throw error;
+      }
+
+      console.log('✅ Status update validation passed');
+
+      // Update ONLY the specific refinement record
+      const { data, error } = await supabase
+        .from('chapter_refinements')
+        .update({
+          refinement_status: status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', refinementId)
+        .select('id, chapter_id, refinement_status');
+
+      if (error) {
+        console.error('❌ Status update failed:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        const error = new Error('No refinement record was updated during status change!');
+        console.error('❌', error.message);
+        throw error;
+      }
+
+      console.log('✅ Refinement status updated successfully:', {
+        updatedRecords: data.length,
+        refinementId: data[0].id,
+        chapterId: data[0].chapter_id,
+        newStatus: data[0].refinement_status
+      });
+      
+    } catch (error) {
+      console.error('❌ Error updating refinement status:', error);
       throw error;
     }
   }
