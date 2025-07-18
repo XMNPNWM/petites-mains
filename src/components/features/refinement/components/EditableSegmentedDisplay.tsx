@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import RichTextBubbleMenu from './RichTextBubbleMenu';
 import EditorCore from './EditorCore';
 import ScrollSyncHandler from './ScrollSyncHandler';
@@ -16,8 +16,9 @@ interface EditableSegmentedDisplayProps {
   onEditorReady?: (editor: any) => void;
   linesPerPage?: number;
   readOnly?: boolean;
-  chapterKey?: string; // Force remount when chapter changes
+  chapterKey?: string;
   isLoading?: boolean;
+  isTransitioning?: boolean; // New prop for transition awareness
 }
 
 const EditableSegmentedDisplay = ({ 
@@ -30,15 +31,19 @@ const EditableSegmentedDisplay = ({
   linesPerPage = 25,
   readOnly = false,
   chapterKey,
-  isLoading = false
+  isLoading = false,
+  isTransitioning = false
 }: EditableSegmentedDisplayProps) => {
   const [editor, setEditor] = useState<any>(null);
+  const [isEditorReady, setIsEditorReady] = useState(false);
 
-  // Simplified editor ready handler - immediate callback
+  // Enhanced editor ready handler with transition awareness
   const handleEditorReady = useCallback((editorInstance: any) => {
-    if (!editorInstance || editorInstance.isDestroyed) return;
+    if (!editorInstance || editorInstance.isDestroyed || isTransitioning) return;
     
+    console.log('EditableSegmentedDisplay: Editor ready for chapter:', chapterKey);
     setEditor(editorInstance);
+    setIsEditorReady(true);
     
     // Apply read-only state immediately if needed
     if (readOnly && !editorInstance.isDestroyed) {
@@ -52,24 +57,37 @@ const EditableSegmentedDisplay = ({
     if (onEditorReady) {
       onEditorReady(editorInstance);
     }
-  }, [readOnly, onEditorReady]);
+  }, [readOnly, onEditorReady, chapterKey, isTransitioning]);
 
-  // Simple read-only state management
-  React.useEffect(() => {
-    if (editor && !editor.isDestroyed) {
+  // Reset editor ready state when transitioning
+  useEffect(() => {
+    if (isTransitioning) {
+      setIsEditorReady(false);
+      setEditor(null);
+    }
+  }, [isTransitioning]);
+
+  // Update read-only state with transition awareness
+  useEffect(() => {
+    if (editor && !editor.isDestroyed && isEditorReady && !isTransitioning) {
       try {
         editor.setEditable(!readOnly);
       } catch (e) {
         console.warn('Failed to update editor editable state:', e);
       }
     }
-  }, [editor, readOnly]);
+  }, [editor, readOnly, isEditorReady, isTransitioning]);
 
   return (
     <ErrorBoundary>
       <EditorStylesProvider>
         <div className="flex-1 flex flex-col relative h-full">
-          {!readOnly && editor && <RichTextBubbleMenu editor={editor} />}
+          {!readOnly && editor && isEditorReady && (
+            <RichTextBubbleMenu 
+              editor={editor} 
+              isTransitioning={isTransitioning}
+            />
+          )}
           <ScrollSyncHandler onScrollSync={onScrollSync} scrollPosition={scrollPosition}>
             <ContentProcessor content={content || ""} linesPerPage={linesPerPage}>
               {(processedContent) => (
@@ -82,6 +100,7 @@ const EditableSegmentedDisplay = ({
                     placeholder={placeholder}
                     readOnly={readOnly}
                     chapterKey={chapterKey}
+                    isTransitioning={isTransitioning}
                   />
                 </ErrorBoundary>
               )}

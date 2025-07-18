@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
@@ -20,6 +19,7 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
     chapters,
     currentChapter,
     refinementData,
+    transitionState,
     handleChapterSelect,
     handleContentChange,
     handleChangeDecision,
@@ -80,6 +80,7 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
               isEnhancing={isAnalyzing}
               onEnhanceChapter={handleAnalyzeChapter}
               hasEnhancedContent={!!(refinementData?.enhanced_content && refinementData.enhanced_content.trim().length > 0)}
+              transitionState={transitionState}
             />
           </ResizablePanel>
         </ResizablePanelGroup>

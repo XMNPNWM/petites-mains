@@ -20,6 +20,7 @@ interface EnhancedEditorPanelProps {
   isEnhancing?: boolean;
   onEnhanceChapter?: (options: EnhancementOptions) => void;
   hasEnhancedContent?: boolean;
+  isTransitioning?: boolean; // New prop for transition awareness
 }
 
 const EnhancedEditorPanel = ({
@@ -31,21 +32,30 @@ const EnhancedEditorPanel = ({
   scrollPosition,
   isEnhancing = false,
   onEnhanceChapter,
-  hasEnhancedContent = false
+  hasEnhancedContent = false,
+  isTransitioning = false
 }: EnhancedEditorPanelProps) => {
   const [editor, setEditor] = useState<any>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [showEnhancementDialog, setShowEnhancementDialog] = useState(false);
 
+  // Close find/replace during transitions
+  useEffect(() => {
+    if (isTransitioning) {
+      setShowFindReplace(false);
+      setShowEnhancementDialog(false);
+    }
+  }, [isTransitioning]);
+
   const handleEnhanceClick = () => {
-    if (onEnhanceChapter) {
+    if (onEnhanceChapter && !isTransitioning) {
       setShowEnhancementDialog(true);
     }
   };
 
   const handleEnhancementSubmit = (options: EnhancementOptions) => {
     setShowEnhancementDialog(false);
-    if (onEnhanceChapter) {
+    if (onEnhanceChapter && !isTransitioning) {
       onEnhanceChapter(options);
     }
   };
@@ -65,7 +75,7 @@ const EnhancedEditorPanel = ({
                   <TooltipTrigger asChild>
                     <Button
                       onClick={handleEnhanceClick}
-                      disabled={isEnhancing}
+                      disabled={isEnhancing || isTransitioning}
                       variant={hasEnhancedContent ? "outline" : "default"}
                       size="sm"
                       className="w-8 h-8 p-0"
@@ -81,9 +91,11 @@ const EnhancedEditorPanel = ({
                     <p>
                       {isEnhancing 
                         ? 'Enhancing chapter...' 
-                        : hasEnhancedContent 
-                          ? 'Re-enhance chapter' 
-                          : 'Enhance chapter'
+                        : isTransitioning
+                          ? 'Switching chapters...'
+                          : hasEnhancedContent 
+                            ? 'Re-enhance chapter' 
+                            : 'Enhance chapter'
                       }
                     </p>
                   </TooltipContent>
@@ -93,22 +105,22 @@ const EnhancedEditorPanel = ({
 
             <EnhancedRichTextToolbar 
               editor={editor}
-              onFindReplaceToggle={() => setShowFindReplace(!showFindReplace)}
-              disabled={isEnhancing}
+              onFindReplaceToggle={() => !isTransitioning && setShowFindReplace(!showFindReplace)}
+              disabled={isEnhancing || isTransitioning}
             />
           </div>
-          {showFindReplace && (
+          {showFindReplace && !isTransitioning && (
             <div className="mt-2">
               <EnhancedFindReplaceBar
                 editor={editor}
                 onClose={() => setShowFindReplace(false)}
-                disabled={isEnhancing}
+                disabled={isEnhancing || isTransitioning}
               />
             </div>
           )}
         </div>
 
-        {/* Editor Container with Semi-transparent Overlay */}
+        {/* Editor Container with Enhanced Loading States */}
         <div className="flex-1 overflow-hidden relative">
           <Card className="m-4 h-[calc(100%-2rem)] flex flex-col overflow-hidden">
             <div className="flex-1 overflow-hidden">
@@ -123,20 +135,26 @@ const EnhancedEditorPanel = ({
                 readOnly={isEnhancing}
                 chapterKey={chapterId}
                 isLoading={isEnhancing}
+                isTransitioning={isTransitioning}
               />
             </div>
           </Card>
 
-          {/* Semi-transparent Overlay during Enhancement */}
-          {isEnhancing && (
+          {/* Enhanced Loading Overlay */}
+          {(isEnhancing || isTransitioning) && (
             <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-50">
               <div className="bg-white rounded-lg p-6 shadow-lg border flex flex-col items-center space-y-4 max-w-md">
                 <div className="flex items-center space-x-3">
                   <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
-                  <span className="text-lg font-medium text-slate-800">Enhancing Chapter</span>
+                  <span className="text-lg font-medium text-slate-800">
+                    {isTransitioning ? 'Switching Chapters' : 'Enhancing Chapter'}
+                  </span>
                 </div>
                 <p className="text-sm text-slate-600 text-center">
-                  AI is analyzing and enhancing your content. This may take a few moments...
+                  {isTransitioning 
+                    ? 'Loading chapter content and preparing editor...'
+                    : 'AI is analyzing and enhancing your content. This may take a few moments...'
+                  }
                 </p>
               </div>
             </div>

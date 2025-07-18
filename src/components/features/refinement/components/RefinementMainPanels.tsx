@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import ChapterNavigationPanel from '../panels/ChapterNavigationPanel';
@@ -93,8 +92,10 @@ const RefinementMainPanels = ({
   onMetricsToggle = () => {},
   isEnhancing = false,
   onEnhanceChapter = () => {},
-  hasEnhancedContent = false
-}: RefinementMainPanelsProps) => {
+  hasEnhancedContent = false,
+  transitionState,
+  ...restProps
+}: RefinementMainPanelsProps & { transitionState?: any }) => {
   
   // CRITICAL VALIDATION: Enhanced content display logic with proper status checking
   const shouldShowEnhancedContent = refinementData?.chapter_id === currentChapter?.id &&
@@ -106,6 +107,8 @@ const RefinementMainPanels = ({
   const hasValidEnhancedContent = shouldShowEnhancedContent && 
     refinementData?.refinement_status === 'completed';
 
+  const isTransitioning = transitionState?.isTransitioning || false;
+
   console.log('🎛️ RefinementMainPanels - Enhanced content display logic:', {
     currentChapterId: currentChapter?.id,
     refinementChapterId: refinementData?.chapter_id,
@@ -113,7 +116,8 @@ const RefinementMainPanels = ({
     hasEnhancedContent: !!refinementData?.enhanced_content,
     enhancedContentLength: refinementData?.enhanced_content?.length || 0,
     shouldShowEnhancedContent,
-    hasValidEnhancedContent
+    hasValidEnhancedContent,
+    isTransitioning
   });
 
   return (
@@ -125,6 +129,7 @@ const RefinementMainPanels = ({
             chapters={chapters}
             currentChapter={currentChapter}
             onChapterSelect={onChapterSelect}
+            isTransitioning={isTransitioning}
           />
         </SimpleRightClickMenu>
       </ResizablePanel>
@@ -148,6 +153,7 @@ const RefinementMainPanels = ({
               currentChapter.content !== refinementData.original_content
             }
             currentChapterContent={currentChapter?.content}
+            isTransitioning={isTransitioning}
           />
         </SimpleRightClickMenu>
       </ResizablePanel>
@@ -155,7 +161,10 @@ const RefinementMainPanels = ({
       <ResizableHandle />
       
       {/* Import Arrow Button */}
-      <ImportButton onImportToCreation={onImportToCreation} />
+      <ImportButton 
+        onImportToCreation={onImportToCreation} 
+        disabled={isTransitioning}
+      />
       
       {/* Panel 3: Enhanced Editor */}
       <ResizablePanel defaultSize={28} minSize={20} maxSize={40}>
@@ -172,6 +181,7 @@ const RefinementMainPanels = ({
             isEnhancing={isEnhancing}
             onEnhanceChapter={onEnhanceChapter}
             hasEnhancedContent={hasValidEnhancedContent}
+            isTransitioning={isTransitioning}
           />
         </SimpleRightClickMenu>
       </ResizablePanel>

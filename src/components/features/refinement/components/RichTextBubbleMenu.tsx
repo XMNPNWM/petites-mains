@@ -6,35 +6,45 @@ import { Bold, Italic } from 'lucide-react';
 
 interface RichTextBubbleMenuProps {
   editor: Editor | null;
+  isTransitioning?: boolean; // New prop to handle transitions
 }
 
-const RichTextBubbleMenu = ({ editor }: RichTextBubbleMenuProps) => {
+const RichTextBubbleMenu = ({ editor, isTransitioning = false }: RichTextBubbleMenuProps) => {
   const [isStable, setIsStable] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    if (!editor || editor.isDestroyed) {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || isTransitioning) {
       setIsStable(false);
       return;
     }
 
-    // Add small delay to ensure editor is fully initialized
+    // Add delay to ensure editor is fully initialized and stable
     const timer = setTimeout(() => {
-      if (!editor.isDestroyed) {
+      if (!editor.isDestroyed && isMounted && !isTransitioning) {
         setIsStable(true);
       }
-    }, 100);
+    }, 150); // Increased delay for better stability
 
     return () => {
       clearTimeout(timer);
       setIsStable(false);
     };
-  }, [editor]);
+  }, [editor, isTransitioning, isMounted]);
 
-  if (!editor || editor.isDestroyed || !isStable) return null;
+  // Don't render bubble menu during transitions or when editor is not stable
+  if (!editor || editor.isDestroyed || !isStable || !isMounted || isTransitioning) {
+    return null;
+  }
 
   const handleBold = () => {
     try {
-      if (!editor.isDestroyed) {
+      if (!editor.isDestroyed && !isTransitioning) {
         editor.chain().focus().toggleBold().run();
       }
     } catch (error) {
@@ -44,7 +54,7 @@ const RichTextBubbleMenu = ({ editor }: RichTextBubbleMenuProps) => {
 
   const handleItalic = () => {
     try {
-      if (!editor.isDestroyed) {
+      if (!editor.isDestroyed && !isTransitioning) {
         editor.chain().focus().toggleItalic().run();
       }
     } catch (error) {
@@ -60,14 +70,20 @@ const RichTextBubbleMenu = ({ editor }: RichTextBubbleMenuProps) => {
         placement: 'top',
         zIndex: 1000,
         interactive: true,
-        hideOnClick: false
+        hideOnClick: false,
+        onHidden: () => {
+          // Clean up any references when bubble menu is hidden
+          console.log('BubbleMenu: Hidden');
+        }
       }}
       shouldShow={({ editor, state }) => {
         try {
-          if (!editor || editor.isDestroyed) return false;
+          if (!editor || editor.isDestroyed || isTransitioning || !isMounted) {
+            return false;
+          }
           const { selection } = state;
           const { empty } = selection;
-          return !empty && !editor.isDestroyed;
+          return !empty && !editor.isDestroyed && !isTransitioning;
         } catch (error) {
           console.warn('Error in BubbleMenu shouldShow:', error);
           return false;
@@ -81,6 +97,7 @@ const RichTextBubbleMenu = ({ editor }: RichTextBubbleMenuProps) => {
           onClick={handleBold}
           onMouseDown={(e) => e.preventDefault()}
           className={`h-8 w-8 p-0 ${editor.isActive('bold') ? 'bg-slate-200' : ''}`}
+          disabled={isTransitioning}
         >
           <Bold className="w-4 h-4" />
         </Button>
@@ -90,6 +107,7 @@ const RichTextBubbleMenu = ({ editor }: RichTextBubbleMenuProps) => {
           onClick={handleItalic}
           onMouseDown={(e) => e.preventDefault()}
           className={`h-8 w-8 p-0 ${editor.isActive('italic') ? 'bg-slate-200' : ''}`}
+          disabled={isTransitioning}
         >
           <Italic className="w-4 h-4" />
         </Button>
