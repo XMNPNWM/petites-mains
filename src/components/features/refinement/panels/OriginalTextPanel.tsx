@@ -13,6 +13,7 @@ interface OriginalTextPanelProps {
   highlightedRange?: { start: number; end: number } | null;
   hasContentConflict?: boolean;
   currentChapterContent?: string;
+  isTransitioning?: boolean;
 }
 
 const OriginalTextPanel = ({

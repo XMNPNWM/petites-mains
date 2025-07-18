@@ -163,7 +163,7 @@ const RefinementMainPanels = ({
       {/* Import Arrow Button */}
       <ImportButton 
         onImportToCreation={onImportToCreation} 
-        disabled={isTransitioning}
+        isDisabled={isTransitioning}
       />
       
       {/* Panel 3: Enhanced Editor */}

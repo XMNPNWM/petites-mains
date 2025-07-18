@@ -22,6 +22,7 @@ interface ChapterNavigationPanelProps {
   chapters: Chapter[];
   currentChapter: Chapter | null;
   onChapterSelect: (chapter: Chapter) => void;
+  isTransitioning?: boolean;
 }
 
 const ChapterNavigationPanel = ({
