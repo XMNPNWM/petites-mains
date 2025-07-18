@@ -18,8 +18,7 @@ interface EditableSegmentedDisplayProps {
   readOnly?: boolean;
   chapterKey?: string;
   isLoading?: boolean;
-  isTransitioning?: boolean; // New prop for transition awareness
-  preserveContent?: boolean; // New prop to help preserve content
+  isTransitioning?: boolean;
 }
 
 const EditableSegmentedDisplay = ({ 
@@ -33,26 +32,14 @@ const EditableSegmentedDisplay = ({
   readOnly = false,
   chapterKey,
   isLoading = false,
-  isTransitioning = false,
-  preserveContent = false
+  isTransitioning = false
 }: EditableSegmentedDisplayProps) => {
   const [editor, setEditor] = useState<any>(null);
   const [isEditorReady, setIsEditorReady] = useState(false);
-  const [preservedContent, setPreservedContent] = useState<string>('');
 
-  // CRITICAL FIX: Preserve content during transitions
-  useEffect(() => {
-    if (content && !isTransitioning) {
-      setPreservedContent(content);
-    }
-  }, [content, isTransitioning]);
-
-  // CRITICAL FIX: Use preserved content during transitions if needed
-  const effectiveContent = content || (preserveContent && isTransitioning ? preservedContent : '');
-
-  // Enhanced editor ready handler with transition awareness
+  // Enhanced editor ready handler
   const handleEditorReady = useCallback((editorInstance: any) => {
-    if (!editorInstance || editorInstance.isDestroyed || isTransitioning) return;
+    if (!editorInstance || editorInstance.isDestroyed) return;
     
     console.log('EditableSegmentedDisplay: Editor ready for chapter:', chapterKey);
     setEditor(editorInstance);
@@ -70,7 +57,7 @@ const EditableSegmentedDisplay = ({
     if (onEditorReady) {
       onEditorReady(editorInstance);
     }
-  }, [readOnly, onEditorReady, chapterKey, isTransitioning]);
+  }, [readOnly, onEditorReady, chapterKey]);
 
   // Reset editor ready state when transitioning
   useEffect(() => {
@@ -80,7 +67,7 @@ const EditableSegmentedDisplay = ({
     }
   }, [isTransitioning]);
 
-  // Update read-only state with transition awareness
+  // Update read-only state
   useEffect(() => {
     if (editor && !editor.isDestroyed && isEditorReady && !isTransitioning) {
       try {
@@ -102,7 +89,7 @@ const EditableSegmentedDisplay = ({
             />
           )}
           <ScrollSyncHandler onScrollSync={onScrollSync} scrollPosition={scrollPosition}>
-            <ContentProcessor content={effectiveContent || ""} linesPerPage={linesPerPage}>
+            <ContentProcessor content={content || ""} linesPerPage={linesPerPage}>
               {(processedContent) => (
                 <ErrorBoundary key={`editor-${chapterKey}`}>
                   <EditorCore
@@ -114,7 +101,6 @@ const EditableSegmentedDisplay = ({
                     readOnly={readOnly}
                     chapterKey={chapterKey}
                     isTransitioning={isTransitioning}
-                    preserveContent={preserveContent} // Pass preserve flag
                   />
                 </ErrorBoundary>
               )}

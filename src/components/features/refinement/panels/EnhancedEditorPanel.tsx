@@ -20,8 +20,7 @@ interface EnhancedEditorPanelProps {
   isEnhancing?: boolean;
   onEnhanceChapter?: (options: EnhancementOptions) => void;
   hasEnhancedContent?: boolean;
-  isTransitioning?: boolean; // New prop for transition awareness
-  preserveContent?: boolean; // New prop to help preserve content
+  isTransitioning?: boolean;
 }
 
 const EnhancedEditorPanel = ({
@@ -34,23 +33,11 @@ const EnhancedEditorPanel = ({
   isEnhancing = false,
   onEnhanceChapter,
   hasEnhancedContent = false,
-  isTransitioning = false,
-  preserveContent = false
+  isTransitioning = false
 }: EnhancedEditorPanelProps) => {
   const [editor, setEditor] = useState<any>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [showEnhancementDialog, setShowEnhancementDialog] = useState(false);
-  const [lastValidContent, setLastValidContent] = useState<string>(''); // Preserve last valid content
-
-  // CRITICAL FIX: Preserve content during transitions
-  useEffect(() => {
-    if (content && !isTransitioning) {
-      setLastValidContent(content);
-    }
-  }, [content, isTransitioning]);
-
-  // CRITICAL FIX: Use preserved content during transitions if needed
-  const effectiveContent = content || (preserveContent && isTransitioning ? lastValidContent : '');
 
   // Close find/replace during transitions
   useEffect(() => {
@@ -133,12 +120,12 @@ const EnhancedEditorPanel = ({
           )}
         </div>
 
-        {/* Editor Container with Enhanced Loading States */}
+        {/* Editor Container */}
         <div className="flex-1 overflow-hidden relative">
           <Card className="m-4 h-[calc(100%-2rem)] flex flex-col overflow-hidden">
             <div className="flex-1 overflow-hidden">
               <EditableSegmentedDisplay
-                content={effectiveContent}
+                content={content}
                 onContentChange={onContentChange}
                 onScrollSync={onScrollSync}
                 scrollPosition={scrollPosition}
@@ -149,7 +136,6 @@ const EnhancedEditorPanel = ({
                 chapterKey={chapterId}
                 isLoading={isEnhancing}
                 isTransitioning={isTransitioning}
-                preserveContent={preserveContent} // Pass preserve flag
               />
             </div>
           </Card>
