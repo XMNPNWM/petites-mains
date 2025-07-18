@@ -13,6 +13,7 @@ import { applyTextReplacement, optimizeParagraphs } from '@/lib/textUtils';
 export const useRefinementSpace = (projectId: string | undefined) => {
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
   const [refinementData, setRefinementData] = useState<RefinementData | null>(null);
+  const [previousRefinementData, setPreviousRefinementData] = useState<RefinementData | null>(null);
   const [isLoadingRefinementData, setIsLoadingRefinementData] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -29,8 +30,10 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     setIsLoadingRefinementData(true);
     
     try {
-      // CRITICAL: Clear existing refinement data first to prevent showing wrong chapter's data
-      setRefinementData(null);
+      // CRITICAL: Don't clear existing refinement data during transitions to prevent content jumping
+      if (!transitionState.isTransitioning) {
+        setRefinementData(null);
+      }
       
       let data = await RefinementService.fetchRefinementData(chapterId);
       
@@ -70,33 +73,39 @@ export const useRefinementSpace = (projectId: string | undefined) => {
         }
       }
       
-      // Only set refinement data if it matches the current chapter and we're not transitioning
-      if (data && data.chapter_id === chapterId && !transitionState.isTransitioning) {
+      // Set data after validation
+      if (data && data.chapter_id === chapterId) {
         console.log('✅ useRefinementSpace - Setting validated refinement data:', {
           refinementId: data.id,
           chapterId: data.chapter_id,
           hasEnhancedContent: !!data.enhanced_content,
           enhancedContentLength: data.enhanced_content?.length || 0
         });
+        
+        // Preserve previous data during transitions for smooth handoff
+        if (transitionState.isTransitioning && refinementData) {
+          setPreviousRefinementData(refinementData);
+        }
+        
         setRefinementData(data);
         completeTransition(); // Mark transition as complete
-      } else if (transitionState.isTransitioning && data?.chapter_id === chapterId) {
-        // Set data but keep transition state until UI is ready
-        setRefinementData(data);
-        setTimeout(completeTransition, 100); // Small delay for UI stability
       } else {
         console.warn('⚠️ useRefinementSpace - Refinement data validation failed, not setting data');
-        setRefinementData(null);
+        if (!transitionState.isTransitioning) {
+          setRefinementData(null);
+        }
       }
       
     } catch (error) {
       console.error('❌ Error fetching refinement data:', error);
-      setRefinementData(null);
+      if (!transitionState.isTransitioning) {
+        setRefinementData(null);
+      }
       completeTransition(); // Complete transition even on error
     } finally {
       setIsLoadingRefinementData(false);
     }
-  }, [chapters, transitionState, completeTransition]);
+  }, [chapters, transitionState, completeTransition, refinementData]);
 
   const handleChapterSelect = useCallback((chapter: Chapter) => {
     console.log('📋 useRefinementSpace - Chapter selected:', chapter.title, chapter.id);
@@ -110,8 +119,11 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     // Start transition from current chapter to new chapter
     startTransition(currentChapter?.id || null, chapter.id);
     
-    // CRITICAL: Clear refinement data immediately to prevent showing wrong chapter's data
-    setRefinementData(null);
+    // CRITICAL: Preserve current refinement data during transition to prevent content jumping
+    if (refinementData) {
+      setPreviousRefinementData(refinementData);
+    }
+    
     setCurrentChapter(chapter);
     
     // Save selected chapter for cross-space navigation
@@ -121,7 +133,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     
     // Navigate to the new chapter URL to sync URL with selected chapter
     navigate(`/project/${projectId}/refine/${chapter.id}`);
-  }, [projectId, navigate, currentChapter, transitionState, startTransition]);
+  }, [projectId, navigate, currentChapter, transitionState, startTransition, refinementData]);
 
   const handleContentChange = useCallback(async (content: string) => {
     if (!refinementData || !currentChapter || transitionState.isTransitioning) return;
@@ -311,6 +323,13 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     }
   }, [fetchRefinementData, currentChapter, transitionState]);
 
+  // Clear previous refinement data when transition completes
+  useEffect(() => {
+    if (!transitionState.isTransitioning && previousRefinementData) {
+      setTimeout(() => setPreviousRefinementData(null), 500); // Small delay for smooth transition
+    }
+  }, [transitionState.isTransitioning, previousRefinementData]);
+
   // Initialize current chapter with transition awareness
   useEffect(() => {
     if (chapters.length > 0 && !currentChapter && projectId && !transitionState.isTransitioning) {
@@ -353,6 +372,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     chapters,
     currentChapter,
     refinementData,
+    previousRefinementData,
     isLoadingRefinementData,
     isSaving,
     lastSaved,

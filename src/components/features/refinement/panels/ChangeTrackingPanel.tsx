@@ -24,6 +24,7 @@ interface ChangeTrackingPanelProps {
   onScrollSync?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
   chapterId?: string;
   chapterTitle?: string;
+  isTransitioning?: boolean;
 }
 
 // Type casting function to handle database type mismatches
@@ -50,17 +51,21 @@ const ChangeTrackingPanel = ({
   scrollPosition = 0,
   onScrollSync,
   chapterId,
-  chapterTitle
+  chapterTitle,
+  isTransitioning = false
 }: ChangeTrackingPanelProps) => {
   const [changes, setChanges] = useState<AIChange[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentRefinementId, setCurrentRefinementId] = useState<string>('');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Update current refinement ID tracking to prevent unnecessary fetches during transitions
   useEffect(() => {
-    if (refinementId) {
+    if (refinementId && refinementId !== currentRefinementId && !isTransitioning) {
+      setCurrentRefinementId(refinementId);
       fetchChanges();
     }
-  }, [refinementId]);
+  }, [refinementId, currentRefinementId, isTransitioning]);
 
   // Handle scroll synchronization
   useEffect(() => {
@@ -100,6 +105,8 @@ const ChangeTrackingPanel = ({
   };
 
   const handleDecision = async (changeId: string, decision: 'accepted' | 'rejected') => {
+    if (isTransitioning) return; // Prevent actions during transitions
+    
     onChangeDecision(changeId, decision);
     setChanges(prev => prev.map(change => 
       change.id === changeId 
@@ -109,7 +116,7 @@ const ChangeTrackingPanel = ({
   };
 
   const handleChangeClick = (change: AIChange) => {
-    if (onChangeClick) {
+    if (onChangeClick && !isTransitioning) {
       onChangeClick(change);
     }
   };
@@ -135,7 +142,7 @@ const ChangeTrackingPanel = ({
           >
             <ChangeList
               changes={changes}
-              loading={loading}
+              loading={loading || isTransitioning}
               onChangeDecision={handleDecision}
               onChangeClick={handleChangeClick}
             />

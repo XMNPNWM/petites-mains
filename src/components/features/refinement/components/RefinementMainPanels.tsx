@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import ChapterNavigationPanel from '../panels/ChapterNavigationPanel';
@@ -48,6 +49,7 @@ interface RefinementMainPanelsProps {
   chapters?: Chapter[];
   currentChapter?: Chapter | null;
   refinementData?: RefinementData | null;
+  previousRefinementData?: RefinementData | null; // New prop for transition handling
   onChapterSelect?: (chapter: Chapter) => void;
   onContentChange?: (content: string) => void;
   onChangeDecision?: (changeId: string, decision: 'accepted' | 'rejected') => void;
@@ -79,6 +81,7 @@ const RefinementMainPanels = ({
   chapters = [],
   currentChapter = null,
   refinementData = null,
+  previousRefinementData = null,
   onChapterSelect = () => {},
   onContentChange = () => {},
   onChangeDecision = () => {},
@@ -97,27 +100,37 @@ const RefinementMainPanels = ({
   ...restProps
 }: RefinementMainPanelsProps & { transitionState?: any }) => {
   
-  // CRITICAL VALIDATION: Enhanced content display logic with proper status checking
-  const shouldShowEnhancedContent = refinementData?.chapter_id === currentChapter?.id &&
-    refinementData?.enhanced_content &&
-    refinementData.enhanced_content.trim().length > 0 &&
-    (refinementData.refinement_status === 'completed' || refinementData.refinement_status === 'in_progress');
+  // CRITICAL: Enhanced content display logic with transition-aware content preservation
+  const activeRefinementData = refinementData || (transitionState?.isTransitioning ? previousRefinementData : null);
+  
+  const shouldShowEnhancedContent = activeRefinementData?.chapter_id === currentChapter?.id &&
+    activeRefinementData?.enhanced_content &&
+    activeRefinementData.enhanced_content.trim().length > 0 &&
+    (activeRefinementData.refinement_status === 'completed' || 
+     activeRefinementData.refinement_status === 'in_progress');
 
-  // Enhanced content availability for UI controls
+  // Enhanced content availability for UI controls - only disable during actual loading
   const hasValidEnhancedContent = shouldShowEnhancedContent && 
-    refinementData?.refinement_status === 'completed';
+    activeRefinementData?.refinement_status === 'completed' && 
+    !transitionState?.isTransitioning;
+
+  // Use preserved refinement ID during transitions to prevent Change Tracking Panel from clearing
+  const effectiveRefinementId = transitionState?.isTransitioning 
+    ? (previousRefinementData?.chapter_id === currentChapter?.id ? previousRefinementData?.id || '' : '')
+    : (refinementData?.chapter_id === currentChapter?.id ? refinementData?.id || '' : '');
 
   const isTransitioning = transitionState?.isTransitioning || false;
 
   console.log('🎛️ RefinementMainPanels - Enhanced content display logic:', {
     currentChapterId: currentChapter?.id,
-    refinementChapterId: refinementData?.chapter_id,
-    refinementStatus: refinementData?.refinement_status,
-    hasEnhancedContent: !!refinementData?.enhanced_content,
-    enhancedContentLength: refinementData?.enhanced_content?.length || 0,
+    refinementChapterId: activeRefinementData?.chapter_id,
+    refinementStatus: activeRefinementData?.refinement_status,
+    hasEnhancedContent: !!activeRefinementData?.enhanced_content,
+    enhancedContentLength: activeRefinementData?.enhanced_content?.length || 0,
     shouldShowEnhancedContent,
     hasValidEnhancedContent,
-    isTransitioning
+    isTransitioning,
+    effectiveRefinementId
   });
 
   return (
@@ -149,8 +162,8 @@ const RefinementMainPanels = ({
             highlightedRange={highlightedRange}
             hasContentConflict={
               currentChapter?.content !== undefined && 
-              refinementData?.original_content !== undefined &&
-              currentChapter.content !== refinementData.original_content
+              activeRefinementData?.original_content !== undefined &&
+              currentChapter.content !== activeRefinementData.original_content
             }
             currentChapterContent={currentChapter?.content}
             isTransitioning={isTransitioning}
@@ -170,7 +183,7 @@ const RefinementMainPanels = ({
       <ResizablePanel defaultSize={28} minSize={20} maxSize={40}>
         <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
           <EnhancedEditorPanel
-            content={shouldShowEnhancedContent ? refinementData.enhanced_content : ''}
+            content={shouldShowEnhancedContent ? activeRefinementData.enhanced_content : ''}
             onContentChange={onContentChange}
             chapterTitle={currentChapter?.title || ''}
             chapterId={currentChapter?.id}
@@ -192,7 +205,7 @@ const RefinementMainPanels = ({
       <ResizablePanel defaultSize={17} minSize={12} maxSize={25}>
         <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
           <ChangeTrackingPanel
-            refinementId={refinementData?.chapter_id === currentChapter?.id ? refinementData?.id || '' : ''}
+            refinementId={effectiveRefinementId}
             onChangeDecision={onChangeDecision}
             onChangeClick={onChangeClick}
             scrollPosition={scrollPositions.changeTracking}
@@ -201,6 +214,7 @@ const RefinementMainPanels = ({
             }
             chapterId={chapterId}
             chapterTitle={currentChapter?.title || ''}
+            isTransitioning={isTransitioning}
           />
         </SimpleRightClickMenu>
       </ResizablePanel>
@@ -223,10 +237,10 @@ const RefinementMainPanels = ({
           >
             <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
               <MetricsPanel
-                refinementId={refinementData?.chapter_id === currentChapter?.id ? refinementData?.id || '' : ''}
+                refinementId={effectiveRefinementId}
                 isExpanded={metricsExpanded}
                 onToggleExpanded={onMetricsToggle}
-                content={shouldShowEnhancedContent ? refinementData.enhanced_content : ''}
+                content={shouldShowEnhancedContent ? activeRefinementData.enhanced_content : ''}
               />
             </SimpleRightClickMenu>
           </ResizablePanel>

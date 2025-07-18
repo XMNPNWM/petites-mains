@@ -19,6 +19,7 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
     chapters,
     currentChapter,
     refinementData,
+    previousRefinementData,
     transitionState,
     handleChapterSelect,
     handleContentChange,
@@ -73,6 +74,7 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
               chapters={chapters}
               currentChapter={currentChapter}
               refinementData={refinementData}
+              previousRefinementData={previousRefinementData}
               onChapterSelect={handleChapterSelect}
               onContentChange={handleContentChange}
               onChangeDecision={handleChangeDecision}
