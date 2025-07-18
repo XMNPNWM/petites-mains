@@ -12,6 +12,92 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const supabase = createClient(supabaseUrl, supabaseKey)
 
+// Professional Publishing Standards (integrated from NovelEnhancementService)
+const NOVEL_STANDARDS = {
+  punctuation: {
+    dialogue: {
+      quotationMarks: 'double',
+      punctuationInside: true,
+      emDashForInterruption: true,
+      ellipsesForTrailing: true
+    },
+    general: {
+      oxfordComma: true,
+      emDashSpacing: false,
+      ellipsesSpacing: false
+    }
+  },
+  dialogue: {
+    formatting: {
+      newParagraphPerSpeaker: true,
+      indentDialogue: true,
+      spacingBetweenParagraphs: 1
+    },
+    punctuation: {
+      commaBeforeDialogueTag: true,
+      periodWhenNoTag: true,
+      actionBeatsSeparate: true
+    },
+    style: {
+      maxDialogueLength: 200,
+      showDontTell: true,
+      characterVoiceConsistency: true
+    }
+  },
+  formatting: {
+    typography: {
+      font: 'Times New Roman',
+      fontSize: 11,
+      lineSpacing: 1.5,
+      justification: 'justified'
+    },
+    paragraphs: {
+      indentation: 0.5,
+      spacing: 0,
+      orphanWidowControl: true
+    },
+    chapters: {
+      startOnNewPage: true,
+      titleFormatting: 'Chapter {number}',
+      numbering: 'numeric'
+    }
+  },
+  readability: {
+    fleschKincaid: {
+      targetGradeLevel: 7,
+      maxGradeLevel: 12,
+      minReadingEase: 60
+    },
+    sentenceStructure: {
+      averageLength: 18,
+      maxLength: 25,
+      complexSentenceRatio: 0.25
+    },
+    vocabulary: {
+      averageWordLength: 4.5,
+      passiveVoiceRatio: 0.05,
+      uncommonWordRatio: 0.10
+    }
+  },
+  style: {
+    showVsTell: {
+      actionToDescriptionRatio: 0.7,
+      sensoryDetails: true,
+      emotionalShow: true
+    },
+    pacing: {
+      dialogueRatio: 0.5,
+      actionRatio: 0.35,
+      descriptionRatio: 0.15
+    },
+    characterization: {
+      consistentVoice: true,
+      distinctiveDialogue: true,
+      believableActions: true
+    }
+  }
+};
+
 interface EnhancementOptions {
   enhancementLevel: 'light' | 'moderate' | 'comprehensive';
   preserveAuthorVoice: boolean;
@@ -37,12 +123,6 @@ interface QualityMetrics {
   uncommonWordRatio: number;
   showVsTellRatio: number;
   characterConsistency: number;
-}
-
-interface EmbeddingResult {
-  embedding: number[];
-  model: string;
-  tokens_used: number;
 }
 
 /**
@@ -95,7 +175,6 @@ function calculateCosineSimilarity(embeddingA: number[], embeddingB: number[]): 
  * Split text into sentences for semantic comparison
  */
 function splitIntoSentences(text: string): string[] {
-  // Split on sentence endings, preserve paragraph structure
   const sentences = text
     .split(/(?<=[.!?])\s+/)
     .filter(sentence => sentence.trim().length > 0)
@@ -113,13 +192,11 @@ async function generateChangeTrackingData(originalContent: string, enhancedConte
   try {
     console.log('🔍 Starting embedding-based change tracking...');
     
-    // Split content into sentences
     const originalSentences = splitIntoSentences(originalContent);
     const enhancedSentences = splitIntoSentences(enhancedContent);
     
     console.log(`📊 Analyzing ${originalSentences.length} original vs ${enhancedSentences.length} enhanced sentences`);
     
-    // Generate embeddings for all sentences
     const originalEmbeddings: number[][] = [];
     const enhancedEmbeddings: number[][] = [];
     
@@ -129,13 +206,11 @@ async function generateChangeTrackingData(originalContent: string, enhancedConte
         const embedding = await generateEmbedding(originalSentences[i]);
         originalEmbeddings.push(embedding);
         
-        // Rate limiting - small delay between requests
         if (i < originalSentences.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
       } catch (error) {
         console.error(`Error generating embedding for original sentence ${i}:`, error);
-        // Use empty embedding as fallback
         originalEmbeddings.push([]);
       }
     }
@@ -146,28 +221,24 @@ async function generateChangeTrackingData(originalContent: string, enhancedConte
         const embedding = await generateEmbedding(enhancedSentences[i]);
         enhancedEmbeddings.push(embedding);
         
-        // Rate limiting - small delay between requests
         if (i < enhancedSentences.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
       } catch (error) {
         console.error(`Error generating embedding for enhanced sentence ${i}:`, error);
-        // Use empty embedding as fallback
         enhancedEmbeddings.push([]);
       }
     }
     
     console.log('🧮 Computing semantic similarities...');
     
-    // Find the best matches between original and enhanced sentences
-    const SIMILARITY_THRESHOLD = 0.99; // As requested by user
+    const SIMILARITY_THRESHOLD = 0.99;
     let positionOffset = 0;
     
     for (let i = 0; i < originalSentences.length; i++) {
       const originalSentence = originalSentences[i];
       const originalEmbedding = originalEmbeddings[i];
       
-      // Skip if embedding generation failed
       if (originalEmbedding.length === 0) {
         positionOffset += originalSentence.length + 1;
         continue;
@@ -176,11 +247,9 @@ async function generateChangeTrackingData(originalContent: string, enhancedConte
       let bestMatch = -1;
       let bestSimilarity = 0;
       
-      // Find the most similar enhanced sentence
       for (let j = 0; j < enhancedSentences.length; j++) {
         const enhancedEmbedding = enhancedEmbeddings[j];
         
-        // Skip if embedding generation failed
         if (enhancedEmbedding.length === 0) continue;
         
         try {
@@ -195,7 +264,6 @@ async function generateChangeTrackingData(originalContent: string, enhancedConte
         }
       }
       
-      // Only flag as change if similarity is below threshold (< 0.99)
       if (bestMatch !== -1 && bestSimilarity < SIMILARITY_THRESHOLD) {
         const enhancedSentence = enhancedSentences[bestMatch];
         const changeType = determineChangeType(originalSentence, enhancedSentence);
@@ -220,7 +288,6 @@ async function generateChangeTrackingData(originalContent: string, enhancedConte
     
   } catch (error) {
     console.error('❌ Error in embedding-based change tracking:', error);
-    // Fallback to basic change detection if embeddings fail
     return generateFallbackChangeTracking(originalContent, enhancedContent);
   }
   
@@ -233,7 +300,6 @@ async function generateChangeTrackingData(originalContent: string, enhancedConte
 function generateFallbackChangeTracking(originalContent: string, enhancedContent: string): any[] {
   const changes: any[] = [];
   
-  // Simple text comparison as fallback
   if (originalContent !== enhancedContent) {
     changes.push({
       change_type: 'style',
@@ -256,7 +322,6 @@ async function aggregateEnhancementContext(projectId: string, chapterId: string)
   try {
     console.log('📚 Aggregating enhancement context for chapter:', chapterId);
 
-    // Fetch all story data in parallel
     const [
       projectResponse,
       chaptersResponse,
@@ -283,16 +348,13 @@ async function aggregateEnhancementContext(projectId: string, chapterId: string)
     const timelineEvents = timelineEventsResponse.data || [];
     const characterRelationships = characterRelationshipsResponse.data || [];
 
-    // Find current chapter position
     const currentChapterIndex = chapters.findIndex(c => c.id === chapterId);
     const currentChapter = chapters[currentChapterIndex];
 
-    // Separate knowledge by category
     const characters = knowledge.filter(item => item.category === 'character');
     const worldBuilding = knowledge.filter(item => item.category === 'world_building');
     const themes = knowledge.filter(item => item.category === 'theme');
 
-    // Build comprehensive context
     const contextSections: string[] = [
       `## PROJECT OVERVIEW`,
       `**Title:** ${project?.title || 'Untitled Project'}`,
@@ -301,7 +363,6 @@ async function aggregateEnhancementContext(projectId: string, chapterId: string)
       ``
     ];
 
-    // Add character profiles for voice consistency
     if (characters.length > 0) {
       contextSections.push(`## CHARACTER PROFILES (for voice consistency)`);
       characters.slice(0, 8).forEach(char => {
@@ -316,7 +377,6 @@ async function aggregateEnhancementContext(projectId: string, chapterId: string)
       });
     }
 
-    // Add key relationships for character interactions
     if (characterRelationships.length > 0) {
       contextSections.push(`## KEY RELATIONSHIPS (for dialogue authenticity)`);
       characterRelationships.slice(0, 6).forEach(rel => {
@@ -326,7 +386,6 @@ async function aggregateEnhancementContext(projectId: string, chapterId: string)
       });
     }
 
-    // Add plot context for narrative consistency
     if (plotThreads.length > 0) {
       contextSections.push(`## ACTIVE PLOT THREADS (for narrative consistency)`);
       plotThreads.slice(0, 5).forEach(thread => {
@@ -336,7 +395,6 @@ async function aggregateEnhancementContext(projectId: string, chapterId: string)
       });
     }
 
-    // Add world building for atmosphere and setting details
     if (worldBuilding.length > 0) {
       contextSections.push(`## WORLD BUILDING (for setting consistency)`);
       worldBuilding.slice(0, 6).forEach(element => {
@@ -346,7 +404,6 @@ async function aggregateEnhancementContext(projectId: string, chapterId: string)
       });
     }
 
-    // Add themes for stylistic guidance
     if (themes.length > 0) {
       contextSections.push(`## THEMES (for stylistic guidance)`);
       themes.forEach(theme => {
@@ -371,9 +428,7 @@ function calculateQualityMetrics(content: string): QualityMetrics {
   const sentences = content.split(/[.!?]+/).filter(s => s.trim()).length;
   const words = content.split(/\s+/).filter(w => w.length > 0).length;
   const characters = content.length;
-  const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim()).length;
 
-  // Advanced metrics calculations
   const syllables = countSyllables(content);
   const complexSentences = countComplexSentences(content);
   const passiveVoiceCount = countPassiveVoice(content);
@@ -393,7 +448,7 @@ function calculateQualityMetrics(content: string): QualityMetrics {
     complexSentenceRatio: sentences > 0 ? (complexSentences / sentences) * 100 : 0,
     uncommonWordRatio: words > 0 ? (uncommonWords / words) * 100 : 0,
     showVsTellRatio: showVsTellRatio,
-    characterConsistency: 85 // Placeholder - would need AI analysis
+    characterConsistency: 85
   };
 }
 
@@ -408,12 +463,10 @@ function countSyllables(text: string): number {
     const vowelGroups = cleanWord.match(/[aeiouy]+/g) || [];
     syllables += vowelGroups.length;
     
-    // Adjust for silent 'e'
     if (cleanWord.endsWith('e') && vowelGroups.length > 1) {
       syllables--;
     }
     
-    // Minimum one syllable per word
     if (vowelGroups.length === 0) syllables++;
   }
   
@@ -467,14 +520,12 @@ function calculateDialogueRatio(content: string): number {
 }
 
 function countUncommonWords(content: string): number {
-  // Simplified implementation - could be enhanced with a proper word frequency database
   const words = content.toLowerCase().split(/\s+/).filter(w => w.match(/^[a-z]+$/));
   const longWords = words.filter(w => w.length > 6);
   return longWords.length;
 }
 
 function calculateShowVsTellRatio(content: string): number {
-  // Simplified heuristic - look for sensory details vs. abstract statements
   const sensoryWords = content.match(/\b(saw|heard|felt|smelled|tasted|touched|looked|sounded|seemed|appeared)\b/gi) || [];
   const abstractWords = content.match(/\b(was|were|had|felt|thought|knew|realized|understood|believed)\b/gi) || [];
   
@@ -486,7 +537,6 @@ function calculateShowVsTellRatio(content: string): number {
  * Determine the type of change based on content analysis
  */
 function determineChangeType(original: string, enhanced: string): string {
-  // Normalize both texts for comparison
   const normalize = (text: string) => text.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
   
   const normalizedOriginal = normalize(original);
@@ -495,7 +545,6 @@ function determineChangeType(original: string, enhanced: string): string {
   const originalWords = original.split(/\s+/).filter(w => w.length > 0);
   const enhancedWords = enhanced.split(/\s+/).filter(w => w.length > 0);
   
-  // Check for dialogue content
   const originalHasDialogue = original.includes('"') || original.includes('«') || original.includes('—');
   const enhancedHasDialogue = enhanced.includes('"') || enhanced.includes('«') || enhanced.includes('—');
   
@@ -503,34 +552,29 @@ function determineChangeType(original: string, enhanced: string): string {
     return 'dialogue';
   }
   
-  // If normalized content is identical, it's just punctuation/grammar
   if (normalizedOriginal === normalizedEnhanced) {
     return 'grammar';
   }
   
-  // Check word count difference for structure changes
   const wordDifference = Math.abs(originalWords.length - enhancedWords.length);
   const relativeDifference = wordDifference / Math.max(originalWords.length, 1);
   
-  // Classify as structure if there's a significant word count change (>30%)
   if (relativeDifference > 0.30) {
     return 'structure';
   }
   
-  // Check for substantial content changes
   const commonWords = originalWords.filter(word => enhancedWords.includes(word)).length;
   const wordSimilarity = commonWords / Math.max(originalWords.length, enhancedWords.length);
   
   if (wordSimilarity < 0.6) {
-    return 'structure'; // Major rewrite
+    return 'structure';
   }
   
-  // Default to style for moderate changes
   return 'style';
 }
 
 /**
- * Build sophisticated enhancement prompt
+ * Build sophisticated enhancement prompt with level-specific behavior
  */
 function buildEnhancementPrompt(
   content: string,
@@ -540,84 +584,113 @@ function buildEnhancementPrompt(
 ): string {
   const enhancementDirectives: string[] = [];
   const specificInstructions: string[] = [];
+  const criticalSafeguards: string[] = [];
 
-  // Core enhancement level directives
+  // LEVEL-SPECIFIC ENHANCEMENT PHILOSOPHY
   switch (options.enhancementLevel) {
     case 'light':
-      enhancementDirectives.push("- Focus ONLY on fundamental errors: grammar, punctuation, and basic formatting.");
-      enhancementDirectives.push("- Avoid any subjective stylistic changes that could alter the author's voice.");
+      enhancementDirectives.push("🔧 LIGHT ENHANCEMENT MODE - ERROR CORRECTION ONLY");
+      enhancementDirectives.push("- STRICTLY limited to fundamental errors: grammar, punctuation, spelling");
+      enhancementDirectives.push("- ZERO content changes - preserve every word, phrase, and sentence structure");
+      enhancementDirectives.push("- NO stylistic alterations - maintain exact author voice and tone");
+      enhancementDirectives.push("- NO sentence restructuring - only fix technical errors");
       break;
+      
     case 'moderate':
-      enhancementDirectives.push("- Balance technical corrections with subtle stylistic improvements.");
-      enhancementDirectives.push("- Make careful enhancements while preserving the original tone and style.");
+      enhancementDirectives.push("⚖️ MODERATE ENHANCEMENT MODE - BALANCED IMPROVEMENT");
+      enhancementDirectives.push("- Technical corrections PLUS subtle stylistic improvements (15-25% aggressiveness)");
+      enhancementDirectives.push("- Gentle refinements while preserving original narrative style");
+      enhancementDirectives.push("- Minor sentence flow improvements where beneficial");
+      enhancementDirectives.push("- Selective vocabulary enhancements without changing meaning");
       break;
+      
     case 'comprehensive':
-      enhancementDirectives.push("- Apply all applicable standards for polished, professional output.");
-      enhancementDirectives.push("- Enhance style, pacing, and readability while maintaining narrative integrity.");
+      enhancementDirectives.push("✨ COMPREHENSIVE ENHANCEMENT MODE - PROFESSIONAL POLISH");
+      enhancementDirectives.push("- Full professional editing with creative enhancements (40-60% aggressiveness)");
+      enhancementDirectives.push("- Publication-ready polish following all professional standards");
+      enhancementDirectives.push("- Advanced stylistic refinements and narrative improvements");
+      enhancementDirectives.push("- Proactive enhancement suggestions while maintaining story integrity");
       break;
   }
 
-  // Author voice preservation (CRITICAL)
-  if (options.preserveAuthorVoice) {
-    specificInstructions.push("🚨 CRITICAL: Maintain the author's unique voice, tone, and characterization. Prioritize subtle refinements over rewrites. Preserve distinctive narrative style and character personalities as established in the story context.");
-  }
+  // CRITICAL STORY INTEGRITY SAFEGUARDS (ALL LEVELS)
+  criticalSafeguards.push("🚨 ABSOLUTE STORY INTEGRITY REQUIREMENTS:");
+  criticalSafeguards.push("- NEVER alter timeline of events or sequence of story beats");
+  criticalSafeguards.push("- NEVER change character actions, decisions, or plot points");
+  criticalSafeguards.push("- NEVER modify dialogue content that affects plot or character development");
+  criticalSafeguards.push("- NEVER alter scene structure, transitions, or narrative flow");
+  criticalSafeguards.push("- PRESERVE all story-critical information and narrative elements");
 
-  // Grammar and punctuation fixes
-  if (options.applyGrammarFixes) {
-    enhancementDirectives.push("- Fix grammatical errors: subject-verb agreement, tense consistency, pronoun agreement.");
-  }
-  
+  // PROFESSIONAL PUBLISHING STANDARDS
   if (options.applyPunctuationFixes) {
-    enhancementDirectives.push("- Apply standard punctuation rules:");
-    specificInstructions.push("  - Use double quotation marks for dialogue");
-    specificInstructions.push("  - Place punctuation inside quotation marks");
-    specificInstructions.push("  - Use Oxford comma in lists");
-    specificInstructions.push("  - Apply proper em-dash usage for interruptions");
+    enhancementDirectives.push("📝 CHICAGO MANUAL OF STYLE PUNCTUATION:");
+    specificInstructions.push(`  - Use ${NOVEL_STANDARDS.punctuation.dialogue.quotationMarks} quotation marks for all dialogue`);
+    specificInstructions.push(`  - Place punctuation ${NOVEL_STANDARDS.punctuation.dialogue.punctuationInside ? 'inside' : 'outside'} quotation marks`);
+    specificInstructions.push(`  - Apply ${NOVEL_STANDARDS.punctuation.general.oxfordComma ? 'Oxford comma' : 'no Oxford comma'} in lists`);
+    specificInstructions.push(`  - Use em-dashes for interruptions: ${NOVEL_STANDARDS.punctuation.dialogue.emDashForInterruption ? 'enabled' : 'disabled'}`);
+    specificInstructions.push(`  - Use ellipses for trailing speech: ${NOVEL_STANDARDS.punctuation.dialogue.ellipsesForTrailing ? 'enabled' : 'disabled'}`);
   }
 
-  // Formatting improvements
   if (options.applyFormattingFixes) {
-    enhancementDirectives.push("- Ensure proper novel formatting:");
-    specificInstructions.push("  - New paragraph for each speaker in dialogue");
-    specificInstructions.push("  - Proper paragraph structure and transitions");
-    specificInstructions.push("  - Consistent narrative flow");
+    enhancementDirectives.push("📖 PROFESSIONAL NOVEL FORMATTING:");
+    specificInstructions.push(`  - ${NOVEL_STANDARDS.dialogue.formatting.newParagraphPerSpeaker ? 'Ensure' : 'Avoid'} new paragraph per speaker`);
+    specificInstructions.push(`  - ${NOVEL_STANDARDS.dialogue.punctuation.commaBeforeDialogueTag ? 'Use' : 'Avoid'} comma before dialogue tags`);
+    specificInstructions.push(`  - ${NOVEL_STANDARDS.dialogue.punctuation.actionBeatsSeparate ? 'Separate' : 'Combine'} action beats from dialogue`);
+    specificInstructions.push(`  - Maximum dialogue length: ${NOVEL_STANDARDS.dialogue.style.maxDialogueLength} characters`);
   }
 
-  // Readability enhancements
   if (options.improveReadability) {
-    enhancementDirectives.push("- Improve readability metrics:");
-    specificInstructions.push(`  - Target Flesch-Kincaid Grade Level: 7-12 (current: ${currentMetrics.fleschKincaid.toFixed(1)})`);
-    specificInstructions.push(`  - Improve Reading Ease to 60+ (current: ${currentMetrics.readingEase.toFixed(1)})`);
-    specificInstructions.push(`  - Optimize sentence length averaging 15-20 words (current: ${currentMetrics.avgSentenceLength.toFixed(1)})`);
-    specificInstructions.push(`  - Reduce passive voice below 5% (current: ${currentMetrics.passiveVoice.toFixed(1)}%)`);
+    enhancementDirectives.push("📊 READABILITY OPTIMIZATION:");
+    specificInstructions.push(`  - Target Flesch-Kincaid Grade Level: ${NOVEL_STANDARDS.readability.fleschKincaid.targetGradeLevel}-${NOVEL_STANDARDS.readability.fleschKincaid.maxGradeLevel} (current: ${currentMetrics.fleschKincaid.toFixed(1)})`);
+    specificInstructions.push(`  - Achieve Reading Ease: ${NOVEL_STANDARDS.readability.fleschKincaid.minReadingEase}+ (current: ${currentMetrics.readingEase.toFixed(1)})`);
+    specificInstructions.push(`  - Optimize sentence length: ${NOVEL_STANDARDS.readability.sentenceStructure.averageLength} words average (current: ${currentMetrics.avgSentenceLength.toFixed(1)})`);
+    specificInstructions.push(`  - Reduce passive voice below ${(NOVEL_STANDARDS.readability.vocabulary.passiveVoiceRatio * 100).toFixed(1)}% (current: ${currentMetrics.passiveVoice.toFixed(1)}%)`);
+    specificInstructions.push(`  - Complex sentence ratio max: ${(NOVEL_STANDARDS.readability.sentenceStructure.complexSentenceRatio * 100).toFixed(1)}% (current: ${currentMetrics.complexSentenceRatio.toFixed(1)}%)`);
   }
 
-  // Style improvements
   if (options.improveStyle) {
-    enhancementDirectives.push("- Enhance stylistic elements:");
+    enhancementDirectives.push("🎨 ADVANCED STYLE ENHANCEMENT:");
     
     if (options.improveShowVsTell) {
-      specificInstructions.push("  - Convert 'telling' statements to 'showing' through actions, dialogue, or sensory details");
-      specificInstructions.push("  - Add concrete details instead of abstract descriptions");
+      specificInstructions.push(`  - Achieve show vs tell ratio: ${(NOVEL_STANDARDS.style.showVsTell.actionToDescriptionRatio * 100).toFixed(1)}% showing (current: ${currentMetrics.showVsTellRatio.toFixed(1)}%)`);
+      specificInstructions.push(`  - Add ${NOVEL_STANDARDS.style.showVsTell.sensoryDetails ? 'sensory details' : 'abstract descriptions'} for immersion`);
+      specificInstructions.push(`  - ${NOVEL_STANDARDS.style.showVsTell.emotionalShow ? 'Show emotions through actions' : 'State emotions directly'}`);
     }
     
     if (options.refinePacing) {
-      specificInstructions.push("  - Vary sentence structure for better rhythm and flow");
-      specificInstructions.push("  - Balance action, dialogue, and description appropriately");
+      specificInstructions.push(`  - Target dialogue ratio: ${(NOVEL_STANDARDS.style.pacing.dialogueRatio * 100).toFixed(1)}% (current: ${currentMetrics.dialogueRatio.toFixed(1)}%)`);
+      specificInstructions.push(`  - Balance action ratio: ${(NOVEL_STANDARDS.style.pacing.actionRatio * 100).toFixed(1)}%`);
+      specificInstructions.push(`  - Description ratio: ${(NOVEL_STANDARDS.style.pacing.descriptionRatio * 100).toFixed(1)}%`);
     }
     
     if (options.enhanceCharacterVoice) {
-      specificInstructions.push("  - Ensure character dialogue matches their established personality and speech patterns");
-      specificInstructions.push("  - Maintain consistent character voice throughout");
-    }
-    
-    if (options.addSensoryDetails) {
-      specificInstructions.push("  - Add appropriate sensory details to enhance immersion");
-      specificInstructions.push("  - Include sight, sound, touch, taste, or smell where relevant");
+      specificInstructions.push(`  - Ensure ${NOVEL_STANDARDS.style.characterization.consistentVoice ? 'consistent' : 'varied'} character voice`);
+      specificInstructions.push(`  - Create ${NOVEL_STANDARDS.style.characterization.distinctiveDialogue ? 'distinctive' : 'uniform'} dialogue patterns`);
+      specificInstructions.push(`  - Maintain ${NOVEL_STANDARDS.style.characterization.believableActions ? 'believable' : 'dramatic'} character actions`);
     }
   }
 
-  return `# NOVEL ENHANCEMENT TASK
+  // AUTHOR VOICE PRESERVATION
+  if (options.preserveAuthorVoice) {
+    criticalSafeguards.push("🎭 AUTHOR VOICE PRESERVATION:");
+    criticalSafeguards.push("- Maintain the author's unique narrative style and tone");
+    criticalSafeguards.push("- Preserve distinctive word choices and sentence patterns");
+    criticalSafeguards.push("- Keep character personality expressions intact");
+    criticalSafeguards.push("- Respect the author's creative artistic decisions");
+  }
+
+  // CRITICAL OUTPUT FORMATTING REQUIREMENTS
+  const outputRequirements = [
+    "🚨 CRITICAL OUTPUT FORMATTING:",
+    "- PRESERVE paragraph structure EXACTLY - maintain ALL paragraph breaks",
+    "- Use ONLY simple double line breaks (\\n\\n) between paragraphs",
+    "- NEVER add 'Page Break', 'Page BreakPage Break', or any formatting markers",
+    "- NEVER add artificial separators, dividers, or section breaks",
+    "- Return ONLY the enhanced text with no explanations or comments",
+    "- Maintain the exact number of paragraphs as the original"
+  ];
+
+  return `# PROFESSIONAL NOVEL ENHANCEMENT SYSTEM
 
 ## STORY CONTEXT
 ${storyContext}
@@ -629,34 +702,19 @@ ${storyContext}
 - Passive Voice: ${currentMetrics.passiveVoice.toFixed(1)}%
 - Dialogue Ratio: ${currentMetrics.dialogueRatio.toFixed(1)}%
 - Complex Sentence Ratio: ${currentMetrics.complexSentenceRatio.toFixed(1)}%
+- Show vs Tell Ratio: ${currentMetrics.showVsTellRatio.toFixed(1)}%
 
 ## ENHANCEMENT INSTRUCTIONS
 ${enhancementDirectives.join('\n')}
 
-## SPECIFIC GUIDELINES
+## PROFESSIONAL STANDARDS APPLICATION
 ${specificInstructions.join('\n')}
 
-## CRITICAL FORMATTING REQUIREMENTS
-🚨 PRESERVE PARAGRAPH STRUCTURE EXACTLY:
-- Maintain ALL paragraph breaks and line spacing from the original
-- Do NOT remove blank lines between paragraphs
-- Keep the same number of paragraphs as the original
-- Preserve dialogue formatting with proper paragraph breaks
-- Each paragraph should remain as a separate paragraph after enhancement
-
-🚨 ABSOLUTELY FORBIDDEN:
-- NEVER add "Page Break", "Page BreakPage Break", or any similar formatting markers
-- NEVER add artificial page separators or dividers
-- Use ONLY simple double line breaks (\\n\\n) between paragraphs when needed
-- Preserve the exact original line break structure
+## CRITICAL SAFEGUARDS
+${criticalSafeguards.join('\n')}
 
 ## OUTPUT REQUIREMENTS
-- Return ONLY the enhanced text
-- No explanations, comments, or formatting markers
-- If no changes are needed, return the original content exactly
-- MUST maintain exact paragraph structure and line breaks
-- Preserve all intentional stylistic choices that align with the story context
-- Focus on word-level and sentence-level improvements within existing paragraphs
+${outputRequirements.join('\n')}
 
 ## ORIGINAL CONTENT TO ENHANCE:
 ${content}`;
@@ -677,23 +735,19 @@ serve(async (req) => {
       enhancementLevel: options?.enhancementLevel || 'unknown'
     });
 
-    // CRITICAL: Log chapter isolation check
     console.log('🔒 CHAPTER ISOLATION CHECK:', {
       targetChapterId: chapterId,
       requestTimestamp: new Date().toISOString(),
       processingStatus: 'starting_enhancement'
     });
 
-    // Get API key
     const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
     if (!apiKey) {
       throw new Error('Google AI API key not configured');
     }
 
-    // If content is provided directly, use it; otherwise extract from prompt
     let contentToEnhance = content;
     if (!contentToEnhance && prompt) {
-      // Extract content from the existing prompt format
       const contentMatch = prompt.match(/ORIGINAL CONTENT TO ENHANCE:\s*([\s\S]+)$/);
       contentToEnhance = contentMatch ? contentMatch[1].trim() : prompt;
     }
@@ -702,13 +756,9 @@ serve(async (req) => {
       throw new Error('No content provided for enhancement');
     }
 
-    // Get comprehensive story context
     const storyContext = await aggregateEnhancementContext(projectId, chapterId);
-    
-    // Calculate current quality metrics
     const currentMetrics = calculateQualityMetrics(contentToEnhance);
     
-    // Build enhancement prompt
     const enhancementPrompt = buildEnhancementPrompt(
       contentToEnhance,
       storyContext,
@@ -718,18 +768,17 @@ serve(async (req) => {
 
     console.log('📊 Quality metrics calculated:', {
       chapterId,
+      enhancementLevel: options.enhancementLevel,
       fleschKincaid: currentMetrics.fleschKincaid.toFixed(2),
       readingEase: currentMetrics.readingEase.toFixed(2),
       passiveVoice: currentMetrics.passiveVoice.toFixed(1),
       dialogueRatio: currentMetrics.dialogueRatio.toFixed(1)
     });
 
-    // Initialize Google AI
     const ai = new GoogleGenAI({ apiKey });
 
-    // Generate enhanced content using gemini-2.5-flash
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash-exp",
       contents: enhancementPrompt
     });
 
@@ -739,46 +788,52 @@ serve(async (req) => {
       throw new Error('Empty response from AI');
     }
 
-    // Calculate improved metrics
-    const improvedMetrics = calculateQualityMetrics(enhancedContent);
+    // Clean any unwanted formatting markers
+    const cleanedContent = enhancedContent
+      .replace(/Page Break/gi, '')
+      .replace(/\[Page Break\]/gi, '')
+      .replace(/---+/g, '')
+      .trim();
+
+    const improvedMetrics = calculateQualityMetrics(cleanedContent);
     
     console.log('✅ Enhancement completed successfully:', {
       chapterId,
+      enhancementLevel: options.enhancementLevel,
       originalLength: contentToEnhance.length,
-      enhancedLength: enhancedContent.length,
+      enhancedLength: cleanedContent.length,
       readabilityImprovement: (improvedMetrics.readingEase - currentMetrics.readingEase).toFixed(2),
       processingStatus: 'enhancement_complete'
     });
 
-    // Generate change tracking data using embeddings-based comparison
-    const changes = await generateChangeTrackingData(contentToEnhance, enhancedContent);
+    const changes = await generateChangeTrackingData(contentToEnhance, cleanedContent);
     
-    console.log('🔍 Generated embedding-based change tracking data:', {
+    console.log('🔍 Generated change tracking data:', {
       chapterId,
       changesCount: changes.length,
       changeTypes: changes.map(c => c.change_type),
       processingStatus: 'change_tracking_complete'
     });
 
-    // CRITICAL: Log successful completion for this specific chapter
     console.log('🎉 CHAPTER ENHANCEMENT SUCCESS:', {
       targetChapterId: chapterId,
+      enhancementLevel: options.enhancementLevel,
       completionTimestamp: new Date().toISOString(),
       processingStatus: 'ready_for_status_update'
     });
 
     return new Response(JSON.stringify({
       success: true,
-      enhancedContent,
-      changes: changes, // Include embedding-based change tracking data
+      enhancedContent: cleanedContent,
+      changes: changes,
       metrics: {
         before: currentMetrics,
         after: improvedMetrics,
         improvements: {
           readabilityImprovement: improvedMetrics.readingEase - currentMetrics.readingEase,
-          grammarImprovement: 0, // Would need more sophisticated analysis
+          grammarImprovement: 0,
           styleImprovement: improvedMetrics.showVsTellRatio - currentMetrics.showVsTellRatio,
-          overallScore: 85 // Placeholder - could be calculated based on multiple factors
+          overallScore: 85
         }
       }
     }), {
