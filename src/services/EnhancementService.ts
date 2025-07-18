@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { RefinementService } from './RefinementService';
 
@@ -16,7 +17,7 @@ export class EnhancementService {
     try {
       console.log('🎯 EnhancementService: Starting chapter enhancement:', { projectId, chapterId });
 
-      // Get chapter content
+      // Get chapter content - CRITICAL: Use the specific chapter ID
       const { data: chapter, error: chapterError } = await supabase
         .from('chapters')
         .select('*')
@@ -24,7 +25,7 @@ export class EnhancementService {
         .single();
 
       if (chapterError) {
-        console.error('Error fetching chapter:', chapterError);
+        console.error('❌ Error fetching chapter:', chapterError);
         throw new Error(`Failed to fetch chapter: ${chapterError.message}`);
       }
 
@@ -32,22 +33,45 @@ export class EnhancementService {
         throw new Error('Chapter content is empty');
       }
 
-      console.log('📖 Chapter loaded, content length:', chapter.content.length);
+      console.log('📖 Chapter loaded:', {
+        id: chapter.id,
+        title: chapter.title,
+        contentLength: chapter.content.length,
+        contentPreview: chapter.content.substring(0, 100)
+      });
 
-      // Get or create refinement data for content enhancement
+      // Get or create refinement data for THIS SPECIFIC CHAPTER
       let refinementData = await RefinementService.fetchRefinementData(chapterId);
       if (!refinementData) {
+        console.log('Creating new refinement data for chapter:', chapterId);
         refinementData = await RefinementService.createRefinementData(chapterId, chapter.content);
         if (!refinementData) {
           throw new Error('Failed to create refinement data');
         }
       }
 
-      console.log('📋 Refinement data ready:', refinementData.id);
+      // CRITICAL VALIDATION: Ensure refinement belongs to the correct chapter
+      if (refinementData.chapter_id !== chapterId) {
+        const error = new Error(`CRITICAL: Refinement data chapter mismatch! Expected: ${chapterId}, Found: ${refinementData.chapter_id}`);
+        console.error('❌', error.message);
+        throw error;
+      }
+
+      console.log('📋 Refinement data validated:', {
+        refinementId: refinementData.id,
+        chapterId: refinementData.chapter_id,
+        originalContentLength: refinementData.original_content?.length || 0
+      });
 
       // Enhance content using the enhance-chapter edge function
       try {
-        console.log('🚀 Calling enhance-chapter edge function with content length:', chapter.content.length);
+        console.log('🚀 Calling enhance-chapter edge function');
+        console.log('📤 Request data:', {
+          projectId,
+          chapterId,
+          contentLength: chapter.content.length,
+          contentPreview: chapter.content.substring(0, 50)
+        });
         
         const { data: enhancementResult, error: enhancementError } = await supabase.functions.invoke('enhance-chapter', {
           body: { 
@@ -70,24 +94,43 @@ export class EnhancementService {
           }
         });
 
-        // DEBUG: Log the complete enhancement result
-        console.log('🔍 EnhancementService Full Debug:', {
-          data: enhancementResult,
-          error: enhancementError,
-          dataType: typeof enhancementResult,
-          enhancedContentExists: !!enhancementResult?.enhancedContent,
+        console.log('📥 Enhancement result received:', {
+          hasData: !!enhancementResult,
+          hasEnhancedContent: !!enhancementResult?.enhancedContent,
           enhancedContentLength: enhancementResult?.enhancedContent?.length || 0,
-          allDataKeys: enhancementResult ? Object.keys(enhancementResult) : []
+          enhancedContentPreview: enhancementResult?.enhancedContent?.substring(0, 50) || '',
+          hasChanges: !!enhancementResult?.changes,
+          changesCount: enhancementResult?.changes?.length || 0
         });
 
         if (enhancementError) {
-          console.error('Content enhancement failed:', enhancementError);
+          console.error('❌ Content enhancement failed:', enhancementError);
           throw new Error(`Content enhancement failed: ${enhancementError.message}`);
         }
 
+        // CRITICAL VALIDATION: Verify enhanced content is different from input
         if (enhancementResult?.enhancedContent) {
-          await RefinementService.updateRefinementContent(refinementData.id, enhancementResult.enhancedContent);
-          console.log('✅ Content enhanced successfully, length:', enhancementResult.enhancedContent.length);
+          const enhancedContent = enhancementResult.enhancedContent;
+          
+          // Basic sanity check - enhanced content shouldn't be identical to input
+          if (enhancedContent === chapter.content) {
+            console.warn('⚠️ Enhanced content is identical to original content');
+          }
+          
+          // CRITICAL: Save enhanced content ONLY to the specific chapter's refinement
+          console.log('💾 Saving enhanced content to refinement:', {
+            refinementId: refinementData.id,
+            chapterId: refinementData.chapter_id,
+            expectedChapterId: chapterId
+          });
+          
+          await RefinementService.updateRefinementContent(
+            refinementData.id, 
+            enhancedContent,
+            chapterId // Pass expected chapter ID for validation
+          );
+          
+          console.log('✅ Enhanced content saved successfully');
           
           // Process and save individual changes to the ai_change_tracking table
           if (enhancementResult.changes && Array.isArray(enhancementResult.changes)) {
@@ -95,8 +138,12 @@ export class EnhancementService {
             await EnhancementService.saveChangeTrackingData(refinementData.id, enhancementResult.changes);
           }
         } else {
-          console.warn('Enhancement service returned no enhanced content, using original content');
-          await RefinementService.updateRefinementContent(refinementData.id, chapter.content);
+          console.warn('⚠️ Enhancement service returned no enhanced content, using original content');
+          await RefinementService.updateRefinementContent(
+            refinementData.id, 
+            chapter.content,
+            chapterId
+          );
         }
         
         // Call the completion callback to refresh UI
@@ -106,10 +153,14 @@ export class EnhancementService {
         }
 
       } catch (aiError) {
-        console.error('AI enhancement failed:', aiError);
+        console.error('❌ AI enhancement failed:', aiError);
         // Graceful fallback - use original content
         const fallbackContent = chapter.content + '\n\n[AI enhancement unavailable - content preserved as-is]';
-        await RefinementService.updateRefinementContent(refinementData.id, fallbackContent);
+        await RefinementService.updateRefinementContent(
+          refinementData.id, 
+          fallbackContent,
+          chapterId
+        );
         console.log('Using fallback content due to enhancement failure');
         
         // Call the completion callback even on fallback
@@ -122,7 +173,7 @@ export class EnhancementService {
       console.log('✅ EnhancementService: Chapter enhancement completed successfully');
 
     } catch (error) {
-      console.error('EnhancementService error:', error);
+      console.error('❌ EnhancementService error:', error);
       throw error;
     }
   }
@@ -158,14 +209,14 @@ export class EnhancementService {
           .insert(changeRecords);
         
         if (error) {
-          console.error('Error saving change tracking data:', error);
+          console.error('❌ Error saving change tracking data:', error);
           throw error;
         }
         
         console.log('✅ Successfully saved', changeRecords.length, 'change tracking records');
       }
     } catch (error) {
-      console.error('Error in saveChangeTrackingData:', error);
+      console.error('❌ Error in saveChangeTrackingData:', error);
       // Don't throw error here as change tracking is not critical for the main functionality
     }
   }

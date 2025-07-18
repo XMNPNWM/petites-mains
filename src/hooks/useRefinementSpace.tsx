@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,14 +24,17 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   const fetchRefinementData = useCallback(async (chapterId: string) => {
     if (!chapterId) return;
     
-    console.log('useRefinementSpace - Fetching refinement data for chapter:', chapterId);
+    console.log('🔍 useRefinementSpace - Fetching refinement data for chapter:', chapterId);
     
     setIsLoadingRefinementData(true);
     
     try {
+      // CRITICAL: Clear existing refinement data first to prevent showing wrong chapter's data
+      setRefinementData(null);
+      
       let data = await RefinementService.fetchRefinementData(chapterId);
       
-      console.log('useRefinementSpace - Initial refinement data fetch result:', {
+      console.log('📊 useRefinementSpace - Refinement data fetch result:', {
         hasData: !!data,
         chapterId: data?.chapter_id,
         hasOriginalContent: !!data?.original_content,
@@ -42,28 +46,46 @@ export const useRefinementSpace = (projectId: string | undefined) => {
       if (!data) {
         const chapter = chapters.find(c => c.id === chapterId);
         if (chapter) {
-          console.log('useRefinementSpace - Creating new refinement data for chapter:', chapter.title);
+          console.log('🆕 useRefinementSpace - Creating new refinement data for chapter:', chapter.title);
           data = await RefinementService.createRefinementData(chapterId, chapter.content || '');
         }
       } else {
+        // CRITICAL VALIDATION: Ensure refinement data belongs to the correct chapter
+        if (data.chapter_id !== chapterId) {
+          console.error('❌ CRITICAL: Refinement data chapter mismatch!', {
+            expected: chapterId,
+            found: data.chapter_id
+          });
+          setRefinementData(null);
+          setIsLoadingRefinementData(false);
+          return;
+        }
+        
         // Update original_content if it doesn't match current chapter content
         const chapter = chapters.find(c => c.id === chapterId);
         if (chapter && chapter.content !== data.original_content) {
-          console.log('useRefinementSpace - Syncing original_content with current chapter content');
+          console.log('🔄 useRefinementSpace - Syncing original_content with current chapter content');
           await RefinementService.updateOriginalContent(data.id, chapter.content || '');
           data.original_content = chapter.content || '';
         }
       }
       
-      console.log('useRefinementSpace - Final refinement data set:', {
-        hasData: !!data,
-        hasEnhancedContent: !!data?.enhanced_content,
-        enhancedContentLength: data?.enhanced_content?.length || 0
-      });
+      // FINAL VALIDATION: Only set refinement data if it matches the current chapter
+      if (data && data.chapter_id === chapterId) {
+        console.log('✅ useRefinementSpace - Setting validated refinement data:', {
+          refinementId: data.id,
+          chapterId: data.chapter_id,
+          hasEnhancedContent: !!data.enhanced_content,
+          enhancedContentLength: data.enhanced_content?.length || 0
+        });
+        setRefinementData(data);
+      } else {
+        console.warn('⚠️ useRefinementSpace - Refinement data validation failed, not setting data');
+        setRefinementData(null);
+      }
       
-      setRefinementData(data);
     } catch (error) {
-      console.error('Error fetching refinement data:', error);
+      console.error('❌ Error fetching refinement data:', error);
       setRefinementData(null);
     } finally {
       setIsLoadingRefinementData(false);
@@ -71,6 +93,10 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   }, [chapters]);
 
   const handleChapterSelect = useCallback((chapter: Chapter) => {
+    console.log('📋 useRefinementSpace - Chapter selected:', chapter.title, chapter.id);
+    
+    // CRITICAL: Clear refinement data immediately to prevent showing wrong chapter's data
+    setRefinementData(null);
     setCurrentChapter(chapter);
     
     // Save selected chapter for cross-space navigation
@@ -83,13 +109,31 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   }, [projectId, navigate]);
 
   const handleContentChange = useCallback(async (content: string) => {
-    if (!refinementData) return;
+    if (!refinementData || !currentChapter) return;
+    
+    // CRITICAL VALIDATION: Ensure we're updating the correct chapter's content
+    if (refinementData.chapter_id !== currentChapter.id) {
+      console.error('❌ CRITICAL: Content change attempted on wrong chapter!', {
+        refinementChapterId: refinementData.chapter_id,
+        currentChapterId: currentChapter.id
+      });
+      toast({
+        title: "Error",
+        description: "Chapter synchronization error. Please refresh the page.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     try {
       // Optimize paragraph organization
       const optimizedContent = optimizeParagraphs(content);
       
-      await RefinementService.updateRefinementContent(refinementData.id, optimizedContent, currentChapter?.id);
+      await RefinementService.updateRefinementContent(
+        refinementData.id, 
+        optimizedContent, 
+        currentChapter.id // Pass current chapter ID for validation
+      );
       
       setRefinementData(prev => prev ? {
         ...prev,
@@ -100,14 +144,14 @@ export const useRefinementSpace = (projectId: string | undefined) => {
       // Auto-save after content change
       setLastSaved(new Date());
     } catch (error) {
-      console.error('Error updating content:', error);
+      console.error('❌ Error updating content:', error);
       toast({
         title: "Error",
         description: "Failed to save changes",
         variant: "destructive"
       });
     }
-  }, [refinementData, toast]);
+  }, [refinementData, currentChapter, toast]);
 
   const handleChangeDecision = useCallback(async (changeId: string, decision: 'accepted' | 'rejected') => {
     if (!refinementData) return;
@@ -149,7 +193,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
         description: `Change ${decision} successfully`,
       });
     } catch (error) {
-      console.error('Error updating change decision:', error);
+      console.error('❌ Error updating change decision:', error);
       toast({
         title: "Error",
         description: "Failed to update change decision",
@@ -159,11 +203,24 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   }, [toast, refinementData, handleContentChange]);
 
   const handleSave = useCallback(async (isAutoSave = false) => {
-    if (!refinementData || isSaving) return;
+    if (!refinementData || !currentChapter || isSaving) return;
+    
+    // CRITICAL VALIDATION: Ensure we're saving the correct chapter's content
+    if (refinementData.chapter_id !== currentChapter.id) {
+      console.error('❌ CRITICAL: Save attempted on wrong chapter!', {
+        refinementChapterId: refinementData.chapter_id,
+        currentChapterId: currentChapter.id
+      });
+      return;
+    }
     
     setIsSaving(true);
     try {
-      await RefinementService.updateRefinementContent(refinementData.id, refinementData.enhanced_content, currentChapter?.id);
+      await RefinementService.updateRefinementContent(
+        refinementData.id, 
+        refinementData.enhanced_content, 
+        currentChapter.id
+      );
       setLastSaved(new Date());
       
       // Only show success toast for manual saves (not auto-saves)
@@ -174,7 +231,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
         });
       }
     } catch (error) {
-      console.error('Error saving:', error);
+      console.error('❌ Error saving:', error);
       toast({
         title: "Error",
         description: "Failed to save changes",
@@ -183,7 +240,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     } finally {
       setIsSaving(false);
     }
-  }, [refinementData, isSaving, toast]);
+  }, [refinementData, currentChapter, isSaving, toast]);
 
   const handleBackClick = useCallback(() => {
     navigate(`/project/${projectId}/write`);
@@ -191,6 +248,20 @@ export const useRefinementSpace = (projectId: string | undefined) => {
 
   const handleImportToCreation = useCallback(async () => {
     if (!currentChapter || !refinementData) return;
+    
+    // CRITICAL VALIDATION: Ensure we're importing the correct chapter's content
+    if (refinementData.chapter_id !== currentChapter.id) {
+      console.error('❌ CRITICAL: Import attempted on wrong chapter!', {
+        refinementChapterId: refinementData.chapter_id,
+        currentChapterId: currentChapter.id
+      });
+      toast({
+        title: "Error",
+        description: "Chapter synchronization error. Please refresh the page.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     try {
       const result = await ContentVersioningService.importEnhancedToCreation(
@@ -205,14 +276,11 @@ export const useRefinementSpace = (projectId: string | undefined) => {
           title: "Content Imported",
           description: "Enhanced content has been imported to creation space. A backup was created automatically.",
         });
-        
-        // Optionally navigate to writing space
-        // navigate(`/project/${projectId}/write/${currentChapter.id}`);
       } else {
         throw new Error(result.error || 'Import failed');
       }
     } catch (error) {
-      console.error('Error importing content:', error);
+      console.error('❌ Error importing content:', error);
       toast({
         title: "Import Failed",
         description: error instanceof Error ? error.message : "Failed to import enhanced content",
@@ -222,11 +290,13 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   }, [currentChapter, refinementData, toast]);
 
   const refreshData = useCallback(() => {
+    console.log('🔄 useRefinementSpace - Refreshing data');
     if (currentChapter) {
       fetchRefinementData(currentChapter.id);
     }
   }, [fetchRefinementData, currentChapter]);
 
+  // Initialize current chapter
   useEffect(() => {
     if (chapters.length > 0 && !currentChapter && projectId) {
       // Try to restore previously selected chapter
@@ -235,13 +305,15 @@ export const useRefinementSpace = (projectId: string | undefined) => {
       
       // Use saved chapter or default to first chapter
       const chapterToSelect = savedChapter || chapters[0];
+      console.log('🏁 useRefinementSpace - Initializing with chapter:', chapterToSelect.title);
       setCurrentChapter(chapterToSelect);
     }
   }, [chapters, currentChapter, projectId]);
 
+  // Fetch refinement data when current chapter changes
   useEffect(() => {
     if (currentChapter) {
-      console.log('useRefinementSpace - Current chapter changed, fetching refinement data for:', currentChapter.title, currentChapter.id);
+      console.log('📋 useRefinementSpace - Current chapter changed, fetching refinement data for:', currentChapter.title, currentChapter.id);
       fetchRefinementData(currentChapter.id);
     }
   }, [currentChapter, fetchRefinementData]);
@@ -252,8 +324,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     if (urlChapterId && chapters.length > 0) {
       const targetChapter = chapters.find(c => c.id === urlChapterId);
       if (targetChapter && (!currentChapter || currentChapter.id !== urlChapterId)) {
-        console.log('useRefinementSpace - URL mismatch, setting current chapter from URL:', targetChapter.title, urlChapterId);
-        // Only set current chapter - let the main chapter effect handle data fetching
+        console.log('🔗 useRefinementSpace - URL mismatch, setting current chapter from URL:', targetChapter.title, urlChapterId);
         setCurrentChapter(targetChapter);
       }
     }

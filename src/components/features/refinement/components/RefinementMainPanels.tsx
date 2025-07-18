@@ -95,6 +95,21 @@ const RefinementMainPanels = ({
   onEnhanceChapter = () => {},
   hasEnhancedContent = false
 }: RefinementMainPanelsProps) => {
+  
+  // CRITICAL VALIDATION: Only render enhanced content if it belongs to the current chapter
+  const shouldShowEnhancedContent = hasEnhancedContent && 
+    refinementData?.chapter_id === currentChapter?.id &&
+    refinementData?.enhanced_content &&
+    refinementData.enhanced_content.trim().length > 0;
+
+  console.log('🎛️ RefinementMainPanels - Render state:', {
+    currentChapterId: currentChapter?.id,
+    refinementChapterId: refinementData?.chapter_id,
+    hasEnhancedContent,
+    shouldShowEnhancedContent,
+    enhancedContentLength: refinementData?.enhanced_content?.length || 0
+  });
+
   return (
     <ResizablePanelGroup direction="horizontal" className="h-full">
       {/* Panel 1: Chapter Navigation */}
@@ -140,7 +155,7 @@ const RefinementMainPanels = ({
       <ResizablePanel defaultSize={28} minSize={20} maxSize={40}>
         <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
           <EnhancedEditorPanel
-            content={hasEnhancedContent ? (refinementData?.enhanced_content || '') : ''}
+            content={shouldShowEnhancedContent ? refinementData.enhanced_content : ''}
             onContentChange={onContentChange}
             chapterTitle={currentChapter?.title || ''}
             chapterId={currentChapter?.id}
@@ -150,7 +165,7 @@ const RefinementMainPanels = ({
             scrollPosition={scrollPositions.enhanced}
             isEnhancing={isEnhancing}
             onEnhanceChapter={onEnhanceChapter}
-            hasEnhancedContent={hasEnhancedContent}
+            hasEnhancedContent={shouldShowEnhancedContent}
           />
         </SimpleRightClickMenu>
       </ResizablePanel>
@@ -161,7 +176,7 @@ const RefinementMainPanels = ({
       <ResizablePanel defaultSize={17} minSize={12} maxSize={25}>
         <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
           <ChangeTrackingPanel
-            refinementId={refinementData?.id || ''}
+            refinementId={refinementData?.chapter_id === currentChapter?.id ? refinementData?.id || '' : ''}
             onChangeDecision={onChangeDecision}
             onChangeClick={onChangeClick}
             scrollPosition={scrollPositions.changeTracking}
@@ -192,10 +207,10 @@ const RefinementMainPanels = ({
           >
             <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
               <MetricsPanel
-                refinementId={refinementData?.id || ''}
+                refinementId={refinementData?.chapter_id === currentChapter?.id ? refinementData?.id || '' : ''}
                 isExpanded={metricsExpanded}
                 onToggleExpanded={onMetricsToggle}
-                content={refinementData?.enhanced_content || ''}
+                content={shouldShowEnhancedContent ? refinementData.enhanced_content : ''}
               />
             </SimpleRightClickMenu>
           </ResizablePanel>

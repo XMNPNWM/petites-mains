@@ -21,27 +21,42 @@ export class RefinementService {
 
   static async fetchRefinementData(chapterId: string): Promise<RefinementData | null> {
     try {
+      console.log('🔍 RefinementService: Fetching refinement data for chapter:', chapterId);
+      
       const { data, error } = await supabase
         .from('chapter_refinements')
         .select('*')
         .eq('chapter_id', chapterId)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ RefinementService: Fetch error:', error);
+        throw error;
+      }
       
       if (data) {
+        console.log('✅ RefinementService: Found refinement data:', {
+          id: data.id,
+          chapterId: data.chapter_id,
+          hasOriginalContent: !!data.original_content,
+          hasEnhancedContent: !!data.enhanced_content,
+          enhancedContentLength: data.enhanced_content?.length || 0
+        });
         return this.castToRefinementData(data);
       }
       
+      console.log('ℹ️ RefinementService: No refinement data found for chapter:', chapterId);
       return null;
     } catch (error) {
-      console.error('Error fetching refinement data:', error);
+      console.error('❌ RefinementService: Error fetching refinement data:', error);
       return null;
     }
   }
 
   static async createRefinementData(chapterId: string, originalContent: string): Promise<RefinementData | null> {
     try {
+      console.log('🆕 RefinementService: Creating refinement data for chapter:', chapterId);
+      
       const { data, error } = await supabase
         .from('chapter_refinements')
         .insert({
@@ -53,16 +68,27 @@ export class RefinementService {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ RefinementService: Create error:', error);
+        throw error;
+      }
+      
+      console.log('✅ RefinementService: Created refinement data:', {
+        id: data.id,
+        chapterId: data.chapter_id
+      });
+      
       return this.castToRefinementData(data);
     } catch (error) {
-      console.error('Error creating refinement data:', error);
+      console.error('❌ RefinementService: Error creating refinement data:', error);
       return null;
     }
   }
 
   static async updateOriginalContent(refinementId: string, originalContent: string): Promise<boolean> {
     try {
+      console.log('🔄 RefinementService: Updating original content for refinement:', refinementId);
+      
       const { error } = await supabase
         .from('chapter_refinements')
         .update({ 
@@ -71,10 +97,15 @@ export class RefinementService {
         })
         .eq('id', refinementId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ RefinementService: Update original content error:', error);
+        throw error;
+      }
+      
+      console.log('✅ RefinementService: Original content updated successfully');
       return true;
     } catch (error) {
-      console.error('Error updating original content:', error);
+      console.error('❌ RefinementService: Error updating original content:', error);
       return false;
     }
   }
@@ -88,7 +119,7 @@ export class RefinementService {
         contentPreview: content?.substring(0, 100) || '[empty]'
       });
 
-      // Validation: Verify refinement belongs to expected chapter
+      // CRITICAL VALIDATION: Verify refinement belongs to expected chapter
       if (expectedChapterId) {
         const { data: existingData, error: fetchError } = await supabase
           .from('chapter_refinements')
@@ -102,7 +133,7 @@ export class RefinementService {
         }
 
         if (existingData.chapter_id !== expectedChapterId) {
-          const error = new Error(`Chapter ID mismatch! Expected: ${expectedChapterId}, Found: ${existingData.chapter_id}`);
+          const error = new Error(`CRITICAL: Chapter ID mismatch! Expected: ${expectedChapterId}, Found: ${existingData.chapter_id}`);
           console.error('❌ RefinementService: Chapter validation failed:', error.message);
           throw error;
         }
@@ -110,6 +141,7 @@ export class RefinementService {
         console.log('✅ RefinementService: Chapter validation passed');
       }
 
+      // CRITICAL: Update ONLY the specific refinement record
       const { data, error } = await supabase
         .from('chapter_refinements')
         .update({
@@ -125,7 +157,18 @@ export class RefinementService {
         throw error;
       }
 
-      console.log('✅ RefinementService: Content updated successfully for chapter:', data?.[0]?.chapter_id);
+      if (!data || data.length === 0) {
+        const error = new Error('No refinement record was updated - this should not happen!');
+        console.error('❌ RefinementService:', error.message);
+        throw error;
+      }
+
+      console.log('✅ RefinementService: Content updated successfully:', {
+        updatedRecords: data.length,
+        refinementId: data[0].id,
+        chapterId: data[0].chapter_id
+      });
+      
     } catch (error) {
       console.error('❌ RefinementService: Error updating refinement content:', error);
       throw error;
