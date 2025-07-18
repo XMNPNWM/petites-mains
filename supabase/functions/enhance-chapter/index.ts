@@ -590,6 +590,12 @@ serve(async (req) => {
       enhancementLevel: options?.enhancementLevel || 'unknown'
     });
 
+    // CRITICAL: Log chapter isolation check
+    console.log('🔒 CHAPTER ISOLATION CHECK:', {
+      targetChapterId: chapterId,
+      requestTimestamp: new Date().toISOString()
+    });
+
     // Get API key
     const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
     if (!apiKey) {
