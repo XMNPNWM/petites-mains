@@ -1,16 +1,14 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import Dashboard from './pages/Dashboard';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import ForgotPassword from './pages/ForgotPassword';
-import UpdateProfile from './pages/UpdateProfile';
-import PrivateRoute from './components/PrivateRoute';
-import ProjectDetail from './pages/ProjectDetail';
+import GlobalDashboard from './pages/GlobalDashboard';
+import AuthPage from './pages/AuthPage';
 import WritingSpace from './pages/WritingSpace';
 import RefinementSpace from './pages/RefinementSpace';
-import WorldbuildingSpace from './pages/WorldbuildingSpace';
+import ProfilePage from './pages/ProfilePage';
+import SubscriptionPage from './pages/SubscriptionPage';
+import ProjectDashboard from './pages/ProjectDashboard';
+import AnalyticsPage from './pages/AnalyticsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { Toaster } from '@/components/ui/toaster';
 import ProjectExportPage from './pages/ProjectExportPage';
@@ -21,22 +19,28 @@ function App() {
       <AuthProvider>
         <Toaster />
         <Routes>
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route
-            path="/update-profile"
-            element={
-              <PrivateRoute>
-                <UpdateProfile />
-              </PrivateRoute>
-            }
-          />
+          <Route path="/auth" element={<AuthPage />} />
           <Route
             path="/"
             element={
               <ProtectedRoute>
-                <Dashboard />
+                <GlobalDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/subscription"
+            element={
+              <ProtectedRoute>
+                <SubscriptionPage />
               </ProtectedRoute>
             }
           />
@@ -44,7 +48,15 @@ function App() {
             path="/project/:projectId"
             element={
               <ProtectedRoute>
-                <ProjectDetail />
+                <ProjectDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/project/:projectId/analytics"
+            element={
+              <ProtectedRoute>
+                <AnalyticsPage />
               </ProtectedRoute>
             }
           />
@@ -69,14 +81,6 @@ function App() {
             element={
               <ProtectedRoute>
                 <RefinementSpace />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/project/:projectId/worldbuilding"
-            element={
-              <ProtectedRoute>
-                <WorldbuildingSpace />
               </ProtectedRoute>
             }
           />

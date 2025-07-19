@@ -6,23 +6,7 @@ import ChronologicalTimeline from '../writing/ChronologicalTimeline';
 import AnalysisStatusIndicator from '../writing/AnalysisStatusIndicator';
 import ExportDialog from '../writing/ExportDialog';
 import { useProjectData } from '@/hooks/useProjectData';
-
-interface Chapter {
-  id: string;
-  title: string;
-  content: string;
-  word_count: number;
-  order_index: number;
-  status: string;
-  project_id: string;
-}
-
-interface Project {
-  id: string;
-  title: string;
-  description: string;
-  user_id: string;
-}
+import { Project, Chapter } from '@/types/shared';
 
 interface RefinementSpaceHeaderProps {
   project?: Project;

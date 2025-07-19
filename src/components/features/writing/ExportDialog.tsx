@@ -1,25 +1,6 @@
 import React from 'react';
 import EnhancedExportDialog from '@/components/features/export/EnhancedExportDialog';
-
-interface Chapter {
-  id: string;
-  title: string;
-  content: string;
-  word_count: number;
-  order_index: number;
-  status: string;
-}
-
-interface ChapterRefinement {
-  id: string;
-  chapter_id: string;
-  enhanced_content: string;
-}
-
-interface Project {
-  id: string;
-  title: string;
-}
+import { Project, Chapter } from '@/types/shared';
 
 interface ExportDialogProps {
   project: Project;
