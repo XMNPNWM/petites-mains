@@ -1,8 +1,10 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import GlobalDashboard from './pages/GlobalDashboard';
 import AuthPage from './pages/AuthPage';
+import LandingPage from './pages/LandingPage';
 import WritingSpace from './pages/WritingSpace';
 import RefinementSpace from './pages/RefinementSpace';
 import ProfilePage from './pages/ProfilePage';
@@ -10,6 +12,7 @@ import SubscriptionPage from './pages/SubscriptionPage';
 import ProjectDashboard from './pages/ProjectDashboard';
 import AnalyticsPage from './pages/AnalyticsPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import PublicRoute from './components/PublicRoute';
 import { Toaster } from '@/components/ui/toaster';
 import ProjectExportPage from './pages/ProjectExportPage';
 
@@ -19,9 +22,17 @@ function App() {
       <AuthProvider>
         <Toaster />
         <Routes>
-          <Route path="/auth" element={<AuthPage />} />
           <Route
             path="/"
+            element={
+              <PublicRoute>
+                <LandingPage />
+              </PublicRoute>
+            }
+          />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <GlobalDashboard />
