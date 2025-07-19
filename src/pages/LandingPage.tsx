@@ -30,7 +30,7 @@ const LandingPage = () => {
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: `url('/lovable-uploads/e2abb4f3-f724-4125-bd0c-00a3f6a12763.png')`,
+            backgroundImage: `url('/lovable-uploads/9cfdbadc-5ac7-468c-a9f6-0ad111619cd6.png')`,
           }}
         >
           <div className="absolute inset-0 bg-black/40"></div>
