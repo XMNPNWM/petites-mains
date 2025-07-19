@@ -60,8 +60,8 @@ const UserGuidePage = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-semibold mb-2">Character Development</h4>
-                <p className="text-muted-foreground">Use our character builder to create detailed profiles, backstories, and track character arcs throughout your story.</p>
+                <h4 className="font-semibold mb-2">AI Brain Data Management</h4>
+                <p className="text-muted-foreground">Review and improve AI-gathered data directly in the AI Brain tab. Edit character details, relationships, and story elements to maintain accuracy.</p>
               </div>
               <div>
                 <h4 className="font-semibold mb-2">World Building</h4>
