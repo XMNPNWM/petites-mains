@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Star, User, FileText, Clock, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,18 +16,35 @@ const DashboardHeader = () => {
     signOut
   } = useAuth();
   const { profile } = useProfile();
+  
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
   };
+  
+  const handleLogoClick = () => {
+    navigate('/');
+  };
+  
   const getInitials = (name: string | undefined) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
+  
   return <div className="bg-white border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between">
-          <div>
+          <div 
+            onClick={handleLogoClick}
+            className="cursor-pointer hover:opacity-80 transition-opacity"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                handleLogoClick();
+              }
+            }}
+          >
             <Logo className="h-16 w-auto" />
           </div>
           
@@ -74,4 +92,5 @@ const DashboardHeader = () => {
       </div>
     </div>;
 };
+
 export default DashboardHeader;
