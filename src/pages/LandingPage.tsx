@@ -250,7 +250,7 @@ const LandingPage = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Your writing is stored securely in our database. We take data privacy seriously and follow industry best practices. However, please note that when using AI features, your text may be processed by third-party AI services to provide suggestions and assistance.
+                  Your writing is stored securely in our database. We take data privacy seriously and follow industry best practices. No data from our users will ever be sold.
                 </p>
               </CardContent>
             </Card>
