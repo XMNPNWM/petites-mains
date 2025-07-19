@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PenTool, BookOpen, Brain, Users, Zap, FileText, Sparkles, ArrowRight, CheckCircle, Globe, Edit3, BarChart3 } from 'lucide-react';
+import { PenTool, BookOpen, Brain, Users, Zap, FileText, Sparkles, ArrowRight, CheckCircle, Globe, Edit3, BarChart3, Map, Settings, Upload, Lightbulb } from 'lucide-react';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -200,8 +200,138 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Personal Message from Creator */}
+      {/* How It Works Section */}
       <section className="py-20 bg-muted/30">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-6">
+              How It Works
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Follow our streamlined creative process with continuous AI support throughout your writing journey
+            </p>
+          </div>
+
+          <div className="max-w-6xl mx-auto space-y-12">
+            {/* Main Creative Process Flow */}
+            <div className="relative">
+              <div className="text-center mb-8">
+                <h3 className="text-2xl font-semibold text-primary mb-2">Your Creative Process</h3>
+                <p className="text-muted-foreground">From initial idea to published masterpiece</p>
+              </div>
+
+              <div className="flex flex-col lg:flex-row items-center justify-between gap-8 relative">
+                {/* Flow Line - Hidden on mobile, visible on lg+ */}
+                <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-primary to-primary transform -translate-y-1/2 z-0"></div>
+                
+                {/* Creation Space */}
+                <div className="flex-1 relative z-10">
+                  <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-background">
+                    <CardHeader>
+                      <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                        <Map className="h-8 w-8 text-primary" />
+                      </div>
+                      <CardTitle className="text-xl">Creation Space</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <CardDescription className="text-base">
+                        Start with our mindmap tool and comprehensive library to organize your ideas, characters, and world-building elements
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Arrow - Visible on lg+ */}
+                <div className="hidden lg:block relative z-10">
+                  <ArrowRight className="h-8 w-8 text-primary bg-background rounded-full p-1 border-2 border-primary" />
+                </div>
+
+                {/* Enhancement Space */}
+                <div className="flex-1 relative z-10">
+                  <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-background">
+                    <CardHeader>
+                      <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                        <Settings className="h-8 w-8 text-primary" />
+                      </div>
+                      <CardTitle className="text-xl">Enhancement Space</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <CardDescription className="text-base">
+                        Refine your work with our enhancement process and granular management tools for precision editing
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Arrow - Visible on lg+ */}
+                <div className="hidden lg:block relative z-10">
+                  <ArrowRight className="h-8 w-8 text-primary bg-background rounded-full p-1 border-2 border-primary" />
+                </div>
+
+                {/* Export Space */}
+                <div className="flex-1 relative z-10">
+                  <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-background">
+                    <CardHeader>
+                      <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                        <Upload className="h-8 w-8 text-primary" />
+                      </div>
+                      <CardTitle className="text-xl">Export Space</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <CardDescription className="text-base">
+                        Final refinement and professional formatting ready for export and publication to your chosen platform
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Brain Analysis - Parallel Process */}
+            <div className="relative">
+              <div className="text-center mb-8">
+                <h3 className="text-2xl font-semibold text-secondary mb-2">Continuous AI Support</h3>
+                <p className="text-muted-foreground">Intelligent assistance throughout your entire creative journey</p>
+              </div>
+
+              <div className="max-w-4xl mx-auto">
+                <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-gradient-to-r from-secondary/5 to-secondary/10 border-secondary/20">
+                  <CardHeader>
+                    <div className="w-20 h-20 mx-auto mb-4 bg-secondary/10 rounded-full flex items-center justify-center">
+                      <Brain className="h-10 w-10 text-secondary" />
+                    </div>
+                    <CardTitle className="text-2xl text-secondary">AI Brain Analysis</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-lg">
+                      Our AI continuously analyzes your story, keeping detailed records of your narrative, characters, and themes. 
+                      This deep understanding enables personalized advice and support that evolves with your writing, 
+                      ensuring every suggestion enhances your unique creative vision.
+                    </CardDescription>
+                    <div className="flex justify-center items-center mt-6 space-x-8">
+                      <div className="flex items-center space-x-2">
+                        <Lightbulb className="h-5 w-5 text-secondary" />
+                        <span className="text-sm text-muted-foreground">Smart Suggestions</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <BarChart3 className="h-5 w-5 text-secondary" />
+                        <span className="text-sm text-muted-foreground">Progress Tracking</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <BookOpen className="h-5 w-5 text-secondary" />
+                        <span className="text-sm text-muted-foreground">Story Consistency</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Personal Message from Creator */}
+      <section className="py-20 bg-background">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">
