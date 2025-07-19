@@ -8,13 +8,15 @@ interface LogoProps {
 const Logo = ({ className = "h-12 w-auto" }: LogoProps) => {
   const [imageError, setImageError] = useState(false);
 
-  const handleImageError = () => {
-    console.log('Logo image failed to load, showing fallback');
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.log('Logo image failed to load:', e);
+    console.log('Attempted src:', e.currentTarget.src);
+    console.log('Full URL:', window.location.origin + '/lovable-uploads/fb39a1cc-ffc3-4263-a598-e30e0ab6a56f.jpg');
     setImageError(true);
   };
 
   const handleImageLoad = () => {
-    console.log('Logo image loaded successfully');
+    console.log('Logo image loaded successfully from:', '/lovable-uploads/fb39a1cc-ffc3-4263-a598-e30e0ab6a56f.jpg');
   };
 
   if (imageError) {
