@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -418,7 +417,7 @@ const LandingPage = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Yes! You can start using Petites Mains for free with all core writing features. Premium plans provide additional AI credits for enhanced writing assistance.
+                  Yes! Petites Mains offers a free tier with core writing features. Please note that due to infrastructure expenses, this tier has certain usage limits and a limited monthly allocation of AI credits.
                 </p>
               </CardContent>
             </Card>
@@ -534,12 +533,6 @@ const LandingPage = () => {
                   className="text-muted-foreground cursor-pointer hover:text-foreground block"
                 >
                   Terms of Service
-                </Link>
-                <Link 
-                  to="/legal-notice" 
-                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
-                >
-                  Legal Notice
                 </Link>
               </div>
             </div>

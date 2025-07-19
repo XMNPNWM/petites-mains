@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Shield } from 'lucide-react';
@@ -121,8 +121,7 @@ const PrivacyPolicyPage = () => {
               <section>
                 <h2 className="text-xl font-semibold mb-4">7. Contact Us</h2>
                 <div className="space-y-4 text-muted-foreground">
-                  <p>If you have questions about this Privacy Policy or want to exercise your rights, contact us at:</p>
-                  <p className="font-medium text-foreground">privacy@petitesmains.com</p>
+                  <p>If you have questions about this Privacy Policy or want to exercise your rights, please <Link to="/contact" className="text-primary hover:underline">contact us</Link>.</p>
                 </div>
               </section>
 

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, FileText } from 'lucide-react';
@@ -143,8 +143,7 @@ const TermsOfServicePage = () => {
               <section>
                 <h2 className="text-xl font-semibold mb-4">10. Contact Information</h2>
                 <div className="space-y-4 text-muted-foreground">
-                  <p>If you have any questions about these Terms of Service, please contact us at:</p>
-                  <p className="font-medium text-foreground">legal@petitesmains.com</p>
+                  <p>If you have any questions about these Terms of Service, please <Link to="/contact" className="text-primary hover:underline">contact us</Link>.</p>
                 </div>
               </section>
             </div>

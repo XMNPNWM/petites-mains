@@ -54,7 +54,7 @@ const PricingPage = () => {
                 </li>
                 <li className="flex items-center">
                   <Check className="h-4 w-4 text-primary mr-2" />
-                  <span>10 AI suggestions/month</span>
+                  <span>Limited AI suggestions</span>
                 </li>
               </ul>
               <Button className="w-full" onClick={() => navigate('/auth')}>
@@ -125,15 +125,15 @@ const PricingPage = () => {
                 </li>
                 <li className="flex items-center">
                   <Check className="h-4 w-4 text-muted-foreground mr-2" />
-                  <span className="text-muted-foreground">Team collaboration</span>
-                </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-muted-foreground mr-2" />
                   <span className="text-muted-foreground">Advanced publishing tools</span>
                 </li>
                 <li className="flex items-center">
                   <Check className="h-4 w-4 text-muted-foreground mr-2" />
                   <span className="text-muted-foreground">Custom branding</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-muted-foreground mr-2" />
+                  <span className="text-muted-foreground">Enhanced AI features</span>
                 </li>
               </ul>
               <Button variant="outline" className="w-full" disabled>
