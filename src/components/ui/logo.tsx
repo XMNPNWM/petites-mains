@@ -8,15 +8,13 @@ interface LogoProps {
 const Logo = ({ className = "h-12 w-auto" }: LogoProps) => {
   const [imageError, setImageError] = useState(false);
 
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    console.log('Logo image failed to load:', e);
-    console.log('Attempted src:', e.currentTarget.src);
-    console.log('Full URL:', window.location.origin + '/lovable-uploads/fb39a1cc-ffc3-4263-a598-e30e0ab6a56f.jpg');
+  const handleImageError = () => {
+    console.log('Logo image failed to load, showing fallback text');
     setImageError(true);
   };
 
   const handleImageLoad = () => {
-    console.log('Logo image loaded successfully from:', '/lovable-uploads/fb39a1cc-ffc3-4263-a598-e30e0ab6a56f.jpg');
+    console.log('Logo image loaded successfully');
   };
 
   if (imageError) {
@@ -28,9 +26,11 @@ const Logo = ({ className = "h-12 w-auto" }: LogoProps) => {
     );
   }
 
+  // Using a placeholder image from Unsplash for now
+  // Replace this src with your uploaded JPG once you upload it
   return (
     <img 
-      src="/lovable-uploads/fb39a1cc-ffc3-4263-a598-e30e0ab6a56f.jpg" 
+      src="https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&h=200&fit=crop"
       alt="Petites Mains - Think, Build, Write"
       className={className}
       onError={handleImageError}
