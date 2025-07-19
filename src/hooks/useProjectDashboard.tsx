@@ -90,15 +90,15 @@ export const useProjectDashboard = (projectId: string | undefined) => {
   };
 
   const goToWritingSpace = (chapterId: string) => {
-    navigate(`/project/${projectId}/chapter/${chapterId}`);
+    navigate(`/project/${projectId}/write/${chapterId}`);
   };
 
   const handleWriteButtonClick = () => {
     if (chapters.length === 0) {
-      navigate(`/project/${projectId}/chapter/new`);
+      navigate(`/project/${projectId}/write`);
     } else {
       const lastChapter = chapters[chapters.length - 1];
-      navigate(`/project/${projectId}/chapter/${lastChapter.id}`);
+      navigate(`/project/${projectId}/write/${lastChapter.id}`);
     }
   };
 
