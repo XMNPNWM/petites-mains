@@ -193,7 +193,7 @@ const LandingPage = () => {
             <Card className="hover:shadow-lg transition-shadow">
               <CardContent className="pt-8 pb-8">
                 <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
-                  I've always loved writing stories for my family and friends—it's a gift I truly enjoy offering, and I guess they always like it too! After years of doing it the 'old way,' I found myself looking for a smarter approach. But I quickly realized that many AI tools didn't truly help writers express their personal style and unique vision.
+                  I've always loved writing stories for my family and friends. It's a gift I truly enjoy offering, and I guess they always like it too! After years of doing it the 'old way', I found myself looking for a smarter approach. But I quickly realized that many AI tools didn't truly help writers express their personal style and unique vision.
                 </p>
                 <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
                   That's why I built Petites Mains. My goal was to create a tool that doesn't silence a writer's talent and inspiration, but instead helps them concretize it. I hope you'll enjoy using it as much as I do.
