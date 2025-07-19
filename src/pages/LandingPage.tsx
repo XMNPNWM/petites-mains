@@ -260,7 +260,7 @@ const LandingPage = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Yes! You can start using Petites Mains for free with all core writing features. Premium plans are available for advanced collaboration and publishing tools.
+                  Yes! You can start using Petites Mains for free with all core writing features. Premium plans provide additional AI credits for enhanced writing assistance.
                 </p>
               </CardContent>
             </Card>
