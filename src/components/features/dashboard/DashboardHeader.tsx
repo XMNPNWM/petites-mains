@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
+
 const DashboardHeader = () => {
   const navigate = useNavigate();
   const {
@@ -25,8 +26,11 @@ const DashboardHeader = () => {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Petites Mains</h1>
-            <p className="text-slate-600 mt-2">Think, Build, Write</p>
+            <img 
+              src="/lovable-uploads/33391798-eb9b-4ae0-af64-6be0a0b9d3e1.png" 
+              alt="Petites Mains - Think, Build, Write" 
+              className="h-12 w-auto"
+            />
           </div>
           
           <div className="flex items-center space-x-3">
