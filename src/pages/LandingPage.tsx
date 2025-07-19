@@ -1,14 +1,15 @@
+
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PenTool, BookOpen, Brain, Users, Zap, FileText, Sparkles, ArrowRight, CheckCircle, Globe, Edit3, BarChart3 } from 'lucide-react';
+import { PenTool, BookOpen, Brain, Users, Zap, FileText, Sparkles, ArrowRight, CheckCircle, Globe, Edit3, BarChart3, Map, Settings, Upload, Lightbulb } from 'lucide-react';
+
 const LandingPage = () => {
   const navigate = useNavigate();
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
+
   const handleGetStarted = () => {
     if (user) {
       navigate('/dashboard');
@@ -16,26 +17,42 @@ const LandingPage = () => {
       navigate('/auth');
     }
   };
+
   const handleLearnMore = () => {
     document.getElementById('features')?.scrollIntoView({
       behavior: 'smooth'
     });
   };
-  return <div className="min-h-screen bg-background">
+
+  const scrollToFeatures = () => {
+    document.getElementById('features')?.scrollIntoView({
+      behavior: 'smooth'
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{
-        backgroundImage: `url('/lovable-uploads/9cfdbadc-5ac7-468c-a9f6-0ad111619cd6.png')`
-      }}>
+          backgroundImage: `url('/lovable-uploads/9cfdbadc-5ac7-468c-a9f6-0ad111619cd6.png')`
+        }}>
           <div className="absolute inset-0 bg-black/40"></div>
+        </div>
+        
+        {/* Logo */}
+        <div className="absolute top-6 left-6 z-20">
+          <div className="text-white font-bold text-2xl">
+            Petites Mains
+          </div>
         </div>
         
         {/* Content */}
         <div className="relative z-10 container mx-auto px-6 text-center text-white">
           <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
             Unleash Your
-            <span className="block bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Creative Writing</span>
+            <span className="block bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Chef-d'Oeuvre</span>
           </h1>
           <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto leading-relaxed text-gray-200">
             A specialized workspace for creative writers with smooth AI assistance. From first draft to published masterpiece.
@@ -57,54 +74,56 @@ const LandingPage = () => {
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              Why Creative Writers Choose Petites Mains
+              Your Creative Edge: The Petites Mains Advantage
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               We understand the unique challenges you face in your creative writing journey.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <h3 className="text-2xl font-semibold text-destructive mb-4">Common Writing Challenges:</h3>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
-                  <p className="text-muted-foreground">Writer's block that stifles your creativity</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
-                  <p className="text-muted-foreground">Tedious editing that consumes precious writing time</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
-                  <p className="text-muted-foreground mx-[100px] px-[40px]">Disorganized characters, plots, and world-building</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
-                  <p className="text-muted-foreground">Complex formatting for publication</p>
+          <div className="max-w-6xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-12 items-start justify-center max-w-5xl mx-auto">
+              <div className="space-y-6">
+                <h3 className="text-2xl font-semibold text-destructive mb-6">Common Writing Challenges:</h3>
+                <div className="space-y-6">
+                  <div className="flex items-start space-x-3 min-h-[3rem]">
+                    <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
+                    <p className="text-muted-foreground">Writer's block that stifles your creativity</p>
+                  </div>
+                  <div className="flex items-start space-x-3 min-h-[3rem]">
+                    <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
+                    <p className="text-muted-foreground">Tedious editing that consumes precious writing time</p>
+                  </div>
+                  <div className="flex items-start space-x-3 min-h-[3rem]">
+                    <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
+                    <p className="text-muted-foreground">Disorganized characters, plots, and world-building</p>
+                  </div>
+                  <div className="flex items-start space-x-3 min-h-[3rem]">
+                    <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
+                    <p className="text-muted-foreground">Complex formatting for publication</p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-6">
-              <h3 className="text-2xl font-semibold text-primary mb-4">Our Writing Workspace Solution:</h3>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
-                  <p className="text-foreground">Distraction-free writing environment with smooth AI assistance</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
-                  <p className="text-foreground">Intelligent organization for characters, plots, and world-building</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
-                  <p className="text-foreground">Gentle AI suggestions that enhance your unique voice</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
-                  <p className="text-foreground">Professional export ready for publication in one click</p>
+              <div className="space-y-6">
+                <h3 className="text-2xl font-semibold text-primary mb-6">Our Writing Workspace Solution:</h3>
+                <div className="space-y-6">
+                  <div className="flex items-start space-x-3 min-h-[3rem]">
+                    <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
+                    <p className="text-foreground">Distraction-free writing environment with smooth AI assistance</p>
+                  </div>
+                  <div className="flex items-start space-x-3 min-h-[3rem]">
+                    <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
+                    <p className="text-foreground">Intelligent organization for characters, plots, and world-building</p>
+                  </div>
+                  <div className="flex items-start space-x-3 min-h-[3rem]">
+                    <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
+                    <p className="text-foreground">Gentle AI suggestions that enhance your unique voice</p>
+                  </div>
+                  <div className="flex items-start space-x-3 min-h-[3rem]">
+                    <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
+                    <p className="text-foreground">Professional export ready for publication in one click</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -168,7 +187,21 @@ const LandingPage = () => {
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-base">
-                  Export your manuscripts in professional formats ready for publishers or self-publishing
+                  Export your manuscripts in professional formats ready for submission to publishers or self-publishing
+                </CardDescription>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Studio Section - Full Width */}
+          <div className="mt-12">
+            <Card className="w-full text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
+              <CardHeader>
+                <CardTitle className="text-2xl">Studio</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-base">
+                  Pending !
                 </CardDescription>
               </CardContent>
             </Card>
@@ -176,63 +209,176 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Social Proof */}
+      {/* How It Works Section */}
       <section className="py-20 bg-muted/30">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              What Creative Writers Say
+              How It Works
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Two parallel systems working together: your creative workflow and continuous AI support
+            </p>
+          </div>
+
+          <div className="max-w-7xl mx-auto space-y-16">
+            {/* Main Creative Process Flow */}
+            <div className="relative">
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-2">
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  Your Creative Process
+                </div>
+                <p className="text-muted-foreground">From initial idea to published masterpiece</p>
+              </div>
+
+              <div className="flex flex-col lg:flex-row items-center justify-between gap-8 relative">
+                {/* Flow Line - Hidden on mobile, visible on lg+ */}
+                <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary to-primary transform -translate-y-1/2 z-0 rounded-full opacity-20"></div>
+                
+                {/* Creation Space */}
+                <div className="flex-1 relative z-10">
+                  <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-background border-2 border-primary/20">
+                    <CardHeader>
+                      <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                        <Map className="h-8 w-8 text-primary" />
+                      </div>
+                      <CardTitle className="text-xl text-primary">1. Creation Space</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <CardDescription className="text-base">
+                        Start with our mindmap tool and comprehensive library to organize your ideas, characters, and world-building elements
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Arrow - Visible on lg+ */}
+                <div className="hidden lg:block relative z-10">
+                  <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg">
+                    <ArrowRight className="h-6 w-6 text-primary-foreground" />
+                  </div>
+                </div>
+
+                {/* Enhancement Space */}
+                <div className="flex-1 relative z-10">
+                  <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-background border-2 border-primary/20">
+                    <CardHeader>
+                      <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                        <Settings className="h-8 w-8 text-primary" />
+                      </div>
+                      <CardTitle className="text-xl text-primary">2. Enhancement Space</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <CardDescription className="text-base">
+                        Refine your work with our enhancement process and granular management tools for precision editing
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Arrow - Visible on lg+ */}
+                <div className="hidden lg:block relative z-10">
+                  <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg">
+                    <ArrowRight className="h-6 w-6 text-primary-foreground" />
+                  </div>
+                </div>
+
+                {/* Export Space */}
+                <div className="flex-1 relative z-10">
+                  <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-background border-2 border-primary/20">
+                    <CardHeader>
+                      <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                        <Upload className="h-8 w-8 text-primary" />
+                      </div>
+                      <CardTitle className="text-xl text-primary">3. Export Space</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <CardDescription className="text-base">
+                        Final refinement and professional formatting ready for export and publication to your chosen platform
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </div>
+
+            {/* Parallel Process Separator */}
+            <div className="flex items-center justify-center">
+              <div className="flex-1 h-px bg-border"></div>
+              <div className="px-4 text-sm text-muted-foreground font-medium">PARALLEL PROCESS</div>
+              <div className="flex-1 h-px bg-border"></div>
+            </div>
+
+            {/* AI Brain Analysis - Parallel Process */}
+            <div className="relative">
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center bg-secondary text-secondary-foreground px-4 py-2 rounded-full text-sm font-medium mb-2">
+                  <Brain className="w-4 h-4 mr-2" />
+                  Continuous AI Support
+                </div>
+                <p className="text-muted-foreground">Intelligent assistance throughout your entire creative journey</p>
+              </div>
+
+              <div className="max-w-4xl mx-auto">
+                <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-gradient-to-br from-background to-muted/20 border-2 border-primary/20">
+                  <CardHeader>
+                    <div className="w-20 h-20 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                      <Brain className="h-10 w-10 text-primary" />
+                    </div>
+                    <CardTitle className="text-2xl text-foreground">AI Brain Analysis</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-lg mb-6 text-foreground">
+                      Our AI continuously analyzes your story, keeping detailed records of your narrative, characters, and themes. 
+                      This deep understanding enables personalized advice and support that evolves with your writing, 
+                      ensuring every suggestion enhances your unique creative vision.
+                    </CardDescription>
+                    <div className="flex justify-center items-center space-x-8 flex-wrap gap-4">
+                      <div className="flex items-center space-x-2 bg-primary/10 px-3 py-2 rounded-full">
+                        <Lightbulb className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium text-foreground">Smart Suggestions</span>
+                      </div>
+                      <div className="flex items-center space-x-2 bg-primary/10 px-3 py-2 rounded-full">
+                        <BarChart3 className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium text-foreground">Progress Tracking</span>
+                      </div>
+                      <div className="flex items-center space-x-2 bg-primary/10 px-3 py-2 rounded-full">
+                        <BookOpen className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium text-foreground">Story Consistency</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Personal Message from Creator */}
+      <section className="py-20 bg-background">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-6">
+              From My Desk to Yours
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="max-w-4xl mx-auto">
             <Card className="hover:shadow-lg transition-shadow">
-              <CardContent className="pt-6">
-                <p className="text-muted-foreground mb-4 italic">
-                  "Petites Mains transformed my writing process. The workspace keeps me focused, and the AI suggestions feel natural to my style."
+              <CardContent className="pt-8 pb-8">
+                <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
+                  There's a unique satisfaction I've always discovered in bringing stories to life through writing. After years of doing it the 'old way', I found myself looking for a smarter approach. But I quickly realized that many AI tools didn't truly help writers express their personal style and unique vision.
                 </p>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-semibold">
-                    S
-                  </div>
-                  <div>
-                    <p className="font-semibold">Sarah Chen</p>
-                    <p className="text-sm text-muted-foreground">Fantasy Novelist</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardContent className="pt-6">
-                <p className="text-muted-foreground mb-4 italic">
-                  "The character and world-building tools are incredible. I can keep track of everything without losing my creative flow."
+                <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
+                  That's why I built Petites Mains. My goal was to create a tool that doesn't silence a writer's talent and inspiration, but instead helps them concretize it. I hope you'll enjoy using it as much as I do.
                 </p>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-semibold">
-                    M
-                  </div>
-                  <div>
-                    <p className="font-semibold">Marcus Johnson</p>
-                    <p className="text-sm text-muted-foreground">Science Fiction Author</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardContent className="pt-6">
-                <p className="text-muted-foreground mb-4 italic">
-                  "Finally, a writing tool that understands writers. The export feature saved me weeks of formatting work."
+                <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
+                  As the creator, I'm neither a professional writer nor a seasoned developer. Your insights and suggestions are greatly appreciated as we work to enhance this app for our community.
                 </p>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-semibold">
-                    L
-                  </div>
-                  <div>
-                    <p className="font-semibold">Lisa Rodriguez</p>
-                    <p className="text-sm text-muted-foreground">Independent Author</p>
-                  </div>
+                <div className="text-right">
+                  <p className="text-xl font-semibold text-foreground">S.</p>
                 </div>
               </CardContent>
             </Card>
@@ -272,18 +418,18 @@ const LandingPage = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Yes! You can start using Petites Mains for free with all core writing features. Premium plans are available for advanced collaboration and publishing tools.
+                  Yes! You can start using Petites Mains for free with all core writing features. Premium plans provide additional AI credits for enhanced writing assistance.
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-left">Is my writing secure and private?</CardTitle>
+                <CardTitle className="text-left">How is my writing data handled?</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Absolutely. Your manuscripts are encrypted and stored securely. We never share your creative work with third parties or use it to train AI models.
+                  Your writing is stored securely in our database. We take data privacy seriously and no data from our users will ever be sold.
                 </p>
               </CardContent>
             </Card>
@@ -327,27 +473,74 @@ const LandingPage = () => {
             <div className="space-y-4">
               <h4 className="font-semibold">Product</h4>
               <div className="space-y-2 text-sm">
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Features</p>
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Pricing</p>
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">User Guide</p>
+                <button 
+                  onClick={scrollToFeatures}
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block text-left"
+                >
+                  Features
+                </button>
+                <Link 
+                  to="/pricing" 
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  Pricing
+                </Link>
+                <Link 
+                  to="/user-guide" 
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  User Guide
+                </Link>
               </div>
             </div>
             
             <div className="space-y-4">
               <h4 className="font-semibold">Support</h4>
               <div className="space-y-2 text-sm">
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Help Center</p>
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Contact</p>
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Community</p>
+                <Link 
+                  to="/help-center" 
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  Help Center
+                </Link>
+                <Link 
+                  to="/contact" 
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  Contact
+                </Link>
+                <a 
+                  href="https://discord.gg/petitesmains" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  Community
+                </a>
               </div>
             </div>
             
             <div className="space-y-4">
               <h4 className="font-semibold">Legal</h4>
               <div className="space-y-2 text-sm">
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Privacy</p>
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Terms of Service</p>
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Legal Notice</p>
+                <Link 
+                  to="/privacy" 
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  Privacy
+                </Link>
+                <Link 
+                  to="/terms" 
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  Terms of Service
+                </Link>
+                <Link 
+                  to="/legal-notice" 
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  Legal Notice
+                </Link>
               </div>
             </div>
           </div>
@@ -359,6 +552,8 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
-    </div>;
+    </div>
+  );
 };
+
 export default LandingPage;
