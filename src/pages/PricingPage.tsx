@@ -27,54 +27,102 @@ const PricingPage = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {/* Free Plan */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
+          {/* Plume Plan */}
           <Card className="text-center hover:shadow-lg transition-all duration-200">
             <CardHeader>
               <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
                 <Zap className="h-8 w-8 text-primary" />
               </div>
-              <CardTitle className="text-2xl">Free</CardTitle>
+              <CardTitle className="text-2xl">Plume</CardTitle>
               <CardDescription className="text-3xl font-bold text-foreground">$0</CardDescription>
-              <CardDescription>Perfect to get started</CardDescription>
+              <CardDescription>Perfect for getting started</CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3 mb-8">
                 <li className="flex items-center">
                   <Check className="h-4 w-4 text-primary mr-2" />
-                  <span>Basic writing workspace</span>
+                  <span>Up to 1 project</span>
                 </li>
                 <li className="flex items-center">
                   <Check className="h-4 w-4 text-primary mr-2" />
-                  <span>Character & world builder</span>
+                  <span>Up to 10,000 words</span>
                 </li>
                 <li className="flex items-center">
                   <Check className="h-4 w-4 text-primary mr-2" />
-                  <span>Export to PDF/DOCX</span>
+                  <span>Up to 40 worldbuilding elements</span>
                 </li>
                 <li className="flex items-center">
                   <Check className="h-4 w-4 text-primary mr-2" />
-                  <span>Limited AI suggestions</span>
+                  <span>Advanced writing tools</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-primary mr-2" />
+                  <span>Character management</span>
                 </li>
               </ul>
-              <Button className="w-full" onClick={() => navigate('/auth')}>
+              <Button className="w-full" onClick={() => navigate('/subscription')}>
                 Get Started Free
               </Button>
             </CardContent>
           </Card>
 
-          {/* Pro Plan */}
+          {/* Une Main Plan */}
           <Card className="text-center hover:shadow-lg transition-all duration-200 border-primary relative">
             <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-              <div className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium">
-                Most Popular
+              <div className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium flex items-center">
+                <Star className="w-3 h-3 mr-1" />
+                Recommended
               </div>
             </div>
             <CardHeader>
               <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
                 <Crown className="h-8 w-8 text-primary" />
               </div>
-              <CardTitle className="text-2xl">Pro</CardTitle>
+              <CardTitle className="text-2xl">Une Main</CardTitle>
+              <CardDescription className="text-3xl font-bold text-foreground">$7</CardDescription>
+              <CardDescription>per month</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3 mb-8">
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-primary mr-2" />
+                  <span>Up to 5 projects</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-primary mr-2" />
+                  <span>Unlimited words</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-primary mr-2" />
+                  <span>Unlimited worldbuilding elements</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-primary mr-2" />
+                  <span>50 AI credits per month</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-primary mr-2" />
+                  <span>Advanced writing tools</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-primary mr-2" />
+                  <span>Export features</span>
+                </li>
+              </ul>
+              <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700" onClick={() => navigate('/subscription')}>
+                Upgrade to Une Main
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Deux Mains Plan */}
+          <Card className="text-center hover:shadow-lg transition-all duration-200">
+            <CardHeader>
+              <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                <Crown className="h-8 w-8 text-primary" />
+              </div>
+              <CardTitle className="text-2xl">Deux Mains</CardTitle>
               <CardDescription className="text-3xl font-bold text-foreground">$12</CardDescription>
               <CardDescription>per month</CardDescription>
             </CardHeader>
@@ -82,62 +130,62 @@ const PricingPage = () => {
               <ul className="space-y-3 mb-8">
                 <li className="flex items-center">
                   <Check className="h-4 w-4 text-primary mr-2" />
-                  <span>Everything in Free</span>
+                  <span>Unlimited projects</span>
                 </li>
                 <li className="flex items-center">
                   <Check className="h-4 w-4 text-primary mr-2" />
-                  <span>Unlimited AI suggestions</span>
+                  <span>Unlimited words</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-primary mr-2" />
+                  <span>Unlimited worldbuilding elements</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-primary mr-2" />
+                  <span>120 AI credits per month</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-primary mr-2" />
+                  <span>Advanced writing tools</span>
                 </li>
                 <li className="flex items-center">
                   <Check className="h-4 w-4 text-primary mr-2" />
                   <span>Advanced analytics</span>
                 </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-primary mr-2" />
-                  <span>Priority support</span>
-                </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-primary mr-2" />
-                  <span>Export to EPUB</span>
-                </li>
               </ul>
-              <Button className="w-full" onClick={() => navigate('/auth')}>
-                Start Pro Trial
+              <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700" onClick={() => navigate('/subscription')}>
+                Upgrade to Deux Mains
               </Button>
             </CardContent>
           </Card>
 
-          {/* Studio Plan */}
+          {/* Enterprise Plan */}
           <Card className="text-center hover:shadow-lg transition-all duration-200">
             <CardHeader>
               <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
                 <Star className="h-8 w-8 text-primary" />
               </div>
-              <CardTitle className="text-2xl">Studio</CardTitle>
-              <CardDescription className="text-3xl font-bold text-foreground">Coming Soon</CardDescription>
-              <CardDescription>For professional writers</CardDescription>
+              <CardTitle className="text-2xl">Enterprise</CardTitle>
+              <CardDescription className="text-3xl font-bold text-foreground">Custom</CardDescription>
+              <CardDescription>For teams and organizations</CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3 mb-8">
                 <li className="flex items-center">
-                  <Check className="h-4 w-4 text-muted-foreground mr-2" />
-                  <span className="text-muted-foreground">Everything in Pro</span>
+                  <Check className="h-4 w-4 text-primary mr-2" />
+                  <span>Everything in Deux Mains</span>
                 </li>
                 <li className="flex items-center">
-                  <Check className="h-4 w-4 text-muted-foreground mr-2" />
-                  <span className="text-muted-foreground">Advanced publishing tools</span>
+                  <Check className="h-4 w-4 text-primary mr-2" />
+                  <span>Custom AI credit limits</span>
                 </li>
                 <li className="flex items-center">
-                  <Check className="h-4 w-4 text-muted-foreground mr-2" />
-                  <span className="text-muted-foreground">Custom branding</span>
-                </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-muted-foreground mr-2" />
-                  <span className="text-muted-foreground">Enhanced AI features</span>
+                  <Check className="h-4 w-4 text-primary mr-2" />
+                  <span>Priority support</span>
                 </li>
               </ul>
-              <Button variant="outline" className="w-full" disabled>
-                Notify Me
+              <Button variant="outline" className="w-full" onClick={() => navigate('/subscription')}>
+                Contact Sales
               </Button>
             </CardContent>
           </Card>

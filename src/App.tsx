@@ -17,6 +17,7 @@ import HelpCenterPage from './pages/HelpCenterPage';
 import ContactPage from './pages/ContactPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
+import DeveloperBlogPage from './pages/DeveloperBlogPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import { Toaster } from '@/components/ui/toaster';
@@ -39,6 +40,7 @@ function App() {
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsOfServicePage />} />
+          <Route path="/developer-blog" element={<DeveloperBlogPage />} />
           <Route
             path="/dashboard"
             element={

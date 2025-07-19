@@ -508,14 +508,12 @@ const LandingPage = () => {
                 >
                   Contact
                 </Link>
-                <a 
-                  href="https://discord.gg/petitesmains" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
+                <Link 
+                  to="/developer-blog" 
                   className="text-muted-foreground cursor-pointer hover:text-foreground block"
                 >
-                  Community
-                </a>
+                  Developer Updates
+                </Link>
               </div>
             </div>
             
