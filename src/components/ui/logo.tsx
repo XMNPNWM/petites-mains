@@ -26,11 +26,9 @@ const Logo = ({ className = "h-12 w-auto" }: LogoProps) => {
     );
   }
 
-  // Using a placeholder image from Unsplash for now
-  // Replace this src with your uploaded JPG once you upload it
   return (
     <img 
-      src="https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&h=200&fit=crop"
+      src="/lovable-uploads/fb39a1cc-ffc3-4263-a598-e30e0ab6a56f.jpg"
       alt="Petites Mains - Think, Build, Write"
       className={className}
       onError={handleImageError}
