@@ -177,6 +177,20 @@ const LandingPage = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Studio Section - Full Width */}
+          <div className="mt-12">
+            <Card className="w-full text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
+              <CardHeader>
+                <CardTitle className="text-2xl">Studio</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-base">
+                  Pending !
+                </CardDescription>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </section>
 
