@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Star, User, FileText, Clock, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,7 +27,7 @@ const DashboardHeader = () => {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between">
           <div>
-            <Logo className="h-20 w-auto" />
+            <Logo className="h-16 w-auto" />
           </div>
           
           <div className="flex items-center space-x-3">
