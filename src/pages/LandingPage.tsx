@@ -35,6 +35,13 @@ const LandingPage = () => {
           <div className="absolute inset-0 bg-black/40"></div>
         </div>
         
+        {/* Logo */}
+        <div className="absolute top-6 left-6 z-20">
+          <div className="text-white font-bold text-2xl">
+            Petites Mains
+          </div>
+        </div>
+        
         {/* Content */}
         <div className="relative z-10 container mx-auto px-6 text-center text-white">
           <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
