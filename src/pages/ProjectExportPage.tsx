@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Download, Eye, FileText } from 'lucide-react';
+import { ArrowLeft, Save, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +17,7 @@ const ProjectExportPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { project, chapters, isLoading } = useProjectData(projectId);
+  const [assemblyError, setAssemblyError] = useState<string | null>(null);
   
   const {
     selectedChapters,
@@ -66,7 +67,10 @@ const ProjectExportPage = () => {
   const assembleDocumentPreview = async () => {
     if (!projectId) return;
     
+    console.log('Starting document assembly...');
     setIsAssembling(true);
+    setAssemblyError(null);
+    
     try {
       const { data, error } = await supabase.functions.invoke('export-assemble-preview', {
         body: {
@@ -78,19 +82,27 @@ const ProjectExportPage = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Assembly error:', error);
+        throw error;
+      }
 
       if (data?.content) {
+        console.log('Document assembled successfully, content length:', data.content.length);
         updateAssembledContent(data.content);
+      } else {
+        throw new Error('No content returned from assembly');
       }
     } catch (error) {
       console.error('Error assembling document:', error);
+      setAssemblyError(error instanceof Error ? error.message : 'Failed to assemble document');
       toast({
         title: "Assembly Error",
-        description: "Failed to assemble document preview",
+        description: "Failed to assemble document preview. Please try again.",
         variant: "destructive",
       });
     } finally {
+      console.log('Assembly completed, setting isAssembling to false');
       setIsAssembling(false);
     }
   };
@@ -99,8 +111,19 @@ const ProjectExportPage = () => {
     navigate(`/project/${projectId}`);
   };
 
+  const handleRetryAssembly = () => {
+    assembleDocumentPreview();
+  };
+
   const handleExport = async () => {
-    if (!assembledContent || !projectId) return;
+    if (!assembledContent || !projectId) {
+      toast({
+        title: "No Content",
+        description: "Please wait for the document to be assembled before exporting.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     toast({
       title: "Export Started",
@@ -202,20 +225,21 @@ const ProjectExportPage = () => {
               </h1>
               <p className="text-sm text-gray-500">
                 {selectedChapters.length} chapters selected • {exportFormat.toUpperCase()} format
+                {isAssembling && " • Assembling document..."}
               </p>
             </div>
           </div>
           
           <div className="flex items-center space-x-3">
             <Button variant="outline" size="sm">
-              <Eye className="h-4 w-4 mr-2" />
-              Preview
-            </Button>
-            <Button variant="outline" size="sm">
               <Save className="h-4 w-4 mr-2" />
               Save Configuration
             </Button>
-            <Button onClick={handleExport} size="sm">
+            <Button 
+              onClick={handleExport} 
+              size="sm"
+              disabled={!assembledContent || isAssembling}
+            >
               <Download className="h-4 w-4 mr-2" />
               Export {exportFormat.toUpperCase()}
             </Button>
@@ -227,11 +251,26 @@ const ProjectExportPage = () => {
       <div className="flex h-[calc(100vh-81px)]">
         {/* Document Editor - Main Panel */}
         <div className="flex-1 p-6">
-          <ExportDocumentEditor
-            content={assembledContent}
-            onContentChange={updateAssembledContent}
-            isLoading={isAssembling}
-          />
+          {assemblyError ? (
+            <Card className="h-full flex items-center justify-center">
+              <CardContent className="text-center">
+                <div className="text-red-500 mb-4">
+                  <FileText className="h-12 w-12 mx-auto mb-2" />
+                  <h3 className="text-lg font-semibold">Assembly Failed</h3>
+                </div>
+                <p className="text-muted-foreground mb-4">{assemblyError}</p>
+                <Button onClick={handleRetryAssembly}>
+                  Try Again
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <ExportDocumentEditor
+              content={assembledContent}
+              onContentChange={updateAssembledContent}
+              isLoading={isAssembling}
+            />
+          )}
         </div>
 
         {/* Settings Sidebar */}

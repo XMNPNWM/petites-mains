@@ -147,10 +147,16 @@ export const useExportStore = create<ExportState>((set, get) => ({
     isAssembling: false,
   }),
 
-  updateAssembledContent: (content: string) => set({ assembledContent: content }),
+  updateAssembledContent: (content: string) => {
+    console.log('ExportStore: Updating assembled content, length:', content.length);
+    set({ assembledContent: content });
+  },
   
   setLayoutOptions: (options: Partial<LayoutOptions>) => 
     set(state => ({ layoutOptions: { ...state.layoutOptions, ...options } })),
   
-  setIsAssembling: (isAssembling: boolean) => set({ isAssembling }),
+  setIsAssembling: (isAssembling: boolean) => {
+    console.log('ExportStore: Setting isAssembling to:', isAssembling);
+    set({ isAssembling });
+  },
 }));
