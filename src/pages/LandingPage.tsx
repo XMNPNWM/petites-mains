@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -208,30 +209,33 @@ const LandingPage = () => {
               How It Works
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Follow our streamlined creative process with continuous AI support throughout your writing journey
+              Two parallel systems working together: your creative workflow and continuous AI support
             </p>
           </div>
 
-          <div className="max-w-6xl mx-auto space-y-12">
+          <div className="max-w-7xl mx-auto space-y-16">
             {/* Main Creative Process Flow */}
             <div className="relative">
               <div className="text-center mb-8">
-                <h3 className="text-2xl font-semibold text-primary mb-2">Your Creative Process</h3>
+                <div className="inline-flex items-center bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-2">
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  Your Creative Process
+                </div>
                 <p className="text-muted-foreground">From initial idea to published masterpiece</p>
               </div>
 
               <div className="flex flex-col lg:flex-row items-center justify-between gap-8 relative">
                 {/* Flow Line - Hidden on mobile, visible on lg+ */}
-                <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-primary to-primary transform -translate-y-1/2 z-0"></div>
+                <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary to-primary transform -translate-y-1/2 z-0 rounded-full opacity-20"></div>
                 
                 {/* Creation Space */}
                 <div className="flex-1 relative z-10">
-                  <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-background">
+                  <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-background border-2 border-primary/20">
                     <CardHeader>
                       <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
                         <Map className="h-8 w-8 text-primary" />
                       </div>
-                      <CardTitle className="text-xl">Creation Space</CardTitle>
+                      <CardTitle className="text-xl text-primary">1. Creation Space</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <CardDescription className="text-base">
@@ -243,17 +247,19 @@ const LandingPage = () => {
 
                 {/* Arrow - Visible on lg+ */}
                 <div className="hidden lg:block relative z-10">
-                  <ArrowRight className="h-8 w-8 text-primary bg-background rounded-full p-1 border-2 border-primary" />
+                  <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg">
+                    <ArrowRight className="h-6 w-6 text-primary-foreground" />
+                  </div>
                 </div>
 
                 {/* Enhancement Space */}
                 <div className="flex-1 relative z-10">
-                  <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-background">
+                  <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-background border-2 border-primary/20">
                     <CardHeader>
                       <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
                         <Settings className="h-8 w-8 text-primary" />
                       </div>
-                      <CardTitle className="text-xl">Enhancement Space</CardTitle>
+                      <CardTitle className="text-xl text-primary">2. Enhancement Space</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <CardDescription className="text-base">
@@ -265,17 +271,19 @@ const LandingPage = () => {
 
                 {/* Arrow - Visible on lg+ */}
                 <div className="hidden lg:block relative z-10">
-                  <ArrowRight className="h-8 w-8 text-primary bg-background rounded-full p-1 border-2 border-primary" />
+                  <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg">
+                    <ArrowRight className="h-6 w-6 text-primary-foreground" />
+                  </div>
                 </div>
 
                 {/* Export Space */}
                 <div className="flex-1 relative z-10">
-                  <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-background">
+                  <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-background border-2 border-primary/20">
                     <CardHeader>
                       <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
                         <Upload className="h-8 w-8 text-primary" />
                       </div>
-                      <CardTitle className="text-xl">Export Space</CardTitle>
+                      <CardTitle className="text-xl text-primary">3. Export Space</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <CardDescription className="text-base">
@@ -287,39 +295,49 @@ const LandingPage = () => {
               </div>
             </div>
 
+            {/* Parallel Process Separator */}
+            <div className="flex items-center justify-center">
+              <div className="flex-1 h-px bg-border"></div>
+              <div className="px-4 text-sm text-muted-foreground font-medium">PARALLEL PROCESS</div>
+              <div className="flex-1 h-px bg-border"></div>
+            </div>
+
             {/* AI Brain Analysis - Parallel Process */}
             <div className="relative">
               <div className="text-center mb-8">
-                <h3 className="text-2xl font-semibold text-secondary mb-2">Continuous AI Support</h3>
+                <div className="inline-flex items-center bg-secondary text-secondary-foreground px-4 py-2 rounded-full text-sm font-medium mb-2">
+                  <Brain className="w-4 h-4 mr-2" />
+                  Continuous AI Support
+                </div>
                 <p className="text-muted-foreground">Intelligent assistance throughout your entire creative journey</p>
               </div>
 
               <div className="max-w-4xl mx-auto">
-                <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-gradient-to-r from-secondary/5 to-secondary/10 border-secondary/20">
+                <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-gradient-to-br from-secondary/5 to-secondary/15 border-2 border-secondary/30">
                   <CardHeader>
-                    <div className="w-20 h-20 mx-auto mb-4 bg-secondary/10 rounded-full flex items-center justify-center">
+                    <div className="w-20 h-20 mx-auto mb-4 bg-secondary/20 rounded-full flex items-center justify-center">
                       <Brain className="h-10 w-10 text-secondary" />
                     </div>
                     <CardTitle className="text-2xl text-secondary">AI Brain Analysis</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <CardDescription className="text-lg">
+                    <CardDescription className="text-lg mb-6">
                       Our AI continuously analyzes your story, keeping detailed records of your narrative, characters, and themes. 
                       This deep understanding enables personalized advice and support that evolves with your writing, 
                       ensuring every suggestion enhances your unique creative vision.
                     </CardDescription>
-                    <div className="flex justify-center items-center mt-6 space-x-8">
-                      <div className="flex items-center space-x-2">
-                        <Lightbulb className="h-5 w-5 text-secondary" />
-                        <span className="text-sm text-muted-foreground">Smart Suggestions</span>
+                    <div className="flex justify-center items-center space-x-8 flex-wrap gap-4">
+                      <div className="flex items-center space-x-2 bg-secondary/10 px-3 py-2 rounded-full">
+                        <Lightbulb className="h-4 w-4 text-secondary" />
+                        <span className="text-sm font-medium text-secondary">Smart Suggestions</span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <BarChart3 className="h-5 w-5 text-secondary" />
-                        <span className="text-sm text-muted-foreground">Progress Tracking</span>
+                      <div className="flex items-center space-x-2 bg-secondary/10 px-3 py-2 rounded-full">
+                        <BarChart3 className="h-4 w-4 text-secondary" />
+                        <span className="text-sm font-medium text-secondary">Progress Tracking</span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <BookOpen className="h-5 w-5 text-secondary" />
-                        <span className="text-sm text-muted-foreground">Story Consistency</span>
+                      <div className="flex items-center space-x-2 bg-secondary/10 px-3 py-2 rounded-full">
+                        <BookOpen className="h-4 w-4 text-secondary" />
+                        <span className="text-sm font-medium text-secondary">Story Consistency</span>
                       </div>
                     </div>
                   </CardContent>
