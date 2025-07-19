@@ -56,13 +56,10 @@ const LandingPage = () => {
           <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto leading-relaxed text-gray-200">
             A specialized workspace for creative writers with smooth AI assistance. From first draft to published masterpiece.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <div className="flex justify-center items-center">
             <Button onClick={handleGetStarted} size="lg" className="text-lg px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200">
               {user ? 'Go to Dashboard' : 'Start Writing for Free'}
               <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-            <Button onClick={handleLearnMore} variant="outline" size="lg" className="text-lg px-8 py-4 border-white text-white hover:bg-white hover:text-gray-900 transition-all duration-200">
-              Learn More
             </Button>
           </div>
         </div>
