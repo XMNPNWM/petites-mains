@@ -1,15 +1,21 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PenTool, BookOpen, Brain, Users, Zap, FileText, Sparkles, ArrowRight, CheckCircle, Globe, Edit3, BarChart3 } from 'lucide-react';
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleGetStarted = () => {
-    navigate('/auth');
+    if (user) {
+      navigate('/dashboard');
+    } else {
+      navigate('/auth');
+    }
   };
 
   const handleLearnMore = () => {
@@ -48,7 +54,7 @@ const LandingPage = () => {
               size="lg" 
               className="text-lg px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200"
             >
-              Commencer à Écrire Gratuitement
+              {user ? 'Aller au Tableau de Bord' : 'Commencer à Écrire Gratuitement'}
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <Button 
@@ -266,7 +272,7 @@ const LandingPage = () => {
             variant="secondary"
             className="text-lg px-8 py-4 hover:scale-105 transition-transform"
           >
-            Commencer Maintenant - C'est Gratuit
+            {user ? 'Aller au Tableau de Bord' : 'Commencer Maintenant - C\'est Gratuit'}
             <Zap className="ml-2 h-5 w-5" />
           </Button>
         </div>
