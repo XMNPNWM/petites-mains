@@ -9,12 +9,7 @@ const Logo = ({ className = "h-12 w-auto" }: LogoProps) => {
   const [imageError, setImageError] = useState(false);
 
   const handleImageError = () => {
-    console.log('Logo image failed to load, showing fallback text');
     setImageError(true);
-  };
-
-  const handleImageLoad = () => {
-    console.log('Logo image loaded successfully');
   };
 
   if (imageError) {
@@ -28,11 +23,10 @@ const Logo = ({ className = "h-12 w-auto" }: LogoProps) => {
 
   return (
     <img 
-      src="/lovable-uploads/fb39a1cc-ffc3-4263-a598-e30e0ab6a56f.jpg"
+      src="/lovable-uploads/119e288d-e30b-464c-b04d-cfb0c1e5a0e8.png"
       alt="Petites Mains - Think, Build, Write"
       className={className}
       onError={handleImageError}
-      onLoad={handleImageLoad}
     />
   );
 };
