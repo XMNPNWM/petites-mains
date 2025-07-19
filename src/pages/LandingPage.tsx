@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,12 @@ const LandingPage = () => {
   };
 
   const handleLearnMore = () => {
+    document.getElementById('features')?.scrollIntoView({
+      behavior: 'smooth'
+    });
+  };
+
+  const scrollToFeatures = () => {
     document.getElementById('features')?.scrollIntoView({
       behavior: 'smooth'
     });
@@ -465,27 +471,74 @@ const LandingPage = () => {
             <div className="space-y-4">
               <h4 className="font-semibold">Product</h4>
               <div className="space-y-2 text-sm">
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Features</p>
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Pricing</p>
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">User Guide</p>
+                <button 
+                  onClick={scrollToFeatures}
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block text-left"
+                >
+                  Features
+                </button>
+                <Link 
+                  to="/pricing" 
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  Pricing
+                </Link>
+                <Link 
+                  to="/user-guide" 
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  User Guide
+                </Link>
               </div>
             </div>
             
             <div className="space-y-4">
               <h4 className="font-semibold">Support</h4>
               <div className="space-y-2 text-sm">
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Help Center</p>
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Contact</p>
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Community</p>
+                <Link 
+                  to="/help-center" 
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  Help Center
+                </Link>
+                <Link 
+                  to="/contact" 
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  Contact
+                </Link>
+                <a 
+                  href="https://discord.gg/petitesmains" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  Community
+                </a>
               </div>
             </div>
             
             <div className="space-y-4">
               <h4 className="font-semibold">Legal</h4>
               <div className="space-y-2 text-sm">
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Privacy</p>
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Terms of Service</p>
-                <p className="text-muted-foreground cursor-pointer hover:text-foreground">Legal Notice</p>
+                <Link 
+                  to="/privacy" 
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  Privacy
+                </Link>
+                <Link 
+                  to="/terms" 
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  Terms of Service
+                </Link>
+                <Link 
+                  to="/legal-notice" 
+                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
+                >
+                  Legal Notice
+                </Link>
               </div>
             </div>
           </div>

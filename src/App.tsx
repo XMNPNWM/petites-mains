@@ -11,6 +11,13 @@ import ProfilePage from './pages/ProfilePage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import ProjectDashboard from './pages/ProjectDashboard';
 import AnalyticsPage from './pages/AnalyticsPage';
+import PricingPage from './pages/PricingPage';
+import UserGuidePage from './pages/UserGuidePage';
+import HelpCenterPage from './pages/HelpCenterPage';
+import ContactPage from './pages/ContactPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
+import LegalNoticePage from './pages/LegalNoticePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import { Toaster } from '@/components/ui/toaster';
@@ -27,6 +34,13 @@ function App() {
             element={<LandingPage />}
           />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/user-guide" element={<UserGuidePage />} />
+          <Route path="/help-center" element={<HelpCenterPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfServicePage />} />
+          <Route path="/legal-notice" element={<LegalNoticePage />} />
           <Route
             path="/dashboard"
             element={
