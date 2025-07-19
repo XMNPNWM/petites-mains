@@ -1,15 +1,14 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PenTool, BookOpen, Brain, Users, Zap, FileText, Sparkles, ArrowRight, CheckCircle, Globe, Edit3, BarChart3 } from 'lucide-react';
-
 const LandingPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-
+  const {
+    user
+  } = useAuth();
   const handleGetStarted = () => {
     if (user) {
       navigate('/dashboard');
@@ -17,22 +16,18 @@ const LandingPage = () => {
       navigate('/auth');
     }
   };
-
   const handleLearnMore = () => {
-    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('features')?.scrollIntoView({
+      behavior: 'smooth'
+    });
   };
-
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background Image with Overlay */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{
-            backgroundImage: `url('/lovable-uploads/9cfdbadc-5ac7-468c-a9f6-0ad111619cd6.png')`,
-          }}
-        >
+        <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{
+        backgroundImage: `url('/lovable-uploads/9cfdbadc-5ac7-468c-a9f6-0ad111619cd6.png')`
+      }}>
           <div className="absolute inset-0 bg-black/40"></div>
         </div>
         
@@ -40,29 +35,15 @@ const LandingPage = () => {
         <div className="relative z-10 container mx-auto px-6 text-center text-white">
           <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
             Libérez Votre
-            <span className="block bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Chef-d'Œuvre
-            </span>
+            <span className="block bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Chef-d'Œuvre</span>
           </h1>
-          <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto leading-relaxed text-gray-200">
-            Votre co-auteur IA pour une créativité sans limites. 
-            De l'idée au livre publié, transformez votre processus d'écriture.
-          </p>
+          <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto leading-relaxed text-gray-200">Unleash Boundless Creativity with Your AI Co-Writer. Streamline Your Writing from Idea to Publication.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button 
-              onClick={handleGetStarted}
-              size="lg" 
-              className="text-lg px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200"
-            >
+            <Button onClick={handleGetStarted} size="lg" className="text-lg px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200">
               {user ? 'Aller au Tableau de Bord' : 'Commencer à Écrire Gratuitement'}
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-            <Button 
-              onClick={handleLearnMore}
-              variant="outline"
-              size="lg"
-              className="text-lg px-8 py-4 border-white text-white hover:bg-white hover:text-gray-900 transition-all duration-200"
-            >
+            <Button onClick={handleLearnMore} variant="outline" size="lg" className="text-lg px-8 py-4 border-white text-white hover:bg-white hover:text-gray-900 transition-all duration-200">
               En Savoir Plus
             </Button>
           </div>
@@ -266,12 +247,7 @@ const LandingPage = () => {
           <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
             Rejoignez les auteurs qui transforment déjà leur créativité avec Petites Mains
           </p>
-          <Button 
-            onClick={handleGetStarted}
-            size="lg"
-            variant="secondary"
-            className="text-lg px-8 py-4 hover:scale-105 transition-transform"
-          >
+          <Button onClick={handleGetStarted} size="lg" variant="secondary" className="text-lg px-8 py-4 hover:scale-105 transition-transform">
             {user ? 'Aller au Tableau de Bord' : 'Commencer Maintenant - C\'est Gratuit'}
             <Zap className="ml-2 h-5 w-5" />
           </Button>
@@ -381,8 +357,6 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default LandingPage;
