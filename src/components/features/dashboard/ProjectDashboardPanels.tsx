@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import ReadOnlyStorylineViewer from './ReadOnlyStorylineViewer';
@@ -8,7 +7,11 @@ import WritingTrendsChart from '../analytics/WritingTrendsChart';
 import WritingHeatmap from '../analytics/WritingHeatmap';
 import ContentBreakdownChart from '../analytics/ContentBreakdownChart';
 import ProjectInsights from '../analytics/ProjectInsights';
-import { useProjectAnalytics } from '@/hooks/useProjectAnalytics';
+import EnhancedAnalyticsCards from '../analytics/EnhancedAnalyticsCards';
+import WritingPatternsChart from '../analytics/WritingPatternsChart';
+import DistributionAnalysis from '../analytics/DistributionAnalysis';
+import EnhancedInsights from '../analytics/EnhancedInsights';
+import { useEnhancedProjectAnalytics } from '@/hooks/useEnhancedProjectAnalytics';
 
 interface Chapter {
   id: string;
@@ -48,7 +51,7 @@ const ProjectDashboardPanels = ({
     updated_at: chapter.updated_at || new Date().toISOString()
   }));
 
-  const analytics = useProjectAnalytics(chaptersWithTimestamps, totalWorldElements, worldElementsByType);
+  const analytics = useEnhancedProjectAnalytics(chaptersWithTimestamps, totalWorldElements, worldElementsByType);
 
   const renderStorylinePanel = () => (
     <div className="h-full">
@@ -111,42 +114,40 @@ const ProjectDashboardPanels = ({
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">Project Analytics</h3>
+          <h3 className="text-lg font-semibold text-slate-900">Enhanced Project Analytics</h3>
           <div className="text-sm text-slate-500">
-            Celebrating your creative journey
+            Comprehensive insights into your writing journey
           </div>
         </div>
 
-        {/* Overview metrics - removed characters count */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-purple-600">{totalWords.toLocaleString()}</div>
-            <div className="text-sm text-slate-600">Total Words</div>
-          </Card>
-          <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-blue-600">{chapters.length}</div>
-            <div className="text-sm text-slate-600">Chapters</div>
-          </Card>
-          <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{analytics.writingPatterns.publishedChapters}</div>
-            <div className="text-sm text-slate-600">Published</div>
-          </Card>
-          <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-amber-600">{totalWorldElements}</div>
-            <div className="text-sm text-slate-600">World Elements</div>
-          </Card>
-        </div>
+        {/* Enhanced Overview Cards */}
+        <EnhancedAnalyticsCards 
+          analytics={analytics.enhanced}
+          totalWords={totalWords}
+          totalChapters={chapters.length}
+        />
 
-        {/* Enhanced analytics visualizations */}
+        {/* Traditional Analytics (preserved) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <WritingTrendsChart data={analytics.velocityData} />
           <ContentBreakdownChart data={analytics.contentBreakdown} />
         </div>
 
+        {/* Enhanced Pattern Analysis */}
+        <WritingPatternsChart analytics={analytics.enhanced} />
+
+        {/* Distribution Analysis */}
+        <DistributionAnalysis analytics={analytics.enhanced} />
+
+        {/* Writing Activity Heatmap (preserved) */}
         <WritingHeatmap data={analytics.heatmapData} />
 
+        {/* Enhanced AI-Powered Insights */}
+        <EnhancedInsights analytics={analytics.enhanced} />
+
+        {/* Traditional Insights (preserved for comparison) */}
         <div>
-          <h4 className="text-md font-semibold text-slate-900 mb-4">Writing Insights</h4>
+          <h4 className="text-md font-semibold text-slate-900 mb-4">Traditional Writing Insights</h4>
           <ProjectInsights patterns={analytics.writingPatterns} />
         </div>
       </div>
