@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useProjectData } from '@/hooks/useProjectData';
-import { ExportChapterSelection } from '@/stores/useExportStore';
+import { useExportStore, ExportChapterSelection } from '@/stores/useExportStore';
+import { supabase } from '@/integrations/supabase/client';
+import ExportDocumentEditor from '@/components/features/export/ExportDocumentEditor';
+import ExportFormattingControls from '@/components/features/export/ExportFormattingControls';
 
 const ProjectExportPage = () => {
   const { projectId } = useParams();
@@ -15,14 +18,23 @@ const ProjectExportPage = () => {
   const { toast } = useToast();
   const { project, chapters, isLoading } = useProjectData(projectId);
   
-  const [selectedChapters, setSelectedChapters] = useState<ExportChapterSelection[]>([]);
-  const [exportFormat, setExportFormat] = useState('pdf');
-  const [templateId, setTemplateId] = useState('default');
-  const [includeMetadata, setIncludeMetadata] = useState(true);
-  const [assembledContent, setAssembledContent] = useState('');
-  const [isAssembling, setIsAssembling] = useState(false);
+  const {
+    selectedChapters,
+    exportFormat,
+    templateId,
+    includeMetadata,
+    assembledContent,
+    layoutOptions,
+    isAssembling,
+    updateAssembledContent,
+    setLayoutOptions,
+    setIsAssembling,
+    setExportFormat,
+    setTemplateId,
+    setIncludeMetadata,
+  } = useExportStore();
 
-  // Parse URL parameters
+  // Parse URL parameters and update store
   useEffect(() => {
     const chaptersParam = searchParams.get('chapters');
     const formatParam = searchParams.get('format');
@@ -31,79 +43,46 @@ const ProjectExportPage = () => {
 
     if (chaptersParam) {
       try {
-        setSelectedChapters(JSON.parse(chaptersParam));
+        const parsedChapters = JSON.parse(chaptersParam);
+        // Direct mutation for initialization from URL
+        useExportStore.setState({ selectedChapters: parsedChapters });
       } catch (error) {
         console.error('Error parsing chapters parameter:', error);
       }
     }
 
-    if (formatParam) setExportFormat(formatParam);
+    if (formatParam) setExportFormat(formatParam as any);
     if (templateParam) setTemplateId(templateParam);
     if (metadataParam) setIncludeMetadata(metadataParam === 'true');
-  }, [searchParams]);
+  }, [searchParams, setExportFormat, setTemplateId, setIncludeMetadata]);
 
   // Assemble document preview
   useEffect(() => {
     if (selectedChapters.length > 0 && chapters.length > 0) {
       assembleDocumentPreview();
     }
-  }, [selectedChapters, chapters]);
+  }, [selectedChapters, chapters, layoutOptions, templateId, includeMetadata]);
 
   const assembleDocumentPreview = async () => {
+    if (!projectId) return;
+    
     setIsAssembling(true);
     try {
-      // For now, we'll create a simple HTML assembly
-      // This will be replaced with the server-side assembly endpoint
-      let htmlContent = '';
-      
-      // Add title page if metadata is included
-      if (includeMetadata && project) {
-        htmlContent += `
-          <div class="title-page">
-            <h1 class="main-title">${project.title}</h1>
-            <p class="author">Author Name</p>
-            <p class="date">${new Date().toLocaleDateString()}</p>
-          </div>
-          <div class="page-break"></div>
-        `;
-      }
-
-      // Add table of contents if requested
-      if (includeMetadata && selectedChapters.length > 1) {
-        htmlContent += `
-          <div class="table-of-contents">
-            <h2>Table of Contents</h2>
-            <ul>
-              ${selectedChapters.map((selection, index) => {
-                const chapter = chapters.find(c => c.id === selection.chapterId);
-                return `<li>${index + 1}. ${chapter?.title || 'Untitled'}</li>`;
-              }).join('')}
-            </ul>
-          </div>
-          <div class="page-break"></div>
-        `;
-      }
-
-      // Add chapters in order
-      for (const selection of selectedChapters) {
-        const chapter = chapters.find(c => c.id === selection.chapterId);
-        if (chapter) {
-          // For now, use original content - enhanced content fetching will be added
-          const content = chapter.content || '';
-          
-          htmlContent += `
-            <div class="chapter">
-              <h1 class="chapter-title">${chapter.title}</h1>
-              <div class="chapter-content">
-                ${content.replace(/\n/g, '</p><p>').replace(/^<p>/, '<p>').replace(/<\/p>$/, '</p>')}
-              </div>
-            </div>
-            <div class="chapter-separator"></div>
-          `;
+      const { data, error } = await supabase.functions.invoke('export-assemble-preview', {
+        body: {
+          projectId,
+          selectedChapters,
+          layoutOptions,
+          templateId,
+          includeMetadata
         }
-      }
+      });
 
-      setAssembledContent(htmlContent);
+      if (error) throw error;
+
+      if (data?.content) {
+        updateAssembledContent(data.content);
+      }
     } catch (error) {
       console.error('Error assembling document:', error);
       toast({
@@ -121,13 +100,61 @@ const ProjectExportPage = () => {
   };
 
   const handleExport = async () => {
+    if (!assembledContent || !projectId) return;
+    
     toast({
       title: "Export Started",
       description: "Your document is being prepared for download...",
     });
     
-    // TODO: Implement actual export functionality
-    // This will call the export-final-document edge function
+    try {
+      const response = await supabase.functions.invoke('export-final-document', {
+        body: {
+          projectId,
+          htmlContent: assembledContent,
+          exportFormat,
+          layoutOptions,
+          metadata: {
+            projectTitle: project?.title || 'Untitled',
+            chapterCount: selectedChapters.length,
+            wordCount: selectedChapters.reduce((acc, selection) => {
+              const chapter = chapters.find(c => c.id === selection.chapterId);
+              return acc + (chapter?.content?.split(' ').length || 0);
+            }, 0)
+          }
+        }
+      });
+
+      if (response.error) throw response.error;
+
+      // The response should be a blob for download
+      const blob = new Blob([response.data], { 
+        type: exportFormat === 'pdf' ? 'application/pdf' : 
+              exportFormat === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' :
+              exportFormat === 'epub' ? 'application/epub+zip' : 'text/plain'
+      });
+      
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${project?.title || 'document'}.${exportFormat}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export Complete",
+        description: `Your ${exportFormat.toUpperCase()} has been downloaded successfully.`,
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export Failed",
+        description: "There was an error generating your document. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {
@@ -200,79 +227,65 @@ const ProjectExportPage = () => {
       <div className="flex h-[calc(100vh-81px)]">
         {/* Document Editor - Main Panel */}
         <div className="flex-1 p-6">
-          {isAssembling ? (
-            <Card className="h-full flex items-center justify-center">
-              <div className="text-center">
-                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Assembling Document...
-                </h3>
-                <p className="text-gray-500">
-                  Compiling {selectedChapters.length} chapters into a single document
-                </p>
-              </div>
-            </Card>
-          ) : (
-            <Card className="h-full">
-              <CardHeader>
-                <CardTitle>Document Preview</CardTitle>
-              </CardHeader>
-              <CardContent className="h-full overflow-auto">
-                {/* This will be replaced with the TipTap editor */}
-                <div 
-                  className="prose max-w-none"
-                  dangerouslySetInnerHTML={{ __html: assembledContent }}
-                />
-              </CardContent>
-            </Card>
-          )}
+          <ExportDocumentEditor
+            content={assembledContent}
+            onContentChange={updateAssembledContent}
+            isLoading={isAssembling}
+          />
         </div>
 
         {/* Settings Sidebar */}
-        <div className="w-80 bg-white border-l border-gray-200 p-6 space-y-6">
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Export Settings
-            </h3>
-            
-            {/* Selected Chapters Summary */}
-            <Card className="mb-6">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Selected Chapters</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {selectedChapters.map((selection, index) => {
-                  const chapter = chapters.find(c => c.id === selection.chapterId);
-                  return (
-                    <div key={selection.chapterId} className="flex items-center justify-between text-sm">
-                      <span className="font-medium">
-                        {index + 1}. {chapter?.title || 'Untitled'}
-                      </span>
-                      <span className="text-gray-500 text-xs">
-                        {selection.contentSource}
-                      </span>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
+        <div className="w-80 bg-white border-l border-gray-200 p-6 space-y-6 overflow-y-auto">
+          {/* Selected Chapters Summary */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Selected Chapters</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {selectedChapters.map((selection, index) => {
+                const chapter = chapters.find(c => c.id === selection.chapterId);
+                return (
+                  <div key={selection.chapterId} className="flex items-center justify-between text-sm">
+                    <span className="font-medium">
+                      {index + 1}. {chapter?.title || 'Untitled'}
+                    </span>
+                    <span className="text-muted-foreground text-xs">
+                      {selection.contentSource}
+                    </span>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
 
-            {/* Format and Template Info */}
-            <div className="space-y-3">
+          {/* Export Info */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Export Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">Format</label>
-                <p className="text-sm text-gray-500">{exportFormat.toUpperCase()}</p>
+                <label className="text-sm font-medium">Format</label>
+                <p className="text-sm text-muted-foreground">{exportFormat.toUpperCase()}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Template</label>
-                <p className="text-sm text-gray-500">{templateId}</p>
+                <label className="text-sm font-medium">Template</label>
+                <p className="text-sm text-muted-foreground capitalize">{templateId}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Include Metadata</label>
-                <p className="text-sm text-gray-500">{includeMetadata ? 'Yes' : 'No'}</p>
+                <label className="text-sm font-medium">Include Metadata</label>
+                <p className="text-sm text-muted-foreground">{includeMetadata ? 'Yes' : 'No'}</p>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
+
+          {/* Formatting Controls */}
+          <ExportFormattingControls
+            layoutOptions={layoutOptions}
+            onLayoutChange={setLayoutOptions}
+            onReassemble={assembleDocumentPreview}
+            isAssembling={isAssembling}
+          />
         </div>
       </div>
     </div>

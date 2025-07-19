@@ -842,6 +842,78 @@ export type Database = {
         }
         Relationships: []
       }
+      export_configs: {
+        Row: {
+          config_data: Json
+          created_at: string | null
+          id: string
+          name: string
+          project_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          config_data?: Json
+          created_at?: string | null
+          id?: string
+          name: string
+          project_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          config_data?: Json
+          created_at?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      export_history: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          export_format: string
+          export_status: string
+          file_size_bytes: number | null
+          id: string
+          project_id: string
+          selected_chapters: Json
+          template_id: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          export_format: string
+          export_status?: string
+          file_size_bytes?: number | null
+          id?: string
+          project_id: string
+          selected_chapters?: Json
+          template_id: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          export_format?: string
+          export_status?: string
+          file_size_bytes?: number | null
+          id?: string
+          project_id?: string
+          selected_chapters?: Json
+          template_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       knowledge_base: {
         Row: {
           ai_confidence_new: number | null

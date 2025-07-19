@@ -8,11 +8,30 @@ export interface ExportChapterSelection {
   order: number;
 }
 
+export interface LayoutOptions {
+  fontFamily: string;
+  fontSize: number;
+  lineHeight: number;
+  margins: {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
+  chapterSeparator: 'page-break' | 'section-break' | 'space';
+  includeTOC: boolean;
+  includeTitlePage: boolean;
+  headerFooter: boolean;
+}
+
 interface ExportState {
   selectedChapters: ExportChapterSelection[];
   exportFormat: 'pdf' | 'docx' | 'txt' | 'epub';
   includeMetadata: boolean;
   templateId: string;
+  assembledContent: string;
+  layoutOptions: LayoutOptions;
+  isAssembling: boolean;
   
   // Actions
   toggleChapterSelection: (chapterId: string, chapter: Chapter) => void;
@@ -25,6 +44,9 @@ interface ExportState {
   selectByStatus: (chapters: Chapter[], status: string) => void;
   clearSelection: () => void;
   reset: () => void;
+  updateAssembledContent: (content: string) => void;
+  setLayoutOptions: (options: Partial<LayoutOptions>) => void;
+  setIsAssembling: (isAssembling: boolean) => void;
 }
 
 export const useExportStore = create<ExportState>((set, get) => ({
@@ -32,6 +54,18 @@ export const useExportStore = create<ExportState>((set, get) => ({
   exportFormat: 'pdf',
   includeMetadata: true,
   templateId: 'default',
+  assembledContent: '',
+  layoutOptions: {
+    fontFamily: 'serif',
+    fontSize: 12,
+    lineHeight: 1.6,
+    margins: { top: 72, bottom: 72, left: 72, right: 72 },
+    chapterSeparator: 'page-break',
+    includeTOC: true,
+    includeTitlePage: true,
+    headerFooter: true,
+  },
+  isAssembling: false,
 
   toggleChapterSelection: (chapterId: string, chapter: Chapter) => {
     const { selectedChapters } = get();
@@ -98,6 +132,25 @@ export const useExportStore = create<ExportState>((set, get) => ({
     selectedChapters: [],
     exportFormat: 'pdf',
     includeMetadata: true,
-    templateId: 'default'
-  })
+    templateId: 'default',
+    assembledContent: '',
+    layoutOptions: {
+      fontFamily: 'serif',
+      fontSize: 12,
+      lineHeight: 1.6,
+      margins: { top: 72, bottom: 72, left: 72, right: 72 },
+      chapterSeparator: 'page-break',
+      includeTOC: true,
+      includeTitlePage: true,
+      headerFooter: true,
+    },
+    isAssembling: false,
+  }),
+
+  updateAssembledContent: (content: string) => set({ assembledContent: content }),
+  
+  setLayoutOptions: (options: Partial<LayoutOptions>) => 
+    set(state => ({ layoutOptions: { ...state.layoutOptions, ...options } })),
+  
+  setIsAssembling: (isAssembling: boolean) => set({ isAssembling }),
 }));
