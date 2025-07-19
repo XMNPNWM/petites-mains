@@ -125,16 +125,20 @@ const UserGuidePage = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-semibold mb-2">Regular Backups</h4>
-                <p className="text-muted-foreground">Your work is automatically saved, but consider regular exports as additional backup.</p>
+                <h4 className="font-semibold mb-2">Run AI Analysis Regularly</h4>
+                <p className="text-muted-foreground">Perform periodic AI brain analysis to maintain story consistency and discover plot opportunities across your chapters.</p>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Organizing Your Work</h4>
-                <p className="text-muted-foreground">Use tags and categories to keep your projects organized and easily searchable.</p>
+                <h4 className="font-semibold mb-2">Be Careful When Deleting Chats</h4>
+                <p className="text-muted-foreground">Chat conversations contain valuable feedback and ideas. Review and export important discussions before deleting them permanently.</p>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Collaborative Features</h4>
-                <p className="text-muted-foreground">Share your work with trusted readers for feedback while maintaining version control.</p>
+                <h4 className="font-semibold mb-2">Version Control Your Writing</h4>
+                <p className="text-muted-foreground">Save different versions before major revisions. The app tracks changes automatically, but manual versioning helps with major rewrites.</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Use AI Suggestions Selectively</h4>
+                <p className="text-muted-foreground">AI assistance is powerful but shouldn't replace your creative voice. Use suggestions as inspiration while maintaining your unique writing style.</p>
               </div>
             </CardContent>
           </Card>
