@@ -1,9 +1,9 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Logo from '@/components/ui/logo';
 import { PenTool, BookOpen, Brain, Users, Zap, FileText, Sparkles, ArrowRight, CheckCircle, Globe, Edit3, BarChart3 } from 'lucide-react';
 
 const LandingPage = () => {
@@ -37,9 +37,7 @@ const LandingPage = () => {
         
         {/* Logo */}
         <div className="absolute top-6 left-6 z-20">
-          <div className="text-white font-bold text-2xl">
-            Petites Mains
-          </div>
+          <Logo className="h-12 w-auto filter brightness-0 invert" />
         </div>
         
         {/* Content */}
