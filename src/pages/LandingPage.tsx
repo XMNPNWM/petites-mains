@@ -313,31 +313,31 @@ const LandingPage = () => {
               </div>
 
               <div className="max-w-4xl mx-auto">
-                <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-gradient-to-br from-secondary/5 to-secondary/15 border-2 border-secondary/30">
+                <Card className="text-center hover:shadow-lg transition-all duration-200 hover:-translate-y-1 bg-gradient-to-br from-background to-muted/20 border-2 border-primary/20">
                   <CardHeader>
-                    <div className="w-20 h-20 mx-auto mb-4 bg-secondary/20 rounded-full flex items-center justify-center">
-                      <Brain className="h-10 w-10 text-secondary" />
+                    <div className="w-20 h-20 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                      <Brain className="h-10 w-10 text-primary" />
                     </div>
-                    <CardTitle className="text-2xl text-secondary">AI Brain Analysis</CardTitle>
+                    <CardTitle className="text-2xl text-foreground">AI Brain Analysis</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <CardDescription className="text-lg mb-6">
+                    <CardDescription className="text-lg mb-6 text-foreground">
                       Our AI continuously analyzes your story, keeping detailed records of your narrative, characters, and themes. 
                       This deep understanding enables personalized advice and support that evolves with your writing, 
                       ensuring every suggestion enhances your unique creative vision.
                     </CardDescription>
                     <div className="flex justify-center items-center space-x-8 flex-wrap gap-4">
-                      <div className="flex items-center space-x-2 bg-secondary/10 px-3 py-2 rounded-full">
-                        <Lightbulb className="h-4 w-4 text-secondary" />
-                        <span className="text-sm font-medium text-secondary">Smart Suggestions</span>
+                      <div className="flex items-center space-x-2 bg-primary/10 px-3 py-2 rounded-full">
+                        <Lightbulb className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium text-foreground">Smart Suggestions</span>
                       </div>
-                      <div className="flex items-center space-x-2 bg-secondary/10 px-3 py-2 rounded-full">
-                        <BarChart3 className="h-4 w-4 text-secondary" />
-                        <span className="text-sm font-medium text-secondary">Progress Tracking</span>
+                      <div className="flex items-center space-x-2 bg-primary/10 px-3 py-2 rounded-full">
+                        <BarChart3 className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium text-foreground">Progress Tracking</span>
                       </div>
-                      <div className="flex items-center space-x-2 bg-secondary/10 px-3 py-2 rounded-full">
-                        <BookOpen className="h-4 w-4 text-secondary" />
-                        <span className="text-sm font-medium text-secondary">Story Consistency</span>
+                      <div className="flex items-center space-x-2 bg-primary/10 px-3 py-2 rounded-full">
+                        <BookOpen className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium text-foreground">Story Consistency</span>
                       </div>
                     </div>
                   </CardContent>
