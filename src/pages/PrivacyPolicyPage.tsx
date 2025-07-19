@@ -84,9 +84,9 @@ const PrivacyPolicyPage = () => {
                 <div className="space-y-4 text-muted-foreground">
                   <p>When you use our AI features:</p>
                   <ul className="space-y-2">
-                    <li>• Your content may be processed by AI services to provide suggestions</li>
-                    <li>• AI processing is done securely and your content is not stored by AI providers</li>
-                    <li>• You can opt out of AI features at any time in your settings</li>
+                    <li>• Your content may be processed by third-party AI services to provide suggestions</li>
+                    <li>• We cannot guarantee that AI providers will not store your content temporarily during processing</li>
+                    <li>• You can choose not to use AI features, but there is no separate opt-out setting</li>
                   </ul>
                 </div>
               </section>
