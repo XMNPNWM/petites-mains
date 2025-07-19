@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Download, FileText } from 'lucide-react';
+import { ArrowLeft, Save, Download, FileText, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -60,6 +60,7 @@ const ProjectExportPage = () => {
   // Assemble document preview
   useEffect(() => {
     if (selectedChapters.length > 0 && chapters.length > 0) {
+      console.log('ProjectExportPage: Triggering document assembly');
       assembleDocumentPreview();
     }
   }, [selectedChapters, chapters, layoutOptions, templateId, includeMetadata]);
@@ -67,7 +68,11 @@ const ProjectExportPage = () => {
   const assembleDocumentPreview = async () => {
     if (!projectId) return;
     
-    console.log('Starting document assembly...');
+    console.log('ProjectExportPage: Starting document assembly...', {
+      selectedChaptersCount: selectedChapters.length,
+      chaptersCount: chapters.length
+    });
+    
     setIsAssembling(true);
     setAssemblyError(null);
     
@@ -83,26 +88,28 @@ const ProjectExportPage = () => {
       });
 
       if (error) {
-        console.error('Assembly error:', error);
+        console.error('ProjectExportPage: Assembly error:', error);
         throw error;
       }
 
       if (data?.content) {
-        console.log('Document assembled successfully, content length:', data.content.length);
+        console.log('ProjectExportPage: Document assembled successfully, content length:', data.content.length);
         updateAssembledContent(data.content);
+        setAssemblyError(null);
       } else {
         throw new Error('No content returned from assembly');
       }
     } catch (error) {
-      console.error('Error assembling document:', error);
-      setAssemblyError(error instanceof Error ? error.message : 'Failed to assemble document');
+      console.error('ProjectExportPage: Error assembling document:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to assemble document';
+      setAssemblyError(errorMessage);
       toast({
         title: "Assembly Error",
         description: "Failed to assemble document preview. Please try again.",
         variant: "destructive",
       });
     } finally {
-      console.log('Assembly completed, setting isAssembling to false');
+      console.log('ProjectExportPage: Assembly completed, setting isAssembling to false');
       setIsAssembling(false);
     }
   };
@@ -112,6 +119,7 @@ const ProjectExportPage = () => {
   };
 
   const handleRetryAssembly = () => {
+    console.log('ProjectExportPage: Retrying assembly');
     assembleDocumentPreview();
   };
 
@@ -226,6 +234,8 @@ const ProjectExportPage = () => {
               <p className="text-sm text-gray-500">
                 {selectedChapters.length} chapters selected • {exportFormat.toUpperCase()} format
                 {isAssembling && " • Assembling document..."}
+                {assemblyError && " • Assembly failed"}
+                {assembledContent && !isAssembling && !assemblyError && " • Ready for export"}
               </p>
             </div>
           </div>
@@ -260,6 +270,7 @@ const ProjectExportPage = () => {
                 </div>
                 <p className="text-muted-foreground mb-4">{assemblyError}</p>
                 <Button onClick={handleRetryAssembly}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
                   Try Again
                 </Button>
               </CardContent>

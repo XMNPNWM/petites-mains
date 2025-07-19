@@ -25,16 +25,16 @@ const ExportDocumentEditor = ({
   }, [onContentChange]);
 
   const handleEditorReady = useCallback((editor: any) => {
-    console.log('ExportDocumentEditor: Editor ready, current content length:', content.length);
-  }, [content.length]);
+    console.log('ExportDocumentEditor: Editor ready, content available:', !!content);
+  }, [content]);
 
   // Debug content changes
   useEffect(() => {
-    console.log('ExportDocumentEditor: Content prop updated', {
+    console.log('ExportDocumentEditor: Props updated', {
       contentLength: content.length,
       isLoading,
       hasContent: !!content,
-      contentPreview: content.substring(0, 100)
+      contentPreview: content.substring(0, 50) + '...'
     });
   }, [content, isLoading]);
 
@@ -112,7 +112,8 @@ const ExportDocumentEditor = ({
             onEditorReady={handleEditorReady}
             placeholder="Document content will appear here..."
             readOnly={isReadOnly}
-            chapterKey="export-document"
+            chapterKey="export-preview"
+            isTransitioning={false}
           />
         </div>
       </CardContent>

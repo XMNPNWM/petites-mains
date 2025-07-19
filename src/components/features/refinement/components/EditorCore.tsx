@@ -30,6 +30,7 @@ const EditorCore = ({
   const isDestroyingRef = useRef(false);
   const lastContentRef = useRef<string>('');
   const editorInstanceRef = useRef<any>(null);
+  const readyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Debounced content change handler
   const debouncedContentChange = useCallback((content: string) => {
@@ -43,6 +44,9 @@ const EditorCore = ({
       }
     }, 100);
   }, [onContentChange, isTransitioning]);
+
+  // Stable editor options for export use case
+  const editorDependencies = chapterKey === 'export-preview' ? [] : [chapterKey];
 
   // Safe editor creation
   const editor = useEditor({
@@ -69,8 +73,9 @@ const EditorCore = ({
       }
     },
     onCreate: ({ editor }) => {
-      console.log('EditorCore: Editor created for chapter:', chapterKey || 'none');
+      console.log('EditorCore: Editor created for:', chapterKey || 'unknown');
       editorInstanceRef.current = editor;
+      isDestroyingRef.current = false;
       
       // Set initial content with error handling
       const initialContent = content || '';
@@ -84,20 +89,33 @@ const EditorCore = ({
         }
       }
       
-      // Mark editor as ready after a short delay
-      setTimeout(() => {
+      // Clear any existing timeout
+      if (readyTimeoutRef.current) {
+        clearTimeout(readyTimeoutRef.current);
+      }
+      
+      // Mark editor as ready with extended timeout for stability
+      readyTimeoutRef.current = setTimeout(() => {
         if (!isDestroyingRef.current && !editor.isDestroyed) {
+          console.log('EditorCore: Setting editor ready to true');
           setEditorReady(true);
           if (onEditorReady) {
             onEditorReady(editor);
           }
         }
-      }, 50);
+      }, 100);
     },
     onDestroy: () => {
-      console.log('EditorCore: Editor destroyed for chapter:', chapterKey || 'none');
+      console.log('EditorCore: Editor destroyed for:', chapterKey || 'unknown');
+      isDestroyingRef.current = true;
       setEditorReady(false);
       editorInstanceRef.current = null;
+      
+      // Clear timeouts
+      if (readyTimeoutRef.current) {
+        clearTimeout(readyTimeoutRef.current);
+        readyTimeoutRef.current = null;
+      }
     },
     editorProps: {
       attributes: {
@@ -105,11 +123,11 @@ const EditorCore = ({
         spellcheck: 'true',
       },
     },
-  }, [chapterKey]); // Recreate editor when chapter changes
+  }, editorDependencies);
 
-  // SIMPLIFIED: Content synchronization
+  // Content synchronization with better stability
   useEffect(() => {
-    if (!editor || editor.isDestroyed || isDestroyingRef.current) return;
+    if (!editor || editor.isDestroyed || isDestroyingRef.current || !editorReady) return;
     
     const incomingContent = content || '';
     
@@ -118,10 +136,11 @@ const EditorCore = ({
       return;
     }
     
-    console.log('EditorCore: Content prop changed for chapter:', chapterKey || 'none', {
+    console.log('EditorCore: Updating content for:', chapterKey || 'unknown', {
       incomingLength: incomingContent.length,
       currentEditorLength: editor.getHTML().length,
-      isTransitioning
+      isTransitioning,
+      editorReady
     });
     
     setIsUpdatingFromProp(true);
@@ -140,7 +159,7 @@ const EditorCore = ({
       console.error('EditorCore: Failed to update content:', error);
       setIsUpdatingFromProp(false);
     }
-  }, [content, editor, chapterKey, isTransitioning]);
+  }, [content, editor, chapterKey, isTransitioning, editorReady]);
 
   // Update read-only state safely
   useEffect(() => {
@@ -156,11 +175,15 @@ const EditorCore = ({
   // Enhanced cleanup on unmount
   useEffect(() => {
     return () => {
+      console.log('EditorCore: Component unmounting for:', chapterKey || 'unknown');
       isDestroyingRef.current = true;
       
-      // Clear any pending timeouts
+      // Clear all timeouts
       if (updateTimeoutRef.current) {
         clearTimeout(updateTimeoutRef.current);
+      }
+      if (readyTimeoutRef.current) {
+        clearTimeout(readyTimeoutRef.current);
       }
       
       // Safe editor destruction
@@ -176,7 +199,7 @@ const EditorCore = ({
         }
       }
     };
-  }, [editor]);
+  }, [editor, chapterKey]);
 
   // Show loading state during transitions or while editor is initializing
   if (isTransitioning || !editorReady) {
