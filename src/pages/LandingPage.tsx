@@ -1,14 +1,15 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PenTool, BookOpen, Brain, Users, Zap, FileText, Sparkles, ArrowRight, CheckCircle, Globe, Edit3, BarChart3 } from 'lucide-react';
+
 const LandingPage = () => {
   const navigate = useNavigate();
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
+
   const handleGetStarted = () => {
     if (user) {
       navigate('/dashboard');
@@ -16,18 +17,21 @@ const LandingPage = () => {
       navigate('/auth');
     }
   };
+
   const handleLearnMore = () => {
     document.getElementById('features')?.scrollIntoView({
       behavior: 'smooth'
     });
   };
-  return <div className="min-h-screen bg-background">
+
+  return (
+    <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{
-        backgroundImage: `url('/lovable-uploads/9cfdbadc-5ac7-468c-a9f6-0ad111619cd6.png')`
-      }}>
+          backgroundImage: `url('/lovable-uploads/9cfdbadc-5ac7-468c-a9f6-0ad111619cd6.png')`
+        }}>
           <div className="absolute inset-0 bg-black/40"></div>
         </div>
         
@@ -35,7 +39,7 @@ const LandingPage = () => {
         <div className="relative z-10 container mx-auto px-6 text-center text-white">
           <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
             Unleash Your
-            <span className="block bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Creative Writing</span>
+            <span className="block bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Chef-d'Oeuvre</span>
           </h1>
           <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto leading-relaxed text-gray-200">
             A specialized workspace for creative writers with smooth AI assistance. From first draft to published masterpiece.
@@ -64,23 +68,23 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div className="grid md:grid-cols-2 gap-12 items-start">
             <div className="space-y-6">
-              <h3 className="text-2xl font-semibold text-destructive mb-4">Common Writing Challenges:</h3>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
+              <h3 className="text-2xl font-semibold text-destructive mb-6">Common Writing Challenges:</h3>
+              <div className="space-y-6">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-muted-foreground">Writer's block that stifles your creativity</p>
                 </div>
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-muted-foreground">Tedious editing that consumes precious writing time</p>
                 </div>
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-muted-foreground">Disorganized characters, plots, and world-building</p>
                 </div>
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-muted-foreground">Complex formatting for publication</p>
                 </div>
@@ -88,21 +92,21 @@ const LandingPage = () => {
             </div>
 
             <div className="space-y-6">
-              <h3 className="text-2xl font-semibold text-primary mb-4">Our Writing Workspace Solution:</h3>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
+              <h3 className="text-2xl font-semibold text-primary mb-6">Our Writing Workspace Solution:</h3>
+              <div className="space-y-6">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
                   <p className="text-foreground">Distraction-free writing environment with smooth AI assistance</p>
                 </div>
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
                   <p className="text-foreground">Intelligent organization for characters, plots, and world-building</p>
                 </div>
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
                   <p className="text-foreground">Gentle AI suggestions that enhance your unique voice</p>
                 </div>
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
                   <p className="text-foreground">Professional export ready for publication in one click</p>
                 </div>
@@ -176,61 +180,26 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Social Proof */}
+      {/* Personal Message from Creator */}
       <section className="py-20 bg-muted/30">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              What Creative Writers Say
+              From My Desk to Yours
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="max-w-4xl mx-auto">
             <Card className="hover:shadow-lg transition-shadow">
-              <CardContent className="pt-6">
-                <p className="text-muted-foreground mb-4 italic">I've always loved writing stories for my family and friends. It's a gift I truly enjoy offering, and I guess they always like it too! After years of doing it the 'old way', I found myself looking for a smarter approach. But I quickly realized that many AI tools didn't truly help writers express their personal style and unique vision.</p>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-semibold">
-                    S
-                  </div>
-                  <div>
-                    <p className="font-semibold">Sarah Chen</p>
-                    <p className="text-sm text-muted-foreground">Fantasy Novelist</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardContent className="pt-6">
-                <p className="text-muted-foreground mb-4 italic">
-                  "The character and world-building tools are incredible. I can keep track of everything without losing my creative flow."
+              <CardContent className="pt-8 pb-8">
+                <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
+                  I've always loved writing stories for my family and friends—it's a gift I truly enjoy offering, and I guess they always like it too! After years of doing it the 'old way,' I found myself looking for a smarter approach. But I quickly realized that many AI tools didn't truly help writers express their personal style and unique vision.
                 </p>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-semibold">
-                    M
-                  </div>
-                  <div>
-                    <p className="font-semibold">Marcus Johnson</p>
-                    <p className="text-sm text-muted-foreground">Science Fiction Author</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardContent className="pt-6">
-                <p className="text-muted-foreground mb-4 italic">
-                  "Finally, a writing tool that understands writers. The export feature saved me weeks of formatting work."
+                <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
+                  That's why I built Petites Mains. My goal was to create a tool that doesn't silence a writer's talent and inspiration, but instead helps them concretize it. I hope you'll enjoy using it as much as I do.
                 </p>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-semibold">
-                    L
-                  </div>
-                  <div>
-                    <p className="font-semibold">Lisa Rodriguez</p>
-                    <p className="text-sm text-muted-foreground">Independent Author</p>
-                  </div>
+                <div className="text-right">
+                  <p className="text-xl font-semibold text-foreground">S.</p>
                 </div>
               </CardContent>
             </Card>
@@ -277,11 +246,11 @@ const LandingPage = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-left">Is my writing secure and private?</CardTitle>
+                <CardTitle className="text-left">How is my writing data handled?</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Absolutely. Your manuscripts are encrypted and stored securely. We never share your creative work with third parties or use it to train AI models.
+                  Your writing is stored securely in our database. We take data privacy seriously and follow industry best practices. However, please note that when using AI features, your text may be processed by third-party AI services to provide suggestions and assistance.
                 </p>
               </CardContent>
             </Card>
@@ -357,6 +326,8 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
-    </div>;
+    </div>
+  );
 };
+
 export default LandingPage;
