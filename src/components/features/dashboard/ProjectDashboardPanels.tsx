@@ -11,6 +11,7 @@ import EnhancedAnalyticsCards from '../analytics/EnhancedAnalyticsCards';
 import WritingPatternsChart from '../analytics/WritingPatternsChart';
 import DistributionAnalysis from '../analytics/DistributionAnalysis';
 import EnhancedInsights from '../analytics/EnhancedInsights';
+import VelocityInsights from '../analytics/VelocityInsights';
 import { useEnhancedProjectAnalytics } from '@/hooks/useEnhancedProjectAnalytics';
 
 interface Chapter {
@@ -127,11 +128,14 @@ const ProjectDashboardPanels = ({
           totalChapters={chapters.length}
         />
 
-        {/* Traditional Analytics (preserved) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Enhanced Writing Velocity with Insights */}
+        <div className="space-y-4">
+          <VelocityInsights data={analytics.velocityData} />
           <WritingTrendsChart data={analytics.velocityData} />
-          <ContentBreakdownChart data={analytics.contentBreakdown} />
         </div>
+
+        {/* Content Analysis */}
+        <ContentBreakdownChart data={analytics.contentBreakdown} />
 
         {/* Enhanced Pattern Analysis */}
         <WritingPatternsChart analytics={analytics.enhanced} />
@@ -139,13 +143,13 @@ const ProjectDashboardPanels = ({
         {/* Distribution Analysis */}
         <DistributionAnalysis analytics={analytics.enhanced} />
 
-        {/* Writing Activity Heatmap (preserved) */}
+        {/* Writing Activity Heatmap */}
         <WritingHeatmap data={analytics.heatmapData} />
 
         {/* Enhanced AI-Powered Insights */}
         <EnhancedInsights analytics={analytics.enhanced} />
 
-        {/* Traditional Insights (preserved for comparison) */}
+        {/* Traditional Insights */}
         <div>
           <h4 className="text-md font-semibold text-slate-900 mb-4">Traditional Writing Insights</h4>
           <ProjectInsights patterns={analytics.writingPatterns} />
