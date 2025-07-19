@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -68,7 +67,7 @@ const LandingPage = () => {
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              Why Creative Writers Choose Petites Mains
+              Your Creative Edge: The Petites Mains Advantage
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               We understand the unique challenges you face in your creative writing journey.
@@ -179,7 +178,7 @@ const LandingPage = () => {
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-base">
-                  Export your manuscripts in professional formats ready for publishers or self-publishing
+                  Export your manuscripts in professional formats ready for submission to publishers or self-publishing
                 </CardDescription>
               </CardContent>
             </Card>
