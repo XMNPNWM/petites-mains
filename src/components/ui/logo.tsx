@@ -28,7 +28,7 @@ const Logo = ({ className = "h-12 w-auto" }: LogoProps) => {
 
   return (
     <img 
-      src="/lovable-uploads/cropped-logo.png" 
+      src="/lovable-uploads/simple-logo.png" 
       alt="Petites Mains - Think, Build, Write"
       className={className}
       onError={handleImageError}
