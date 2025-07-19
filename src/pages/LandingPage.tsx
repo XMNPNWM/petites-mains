@@ -35,7 +35,7 @@ const LandingPage = () => {
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{
-          backgroundImage: `url('/lovable-uploads/9cfdbadc-5ac7-468c-a9f6-0ad111619cd6.png')`
+          backgroundImage: `url('/lovable-uploads/d8ca510d-3235-43da-80cb-eb818ab6ef00.png')`
         }}>
           <div className="absolute inset-0 bg-black/40"></div>
         </div>
