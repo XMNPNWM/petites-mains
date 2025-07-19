@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -67,23 +68,23 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div className="grid md:grid-cols-2 gap-12 items-start">
             <div className="space-y-6">
-              <h3 className="text-2xl font-semibold text-destructive mb-4">Common Writing Challenges:</h3>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
+              <h3 className="text-2xl font-semibold text-destructive mb-6">Common Writing Challenges:</h3>
+              <div className="space-y-6">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-muted-foreground">Writer's block that stifles your creativity</p>
                 </div>
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-muted-foreground">Tedious editing that consumes precious writing time</p>
                 </div>
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-muted-foreground">Disorganized characters, plots, and world-building</p>
                 </div>
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <div className="w-2 h-2 bg-destructive rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-muted-foreground">Complex formatting for publication</p>
                 </div>
@@ -91,21 +92,21 @@ const LandingPage = () => {
             </div>
 
             <div className="space-y-6">
-              <h3 className="text-2xl font-semibold text-primary mb-4">Our Writing Workspace Solution:</h3>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
+              <h3 className="text-2xl font-semibold text-primary mb-6">Our Writing Workspace Solution:</h3>
+              <div className="space-y-6">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
                   <p className="text-foreground">Distraction-free writing environment with smooth AI assistance</p>
                 </div>
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
                   <p className="text-foreground">Intelligent organization for characters, plots, and world-building</p>
                 </div>
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
                   <p className="text-foreground">Gentle AI suggestions that enhance your unique voice</p>
                 </div>
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 min-h-[3rem]">
                   <CheckCircle className="w-6 h-6 text-primary mt-1 flex-shrink-0" />
                   <p className="text-foreground">Professional export ready for publication in one click</p>
                 </div>
