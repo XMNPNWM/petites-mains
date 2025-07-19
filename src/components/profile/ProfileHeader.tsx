@@ -13,7 +13,7 @@ const ProfileHeader = () => {
         <div className="flex items-center space-x-4">
           <Button 
             variant="ghost" 
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/dashboard')}
             className="flex items-center"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
