@@ -32,7 +32,7 @@ const ProjectDashboard = () => {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <ProjectDashboardHeader
         project={project}
-        onNavigateBack={() => navigate('/')}
+        onNavigateBack={() => navigate('/dashboard')}
         onUpdateDescription={updateProjectDescription}
         onWriteButtonClick={handleWriteButtonClick}
         getWriteButtonText={getWriteButtonText}
