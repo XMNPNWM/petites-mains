@@ -82,7 +82,7 @@ const LandingPage = () => {
           </div>
 
           <div className="max-w-6xl mx-auto">
-            <div className="grid md:grid-cols-2 gap-12 items-start">
+            <div className="grid md:grid-cols-2 gap-12 items-start justify-center max-w-5xl mx-auto">
               <div className="space-y-6">
                 <h3 className="text-2xl font-semibold text-destructive mb-6">Common Writing Challenges:</h3>
                 <div className="space-y-6">
