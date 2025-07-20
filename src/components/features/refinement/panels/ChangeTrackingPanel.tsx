@@ -25,6 +25,7 @@ interface ChangeTrackingPanelProps {
   chapterId?: string;
   chapterTitle?: string;
   isTransitioning?: boolean;
+  selectedChangeId?: string | null;
 }
 
 // Type casting function to handle database type mismatches
@@ -52,7 +53,8 @@ const ChangeTrackingPanel = ({
   onScrollSync,
   chapterId,
   chapterTitle,
-  isTransitioning = false
+  isTransitioning = false,
+  selectedChangeId = null
 }: ChangeTrackingPanelProps) => {
   const [changes, setChanges] = useState<AIChange[]>([]);
   const [loading, setLoading] = useState(false);
@@ -145,6 +147,7 @@ const ChangeTrackingPanel = ({
               loading={loading || isTransitioning}
               onChangeDecision={handleDecision}
               onChangeClick={handleChangeClick}
+              selectedChangeId={selectedChangeId}
             />
           </div>
         </CardContent>

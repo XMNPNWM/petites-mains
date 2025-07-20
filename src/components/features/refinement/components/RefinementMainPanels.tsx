@@ -74,6 +74,7 @@ interface RefinementMainPanelsProps {
   onEnhanceChapter?: (options: any) => void;
   hasEnhancedContent?: boolean;
   transitionState?: any;
+  navigationState?: any;
 }
 
 const RefinementMainPanels = ({
@@ -98,6 +99,7 @@ const RefinementMainPanels = ({
   onEnhanceChapter = () => {},
   hasEnhancedContent = false,
   transitionState,
+  navigationState,
   ...restProps
 }: RefinementMainPanelsProps) => {
   
@@ -150,8 +152,8 @@ const RefinementMainPanels = ({
             onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
               handleScrollSync('original', scrollTop, scrollHeight, clientHeight)
             }
-            scrollPosition={scrollPositions.original}
-            highlightedRange={highlightedRange}
+            scrollPosition={navigationState?.originalScrollPosition || scrollPositions.original}
+            highlightedRange={navigationState?.highlightedRange}
             hasContentConflict={
               currentChapter?.content !== undefined && 
               activeRefinementData?.original_content !== undefined &&
@@ -182,7 +184,8 @@ const RefinementMainPanels = ({
             onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
               handleScrollSync('enhanced', scrollTop, scrollHeight, clientHeight)
             }
-            scrollPosition={scrollPositions.enhanced}
+            scrollPosition={navigationState?.enhancedScrollPosition || scrollPositions.enhanced}
+            highlightedRange={navigationState?.highlightedRange}
             isEnhancing={isEnhancing}
             onEnhanceChapter={onEnhanceChapter}
             hasEnhancedContent={hasValidEnhancedContent}
@@ -207,6 +210,7 @@ const RefinementMainPanels = ({
             chapterId={chapterId}
             chapterTitle={currentChapter?.title || ''}
             isTransitioning={isTransitioning}
+            selectedChangeId={navigationState?.selectedChangeId}
           />
         </SimpleRightClickMenu>
       </ResizablePanel>

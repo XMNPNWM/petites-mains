@@ -21,9 +21,11 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
     refinementData,
     previousRefinementData,
     transitionState,
+    navigationState,
     handleChapterSelect,
     handleContentChange,
     handleChangeDecision,
+    handleChangeNavigation,
     handleImportToCreation,
     refreshData
   } = useRefinementSpace(projectId);
@@ -78,11 +80,13 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
               onChapterSelect={handleChapterSelect}
               onContentChange={handleContentChange}
               onChangeDecision={handleChangeDecision}
+              onChangeClick={handleChangeNavigation}
               onImportToCreation={handleImportToCreation}
               isEnhancing={isAnalyzing}
               onEnhanceChapter={handleAnalyzeChapter}
               hasEnhancedContent={!!(refinementData?.enhanced_content && refinementData.enhanced_content.trim().length > 0)}
               transitionState={transitionState}
+              navigationState={navigationState}
             />
           </ResizablePanel>
         </ResizablePanelGroup>

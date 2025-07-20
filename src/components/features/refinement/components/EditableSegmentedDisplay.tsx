@@ -12,6 +12,7 @@ interface EditableSegmentedDisplayProps {
   onContentChange: (content: string) => void;
   onScrollSync?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
   scrollPosition?: number;
+  highlightedRange?: { start: number; end: number } | null;
   placeholder?: string;
   onEditorReady?: (editor: any) => void;
   linesPerPage?: number; // Keep for compatibility but ignore
@@ -26,6 +27,7 @@ const EditableSegmentedDisplay = ({
   onContentChange, 
   onScrollSync,
   scrollPosition,
+  highlightedRange,
   placeholder = "Start writing...",
   onEditorReady,
   linesPerPage = 25, // Ignored parameter for backward compatibility
@@ -102,6 +104,7 @@ const EditableSegmentedDisplay = ({
                     readOnly={readOnly}
                     chapterKey={chapterKey}
                     isTransitioning={isTransitioning}
+                    highlightedRange={highlightedRange}
                   />
                 </ErrorBoundary>
               )}

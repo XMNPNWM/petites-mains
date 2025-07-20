@@ -13,6 +13,7 @@ interface EditorCoreProps {
   readOnly?: boolean;
   chapterKey?: string;
   isTransitioning?: boolean;
+  highlightedRange?: { start: number; end: number } | null;
 }
 
 const EditorCore = ({ 
@@ -22,7 +23,8 @@ const EditorCore = ({
   placeholder = "Start writing...",
   readOnly = false,
   chapterKey,
-  isTransitioning = false
+  isTransitioning = false,
+  highlightedRange
 }: EditorCoreProps) => {
   const [isUpdatingFromProp, setIsUpdatingFromProp] = useState(false);
   const [editorReady, setEditorReady] = useState(false);

@@ -17,6 +17,7 @@ interface EnhancedEditorPanelProps {
   chapterId?: string;
   onScrollSync?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
   scrollPosition?: number;
+  highlightedRange?: { start: number; end: number } | null;
   isEnhancing?: boolean;
   onEnhanceChapter?: (options: EnhancementOptions) => void;
   hasEnhancedContent?: boolean;
@@ -30,6 +31,7 @@ const EnhancedEditorPanel = ({
   chapterId,
   onScrollSync,
   scrollPosition,
+  highlightedRange,
   isEnhancing = false,
   onEnhanceChapter,
   hasEnhancedContent = false,
@@ -129,6 +131,7 @@ const EnhancedEditorPanel = ({
                 onContentChange={onContentChange}
                 onScrollSync={onScrollSync}
                 scrollPosition={scrollPosition}
+                highlightedRange={highlightedRange}
                 placeholder="Enhanced content will appear here..."
                 onEditorReady={setEditor}
                 readOnly={isEnhancing}

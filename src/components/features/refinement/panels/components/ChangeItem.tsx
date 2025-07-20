@@ -19,9 +19,10 @@ interface ChangeItemProps {
   change: AIChange;
   onDecision: (changeId: string, decision: 'accepted' | 'rejected') => void;
   onClick: (change: AIChange) => void;
+  isSelected?: boolean;
 }
 
-const ChangeItem = ({ change, onDecision, onClick }: ChangeItemProps) => {
+const ChangeItem = ({ change, onDecision, onClick, isSelected = false }: ChangeItemProps) => {
   const getChangeIcon = (type: string) => {
     switch (type) {
       case 'grammar':
@@ -58,13 +59,12 @@ const ChangeItem = ({ change, onDecision, onClick }: ChangeItemProps) => {
   };
 
   return (
-    <div
-      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-        change.user_decision === 'accepted'
-          ? 'bg-green-50 border-green-200'
-          : change.user_decision === 'rejected'
-          ? 'bg-red-50 border-red-200'
-          : 'bg-white border-slate-200 hover:bg-slate-50'
+    <div 
+      className={`p-3 border rounded-lg transition-all cursor-pointer ${
+        isSelected ? 'border-purple-500 bg-purple-50 shadow-md ring-2 ring-purple-200' :
+        change.user_decision === 'accepted' ? 'bg-green-50 border-green-200' :
+        change.user_decision === 'rejected' ? 'bg-red-50 border-red-200' : 
+        'border-slate-200 bg-white hover:shadow-sm hover:border-slate-300'
       }`}
       onClick={() => onClick(change)}
     >

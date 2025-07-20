@@ -19,9 +19,10 @@ interface ChangeListProps {
   loading: boolean;
   onChangeDecision: (changeId: string, decision: 'accepted' | 'rejected') => void;
   onChangeClick: (change: AIChange) => void;
+  selectedChangeId?: string | null;
 }
 
-const ChangeList = ({ changes, loading, onChangeDecision, onChangeClick }: ChangeListProps) => {
+const ChangeList = ({ changes, loading, onChangeDecision, onChangeClick, selectedChangeId }: ChangeListProps) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -49,6 +50,7 @@ const ChangeList = ({ changes, loading, onChangeDecision, onChangeClick }: Chang
           change={change}
           onDecision={onChangeDecision}
           onClick={onChangeClick}
+          isSelected={change.id === selectedChangeId}
         />
       ))}
     </div>

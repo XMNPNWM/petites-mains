@@ -60,6 +60,18 @@ const SegmentedTextDisplay = ({
     }
   }, [scrollPosition]);
 
+  // Generate highlighted content
+  const getHighlightedContent = () => {
+    if (!highlightedRange || !content) return content;
+    
+    const { start, end } = highlightedRange;
+    const before = content.slice(0, start);
+    const highlighted = content.slice(start, end);
+    const after = content.slice(end);
+    
+    return `${before}<mark class="bg-yellow-200 dark:bg-yellow-800/40 px-1 rounded transition-all duration-300">${highlighted}</mark>${after}`;
+  };
+
   return (
     <div 
       ref={containerRef}
@@ -68,7 +80,7 @@ const SegmentedTextDisplay = ({
       <div 
         className="whitespace-pre-wrap leading-relaxed break-words text-sm"
         style={{ lineHeight: '1.6' }}
-        dangerouslySetInnerHTML={{ __html: content }}
+        dangerouslySetInnerHTML={{ __html: getHighlightedContent() }}
       />
     </div>
   );
