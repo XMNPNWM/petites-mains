@@ -21,6 +21,7 @@ interface EnhancedEditorPanelProps {
   onEnhanceChapter?: (options: EnhancementOptions) => void;
   hasEnhancedContent?: boolean;
   isTransitioning?: boolean;
+  highlightedRange?: { start: number; end: number } | null;
 }
 
 const EnhancedEditorPanel = ({
@@ -33,7 +34,8 @@ const EnhancedEditorPanel = ({
   isEnhancing = false,
   onEnhanceChapter,
   hasEnhancedContent = false,
-  isTransitioning = false
+  isTransitioning = false,
+  highlightedRange
 }: EnhancedEditorPanelProps) => {
   const [editor, setEditor] = useState<any>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
@@ -135,6 +137,7 @@ const EnhancedEditorPanel = ({
                 chapterKey={chapterId}
                 isLoading={isEnhancing}
                 isTransitioning={isTransitioning}
+                highlightedRange={highlightedRange}
               />
             </div>
           </Card>

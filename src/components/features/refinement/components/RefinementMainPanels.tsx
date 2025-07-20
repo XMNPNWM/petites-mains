@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import ChapterNavigationPanel from '../panels/ChapterNavigationPanel';
@@ -9,6 +8,7 @@ import MetricsPanel from '../panels/MetricsPanel';
 import ImportButton from './ImportButton';
 import MetricsToggleButton from './MetricsToggleButton';
 import SimpleRightClickMenu from '@/components/features/writing/simple/SimpleRightClickMenu';
+import { useChangeNavigation } from '@/hooks/useChangeNavigation';
 
 interface Chapter {
   id: string;
@@ -101,6 +101,8 @@ const RefinementMainPanels = ({
   ...restProps
 }: RefinementMainPanelsProps) => {
   
+  const { navigationState, navigateToChange, clearNavigation } = useChangeNavigation();
+  
   // SIMPLIFIED: Use current refinement data only
   const isTransitioning = transitionState?.isTransitioning || false;
   const activeRefinementData = refinementData;
@@ -114,6 +116,31 @@ const RefinementMainPanels = ({
   const enhancedContent = shouldShowContent ? activeRefinementData.enhanced_content : '';
   const hasValidEnhancedContent = shouldShowContent;
 
+  // Enhanced change click handler with navigation
+  const handleChangeClick = (change: AIChange) => {
+    console.log('🎯 Change clicked:', change.id, change.change_type);
+    
+    if (currentChapter?.content && enhancedContent) {
+      // Get container elements for scroll calculation
+      const originalContainer = document.querySelector('[data-panel="original"] .prose-sm') as HTMLElement;
+      const enhancedContainer = document.querySelector('[data-panel="enhanced"] .ProseMirror') as HTMLElement;
+      
+      navigateToChange(
+        change,
+        currentChapter.content,
+        enhancedContent,
+        originalContainer,
+        enhancedContainer
+      );
+    }
+    
+    // Call original handler
+    onChangeClick(change);
+  };
+
+  // Use navigation state for highlighted range, fallback to prop
+  const activeHighlightedRange = navigationState.highlightedRange || highlightedRange;
+
   console.log('🎛️ RefinementMainPanels - SIMPLIFIED Enhanced content display logic:', {
     currentChapterId: currentChapter?.id,
     refinementChapterId: activeRefinementData?.chapter_id,
@@ -122,7 +149,8 @@ const RefinementMainPanels = ({
     enhancedContentLength: activeRefinementData?.enhanced_content?.length || 0,
     shouldShowContent,
     hasValidEnhancedContent,
-    isTransitioning
+    isTransitioning,
+    selectedChangeId: navigationState.selectedChangeId
   });
 
   return (
@@ -144,22 +172,24 @@ const RefinementMainPanels = ({
       {/* Panel 2: Original Text */}
       <ResizablePanel defaultSize={28} minSize={20} maxSize={40}>
         <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
-          <OriginalTextPanel
-            content={currentChapter?.content || ''}
-            chapterTitle={currentChapter?.title || ''}
-            onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
-              handleScrollSync('original', scrollTop, scrollHeight, clientHeight)
-            }
-            scrollPosition={scrollPositions.original}
-            highlightedRange={highlightedRange}
-            hasContentConflict={
-              currentChapter?.content !== undefined && 
-              activeRefinementData?.original_content !== undefined &&
-              currentChapter.content !== activeRefinementData.original_content
-            }
-            currentChapterContent={currentChapter?.content}
-            isTransitioning={isTransitioning}
-          />
+          <div data-panel="original">
+            <OriginalTextPanel
+              content={currentChapter?.content || ''}
+              chapterTitle={currentChapter?.title || ''}
+              onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
+                handleScrollSync('original', scrollTop, scrollHeight, clientHeight)
+              }
+              scrollPosition={navigationState.targetScrollPositions.original || scrollPositions.original}
+              highlightedRange={activeHighlightedRange}
+              hasContentConflict={
+                currentChapter?.content !== undefined && 
+                activeRefinementData?.original_content !== undefined &&
+                currentChapter.content !== activeRefinementData.original_content
+              }
+              currentChapterContent={currentChapter?.content}
+              isTransitioning={isTransitioning}
+            />
+          </div>
         </SimpleRightClickMenu>
       </ResizablePanel>
       
@@ -174,20 +204,23 @@ const RefinementMainPanels = ({
       {/* Panel 3: Enhanced Editor */}
       <ResizablePanel defaultSize={28} minSize={20} maxSize={40}>
         <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
-          <EnhancedEditorPanel
-            content={enhancedContent}
-            onContentChange={onContentChange}
-            chapterTitle={currentChapter?.title || ''}
-            chapterId={currentChapter?.id}
-            onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
-              handleScrollSync('enhanced', scrollTop, scrollHeight, clientHeight)
-            }
-            scrollPosition={scrollPositions.enhanced}
-            isEnhancing={isEnhancing}
-            onEnhanceChapter={onEnhanceChapter}
-            hasEnhancedContent={hasValidEnhancedContent}
-            isTransitioning={isTransitioning}
-          />
+          <div data-panel="enhanced">
+            <EnhancedEditorPanel
+              content={enhancedContent}
+              onContentChange={onContentChange}
+              chapterTitle={currentChapter?.title || ''}
+              chapterId={currentChapter?.id}
+              onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
+                handleScrollSync('enhanced', scrollTop, scrollHeight, clientHeight)
+              }
+              scrollPosition={navigationState.targetScrollPositions.enhanced || scrollPositions.enhanced}
+              isEnhancing={isEnhancing}
+              onEnhanceChapter={onEnhanceChapter}
+              hasEnhancedContent={hasValidEnhancedContent}
+              isTransitioning={isTransitioning}
+              highlightedRange={activeHighlightedRange}
+            />
+          </div>
         </SimpleRightClickMenu>
       </ResizablePanel>
       
@@ -199,7 +232,7 @@ const RefinementMainPanels = ({
           <ChangeTrackingPanel
             refinementId={activeRefinementData?.id || ''}
             onChangeDecision={onChangeDecision}
-            onChangeClick={onChangeClick}
+            onChangeClick={handleChangeClick}
             scrollPosition={scrollPositions.changeTracking}
             onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
               handleScrollSync('changeTracking', scrollTop, scrollHeight, clientHeight)
