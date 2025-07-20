@@ -8,21 +8,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import TermsAgreementDialog from '@/components/TermsAgreementDialog';
 
 const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showTermsDialog, setShowTermsDialog] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState('');
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      navigate('/', { replace: true });
+    if (user && !showTermsDialog) {
+      navigate('/dashboard', { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, showTermsDialog]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,13 +62,25 @@ const AuthPage = () => {
         variant: "destructive",
       });
     } else {
+      // Store the email for the terms dialog
+      setNewUserEmail(email);
+      setShowTermsDialog(true);
       toast({
         title: "Account created!",
-        description: "Please check your email to verify your account.",
+        description: "Please accept our terms to continue.",
       });
     }
     
     setLoading(false);
+  };
+
+  const handleTermsAccept = () => {
+    setShowTermsDialog(false);
+    toast({
+      title: "Welcome to Petites Mains!",
+      description: "You can now start your writing journey.",
+    });
+    navigate('/dashboard', { replace: true });
   };
 
   return (
@@ -163,6 +178,11 @@ const AuthPage = () => {
           </Tabs>
         </CardContent>
       </Card>
+
+      <TermsAgreementDialog 
+        open={showTermsDialog} 
+        onAccept={handleTermsAccept}
+      />
     </div>
   );
 };

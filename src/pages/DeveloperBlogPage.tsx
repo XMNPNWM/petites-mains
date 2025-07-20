@@ -8,20 +8,13 @@ import { ArrowLeft, Calendar, User } from 'lucide-react';
 const DeveloperBlogPage = () => {
   const navigate = useNavigate();
 
-  // Placeholder blog posts - you can update these as needed
+  // Real blog post for the launch
   const blogPosts = [
     {
       id: 1,
-      title: "Welcome to Petites Mains Development Blog",
-      date: "2024-01-15",
-      content: "Hello everyone! I'm excited to share the journey of building Petites Mains with you. This blog will be where I post updates about new features, improvements, and the overall progress of the platform. Stay tuned for regular updates!",
-      author: "S."
-    },
-    {
-      id: 2,
-      title: "Recent Platform Updates",
-      date: "2024-01-10",
-      content: "We've been working hard on improving the user experience. Recent updates include better subscription management, improved writing tools, and enhanced AI assistance features. More exciting features are coming soon!",
+      title: "Launching Petites Mains - A New Chapter for Writers",
+      date: "2025-01-20",
+      content: "Today marks a proud moment with the launch of Petites Mains. Our aim has always been to provide writers with a tool that amplifies their creativity and simplifies the path from concept to completion.\n\nWe acknowledge that initial releases may present minor points for optimization, which our team is diligently working to refine. These swift improvements are part of our ongoing commitment to your experience.\n\nWe invite you to engage with Petites Mains and discover firsthand how it can support and transform your writing endeavors.",
       author: "S."
     }
   ];
@@ -62,9 +55,9 @@ const DeveloperBlogPage = () => {
                 <CardTitle className="text-2xl">{post.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground leading-relaxed">
+                <div className="text-muted-foreground leading-relaxed whitespace-pre-line">
                   {post.content}
-                </p>
+                </div>
               </CardContent>
             </Card>
           ))}

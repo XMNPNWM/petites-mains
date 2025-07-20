@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,14 +52,14 @@ const LandingPage = () => {
         <div className="relative z-10 container mx-auto px-6 text-center text-white">
           <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
             Unleash Your
-            <span className="block bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Chef-d'Oeuvre</span>
+            <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Chef-d'Oeuvre</span>
           </h1>
           <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto leading-relaxed text-gray-200">
             A specialized workspace for creative writers with smooth AI assistance. From first draft to published masterpiece.
           </p>
           <div className="flex justify-center items-center">
             <Button onClick={handleGetStarted} size="lg" className="text-lg px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200">
-              {user ? 'Go to Dashboard' : 'Start Writing for Free'}
+              {user ? 'Go to Dashboard' : 'Let\'s Write'}
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </div>
@@ -391,8 +392,8 @@ const LandingPage = () => {
           <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
             Join creative writers who are already transforming their craft with Petites Mains
           </p>
-          <Button onClick={handleGetStarted} size="lg" variant="secondary" className="text-lg px-8 py-4 hover:scale-105 transition-transform">
-            {user ? 'Go to Dashboard' : 'Start Writing Now - It\'s Free'}
+          <Button onClick={handleGetStarted} size="lg" className="text-lg px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-transform">
+            {user ? 'Go to Dashboard' : 'Let\'s Write'}
             <Zap className="ml-2 h-5 w-5" />
           </Button>
         </div>
@@ -414,7 +415,11 @@ const LandingPage = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Yes! Petites Mains offers a free tier with core writing features. Please note that due to infrastructure expenses, this tier has certain usage limits and a limited monthly allocation of AI credits.
+                  Yes! Petites Mains offers a free tier with core writing features. Please note that due to infrastructure expenses, this tier has certain usage limits and a limited monthly allocation of AI credits. For more details about our pricing and features, visit our{' '}
+                  <Link to="/pricing" className="text-primary hover:underline font-medium">
+                    pricing page
+                  </Link>
+                  .
                 </p>
               </CardContent>
             </Card>

@@ -76,7 +76,7 @@ const HelpCenterPage = () => {
                   <h4 className="font-semibold mb-2">AI suggestions aren't working</h4>
                   <p className="text-muted-foreground mb-2">If AI features aren't responding:</p>
                   <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                    <li>Check if you have remaining AI credits (Free: 10/month, Pro: unlimited)</li>
+                    <li>Check if you have remaining AI credits (Free: 5/month, Pro: unlimited)</li>
                     <li>Ensure you're connected to the internet</li>
                     <li>Try refreshing the page</li>
                   </ul>
