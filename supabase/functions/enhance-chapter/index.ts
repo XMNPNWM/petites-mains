@@ -172,121 +172,318 @@ function calculateCosineSimilarity(embeddingA: number[], embeddingB: number[]): 
 }
 
 /**
- * Split text into sentences for semantic comparison
+ * Enhanced word-level diff algorithm for more accurate change detection
  */
-function splitIntoSentences(text: string): string[] {
-  const sentences = text
-    .split(/(?<=[.!?])\s+/)
-    .filter(sentence => sentence.trim().length > 0)
-    .map(sentence => sentence.trim());
+function diffWords(originalContent: string, enhancedContent: string): any[] {
+  const originalWords = originalContent.split(/(\s+)/);
+  const enhancedWords = enhancedContent.split(/(\s+)/);
   
-  return sentences;
+  const changes: any[] = [];
+  let i = 0, j = 0;
+  
+  while (i < originalWords.length || j < enhancedWords.length) {
+    if (i >= originalWords.length) {
+      // Remaining words are additions
+      changes.push({
+        added: true,
+        value: enhancedWords.slice(j).join('')
+      });
+      break;
+    }
+    
+    if (j >= enhancedWords.length) {
+      // Remaining words are deletions
+      changes.push({
+        removed: true,
+        value: originalWords.slice(i).join('')
+      });
+      break;
+    }
+    
+    if (originalWords[i] === enhancedWords[j]) {
+      // Words match, keep as unchanged
+      changes.push({
+        value: originalWords[i]
+      });
+      i++;
+      j++;
+    } else {
+      // Find the longest common subsequence to determine best alignment
+      let originalEnd = i + 1;
+      let enhancedEnd = j + 1;
+      
+      // Look ahead to find matching sections
+      while (originalEnd < originalWords.length && enhancedEnd < enhancedWords.length) {
+        if (originalWords[originalEnd] === enhancedWords[enhancedEnd]) {
+          break;
+        }
+        originalEnd++;
+        enhancedEnd++;
+      }
+      
+      // Add removed section
+      if (originalEnd > i) {
+        changes.push({
+          removed: true,
+          value: originalWords.slice(i, originalEnd).join('')
+        });
+      }
+      
+      // Add added section
+      if (enhancedEnd > j) {
+        changes.push({
+          added: true,
+          value: enhancedWords.slice(j, enhancedEnd).join('')
+        });
+      }
+      
+      i = originalEnd;
+      j = enhancedEnd;
+    }
+  }
+  
+  return changes;
 }
 
 /**
- * Hybrid diff + embedding change tracking
+ * Enhanced hybrid diff + embedding change tracking
  */
 async function generateChangeTrackingData(originalContent: string, enhancedContent: string): Promise<any[]> {
   try {
-    console.log('🔍 Starting hybrid diff + embedding change tracking...');
+    console.log('🔍 Starting enhanced hybrid change tracking...');
     
-    // Phase 1: Primary diff detection for accurate change identification
-    const diffChanges = await detectChangesDiff(originalContent, enhancedContent);
+    // Phase 1: Enhanced diff detection for accurate change identification
+    const diffChanges = await detectChangesEnhanced(originalContent, enhancedContent);
     
     if (diffChanges.length === 0) {
       console.log('✅ No changes detected - content is identical');
       return [];
     }
     
-    // Phase 2: Semantic enhancement for categorization and impact assessment
+    console.log(`📊 Phase 1 complete: ${diffChanges.length} changes detected via enhanced diff`);
+    
+    // Phase 2: Semantic enhancement for better categorization
     const enhancedChanges = await enhanceChangesWithSemantics(diffChanges, originalContent, enhancedContent);
     
-    // Phase 3: Smart filtering to hide trivial changes
-    const finalChanges = smartFilterChanges(enhancedChanges);
+    // Phase 3: Improved smart filtering
+    const finalChanges = smartFilterChangesEnhanced(enhancedChanges);
     
-    console.log(`✅ Hybrid change tracking complete: ${finalChanges.length} meaningful changes detected`);
+    console.log(`✅ Enhanced change tracking complete: ${finalChanges.length} meaningful changes detected`);
     return finalChanges;
     
   } catch (error) {
-    console.error('❌ Error in hybrid change tracking:', error);
+    console.error('❌ Error in enhanced change tracking:', error);
     return generateFallbackChangeTracking(originalContent, enhancedContent);
   }
 }
 
 /**
- * Phase 1: Primary diff detection using character/word-level algorithms
+ * Phase 1: Enhanced diff detection using proper word-level algorithms
  */
-async function detectChangesDiff(originalContent: string, enhancedContent: string): Promise<any[]> {
+async function detectChangesEnhanced(originalContent: string, enhancedContent: string): Promise<any[]> {
   const changes: any[] = [];
   
   try {
-    console.log('📊 Phase 1: Starting diff-based change detection...');
+    console.log('📊 Phase 1: Starting enhanced word-level diff detection...');
     
-    // Use simple character-by-character comparison for precise detection
+    // Use enhanced word-level diff for better granularity
+    const wordChanges = diffWords(originalContent, enhancedContent);
+    
+    // Process word-level changes with improved position tracking
     let position = 0;
-    let changeStart = -1;
-    let originalBuffer = '';
-    let enhancedBuffer = '';
     
-    const maxLength = Math.max(originalContent.length, enhancedContent.length);
-    
-    for (let i = 0; i <= maxLength; i++) {
-      const originalChar = originalContent[i] || '';
-      const enhancedChar = enhancedContent[i] || '';
+    for (let i = 0; i < wordChanges.length; i++) {
+      const change = wordChanges[i];
       
-      if (originalChar !== enhancedChar) {
-        // Start of a change
-        if (changeStart === -1) {
-          changeStart = position;
-        }
-        originalBuffer += originalChar;
-        enhancedBuffer += enhancedChar;
-      } else {
-        // End of a change
-        if (changeStart !== -1) {
-          // Process the accumulated change
-          const originalText = originalBuffer.trim();
-          const enhancedText = enhancedBuffer.trim();
+      if (change.added || change.removed) {
+        const nextChange = wordChanges[i + 1];
+        
+        // Look for replacement pairs (removed + added)
+        if (change.removed && nextChange?.added) {
+          const originalText = change.value.trim();
+          const enhancedText = nextChange.value.trim();
           
-          if (originalText.length > 0 || enhancedText.length > 0) {
-            const similarity = calculateTextSimilarity(originalText, enhancedText);
+          // Only process meaningful changes
+          if (originalText && enhancedText && originalText !== enhancedText) {
+            // Enhanced similarity calculation
+            const similarity = calculateEnhancedTextSimilarity(originalText, enhancedText);
+            const diffConfidence = Math.max(0.3, 1 - similarity);
             
-            // Only include meaningful changes (not identical text)
-            if (similarity < 0.99) {
-              const changeType = determineChangeTypeDiff(originalText, enhancedText);
-              const diffConfidence = similarity >= 0.85 ? 1 - similarity : 0.5;
-              
-              changes.push({
+            // Enhanced change type detection
+            const changeType = determineChangeTypeEnhanced(originalText, enhancedText);
+            
+            // Validate position accuracy
+            const positionStart = position;
+            const positionEnd = position + originalText.length;
+            
+            if (validateChangePosition(originalContent, originalText, positionStart)) {
+              const detectedChange = {
                 change_type: changeType,
                 original_text: originalText,
                 enhanced_text: enhancedText,
-                position_start: changeStart,
-                position_end: changeStart + originalText.length,
+                position_start: positionStart,
+                position_end: positionEnd,
                 confidence_score: diffConfidence,
                 user_decision: 'pending',
-                diff_confidence: diffConfidence
-              });
+                diff_confidence: diffConfidence,
+                similarity_score: similarity
+              };
+
+              changes.push(detectedChange);
               
-              console.log(`✅ Change detected: ${changeType} (similarity: ${similarity.toFixed(3)})`);
+              console.log(`✅ Enhanced change detected:`, {
+                type: changeType,
+                similarity: similarity.toFixed(3),
+                confidence: diffConfidence.toFixed(3),
+                originalLength: originalText.length,
+                enhancedLength: enhancedText.length
+              });
+            } else {
+              console.warn(`⚠️ Position validation failed for change at position ${positionStart}`);
             }
           }
           
-          // Reset buffers
-          changeStart = -1;
-          originalBuffer = '';
-          enhancedBuffer = '';
+          i++; // Skip the next change as we've processed it
         }
-        
-        if (originalChar) position++;
+      }
+      
+      // Update position tracking
+      if (!change.added) {
+        position += change.value.length;
       }
     }
     
-    console.log(`📊 Diff analysis complete: ${changes.length} changes detected`);
+    console.log(`📊 Enhanced diff analysis complete: ${changes.length} validated changes detected`);
     return changes;
     
   } catch (error) {
-    console.error('❌ Error in diff detection:', error);
+    console.error('❌ Error in enhanced diff detection:', error);
     return [];
+  }
+}
+
+/**
+ * Enhanced text similarity calculation using multiple algorithms
+ */
+function calculateEnhancedTextSimilarity(text1: string, text2: string): number {
+  // Jaccard similarity on words
+  const words1 = new Set(text1.toLowerCase().split(/\s+/).filter(w => w.length > 0));
+  const words2 = new Set(text2.toLowerCase().split(/\s+/).filter(w => w.length > 0));
+  
+  const intersection = new Set([...words1].filter(word => words2.has(word)));
+  const union = new Set([...words1, ...words2]);
+  const jaccardSimilarity = union.size === 0 ? 1 : intersection.size / union.size;
+  
+  // Levenshtein-based similarity for character-level changes
+  const maxLength = Math.max(text1.length, text2.length);
+  const levenshteinDistance = calculateLevenshteinDistance(text1, text2);
+  const levenshteinSimilarity = maxLength === 0 ? 1 : 1 - (levenshteinDistance / maxLength);
+  
+  // Combined similarity (weighted average)
+  return (jaccardSimilarity * 0.6 + levenshteinSimilarity * 0.4);
+}
+
+/**
+ * Calculate Levenshtein distance between two strings
+ */
+function calculateLevenshteinDistance(str1: string, str2: string): number {
+  const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+  
+  for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+  
+  for (let j = 1; j <= str2.length; j++) {
+    for (let i = 1; i <= str1.length; i++) {
+      const substitutionCost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1, // deletion
+        matrix[j - 1][i] + 1, // insertion
+        matrix[j - 1][i - 1] + substitutionCost // substitution
+      );
+    }
+  }
+  
+  return matrix[str2.length][str1.length];
+}
+
+/**
+ * Enhanced change type detection with better linguistic patterns
+ */
+function determineChangeTypeEnhanced(original: string, enhanced: string): string {
+  const originalWords = original.split(/\s+/).filter(w => w.length > 0);
+  const enhancedWords = enhanced.split(/\s+/).filter(w => w.length > 0);
+
+  // Enhanced dialogue detection
+  const dialoguePatterns = [/["«»""'']/g, /—.*?[.!?]/, /\.{3}/g];
+  const originalHasDialogue = dialoguePatterns.some(pattern => pattern.test(original));
+  const enhancedHasDialogue = dialoguePatterns.some(pattern => pattern.test(enhanced));
+  
+  if (originalHasDialogue || enhancedHasDialogue) {
+    return 'dialogue';
+  }
+
+  // Enhanced punctuation detection
+  const punctuationPattern = /[.!?,:;()[\]{}"«»""''-]/g;
+  const originalPunctuation = (original.match(punctuationPattern) || []).join('');
+  const enhancedPunctuation = (enhanced.match(punctuationPattern) || []).join('');
+  
+  if (originalPunctuation !== enhancedPunctuation) {
+    // Check if it's primarily punctuation vs mixed changes
+    const punctuationOnlyChange = originalWords.join(' ').toLowerCase() === enhancedWords.join(' ').toLowerCase();
+    if (punctuationOnlyChange) {
+      return 'punctuation';
+    }
+  }
+
+  // Enhanced grammar detection
+  const normalizedOriginal = original.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  const normalizedEnhanced = enhanced.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  
+  if (normalizedOriginal === normalizedEnhanced) {
+    return 'grammar';
+  }
+
+  // Enhanced structure detection
+  const wordDifference = Math.abs(originalWords.length - enhancedWords.length);
+  const relativeDifference = wordDifference / Math.max(originalWords.length, 1);
+  
+  if (relativeDifference > 0.25) {
+    return 'structure';
+  }
+
+  // Check for grammar patterns (verb tense, articles, etc.)
+  const grammarPatterns = [
+    /\b(was|were|is|are|am|be|been|being)\b/gi,
+    /\b(a|an|the)\b/gi,
+    /\b(he|she|it|they|we|you|I)\b/gi
+  ];
+  
+  let grammarChanges = 0;
+  for (const pattern of grammarPatterns) {
+    const originalMatches = (original.match(pattern) || []).length;
+    const enhancedMatches = (enhanced.match(pattern) || []).length;
+    if (originalMatches !== enhancedMatches) grammarChanges++;
+  }
+  
+  if (grammarChanges > 0 && relativeDifference < 0.15) {
+    return 'grammar';
+  }
+
+  return 'style';
+}
+
+/**
+ * Validate change position accuracy
+ */
+function validateChangePosition(content: string, changeText: string, position: number): boolean {
+  try {
+    const extractedText = content.substring(position, position + changeText.length);
+    return extractedText === changeText || 
+           extractedText.trim() === changeText.trim() ||
+           calculateEnhancedTextSimilarity(extractedText, changeText) > 0.8;
+  } catch (error) {
+    console.warn('Position validation error:', error);
+    return false;
   }
 }
 
@@ -371,6 +568,93 @@ async function enhanceChangesWithSemantics(changes: any[], originalContent: stri
 }
 
 /**
+ * Enhanced smart filtering with improved relevance scoring
+ */
+function smartFilterChangesEnhanced(changes: any[]): any[] {
+  console.log('🎯 Starting enhanced smart filtering...');
+  
+  const filtered = changes.filter(change => {
+    // Calculate enhanced relevance score
+    const relevanceScore = calculateEnhancedRelevanceScore(change);
+    
+    // Always include high-impact semantic changes
+    if (change.semantic_impact === 'high') {
+      console.log(`✅ Including high semantic impact change: ${change.change_type}`);
+      return true;
+    }
+    
+    // Always include grammar and punctuation fixes
+    if (change.change_type === 'grammar' || change.change_type === 'punctuation') {
+      console.log(`✅ Including ${change.change_type} fix`);
+      return true;
+    }
+    
+    // Include medium semantic impact with good confidence
+    if (change.semantic_impact === 'medium' && change.confidence_score > 0.6) {
+      return true;
+    }
+    
+    // Include changes with high confidence and relevance
+    if (change.confidence_score > 0.7 && relevanceScore > 0.6) {
+      return true;
+    }
+    
+    // Include meaningful structural changes
+    if (change.change_type === 'structure' && change.confidence_score > 0.5) {
+      return true;
+    }
+    
+    // Include longer changes (likely meaningful)
+    if (change.original_text.length > 25 || change.enhanced_text.length > 25) {
+      return true;
+    }
+    
+    // Include dialogue changes (often important for character voice)
+    if (change.change_type === 'dialogue' && change.confidence_score > 0.4) {
+      return true;
+    }
+    
+    console.log(`❌ Filtering out low-relevance change: ${change.change_type} (confidence: ${change.confidence_score.toFixed(2)}, relevance: ${relevanceScore.toFixed(2)})`);
+    return false;
+  });
+  
+  console.log(`🎯 Enhanced filtering complete: ${filtered.length}/${changes.length} changes kept`);
+  return filtered;
+}
+
+/**
+ * Calculate enhanced relevance score for filtering decisions
+ */
+function calculateEnhancedRelevanceScore(change: any): number {
+  let score = 0;
+  
+  // Length factor (longer changes are often more relevant)
+  const maxLength = Math.max(change.original_text.length, change.enhanced_text.length);
+  const lengthScore = Math.min(maxLength / 50, 1); // Normalize to 0-1
+  score += lengthScore * 0.3;
+  
+  // Change type factor
+  const typeScores = {
+    'grammar': 0.9,
+    'punctuation': 0.8,
+    'dialogue': 0.7,
+    'structure': 0.6,
+    'style': 0.4
+  };
+  score += (typeScores[change.change_type] || 0.5) * 0.3;
+  
+  // Confidence factor
+  score += change.confidence_score * 0.2;
+  
+  // Similarity factor (lower similarity = more significant change)
+  if (change.similarity_score !== undefined) {
+    score += (1 - change.similarity_score) * 0.2;
+  }
+  
+  return Math.min(score, 1);
+}
+
+/**
  * Calculate text similarity using Jaccard index for diff confidence
  */
 function calculateTextSimilarity(text1: string, text2: string): number {
@@ -381,45 +665,6 @@ function calculateTextSimilarity(text1: string, text2: string): number {
   const union = new Set([...words1, ...words2]);
   
   return union.size === 0 ? 1 : intersection.size / union.size;
-}
-
-/**
- * Improved change type detection based on actual text differences
- */
-function determineChangeTypeDiff(original: string, enhanced: string): string {
-  const originalWords = original.split(/\s+/).filter(w => w.length > 0);
-  const enhancedWords = enhanced.split(/\s+/).filter(w => w.length > 0);
-
-  // Check for dialogue
-  const originalHasDialogue = /["«»""]/.test(original);
-  const enhancedHasDialogue = /["«»""]/.test(enhanced);
-  if (originalHasDialogue || enhancedHasDialogue) {
-    return 'dialogue';
-  }
-
-  // Check for punctuation changes
-  const originalPunctuation = original.replace(/[a-zA-ZÀ-ÿ\s]/g, '');
-  const enhancedPunctuation = enhanced.replace(/[a-zA-ZÀ-ÿ\s]/g, '');
-  if (originalPunctuation !== enhancedPunctuation) {
-    return 'punctuation';
-  }
-
-  // Check for structural changes
-  const wordDifference = Math.abs(originalWords.length - enhancedWords.length);
-  const relativeDifference = wordDifference / Math.max(originalWords.length, 1);
-  if (relativeDifference > 0.30) {
-    return 'structure';
-  }
-
-  // Check for grammar vs style
-  const normalizedOriginal = original.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
-  const normalizedEnhanced = enhanced.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
-  
-  if (normalizedOriginal === normalizedEnhanced) {
-    return 'grammar';
-  }
-
-  return 'style';
 }
 
 /**
@@ -459,35 +704,6 @@ function refineChangeType(originalType: string, semanticSimilarity: number): str
 }
 
 /**
- * Smart filtering to hide trivial changes by default
- */
-function smartFilterChanges(changes: any[]): any[] {
-  return changes.filter(change => {
-    // Always include meaningful changes
-    if (change.semantic_impact === 'medium' || change.semantic_impact === 'high') {
-      return true;
-    }
-    
-    // Include grammar and punctuation fixes
-    if (change.change_type === 'grammar' || change.change_type === 'punctuation') {
-      return true;
-    }
-    
-    // Include changes with high confidence
-    if (change.confidence_score > 0.7) {
-      return true;
-    }
-    
-    // Include longer changes
-    if (change.original_text.length > 20 || change.enhanced_text.length > 20) {
-      return true;
-    }
-    
-    return false; // Filter out trivial changes
-  });
-}
-
-/**
  * Fallback change tracking in case diff analysis fails
  */
 function generateFallbackChangeTracking(originalContent: string, enhancedContent: string): any[] {
@@ -506,6 +722,18 @@ function generateFallbackChangeTracking(originalContent: string, enhancedContent
   }
   
   return changes;
+}
+
+/**
+ * Split text into sentences for semantic comparison
+ */
+function splitIntoSentences(text: string): string[] {
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .filter(sentence => sentence.trim().length > 0)
+    .map(sentence => sentence.trim());
+  
+  return sentences;
 }
 
 /**
@@ -931,7 +1159,7 @@ serve(async (req) => {
     console.log('🔒 CHAPTER ISOLATION CHECK:', {
       targetChapterId: chapterId,
       requestTimestamp: new Date().toISOString(),
-      processingStatus: 'starting_enhancement'
+      processingStatus: 'starting_enhanced_processing'
     });
 
     const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
@@ -999,16 +1227,18 @@ serve(async (req) => {
       processingStatus: 'enhancement_complete'
     });
 
+    // Use enhanced change tracking
     const changes = await generateChangeTrackingData(contentToEnhance, cleanedContent);
     
-    console.log('🔍 Generated change tracking data:', {
+    console.log('🔍 Enhanced change tracking completed:', {
       chapterId,
       changesCount: changes.length,
       changeTypes: changes.map(c => c.change_type),
-      processingStatus: 'change_tracking_complete'
+      avgConfidence: changes.length > 0 ? (changes.reduce((sum, c) => sum + c.confidence_score, 0) / changes.length).toFixed(3) : 'N/A',
+      processingStatus: 'enhanced_change_tracking_complete'
     });
 
-    console.log('🎉 CHAPTER ENHANCEMENT SUCCESS:', {
+    console.log('🎉 ENHANCED CHAPTER PROCESSING SUCCESS:', {
       targetChapterId: chapterId,
       enhancementLevel: options.enhancementLevel,
       completionTimestamp: new Date().toISOString(),
@@ -1034,11 +1264,11 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('❌ Enhancement error:', error);
+    console.error('❌ Enhanced processing error:', error);
     
     return new Response(JSON.stringify({
       success: false,
-      error: error.message || 'Enhancement failed'
+      error: error.message || 'Enhanced processing failed'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
