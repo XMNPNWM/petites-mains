@@ -73,24 +73,58 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        console.error('[AUTH] Sign in error:', error);
+      }
+      
+      return { error };
+    } catch (error) {
+      console.error('[AUTH] Sign in exception:', error);
+      return { error };
+    }
   };
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
+    try {
+      console.log('[AUTH] Starting sign up process for:', email);
+      
+      const redirectUrl = `${window.location.origin}/`;
+      console.log('[AUTH] Using redirect URL:', redirectUrl);
+      
+      const { error, data } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            full_name: fullName || '',
+          },
         },
-      },
-    });
-    return { error };
+      });
+      
+      if (error) {
+        console.error('[AUTH] Sign up error:', error);
+        // Check for specific error types
+        if (error.message?.includes('User already registered')) {
+          return { error: { ...error, message: 'This email is already registered. Please try signing in instead.' } };
+        } else if (error.message?.includes('Database error')) {
+          return { error: { ...error, message: 'There was an issue creating your account. Please try again or contact support if the problem persists.' } };
+        }
+      } else {
+        console.log('[AUTH] Sign up successful, user created:', data?.user?.id);
+      }
+      
+      return { error };
+    } catch (error) {
+      console.error('[AUTH] Sign up exception:', error);
+      return { error: { message: 'An unexpected error occurred during registration. Please try again.' } };
+    }
   };
 
   const signOut = async () => {
