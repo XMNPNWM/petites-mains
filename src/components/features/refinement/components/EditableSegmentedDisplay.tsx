@@ -151,8 +151,7 @@ const EditableSegmentedDisplay = ({
         const walker = document.createTreeWalker(
           editorElement,
           NodeFilter.SHOW_TEXT,
-          null,
-          false
+          null
         );
 
         let node;

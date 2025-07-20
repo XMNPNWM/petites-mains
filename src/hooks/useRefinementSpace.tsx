@@ -9,7 +9,7 @@ import { RefinementService } from '@/services/RefinementService';
 import { ChapterNavigationService } from '@/services/ChapterNavigationService';
 import { ContentVersioningService } from '@/services/ContentVersioningService';
 import { ChangeNavigationService } from '@/services/ChangeNavigationService';
-import { Chapter, RefinementData } from '@/types/shared';
+import { Chapter, RefinementData, AIChange } from '@/types/shared';
 import { applyTextReplacement, optimizeParagraphs, validateTextPositions } from '@/lib/textUtils';
 
 export const useRefinementSpace = (projectId: string | undefined) => {
@@ -210,7 +210,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
 
       // Validate change position before applying
       const currentContent = refinementData.enhanced_content || '';
-      const validation = ChangeNavigationService.validateChangePosition(change, currentContent);
+      const validation = ChangeNavigationService.validateChangePosition(change as AIChange, currentContent);
       
       if (!validation.isValid) {
         console.warn('⚠️ Change position validation failed:', {
@@ -266,7 +266,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
 
         if (allChanges) {
           // Calculate position adjustments for subsequent changes
-          const adjustments = ChangeNavigationService.calculatePositionAdjustments(change, allChanges);
+          const adjustments = ChangeNavigationService.calculatePositionAdjustments(change as AIChange, allChanges as AIChange[]);
           
           // Apply position adjustments to database
           for (const adjustment of adjustments) {
