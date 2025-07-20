@@ -180,10 +180,12 @@ const EditableSegmentedDisplay = ({
 
     // Clear highlight after 5 seconds
     const timer = setTimeout(() => {
-      const highlightedElements = editorRef.current?.querySelectorAll('.highlighted-change');
-      highlightedElements?.forEach(el => {
-        el.classList.remove('highlighted-change');
-      });
+      if (editorRef.current) {
+        const highlightedElements = editorRef.current.querySelectorAll('.highlighted-change');
+        highlightedElements?.forEach(el => {
+          el.classList.remove('highlighted-change');
+        });
+      }
     }, 5000);
 
     return () => {
@@ -211,10 +213,10 @@ const EditableSegmentedDisplay = ({
       if (editor && !editor.isDestroyed) {
         editor.destroy();
       }
-      // Cleanup styles
+      // Cleanup styles safely
       const styleElement = document.getElementById('change-highlight-styles');
-      if (styleElement) {
-        styleElement.remove();
+      if (styleElement && styleElement.parentNode) {
+        styleElement.parentNode.removeChild(styleElement);
       }
     };
   }, [editor]);

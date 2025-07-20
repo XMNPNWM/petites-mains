@@ -57,7 +57,10 @@ export class ChangeNavigationService {
       
       return scrollOffset;
     } finally {
-      document.body.removeChild(tempDiv);
+      // Safely remove the temp element
+      if (tempDiv && tempDiv.parentNode) {
+        tempDiv.parentNode.removeChild(tempDiv);
+      }
     }
   }
 
