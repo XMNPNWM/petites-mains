@@ -127,7 +127,7 @@ const processContent = (content: string, options: ContentFormattingOptions): str
   if (options.smartQuotes) {
     processedContent = processedContent
       .replace(/"/g, '"').replace(/"/g, '"')
-      .replace(/'/g, ''').replace(/'/g, ''');
+      .replace(/'/g, '\u2018').replace(/'/g, '\u2019');
   }
   
   // Apply auto typography
