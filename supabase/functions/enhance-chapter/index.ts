@@ -184,118 +184,311 @@ function splitIntoSentences(text: string): string[] {
 }
 
 /**
- * Enhanced change tracking using embeddings for semantic comparison
+ * Hybrid diff + embedding change tracking
  */
 async function generateChangeTrackingData(originalContent: string, enhancedContent: string): Promise<any[]> {
-  const changes: any[] = [];
-  
   try {
-    console.log('🔍 Starting embedding-based change tracking...');
+    console.log('🔍 Starting hybrid diff + embedding change tracking...');
     
-    const originalSentences = splitIntoSentences(originalContent);
-    const enhancedSentences = splitIntoSentences(enhancedContent);
+    // Phase 1: Primary diff detection for accurate change identification
+    const diffChanges = await detectChangesDiff(originalContent, enhancedContent);
     
-    console.log(`📊 Analyzing ${originalSentences.length} original vs ${enhancedSentences.length} enhanced sentences`);
-    
-    const originalEmbeddings: number[][] = [];
-    const enhancedEmbeddings: number[][] = [];
-    
-    // Process original sentences
-    for (let i = 0; i < originalSentences.length; i++) {
-      try {
-        const embedding = await generateEmbedding(originalSentences[i]);
-        originalEmbeddings.push(embedding);
-        
-        if (i < originalSentences.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      } catch (error) {
-        console.error(`Error generating embedding for original sentence ${i}:`, error);
-        originalEmbeddings.push([]);
-      }
+    if (diffChanges.length === 0) {
+      console.log('✅ No changes detected - content is identical');
+      return [];
     }
     
-    // Process enhanced sentences
-    for (let i = 0; i < enhancedSentences.length; i++) {
-      try {
-        const embedding = await generateEmbedding(enhancedSentences[i]);
-        enhancedEmbeddings.push(embedding);
-        
-        if (i < enhancedSentences.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      } catch (error) {
-        console.error(`Error generating embedding for enhanced sentence ${i}:`, error);
-        enhancedEmbeddings.push([]);
-      }
-    }
+    // Phase 2: Semantic enhancement for categorization and impact assessment
+    const enhancedChanges = await enhanceChangesWithSemantics(diffChanges, originalContent, enhancedContent);
     
-    console.log('🧮 Computing semantic similarities...');
+    // Phase 3: Smart filtering to hide trivial changes
+    const finalChanges = smartFilterChanges(enhancedChanges);
     
-    const SIMILARITY_THRESHOLD = 0.99;
-    let positionOffset = 0;
-    
-    for (let i = 0; i < originalSentences.length; i++) {
-      const originalSentence = originalSentences[i];
-      const originalEmbedding = originalEmbeddings[i];
-      
-      if (originalEmbedding.length === 0) {
-        positionOffset += originalSentence.length + 1;
-        continue;
-      }
-      
-      let bestMatch = -1;
-      let bestSimilarity = 0;
-      
-      for (let j = 0; j < enhancedSentences.length; j++) {
-        const enhancedEmbedding = enhancedEmbeddings[j];
-        
-        if (enhancedEmbedding.length === 0) continue;
-        
-        try {
-          const similarity = calculateCosineSimilarity(originalEmbedding, enhancedEmbedding);
-          
-          if (similarity > bestSimilarity) {
-            bestSimilarity = similarity;
-            bestMatch = j;
-          }
-        } catch (error) {
-          console.error(`Error calculating similarity for sentence ${i} vs ${j}:`, error);
-        }
-      }
-      
-      if (bestMatch !== -1 && bestSimilarity < SIMILARITY_THRESHOLD) {
-        const enhancedSentence = enhancedSentences[bestMatch];
-        const changeType = determineChangeType(originalSentence, enhancedSentence);
-        
-        console.log(`🔄 Change detected: ${changeType} (similarity: ${bestSimilarity.toFixed(3)})`);
-        
-        changes.push({
-          change_type: changeType,
-          original_text: originalSentence,
-          enhanced_text: enhancedSentence,
-          position_start: positionOffset,
-          position_end: positionOffset + originalSentence.length,
-          confidence_score: bestSimilarity,
-          user_decision: 'pending'
-        });
-      }
-      
-      positionOffset += originalSentence.length + 1;
-    }
-    
-    console.log(`✅ Change tracking complete: ${changes.length} changes detected`);
+    console.log(`✅ Hybrid change tracking complete: ${finalChanges.length} meaningful changes detected`);
+    return finalChanges;
     
   } catch (error) {
-    console.error('❌ Error in embedding-based change tracking:', error);
+    console.error('❌ Error in hybrid change tracking:', error);
     return generateFallbackChangeTracking(originalContent, enhancedContent);
   }
-  
-  return changes;
 }
 
 /**
- * Fallback change tracking in case embeddings fail
+ * Phase 1: Primary diff detection using character/word-level algorithms
+ */
+async function detectChangesDiff(originalContent: string, enhancedContent: string): Promise<any[]> {
+  const changes: any[] = [];
+  
+  try {
+    console.log('📊 Phase 1: Starting diff-based change detection...');
+    
+    // Use simple character-by-character comparison for precise detection
+    let position = 0;
+    let changeStart = -1;
+    let originalBuffer = '';
+    let enhancedBuffer = '';
+    
+    const maxLength = Math.max(originalContent.length, enhancedContent.length);
+    
+    for (let i = 0; i <= maxLength; i++) {
+      const originalChar = originalContent[i] || '';
+      const enhancedChar = enhancedContent[i] || '';
+      
+      if (originalChar !== enhancedChar) {
+        // Start of a change
+        if (changeStart === -1) {
+          changeStart = position;
+        }
+        originalBuffer += originalChar;
+        enhancedBuffer += enhancedChar;
+      } else {
+        // End of a change
+        if (changeStart !== -1) {
+          // Process the accumulated change
+          const originalText = originalBuffer.trim();
+          const enhancedText = enhancedBuffer.trim();
+          
+          if (originalText.length > 0 || enhancedText.length > 0) {
+            const similarity = calculateTextSimilarity(originalText, enhancedText);
+            
+            // Only include meaningful changes (not identical text)
+            if (similarity < 0.99) {
+              const changeType = determineChangeTypeDiff(originalText, enhancedText);
+              const diffConfidence = similarity >= 0.85 ? 1 - similarity : 0.5;
+              
+              changes.push({
+                change_type: changeType,
+                original_text: originalText,
+                enhanced_text: enhancedText,
+                position_start: changeStart,
+                position_end: changeStart + originalText.length,
+                confidence_score: diffConfidence,
+                user_decision: 'pending',
+                diff_confidence: diffConfidence
+              });
+              
+              console.log(`✅ Change detected: ${changeType} (similarity: ${similarity.toFixed(3)})`);
+            }
+          }
+          
+          // Reset buffers
+          changeStart = -1;
+          originalBuffer = '';
+          enhancedBuffer = '';
+        }
+        
+        if (originalChar) position++;
+      }
+    }
+    
+    console.log(`📊 Diff analysis complete: ${changes.length} changes detected`);
+    return changes;
+    
+  } catch (error) {
+    console.error('❌ Error in diff detection:', error);
+    return [];
+  }
+}
+
+/**
+ * Phase 2: Enhance changes with semantic analysis
+ */
+async function enhanceChangesWithSemantics(changes: any[], originalContent: string, enhancedContent: string): Promise<any[]> {
+  try {
+    console.log('🧠 Phase 2: Starting semantic enhancement...');
+    
+    // Only process semantically significant changes (avoid overloading API)
+    const significantChanges = changes.filter(change => 
+      change.original_text.length > 5 || change.enhanced_text.length > 5
+    );
+    
+    console.log(`📊 Processing ${significantChanges.length} significant changes for semantic analysis`);
+    
+    const enhancedChanges: any[] = [];
+    
+    for (const change of significantChanges) {
+      try {
+        // Generate embeddings for semantic comparison
+        const [originalEmbedding, enhancedEmbedding] = await Promise.all([
+          generateEmbedding(change.original_text),
+          generateEmbedding(change.enhanced_text)
+        ]);
+        
+        // Calculate semantic similarity
+        const semanticSimilarity = calculateCosineSimilarity(originalEmbedding, enhancedEmbedding);
+        
+        // Assess semantic impact
+        const semanticImpact = assessSemanticImpact(semanticSimilarity);
+        
+        // Multi-factor confidence scoring (40% diff + 30% semantic + 30% relevance)
+        const diffWeight = 0.4;
+        const semanticWeight = 0.3;
+        const relevanceWeight = 0.3;
+        
+        const relevanceScore = calculateChangeRelevance(change);
+        const enhancedConfidence = (
+          (change.diff_confidence || 0.5) * diffWeight +
+          (1 - semanticSimilarity) * semanticWeight +
+          relevanceScore * relevanceWeight
+        );
+        
+        // Refine change type using semantic analysis
+        const refinedChangeType = refineChangeType(change.change_type, semanticSimilarity);
+        
+        enhancedChanges.push({
+          ...change,
+          change_type: refinedChangeType,
+          confidence_score: enhancedConfidence,
+          semantic_impact: semanticImpact,
+          semantic_similarity: semanticSimilarity
+        });
+        
+        console.log(`🔍 Semantic analysis: ${change.change_type} → ${refinedChangeType} (similarity: ${semanticSimilarity.toFixed(3)}, impact: ${semanticImpact})`);
+        
+        // Rate limiting to avoid API overload
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        console.warn(`⚠️ Semantic analysis failed for change:`, error);
+        enhancedChanges.push(change); // Keep original change
+      }
+    }
+    
+    // Add back trivial changes without semantic analysis
+    const trivialChanges = changes.filter(change => 
+      change.original_text.length <= 5 && change.enhanced_text.length <= 5
+    );
+    
+    const finalChanges = [...enhancedChanges, ...trivialChanges];
+    console.log(`✅ Phase 2 complete: ${finalChanges.length} changes enhanced with semantic analysis`);
+    
+    return finalChanges;
+    
+  } catch (error) {
+    console.error('❌ Error in semantic enhancement:', error);
+    return changes; // Return original changes if semantic analysis fails
+  }
+}
+
+/**
+ * Calculate text similarity using Jaccard index for diff confidence
+ */
+function calculateTextSimilarity(text1: string, text2: string): number {
+  const words1 = new Set(text1.toLowerCase().split(/\s+/));
+  const words2 = new Set(text2.toLowerCase().split(/\s+/));
+  
+  const intersection = new Set([...words1].filter(word => words2.has(word)));
+  const union = new Set([...words1, ...words2]);
+  
+  return union.size === 0 ? 1 : intersection.size / union.size;
+}
+
+/**
+ * Improved change type detection based on actual text differences
+ */
+function determineChangeTypeDiff(original: string, enhanced: string): string {
+  const originalWords = original.split(/\s+/).filter(w => w.length > 0);
+  const enhancedWords = enhanced.split(/\s+/).filter(w => w.length > 0);
+
+  // Check for dialogue
+  const originalHasDialogue = /["«»""]/.test(original);
+  const enhancedHasDialogue = /["«»""]/.test(enhanced);
+  if (originalHasDialogue || enhancedHasDialogue) {
+    return 'dialogue';
+  }
+
+  // Check for punctuation changes
+  const originalPunctuation = original.replace(/[a-zA-ZÀ-ÿ\s]/g, '');
+  const enhancedPunctuation = enhanced.replace(/[a-zA-ZÀ-ÿ\s]/g, '');
+  if (originalPunctuation !== enhancedPunctuation) {
+    return 'punctuation';
+  }
+
+  // Check for structural changes
+  const wordDifference = Math.abs(originalWords.length - enhancedWords.length);
+  const relativeDifference = wordDifference / Math.max(originalWords.length, 1);
+  if (relativeDifference > 0.30) {
+    return 'structure';
+  }
+
+  // Check for grammar vs style
+  const normalizedOriginal = original.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  const normalizedEnhanced = enhanced.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  
+  if (normalizedOriginal === normalizedEnhanced) {
+    return 'grammar';
+  }
+
+  return 'style';
+}
+
+/**
+ * Assess semantic impact based on similarity thresholds
+ */
+function assessSemanticImpact(similarity: number): string {
+  if (similarity >= 0.95) return 'low';    // Minor changes
+  if (similarity >= 0.85) return 'medium'; // Moderate changes
+  return 'high';                           // Significant changes
+}
+
+/**
+ * Calculate change relevance for confidence scoring
+ */
+function calculateChangeRelevance(change: any): number {
+  const textLength = Math.max(change.original_text.length, change.enhanced_text.length);
+  
+  // Longer changes are generally more relevant
+  const lengthScore = Math.min(textLength / 100, 1);
+  
+  // Grammar and punctuation fixes are always relevant
+  const typeScore = change.change_type === 'grammar' || change.change_type === 'punctuation' ? 1 : 0.7;
+  
+  return (lengthScore + typeScore) / 2;
+}
+
+/**
+ * Refine change type using semantic analysis
+ */
+function refineChangeType(originalType: string, semanticSimilarity: number): string {
+  // High semantic similarity suggests grammar/punctuation rather than style
+  if (semanticSimilarity > 0.95 && originalType === 'style') {
+    return 'grammar';
+  }
+  
+  return originalType;
+}
+
+/**
+ * Smart filtering to hide trivial changes by default
+ */
+function smartFilterChanges(changes: any[]): any[] {
+  return changes.filter(change => {
+    // Always include meaningful changes
+    if (change.semantic_impact === 'medium' || change.semantic_impact === 'high') {
+      return true;
+    }
+    
+    // Include grammar and punctuation fixes
+    if (change.change_type === 'grammar' || change.change_type === 'punctuation') {
+      return true;
+    }
+    
+    // Include changes with high confidence
+    if (change.confidence_score > 0.7) {
+      return true;
+    }
+    
+    // Include longer changes
+    if (change.original_text.length > 20 || change.enhanced_text.length > 20) {
+      return true;
+    }
+    
+    return false; // Filter out trivial changes
+  });
+}
+
+/**
+ * Fallback change tracking in case diff analysis fails
  */
 function generateFallbackChangeTracking(originalContent: string, enhancedContent: string): any[] {
   const changes: any[] = [];
@@ -303,8 +496,8 @@ function generateFallbackChangeTracking(originalContent: string, enhancedContent
   if (originalContent !== enhancedContent) {
     changes.push({
       change_type: 'style',
-      original_text: originalContent.substring(0, 100) + '...',
-      enhanced_text: enhancedContent.substring(0, 100) + '...',
+      original_text: originalContent.substring(0, 100) + (originalContent.length > 100 ? '...' : ''),
+      enhanced_text: enhancedContent.substring(0, 100) + (enhancedContent.length > 100 ? '...' : ''),
       position_start: 0,
       position_end: Math.min(100, originalContent.length),
       confidence_score: 0.5,

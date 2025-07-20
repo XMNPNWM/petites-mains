@@ -73,6 +73,7 @@ export function calculatePositionShifts(
 
 /**
  * Apply multiple text changes while handling position shifts
+ * Updated for hybrid diff + embedding change detection system
  */
 export function applyMultipleChanges(
   content: string,
@@ -95,15 +96,40 @@ export function applyMultipleChanges(
 
   // Apply changes from end to beginning to avoid position shift issues
   sortedChanges.forEach(change => {
-    result = applyTextReplacement(
-      result,
-      change.position_start,
-      change.position_end,
-      change.original_text
-    );
+    // Validate that the position and text still match before applying
+    const currentText = result.slice(change.position_start, change.position_end);
+    
+    // For hybrid detection, we need to be more flexible with text matching
+    // since the enhanced text might have slight variations
+    if (currentText === change.enhanced_text || 
+        normalizeForComparison(currentText) === normalizeForComparison(change.enhanced_text)) {
+      result = applyTextReplacement(
+        result,
+        change.position_start,
+        change.position_end,
+        change.original_text
+      );
+    } else {
+      console.warn('Position mismatch detected - skipping change application:', {
+        expectedText: change.enhanced_text.substring(0, 50),
+        actualText: currentText.substring(0, 50),
+        position: change.position_start
+      });
+    }
   });
 
   return result;
+}
+
+/**
+ * Normalize text for comparison in change application
+ */
+function normalizeForComparison(text: string): string {
+  return text
+    .replace(/\s+/g, ' ')
+    .replace(/[^\w\s]/g, '')
+    .toLowerCase()
+    .trim();
 }
 
 /**
