@@ -59,7 +59,7 @@ const LandingPage = () => {
           </p>
           <div className="flex justify-center items-center">
             <Button onClick={handleGetStarted} size="lg" className="text-lg px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200">
-              {user ? 'Go to Dashboard' : 'Let\'s Write'}
+              Let's Write
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </div>
@@ -393,7 +393,7 @@ const LandingPage = () => {
             Join creative writers who are already transforming their craft with Petites Mains
           </p>
           <Button onClick={handleGetStarted} size="lg" className="text-lg px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-transform">
-            {user ? 'Go to Dashboard' : 'Let\'s Write'}
+            Let's Write
             <Zap className="ml-2 h-5 w-5" />
           </Button>
         </div>
