@@ -84,7 +84,8 @@ const TextEditorPanel = ({
         <>
           {/* Chapter Header */}
           <div className="mb-4 flex-shrink-0">
-            <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-md">Right-click to comment and AI Chat</span>
               <div>
                 <h2 className="text-xl font-bold text-slate-900">{chapter.title}</h2>
                 <div className="flex items-center space-x-4 text-sm text-slate-600">
