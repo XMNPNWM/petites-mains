@@ -49,7 +49,7 @@ export const PageBreakExtension = Node.create<PageBreakOptions>({
         [
           'div',
           { class: 'page-break-text' },
-          'Page Break',
+          'Manual Page Break',
         ],
       ],
     ];
@@ -67,6 +67,7 @@ export const PageBreakExtension = Node.create<PageBreakOptions>({
     };
   },
 
+  // Only allow manual page breaks via Ctrl+Enter
   addKeyboardShortcuts() {
     return {
       'Mod-Enter': () => this.editor.commands.setPageBreak(),

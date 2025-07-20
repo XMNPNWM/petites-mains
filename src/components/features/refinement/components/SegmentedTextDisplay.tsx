@@ -1,13 +1,12 @@
 
 import React, { useRef, useEffect } from 'react';
-import { useLineBasedSegmentation } from '@/hooks/useLineBasedSegmentation';
 
 interface SegmentedTextDisplayProps {
   content: string;
   onScrollSync?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
   scrollPosition?: number;
   highlightedRange?: { start: number; end: number } | null;
-  linesPerPage?: number;
+  linesPerPage?: number; // Keep for compatibility but ignore
 }
 
 const SegmentedTextDisplay = ({
@@ -15,10 +14,9 @@ const SegmentedTextDisplay = ({
   onScrollSync,
   scrollPosition,
   highlightedRange,
-  linesPerPage = 25
+  linesPerPage = 25 // Ignored parameter for backward compatibility
 }: SegmentedTextDisplayProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const segments = useLineBasedSegmentation(content, linesPerPage);
 
   // Handle scroll synchronization
   useEffect(() => {
@@ -62,35 +60,16 @@ const SegmentedTextDisplay = ({
     }
   }, [scrollPosition]);
 
-  const shouldShowSegmented = segments.length > 1;
-
   return (
     <div 
       ref={containerRef}
       className="h-full overflow-y-auto prose-sm max-w-none p-4 text-sm leading-relaxed"
     >
-      {shouldShowSegmented ? (
-        <div className="space-y-8">
-          {segments.map((segment, index) => (
-            <div key={index} className="min-h-[400px] border-b border-slate-100 pb-6 last:border-b-0">
-              <div className="text-xs text-slate-400 mb-2 text-right">
-                Page {segment.pageNumber} ({segment.lineCount} lines)
-              </div>
-              <div 
-                className="whitespace-pre-wrap leading-relaxed break-words text-sm"
-                style={{ lineHeight: '1.6' }}
-                dangerouslySetInnerHTML={{ __html: segment.content }}
-              />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div 
-          className="whitespace-pre-wrap leading-relaxed break-words"
-          style={{ lineHeight: '1.6' }}
-          dangerouslySetInnerHTML={{ __html: content }}
-        />
-      )}
+      <div 
+        className="whitespace-pre-wrap leading-relaxed break-words text-sm"
+        style={{ lineHeight: '1.6' }}
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
     </div>
   );
 };

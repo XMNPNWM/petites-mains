@@ -64,7 +64,6 @@ const OriginalTextPanel = ({
               onScrollSync={onScrollSync}
               scrollPosition={scrollPosition}
               highlightedRange={highlightedRange}
-              linesPerPage={25}
             />
           </div>
         </Card>

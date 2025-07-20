@@ -131,7 +131,6 @@ const EnhancedEditorPanel = ({
                 scrollPosition={scrollPosition}
                 placeholder="Enhanced content will appear here..."
                 onEditorReady={setEditor}
-                linesPerPage={25}
                 readOnly={isEnhancing}
                 chapterKey={chapterId}
                 isLoading={isEnhancing}

@@ -14,7 +14,7 @@ interface EditableSegmentedDisplayProps {
   scrollPosition?: number;
   placeholder?: string;
   onEditorReady?: (editor: any) => void;
-  linesPerPage?: number;
+  linesPerPage?: number; // Keep for compatibility but ignore
   readOnly?: boolean;
   chapterKey?: string;
   isLoading?: boolean;
@@ -28,7 +28,7 @@ const EditableSegmentedDisplay = ({
   scrollPosition,
   placeholder = "Start writing...",
   onEditorReady,
-  linesPerPage = 25,
+  linesPerPage = 25, // Ignored parameter for backward compatibility
   readOnly = false,
   chapterKey,
   isLoading = false,
@@ -89,7 +89,8 @@ const EditableSegmentedDisplay = ({
             />
           )}
           <ScrollSyncHandler onScrollSync={onScrollSync} scrollPosition={scrollPosition}>
-            <ContentProcessor content={content || ""} linesPerPage={linesPerPage}>
+            {/* Use ContentProcessor but bypass linesPerPage for continuous content */}
+            <ContentProcessor content={content || ""} linesPerPage={1}>
               {(processedContent) => (
                 <ErrorBoundary key={`editor-${chapterKey}`}>
                   <EditorCore

@@ -1,6 +1,5 @@
 
 import { useMemo } from 'react';
-import { useLineBasedSegmentation } from '@/hooks/useLineBasedSegmentation';
 
 interface ContentProcessorProps {
   content: string;
@@ -9,29 +8,25 @@ interface ContentProcessorProps {
 }
 
 const ContentProcessor = ({ content, linesPerPage, children }: ContentProcessorProps) => {
-  // Call hook at top level (React Rules of Hooks)
-  const segments = useLineBasedSegmentation(content || '', linesPerPage);
-  
-  // Process segments into final content
+  // Process content based on type - preserve structure without artificial segmentation
   const processedContent = useMemo(() => {
     if (!content) return '';
-    if (segments.length <= 1) return content;
     
-    // Insert page breaks between segments while preserving formatting
-    return segments
-      .map((segment, index) => {
-        // Preserve content formatting and spacing
-        const formattedContent = segment.content
-          .replace(/\n/g, '<br>')  // Convert newlines to HTML breaks
-          .replace(/\n\n/g, '<br><br>');  // Double breaks for paragraphs
-        
-        if (index === segments.length - 1) {
-          return formattedContent;
-        }
-        return formattedContent + '<div data-type="page-break"></div>';
-      })
-      .join('');
-  }, [content, segments]);
+    // Check if content is already HTML (enhanced content)
+    const isHTML = /<[^>]+>/.test(content);
+    
+    if (isHTML) {
+      // For HTML content (enhanced), preserve existing structure
+      return content;
+    } else {
+      // For plain text (original), convert line breaks to HTML properly
+      return content
+        .replace(/\n\n/g, '</p><p>')  // Double line breaks become paragraph breaks
+        .replace(/\n/g, '<br>')       // Single line breaks become <br>
+        .replace(/^/, '<p>')          // Start with paragraph
+        .replace(/$/, '</p>');        // End with paragraph
+    }
+  }, [content]);
 
   return <>{children(processedContent)}</>;
 };
