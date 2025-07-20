@@ -100,97 +100,32 @@ const EditableSegmentedDisplay = ({
   // Handle highlighting
   useEffect(() => {
     if (!highlightedRange || !editor || !editorRef.current) {
-      setHighlightStyle({});
       return;
     }
 
     console.log('🎨 Applying highlight to range:', highlightedRange);
 
-    // Add CSS for highlighting
-    const highlightCSS = `
-      .highlighted-change {
-        background: rgba(251, 191, 36, 0.3) !important;
-        border: 2px solid rgb(251, 191, 36) !important;
-        border-radius: 4px !important;
-        animation: highlight-pulse 2s ease-in-out !important;
-      }
-      
-      @keyframes highlight-pulse {
-        0%, 100% { 
-          background: rgba(251, 191, 36, 0.3);
-          box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.3);
-        }
-        50% { 
-          background: rgba(251, 191, 36, 0.5);
-          box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.2);
-        }
-      }
-    `;
-
-    // Inject or update styles
-    let styleElement = document.getElementById('change-highlight-styles');
-    if (!styleElement) {
-      styleElement = document.createElement('style');
-      styleElement.id = 'change-highlight-styles';
-      document.head.appendChild(styleElement);
-    }
-    styleElement.textContent = highlightCSS;
-
-    // Apply highlighting using CSS classes and DOM manipulation
+    // Simple approach: just add CSS highlighting without DOM manipulation
     const editorElement = editorRef.current.querySelector('.ProseMirror');
     if (editorElement) {
-      // Remove existing highlights
-      const existingHighlights = editorElement.querySelectorAll('.highlighted-change');
-      existingHighlights.forEach(el => {
-        el.classList.remove('highlighted-change');
-      });
+      // Add a data attribute to trigger CSS highlighting
+      editorElement.setAttribute('data-highlight-start', highlightedRange.start.toString());
+      editorElement.setAttribute('data-highlight-end', highlightedRange.end.toString());
+      editorElement.classList.add('has-highlight');
 
-      // Simple text-based highlighting for now
-      setTimeout(() => {
-        const textNodes = [];
-        const walker = document.createTreeWalker(
-          editorElement,
-          NodeFilter.SHOW_TEXT,
-          null
-        );
-
-        let node;
-        while (node = walker.nextNode()) {
-          textNodes.push(node);
+      // Clear highlight after 5 seconds
+      const timer = setTimeout(() => {
+        if (editorElement) {
+          editorElement.removeAttribute('data-highlight-start');
+          editorElement.removeAttribute('data-highlight-end');
+          editorElement.classList.remove('has-highlight');
         }
+      }, 5000);
 
-        // Find and highlight the range (simplified approach)
-        let currentPos = 0;
-        for (const textNode of textNodes) {
-          const nodeLength = textNode.textContent?.length || 0;
-          const nodeStart = currentPos;
-          const nodeEnd = currentPos + nodeLength;
-
-          if (highlightedRange.start < nodeEnd && highlightedRange.end > nodeStart) {
-            const parentElement = textNode.parentElement;
-            if (parentElement) {
-              parentElement.classList.add('highlighted-change');
-            }
-          }
-
-          currentPos = nodeEnd;
-        }
-      }, 100);
+      return () => {
+        clearTimeout(timer);
+      };
     }
-
-    // Clear highlight after 5 seconds
-    const timer = setTimeout(() => {
-      if (editorRef.current) {
-        const highlightedElements = editorRef.current.querySelectorAll('.highlighted-change');
-        highlightedElements?.forEach(el => {
-          el.classList.remove('highlighted-change');
-        });
-      }
-    }, 5000);
-
-    return () => {
-      clearTimeout(timer);
-    };
   }, [highlightedRange, editor]);
 
   // Notify parent when editor is ready
@@ -213,11 +148,6 @@ const EditableSegmentedDisplay = ({
       if (editor && !editor.isDestroyed) {
         editor.destroy();
       }
-      // Cleanup styles safely
-      const styleElement = document.getElementById('change-highlight-styles');
-      if (styleElement && styleElement.parentNode) {
-        styleElement.parentNode.removeChild(styleElement);
-      }
     };
   }, [editor]);
 
@@ -233,6 +163,23 @@ const EditableSegmentedDisplay = ({
     <div className="flex-1 flex flex-col relative h-full">
       {!readOnly && <RichTextBubbleMenu editor={editor} />}
       <div ref={editorRef} className="flex-1 overflow-hidden">
+        <style>
+          {`
+            .has-highlight {
+              background: rgba(251, 191, 36, 0.1);
+              animation: highlight-pulse 2s ease-in-out;
+            }
+            
+            @keyframes highlight-pulse {
+              0%, 100% { 
+                background: rgba(251, 191, 36, 0.1);
+              }
+              50% { 
+                background: rgba(251, 191, 36, 0.2);
+              }
+            }
+          `}
+        </style>
         <EditorContent 
           editor={editor} 
           className="h-full overflow-y-auto prose prose-sm max-w-none"
