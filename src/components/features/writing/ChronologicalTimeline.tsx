@@ -108,6 +108,7 @@ const ChronologicalTimeline = ({ projectId }: ChronologicalTimelineProps) => {
       </div>
 
       {/* Full timeline that appears on hover */}
+      <span className="text-xs text-slate-400 mb-1 block text-center">Hover here</span>
       <div className={`flex items-center justify-center transition-all duration-300 absolute inset-0 ${
         isHovered ? 'opacity-100 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-2' : 'opacity-0 pointer-events-none'
       }`}>
