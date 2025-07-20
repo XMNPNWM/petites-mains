@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { Chapter } from '@/types/shared';
 
@@ -25,10 +24,21 @@ export interface ContentFormattingOptions {
   enableDropCaps: boolean;
   paragraphIndent: number;
   paragraphSpacing: number;
+  sceneBreakSpacing: number;
+  preserveEmptyLines: boolean;
   textAlignment: 'left' | 'justify' | 'center';
   preserveFormatting: boolean;
   smartQuotes: boolean;
   autoTypography: boolean;
+  detectSceneBreaks: boolean;
+}
+
+export interface ChapterSpacingOptions {
+  spacingBefore: number;
+  spacingAfter: number;
+  firstChapterSpacing: number;
+  breakType: 'page-break' | 'large-space' | 'medium-space' | 'small-space' | 'decorative-break';
+  customSpacing: number;
 }
 
 export interface TOCOptions {
@@ -58,6 +68,7 @@ export interface LayoutOptions {
   headerFooter: boolean;
   chapterTitleOptions: ChapterTitleOptions;
   contentFormatting: ContentFormattingOptions;
+  chapterSpacing: ChapterSpacingOptions;
   tocOptions: TOCOptions;
 }
 
@@ -112,10 +123,20 @@ const getDefaultLayoutOptions = (): LayoutOptions => ({
     enableDropCaps: false,
     paragraphIndent: 0,
     paragraphSpacing: 1.2,
+    sceneBreakSpacing: 3.0,
+    preserveEmptyLines: true,
     textAlignment: 'left',
     preserveFormatting: true,
     smartQuotes: true,
-    autoTypography: true
+    autoTypography: true,
+    detectSceneBreaks: true
+  },
+  chapterSpacing: {
+    spacingBefore: 60,
+    spacingAfter: 40,
+    firstChapterSpacing: 80,
+    breakType: 'page-break',
+    customSpacing: 60
   },
   tocOptions: {
     customTitle: 'Table of Contents',

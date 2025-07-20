@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -11,6 +10,7 @@ import { RefreshCw } from 'lucide-react';
 import { LayoutOptions } from '@/stores/useExportStore';
 import ChapterTitleControls from './ChapterTitleControls';
 import ContentFormattingControls from './ContentFormattingControls';
+import ChapterSpacingControls from './ChapterSpacingControls';
 import TOCControls from './TOCControls';
 
 interface ExportFormattingControlsProps {
@@ -126,24 +126,6 @@ const ExportFormattingControls = ({
           <div className="space-y-4">
             <h4 className="text-sm font-medium">Layout</h4>
             
-            <div className="space-y-2">
-              <Label className="text-sm">Chapter Separator</Label>
-              <Select
-                value={layoutOptions.chapterSeparator}
-                onValueChange={(value: 'page-break' | 'section-break' | 'space') => 
-                  onLayoutChange({ chapterSeparator: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="page-break">Page Break</SelectItem>
-                  <SelectItem value="section-break">Section Break</SelectItem>
-                  <SelectItem value="space">Extra Space</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm">Top Margin: {layoutOptions.margins.top}pt</Label>
@@ -244,6 +226,14 @@ const ExportFormattingControls = ({
         options={layoutOptions.chapterTitleOptions}
         onOptionsChange={(options) => onLayoutChange({ 
           chapterTitleOptions: { ...layoutOptions.chapterTitleOptions, ...options }
+        })}
+      />
+
+      {/* Chapter Spacing Controls */}
+      <ChapterSpacingControls
+        options={layoutOptions.chapterSpacing}
+        onOptionsChange={(options) => onLayoutChange({ 
+          chapterSpacing: { ...layoutOptions.chapterSpacing, ...options }
         })}
       />
 

@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
@@ -24,10 +23,21 @@ interface ContentFormattingOptions {
   enableDropCaps: boolean;
   paragraphIndent: number;
   paragraphSpacing: number;
+  sceneBreakSpacing: number;
+  preserveEmptyLines: boolean;
   textAlignment: 'left' | 'justify' | 'center';
   preserveFormatting: boolean;
   smartQuotes: boolean;
   autoTypography: boolean;
+  detectSceneBreaks: boolean;
+}
+
+interface ChapterSpacingOptions {
+  spacingBefore: number;
+  spacingAfter: number;
+  firstChapterSpacing: number;
+  breakType: 'page-break' | 'large-space' | 'medium-space' | 'small-space' | 'decorative-break';
+  customSpacing: number;
 }
 
 interface TOCOptions {
@@ -59,6 +69,7 @@ interface AssembleRequest {
     headerFooter: boolean;
     chapterTitleOptions: ChapterTitleOptions;
     contentFormatting: ContentFormattingOptions;
+    chapterSpacing: ChapterSpacingOptions;
     tocOptions: TOCOptions;
   };
   templateId: string;
@@ -137,10 +148,63 @@ const processContent = (content: string, options: ContentFormattingOptions): str
       .replace(/\.\.\./g, '…');
   }
   
-  // Split into paragraphs and format
-  const paragraphs = processedContent.split('\n').filter(p => p.trim());
+  // Enhanced paragraph processing with scene break detection
+  const lines = processedContent.split('\n');
+  const processedLines = [];
   
+  for (let i = 0; i < lines.length; i++) {
+    const currentLine = lines[i].trim();
+    const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : '';
+    const prevLine = i > 0 ? lines[i - 1].trim() : '';
+    
+    // Detect scene breaks (multiple empty lines or standalone * * *)
+    if (options.detectSceneBreaks && 
+        (currentLine === '' && prevLine === '' && nextLine !== '') ||
+        (currentLine.match(/^\s*\*\s*\*\s*\*\s*$/) || currentLine.match(/^\s*---\s*$/))) {
+      // Add scene break spacing
+      processedLines.push(`<div style="margin: ${options.sceneBreakSpacing}em 0; text-align: center;">* * *</div>`);
+      continue;
+    }
+    
+    // Handle empty lines
+    if (currentLine === '') {
+      if (options.preserveEmptyLines) {
+        processedLines.push('<br>');
+      }
+      continue;
+    }
+    
+    // Process regular content lines
+    processedLines.push(currentLine);
+  }
+  
+  // Group consecutive content lines into paragraphs
+  const paragraphs = [];
+  let currentParagraph = [];
+  
+  for (const line of processedLines) {
+    if (line === '<br>' || line.includes('scene break') || line.includes('* * *')) {
+      if (currentParagraph.length > 0) {
+        paragraphs.push(currentParagraph.join(' '));
+        currentParagraph = [];
+      }
+      paragraphs.push(line);
+    } else {
+      currentParagraph.push(line);
+    }
+  }
+  
+  if (currentParagraph.length > 0) {
+    paragraphs.push(currentParagraph.join(' '));
+  }
+  
+  // Format paragraphs with proper styling
   return paragraphs.map((paragraph, index) => {
+    // Skip processing for break elements
+    if (paragraph === '<br>' || paragraph.includes('scene break') || paragraph.includes('* * *')) {
+      return paragraph;
+    }
+    
     let pStyle = `margin-bottom: ${options.paragraphSpacing}em;`;
     
     if (options.paragraphIndent > 0 && index > 0) {
@@ -151,7 +215,7 @@ const processContent = (content: string, options: ContentFormattingOptions): str
       pStyle += ` text-align: ${options.textAlignment};`;
     }
     
-    let content = paragraph.trim();
+    let content = paragraph;
     
     // Apply drop caps to first paragraph
     if (options.enableDropCaps && index === 0 && content.length > 0) {
@@ -162,6 +226,23 @@ const processContent = (content: string, options: ContentFormattingOptions): str
     
     return `<p style="${pStyle}">${content}</p>`;
   }).join('');
+};
+
+const getChapterBreakHTML = (breakType: string, customSpacing: number): string => {
+  switch (breakType) {
+    case 'page-break':
+      return '<div style="page-break-after: always;"></div>';
+    case 'large-space':
+      return `<div style="margin: ${Math.max(customSpacing, 100)}px 0;"></div>`;
+    case 'medium-space':
+      return `<div style="margin: ${Math.max(customSpacing, 60)}px 0;"></div>`;
+    case 'small-space':
+      return `<div style="margin: ${Math.max(customSpacing, 30)}px 0;"></div>`;
+    case 'decorative-break':
+      return `<div style="margin: ${customSpacing}px 0; text-align: center; font-size: 1.5em;">❦</div>`;
+    default:
+      return '<div style="page-break-after: always;"></div>';
+  }
 };
 
 const getTemplate = (templateId: string) => {
@@ -183,7 +264,7 @@ const getTemplate = (templateId: string) => {
         <div style="page-break-after: always;"></div>
       `,
       chapterTemplate: `
-        <div class="chapter" style="margin-bottom: 40px;">
+        <div class="chapter" style="{{CHAPTER_SPACING}}">
           {{CHAPTER_TITLE_HTML}}
           <div class="chapter-content">{{CHAPTER_CONTENT}}</div>
         </div>
@@ -207,7 +288,7 @@ const getTemplate = (templateId: string) => {
         <div style="page-break-after: always;"></div>
       `,
       chapterTemplate: `
-        <div class="chapter" style="margin-bottom: 60px;">
+        <div class="chapter" style="{{CHAPTER_SPACING}}">
           {{CHAPTER_TITLE_HTML}}
           <div class="chapter-content">{{CHAPTER_CONTENT}}</div>
         </div>
@@ -234,7 +315,7 @@ const getTemplate = (templateId: string) => {
         <div style="page-break-after: always;"></div>
       `,
       chapterTemplate: `
-        <div class="chapter" style="margin-bottom: 50px;">
+        <div class="chapter" style="{{CHAPTER_SPACING}}">
           {{CHAPTER_TITLE_HTML}}
           <div class="chapter-content">{{CHAPTER_CONTENT}}</div>
         </div>
@@ -277,7 +358,6 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Get chapters content
     const chapterIds = selectedChapters.map(sc => sc.chapterId);
     const { data: chapters, error: chaptersError } = await supabase
       .from('chapters')
@@ -289,7 +369,6 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Get enhanced content if needed
     const enhancedContentMap = new Map();
     const enhancedChapters = selectedChapters.filter(sc => sc.contentSource === 'enhanced');
     
@@ -306,7 +385,6 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Sort chapters according to selection order
     const sortedChapters = selectedChapters
       .map(selection => {
         const chapter = chapters?.find(c => c.id === selection.chapterId);
@@ -321,13 +399,11 @@ const handler = async (req: Request): Promise<Response> => {
       .filter(Boolean)
       .sort((a, b) => a!.order - b!.order);
 
-    // Get template
     const template = getTemplate(templateId);
     
-    // Assemble document
     let htmlContent = '';
     
-    // Apply document styles with enhanced typography
+    // Enhanced document styles with better spacing controls
     const fontWeightValue = {
       'light': '300',
       'normal': '400',
@@ -371,11 +447,10 @@ const handler = async (req: Request): Promise<Response> => {
     if (includeMetadata && layoutOptions.includeTitlePage) {
       htmlContent += template.titlePageTemplate
         .replace('{{PROJECT_TITLE}}', project.title)
-        .replace('{{AUTHOR_NAME}}', 'Author Name') // TODO: Get from user profile
+        .replace('{{AUTHOR_NAME}}', 'Author Name')
         .replace('{{DATE}}', new Date().toLocaleDateString());
     }
 
-    // Add table of contents
     if (includeMetadata && layoutOptions.includeTOC && sortedChapters.length > 1) {
       const tocEntries = sortedChapters
         .map((chapter, index) => {
@@ -407,9 +482,18 @@ const handler = async (req: Request): Promise<Response> => {
         .replace('{{TOC_TITLE_STYLE}}', `text-align: center;`);
     }
 
-    // Add chapters
+    // Enhanced chapter processing with proper spacing
     for (const [index, chapter] of sortedChapters.entries()) {
       if (!chapter) continue;
+      
+      // Calculate chapter spacing
+      const isFirstChapter = index === 0;
+      const spacingBefore = isFirstChapter ? 
+        layoutOptions.chapterSpacing.firstChapterSpacing : 
+        layoutOptions.chapterSpacing.spacingBefore;
+      const spacingAfter = layoutOptions.chapterSpacing.spacingAfter;
+      
+      const chapterSpacingStyle = `margin-top: ${spacingBefore}px; margin-bottom: ${spacingAfter}px;`;
       
       // Generate chapter title HTML
       const chapterNumber = getChapterNumber(index, layoutOptions.chapterTitleOptions.numberingStyle);
@@ -448,25 +532,24 @@ const handler = async (req: Request): Promise<Response> => {
         ">${titleText || 'Untitled'}</h1>
       `;
 
-      // Add separator if enabled
       if (layoutOptions.chapterTitleOptions.includeSeparator) {
         chapterTitleHtml += applySeparatorStyle(layoutOptions.chapterTitleOptions.separatorStyle);
       }
       
-      // Process chapter content
+      // Enhanced content processing
       const processedContent = processContent(chapter.content || '', layoutOptions.contentFormatting);
 
       htmlContent += template.chapterTemplate
+        .replace('{{CHAPTER_SPACING}}', chapterSpacingStyle)
         .replace('{{CHAPTER_TITLE_HTML}}', chapterTitleHtml)
         .replace('{{CHAPTER_CONTENT}}', processedContent);
 
-      // Add chapter separator
-      if (layoutOptions.chapterSeparator === 'page-break') {
-        htmlContent += '<div style="page-break-after: always;"></div>';
-      } else if (layoutOptions.chapterSeparator === 'section-break') {
-        htmlContent += '<hr style="margin: 60px 0; border: none; border-top: 2px solid #ccc;">';
-      } else {
-        htmlContent += '<div style="margin: 60px 0;"></div>';
+      // Apply chapter break
+      if (index < sortedChapters.length - 1) {
+        htmlContent += getChapterBreakHTML(
+          layoutOptions.chapterSpacing.breakType, 
+          layoutOptions.chapterSpacing.customSpacing
+        );
       }
     }
 

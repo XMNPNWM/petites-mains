@@ -69,6 +69,36 @@ const ContentFormattingControls = ({ options, onOptionsChange }: ContentFormatti
               className="w-full"
             />
           </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm">Scene Break Spacing: {options.sceneBreakSpacing}em</Label>
+            <Slider
+              value={[options.sceneBreakSpacing]}
+              onValueChange={(value) => onOptionsChange({ sceneBreakSpacing: value[0] })}
+              min={1}
+              max={5}
+              step={0.25}
+              className="w-full"
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="preserve-empty-lines" className="text-sm">Preserve Empty Lines</Label>
+            <Switch
+              id="preserve-empty-lines"
+              checked={options.preserveEmptyLines}
+              onCheckedChange={(checked) => onOptionsChange({ preserveEmptyLines: checked })}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="detect-scene-breaks" className="text-sm">Auto-Detect Scene Breaks</Label>
+            <Switch
+              id="detect-scene-breaks"
+              checked={options.detectSceneBreaks}
+              onCheckedChange={(checked) => onOptionsChange({ detectSceneBreaks: checked })}
+            />
+          </div>
         </div>
 
         <Separator />
