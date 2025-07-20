@@ -8,9 +8,8 @@ import { useChapterTransition } from './useChapterTransition';
 import { RefinementService } from '@/services/RefinementService';
 import { ChapterNavigationService } from '@/services/ChapterNavigationService';
 import { ContentVersioningService } from '@/services/ContentVersioningService';
-import { ChangeNavigationService } from '@/services/ChangeNavigationService';
-import { Chapter, RefinementData, AIChange } from '@/types/shared';
-import { applyTextReplacement, optimizeParagraphs, validateTextPositions } from '@/lib/textUtils';
+import { Chapter, RefinementData } from '@/types/shared';
+import { applyTextReplacement, optimizeParagraphs } from '@/lib/textUtils';
 
 export const useRefinementSpace = (projectId: string | undefined) => {
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
@@ -187,8 +186,6 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   const handleChangeDecision = useCallback(async (changeId: string, decision: 'accepted' | 'rejected') => {
     if (!refinementData) return;
     
-    console.log('🔄 Processing change decision:', { changeId, decision });
-    
     try {
       // First get the change details
       const { data: change, error: changeError } = await supabase
@@ -199,33 +196,6 @@ export const useRefinementSpace = (projectId: string | undefined) => {
 
       if (changeError) throw changeError;
 
-      console.log('📝 Change details:', {
-        id: change.id,
-        type: change.change_type,
-        originalText: change.original_text.substring(0, 50) + '...',
-        enhancedText: change.enhanced_text.substring(0, 50) + '...',
-        position: `${change.position_start}-${change.position_end}`,
-        decision
-      });
-
-      // Validate change position before applying
-      const currentContent = refinementData.enhanced_content || '';
-      const validation = ChangeNavigationService.validateChangePosition(change as AIChange, currentContent);
-      
-      if (!validation.isValid) {
-        console.warn('⚠️ Change position validation failed:', {
-          expected: validation.expectedText?.substring(0, 50),
-          actual: validation.actualText?.substring(0, 50)
-        });
-        
-        toast({
-          title: "Position Mismatch",
-          description: "The change position has shifted. Please refresh the page to reload changes.",
-          variant: "destructive"
-        });
-        return;
-      }
-
       // Update the change decision in database
       const { error } = await supabase
         .from('ai_change_tracking')
@@ -235,9 +205,8 @@ export const useRefinementSpace = (projectId: string | undefined) => {
       if (error) throw error;
 
       // If change is rejected, apply the original text to enhanced content
-      if (decision === 'rejected') {
-        console.log('❌ Rejecting change - reverting to original text');
-        
+      if (decision === 'rejected' && change) {
+        const currentContent = refinementData.enhanced_content || '';
         const newContent = applyTextReplacement(
           currentContent,
           change.position_start,
@@ -245,59 +214,19 @@ export const useRefinementSpace = (projectId: string | undefined) => {
           change.original_text
         );
         
-        // Validate the replacement was successful
-        const expectedLength = currentContent.length + (change.original_text.length - change.enhanced_text.length);
-        if (newContent.length !== expectedLength) {
-          console.warn('⚠️ Content length mismatch after rejection:', {
-            expected: expectedLength,
-            actual: newContent.length
-          });
-        }
-        
         // Update the enhanced content
         await handleContentChange(newContent);
-        
-        // Get all remaining changes to adjust their positions
-        const { data: allChanges } = await supabase
-          .from('ai_change_tracking')
-          .select('*')
-          .eq('refinement_id', refinementData.id)
-          .order('position_start');
-
-        if (allChanges) {
-          // Calculate position adjustments for subsequent changes
-          const adjustments = ChangeNavigationService.calculatePositionAdjustments(change as AIChange, allChanges as AIChange[]);
-          
-          // Apply position adjustments to database
-          for (const adjustment of adjustments) {
-            await supabase
-              .from('ai_change_tracking')
-              .update({
-                position_start: adjustment.newStart,
-                position_end: adjustment.newEnd
-              })
-              .eq('id', adjustment.changeId);
-          }
-          
-          console.log('🔄 Applied position adjustments:', adjustments.length);
-        }
-        
-        toast({
-          title: "Change Rejected",
-          description: "The change has been reverted to the original text and positions updated.",
-        });
-      } else {
-        toast({
-          title: "Change Accepted",
-          description: "The change has been accepted successfully.",
-        });
       }
       
+      toast({
+        title: "Change Updated",
+        description: `Change ${decision} successfully`,
+      });
     } catch (error) {
       console.error('❌ Error updating change decision:', error);
       toast({
         title: "Error",
-        description: "Failed to update change decision. Please try again.",
+        description: "Failed to update change decision",
         variant: "destructive"
       });
     }

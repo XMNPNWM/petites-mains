@@ -1,9 +1,11 @@
 
-import React, { useRef, useEffect, useState } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
+import React, { useState, useCallback, useEffect } from 'react';
 import RichTextBubbleMenu from './RichTextBubbleMenu';
-import { SearchReplaceExtension } from '../extensions/SearchReplaceExtension';
+import EditorCore from './EditorCore';
+import ScrollSyncHandler from './ScrollSyncHandler';
+import ContentProcessor from './ContentProcessor';
+import EditorStylesProvider from './EditorStylesProvider';
+import ErrorBoundary from './ErrorBoundary';
 
 interface EditableSegmentedDisplayProps {
   content: string;
@@ -12,189 +14,102 @@ interface EditableSegmentedDisplayProps {
   scrollPosition?: number;
   placeholder?: string;
   onEditorReady?: (editor: any) => void;
+  linesPerPage?: number; // Keep for compatibility but ignore
   readOnly?: boolean;
   chapterKey?: string;
   isLoading?: boolean;
   isTransitioning?: boolean;
-  highlightedRange?: { start: number; end: number } | null;
 }
 
-const EditableSegmentedDisplay = ({
-  content,
-  onContentChange,
+const EditableSegmentedDisplay = ({ 
+  content, 
+  onContentChange, 
   onScrollSync,
   scrollPosition,
   placeholder = "Start writing...",
   onEditorReady,
+  linesPerPage = 25, // Ignored parameter for backward compatibility
   readOnly = false,
   chapterKey,
   isLoading = false,
-  isTransitioning = false,
-  highlightedRange
+  isTransitioning = false
 }: EditableSegmentedDisplayProps) => {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const [highlightStyle, setHighlightStyle] = useState<React.CSSProperties>({});
+  const [editor, setEditor] = useState<any>(null);
+  const [isEditorReady, setIsEditorReady] = useState(false);
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3, 4, 5, 6],
-        },
-      }),
-      SearchReplaceExtension,
-    ],
-    content,
-    editable: !readOnly && !isLoading && !isTransitioning,
-    onUpdate: ({ editor }) => {
-      if (!editor.isDestroyed && !readOnly) {
-        onContentChange(editor.getHTML());
-      }
-    },
-    editorProps: {
-      attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none min-h-full p-4 text-sm leading-relaxed overflow-y-auto',
-        spellcheck: 'true',
-      },
-      handleKeyDown: (view, event) => {
-        if (event.ctrlKey || event.metaKey) {
-          return false;
-        }
-        return false;
-      },
-    },
-  }, [chapterKey]); // Re-create editor when chapter changes
-
-  // Handle scroll synchronization
-  useEffect(() => {
-    const editorElement = editorRef.current?.querySelector('.ProseMirror');
-    if (!editorElement || !onScrollSync) return;
-
-    const handleScroll = (e: Event) => {
-      const element = e.target as HTMLElement;
-      const { scrollTop, scrollHeight, clientHeight } = element;
-      onScrollSync(scrollTop, scrollHeight, clientHeight);
-    };
-
-    editorElement.addEventListener('scroll', handleScroll);
-    return () => editorElement.removeEventListener('scroll', handleScroll);
-  }, [onScrollSync, editor]);
-
-  // Sync scroll position when it changes externally
-  useEffect(() => {
-    if (scrollPosition !== undefined && editorRef.current) {
-      const editorElement = editorRef.current.querySelector('.ProseMirror');
-      if (editorElement) {
-        editorElement.scrollTop = scrollPosition;
+  // Enhanced editor ready handler
+  const handleEditorReady = useCallback((editorInstance: any) => {
+    if (!editorInstance || editorInstance.isDestroyed) return;
+    
+    console.log('EditableSegmentedDisplay: Editor ready for chapter:', chapterKey);
+    setEditor(editorInstance);
+    setIsEditorReady(true);
+    
+    // Apply read-only state immediately if needed
+    if (readOnly && !editorInstance.isDestroyed) {
+      try {
+        editorInstance.setEditable(!readOnly);
+      } catch (e) {
+        console.warn('Failed to set editor editable state on ready:', e);
       }
     }
-  }, [scrollPosition]);
-
-  // Update editor content when content prop changes
-  useEffect(() => {
-    if (editor && !editor.isDestroyed && editor.getHTML() !== content) {
-      editor.commands.setContent(content);
+    
+    if (onEditorReady) {
+      onEditorReady(editorInstance);
     }
-  }, [content, editor]);
+  }, [readOnly, onEditorReady, chapterKey]);
 
-  // Handle highlighting
+  // Reset editor ready state when transitioning
   useEffect(() => {
-    if (!highlightedRange || !editor || !editorRef.current) {
-      return;
+    if (isTransitioning) {
+      setIsEditorReady(false);
+      setEditor(null);
     }
+  }, [isTransitioning]);
 
-    console.log('🎨 Applying highlight to range:', highlightedRange);
-
-    // Simple approach: just add CSS highlighting without DOM manipulation
-    const editorElement = editorRef.current.querySelector('.ProseMirror');
-    if (editorElement) {
-      // Add a data attribute to trigger CSS highlighting
-      editorElement.setAttribute('data-highlight-start', highlightedRange.start.toString());
-      editorElement.setAttribute('data-highlight-end', highlightedRange.end.toString());
-      editorElement.classList.add('has-highlight');
-
-      // Clear highlight after 5 seconds
-      const timer = setTimeout(() => {
-        if (editorElement) {
-          editorElement.removeAttribute('data-highlight-start');
-          editorElement.removeAttribute('data-highlight-end');
-          editorElement.classList.remove('has-highlight');
-        }
-      }, 5000);
-
-      return () => {
-        clearTimeout(timer);
-      };
-    }
-  }, [highlightedRange, editor]);
-
-  // Notify parent when editor is ready
+  // Update read-only state
   useEffect(() => {
-    if (editor && onEditorReady) {
-      onEditorReady(editor);
-    }
-  }, [editor, onEditorReady]);
-
-  // Update editor editable state
-  useEffect(() => {
-    if (editor && !editor.isDestroyed) {
-      editor.setEditable(!readOnly && !isLoading && !isTransitioning);
-    }
-  }, [editor, readOnly, isLoading, isTransitioning]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (editor && !editor.isDestroyed) {
-        editor.destroy();
+    if (editor && !editor.isDestroyed && isEditorReady && !isTransitioning) {
+      try {
+        editor.setEditable(!readOnly);
+      } catch (e) {
+        console.warn('Failed to update editor editable state:', e);
       }
-    };
-  }, [editor]);
-
-  if (!editor) {
-    return (
-      <div className="flex-1 p-4 flex items-center justify-center">
-        <div className="text-slate-500">Loading editor...</div>
-      </div>
-    );
-  }
+    }
+  }, [editor, readOnly, isEditorReady, isTransitioning]);
 
   return (
-    <div className="flex-1 flex flex-col relative h-full">
-      {!readOnly && <RichTextBubbleMenu editor={editor} />}
-      <div ref={editorRef} className="flex-1 overflow-hidden">
-        <style>
-          {`
-            .has-highlight {
-              background: rgba(251, 191, 36, 0.1);
-              animation: highlight-pulse 2s ease-in-out;
-            }
-            
-            @keyframes highlight-pulse {
-              0%, 100% { 
-                background: rgba(251, 191, 36, 0.1);
-              }
-              50% { 
-                background: rgba(251, 191, 36, 0.2);
-              }
-            }
-          `}
-        </style>
-        <EditorContent 
-          editor={editor} 
-          className="h-full overflow-y-auto prose prose-sm max-w-none"
-        />
-      </div>
-      
-      {/* Loading overlay for transitions */}
-      {(isLoading || isTransitioning) && (
-        <div className="absolute inset-0 bg-white/50 flex items-center justify-center">
-          <div className="text-slate-500">
-            {isLoading ? 'Processing...' : 'Loading...'}
-          </div>
+    <ErrorBoundary>
+      <EditorStylesProvider>
+        <div className="flex-1 flex flex-col relative h-full">
+          {!readOnly && editor && isEditorReady && (
+            <RichTextBubbleMenu 
+              editor={editor} 
+              isTransitioning={isTransitioning}
+            />
+          )}
+          <ScrollSyncHandler onScrollSync={onScrollSync} scrollPosition={scrollPosition}>
+            {/* Use ContentProcessor but bypass linesPerPage for continuous content */}
+            <ContentProcessor content={content || ""} linesPerPage={1}>
+              {(processedContent) => (
+                <ErrorBoundary key={`editor-${chapterKey}`}>
+                  <EditorCore
+                    key={`core-${chapterKey}`}
+                    content={processedContent}
+                    onContentChange={onContentChange}
+                    onEditorReady={handleEditorReady}
+                    placeholder={placeholder}
+                    readOnly={readOnly}
+                    chapterKey={chapterKey}
+                    isTransitioning={isTransitioning}
+                  />
+                </ErrorBoundary>
+              )}
+            </ContentProcessor>
+          </ScrollSyncHandler>
         </div>
-      )}
-    </div>
+      </EditorStylesProvider>
+    </ErrorBoundary>
   );
 };
 
