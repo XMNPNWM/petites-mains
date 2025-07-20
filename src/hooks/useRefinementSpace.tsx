@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,7 +7,8 @@ import { useChapterTransition } from './useChapterTransition';
 import { RefinementService } from '@/services/RefinementService';
 import { ChapterNavigationService } from '@/services/ChapterNavigationService';
 import { ContentVersioningService } from '@/services/ContentVersioningService';
-import { Chapter, RefinementData } from '@/types/shared';
+import { ChangeNavigationService, NavigationState } from '@/services/ChangeNavigationService';
+import { Chapter, RefinementData, AIChange } from '@/types/shared';
 import { applyTextReplacement, optimizeParagraphs } from '@/lib/textUtils';
 
 export const useRefinementSpace = (projectId: string | undefined) => {
@@ -18,10 +18,46 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   const [isLoadingRefinementData, setIsLoadingRefinementData] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  // New navigation state management
+  const [navigationState, setNavigationState] = useState<NavigationState>(
+    ChangeNavigationService.getNavigationState()
+  );
+
   const navigate = useNavigate();
   const { toast } = useToast();
   const { project, chapters } = useProjectData(projectId);
   const { transitionState, startTransition, completeTransition } = useChapterTransition();
+
+  // Navigation handlers for Phase 2
+  const handleChangeNavigation = useCallback((change: AIChange) => {
+    if (!refinementData || !currentChapter) return;
+    
+    console.log('🧭 useRefinementSpace - Navigating to change:', change.id);
+    
+    const newNavigationState = ChangeNavigationService.setSelectedChange(
+      change.id,
+      refinementData.original_content,
+      refinementData.enhanced_content,
+      change.position_start,
+      change.position_end
+    );
+    
+    setNavigationState(newNavigationState);
+  }, [refinementData, currentChapter]);
+
+  const clearChangeNavigation = useCallback(() => {
+    console.log('🧭 useRefinementSpace - Clearing change navigation');
+    const newNavigationState = ChangeNavigationService.clearSelection();
+    setNavigationState(newNavigationState);
+  }, []);
+
+  // Clear navigation when changing chapters
+  useEffect(() => {
+    if (transitionState.isTransitioning) {
+      clearChangeNavigation();
+    }
+  }, [transitionState.isTransitioning, clearChangeNavigation]);
 
   const fetchRefinementData = useCallback(async (chapterId: string) => {
     if (!chapterId) return;
@@ -378,6 +414,11 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     isSaving,
     lastSaved,
     transitionState,
+    // Navigation state and handlers (NEW)
+    navigationState,
+    handleChangeNavigation,
+    clearChangeNavigation,
+    // Existing handlers
     handleChapterSelect,
     handleContentChange,
     handleChangeDecision,

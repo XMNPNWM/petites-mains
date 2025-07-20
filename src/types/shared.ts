@@ -1,3 +1,4 @@
+
 export interface Project {
   id: string;
   title: string;
@@ -59,4 +60,12 @@ export interface ScrollPositions {
 export interface HighlightedRange {
   start: number;
   end: number;
+}
+
+// Navigation-related types (NEW)
+export interface NavigationState {
+  selectedChangeId: string | null;
+  highlightedRange: { start: number; end: number } | null;
+  originalScrollPosition: number;
+  enhancedScrollPosition: number;
 }
