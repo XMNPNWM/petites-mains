@@ -2056,12 +2056,29 @@ export type Database = {
           semantic_merges_performed: number
         }[]
       }
+      deduct_ai_credits: {
+        Args: { user_uuid: string; credits_to_deduct: number }
+        Returns: {
+          success: boolean
+          remaining_credits: number
+          error_message: string
+        }[]
+      }
       extract_knowledge_from_chunks: {
         Args: { p_project_id: string; p_chapter_id?: string }
         Returns: {
           chunks_processed: number
           knowledge_extracted: number
           processing_time: unknown
+        }[]
+      }
+      get_user_ai_credits: {
+        Args: { user_uuid: string }
+        Returns: {
+          credits_used: number
+          credits_limit: number
+          credits_remaining: number
+          subscription_tier: string
         }[]
       }
       halfvec_avg: {
@@ -2151,6 +2168,10 @@ export type Database = {
         }[]
       }
       recalculate_all_usage: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      reset_monthly_ai_credits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }

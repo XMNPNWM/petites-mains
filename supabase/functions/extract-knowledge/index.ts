@@ -247,6 +247,20 @@ serve(async (req) => {
   }
 
   try {
+    // Get user from authorization header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'No authorization header provided'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Extract JWT token and get user
+    const jwt = authHeader.replace('Bearer ', '');
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const googleAIKey = Deno.env.get('GOOGLE_AI_API_KEY')!;
@@ -256,9 +270,40 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+    
+    if (authError || !user) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid authorization token'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     const ai = new GoogleGenAI({ apiKey: googleAIKey });
 
     const { projectId, chapterId, content, mode, targetCategories, categoriesToStore, targetCategory, freshContext, options = {} } = await req.json();
+
+    // Check user credits before processing (2 credits for analysis)
+    const { data: creditCheck, error: creditError } = await supabase.rpc('deduct_ai_credits', {
+      user_uuid: user.id,
+      credits_to_deduct: 2
+    });
+
+    if (creditError || !creditCheck?.[0]?.success) {
+      const errorMessage = creditCheck?.[0]?.error_message || 'Failed to check credits';
+      return new Response(JSON.stringify({
+        success: false,
+        error: errorMessage,
+        code: 'INSUFFICIENT_CREDITS'
+      }), {
+        status: 402,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     if (!projectId || !chapterId || !content) {
       throw new Error('Missing required parameters: projectId, chapterId, or content');
@@ -732,7 +777,9 @@ Extract locations, objects, cultural elements, and thematic content.`;
       },
       validation: {
         issues: shouldSkipExtraction ? ['Content extraction was skipped due to similarity'] : []
-      }
+      },
+      creditsUsed: 2,
+      remainingCredits: creditCheck[0].remaining_credits
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

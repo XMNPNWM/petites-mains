@@ -6,6 +6,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { SelectedTextContext } from '@/types/comments';
 import { usePopupChats } from './PopupChatManager';
+import { checkUserCredits, CREDIT_COSTS } from '@/utils/creditUtils';
+import { CreditWarning } from '@/components/features/ai/CreditWarning';
+import { useToast } from '@/hooks/use-toast';
 
 export type ChatType = 'comment' | 'coherence' | 'next-steps' | 'chat';
 

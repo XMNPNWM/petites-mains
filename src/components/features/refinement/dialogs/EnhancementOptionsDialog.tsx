@@ -8,6 +8,9 @@ import { Separator } from '@/components/ui/separator';
 import { Sparkles, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EnhancementOptions } from '@/types/enhancement';
+import { CreditWarning } from '@/components/features/ai/CreditWarning';
+import { useUserCreditStatus } from '@/hooks/useUserCreditStatus';
+import { CREDIT_COSTS } from '@/utils/creditUtils';
 
 interface EnhancementOptionsDialogProps {
   isOpen: boolean;
@@ -29,6 +32,8 @@ const EnhancementOptionsDialog = ({
   const [applyFormattingFixes, setApplyFormattingFixes] = useState(true);
   const [improveReadability, setImproveReadability] = useState(true);
   const [improveStyle, setImproveStyle] = useState(false);
+  
+  const { creditStatus, loading: creditsLoading } = useUserCreditStatus();
   
   // Style sub-options
   const [improveShowVsTell, setImproveShowVsTell] = useState(true);
@@ -72,6 +77,17 @@ const EnhancementOptionsDialog = ({
               Enhance Chapter Options
             </DialogTitle>
           </DialogHeader>
+
+          {/* Credit Warning */}
+          {!creditsLoading && creditStatus && (
+            <div className="mt-4">
+              <CreditWarning 
+                operation="ENHANCEMENT" 
+                remainingCredits={creditStatus.credits_remaining}
+                onUpgrade={() => window.open('/subscription', '_blank')}
+              />
+            </div>
+          )}
 
           <div className="space-y-6 py-4">
             {/* Overall Level */}
@@ -231,7 +247,10 @@ const EnhancementOptionsDialog = ({
             <Button variant="outline" onClick={handleClose} disabled={isProcessing}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={isProcessing}>
+            <Button 
+              onClick={handleSubmit} 
+              disabled={isProcessing || (creditStatus && creditStatus.credits_remaining < CREDIT_COSTS.ENHANCEMENT)}
+            >
               {isProcessing ? 'Enhancing...' : 'Enhance Chapter'}
             </Button>
           </DialogFooter>
