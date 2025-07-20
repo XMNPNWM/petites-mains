@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { RefinementService } from './RefinementService';
+import { ContentVersioningService } from './ContentVersioningService';
 
 /**
  * Dedicated service for content enhancement functionality
@@ -60,8 +61,24 @@ export class EnhancementService {
       console.log('📋 Refinement data validated:', {
         refinementId: refinementData.id,
         chapterId: refinementData.chapter_id,
-        originalContentLength: refinementData.original_content?.length || 0
+        originalContentLength: refinementData.original_content?.length || 0,
+        hasExistingEnhancedContent: !!refinementData.enhanced_content
       });
+
+      // NEW: Create backup of existing enhanced content before overwriting
+      if (refinementData.enhanced_content && refinementData.enhanced_content.trim().length > 0) {
+        console.log('💾 Creating backup of existing enhanced content before re-enhancement');
+        await ContentVersioningService.createContentVersion(
+          chapterId,
+          'enhancement',
+          refinementData.enhanced_content,
+          {
+            refinementId: refinementData.id,
+            changeSummary: 'Previous enhanced version (backup before re-enhancement)',
+            userNotes: 'Automatic backup created before applying new enhancement'
+          }
+        );
+      }
 
       // CRITICAL: Set status to "in_progress" at the start of enhancement
       console.log('🔄 Setting refinement status to "in_progress"');
@@ -137,6 +154,18 @@ export class EnhancementService {
           );
           
           console.log('✅ Enhanced content saved successfully');
+
+          // NEW: Create version record for the new enhanced content
+          await ContentVersioningService.createContentVersion(
+            chapterId,
+            'enhancement',
+            enhancedContent,
+            {
+              refinementId: refinementData.id,
+              changeSummary: 'New enhanced version created',
+              userNotes: 'Latest AI enhancement applied to content'
+            }
+          );
           
           // CRITICAL: Set status to "completed" after successful enhancement and save
           console.log('🎉 Setting refinement status to "completed"');
@@ -263,9 +292,6 @@ export class EnhancementService {
     }
   }
 
-  /**
-   * Save individual changes to the ai_change_tracking table
-   */
   static async saveChangeTrackingData(refinementId: string, changes: any[]): Promise<void> {
     try {
       console.log('💾 Saving change tracking data for refinement:', refinementId);

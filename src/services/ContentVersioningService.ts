@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export interface ContentVersion {
@@ -57,6 +58,7 @@ export class ContentVersioningService {
         .single();
 
       if (error) throw error;
+      console.log(`✅ Created ${contentType} version for chapter ${chapterId}:`, data.id);
       return data.id;
     } catch (error) {
       console.error('Error creating content version:', error);
@@ -221,11 +223,38 @@ export class ContentVersioningService {
 
         return { success: true, versionId: backupVersionId };
       } else {
-        // For enhancement versions, restore to refinement
+        // For enhancement versions, restore to refinement and create backup of current enhanced content
+        console.log('🔄 Restoring enhanced version to refinement space');
+        
+        // Get current refinement data to create backup
+        const { data: currentRefinement, error: refinementError } = await supabase
+          .from('chapter_refinements')
+          .select('enhanced_content')
+          .eq('chapter_id', version.chapter_id)
+          .single();
+
+        if (refinementError) throw refinementError;
+
+        // Create backup of current enhanced content if it exists
+        if (currentRefinement.enhanced_content && currentRefinement.enhanced_content.trim().length > 0) {
+          await this.createContentVersion(
+            version.chapter_id,
+            'enhancement',
+            currentRefinement.enhanced_content,
+            {
+              changeSummary: 'Backup before enhanced version restore',
+              userNotes: `Automatic backup before restoring enhanced version ${version.version_number}`
+            }
+          );
+        }
+
+        // Restore the enhanced version
         const { error: updateError } = await supabase
           .from('chapter_refinements')
           .update({
-            enhanced_content: version.content
+            enhanced_content: version.content,
+            refinement_status: 'completed',
+            updated_at: new Date().toISOString()
           })
           .eq('chapter_id', version.chapter_id);
 

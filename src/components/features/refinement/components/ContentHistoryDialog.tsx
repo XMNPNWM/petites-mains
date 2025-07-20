@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { History, RotateCcw, FileText, Sparkles, Loader2 } from 'lucide-react';
 import { ContentVersioningService, ContentVersion } from '@/services/ContentVersioningService';
 import { useToast } from '@/hooks/use-toast';
@@ -80,6 +82,103 @@ const ContentHistoryDialog = ({ chapterId, chapterTitle }: ContentHistoryDialogP
     return contentType === 'enhancement' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800';
   };
 
+  // Filter versions by type
+  const originalVersions = versions.filter(v => v.content_type === 'creation');
+  const enhancedVersions = versions.filter(v => v.content_type === 'enhancement');
+
+  const renderVersionList = (versionList: ContentVersion[], showRestoreForEnhanced = false) => {
+    if (versionList.length === 0) {
+      return (
+        <div className="text-center text-muted-foreground py-8">
+          No versions available.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {versionList.map((version, index) => {
+          const Icon = getVersionTypeIcon(version.content_type);
+          const isLatest = index === 0;
+          const canRestore = version.content_type === 'creation' || showRestoreForEnhanced;
+          
+          return (
+            <div key={version.id} className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4" />
+                    <Badge 
+                      variant="secondary" 
+                      className={getVersionTypeColor(version.content_type)}
+                    >
+                      {version.content_type === 'enhancement' ? 'Enhanced' : 'Original'} v{version.version_number}
+                    </Badge>
+                    {isLatest && version.content_type === 'creation' && (
+                      <Badge variant="default">Current</Badge>
+                    )}
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {format(new Date(version.created_at), 'MMM d, yyyy at h:mm a')}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {version.word_count && (
+                    <span className="text-xs text-muted-foreground">
+                      {version.word_count} words
+                    </span>
+                  )}
+                  {canRestore && !isLatest && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRestore(version.id)}
+                      disabled={isRestoring === version.id}
+                      className="h-7 px-2"
+                    >
+                      {isRestoring === version.id ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <RotateCcw className="w-3 h-3" />
+                      )}
+                      <span className="ml-1 text-xs">Restore</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {version.change_summary && (
+                <div className="text-sm">
+                  <strong>Summary:</strong> {version.change_summary}
+                </div>
+              )}
+
+              {version.user_notes && (
+                <div className="text-sm text-muted-foreground">
+                  <strong>Notes:</strong> {version.user_notes}
+                </div>
+              )}
+
+              {version.enhancement_options && Object.keys(version.enhancement_options).length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  Enhancement options: {JSON.stringify(version.enhancement_options)}
+                </div>
+              )}
+
+              <Separator />
+              
+              <div className="text-sm bg-muted p-3 rounded max-h-32 overflow-auto">
+                {version.content.substring(0, 300)}
+                {version.content.length > 300 && '...'}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -96,98 +195,41 @@ const ContentHistoryDialog = ({ chapterId, chapterTitle }: ContentHistoryDialogP
           </DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="h-[60vh] pr-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <Loader2 className="w-6 h-6 animate-spin" />
-              <span className="ml-2">Loading history...</span>
-            </div>
-          ) : versions.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              No version history available for this chapter.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {versions.map((version, index) => {
-                const Icon = getVersionTypeIcon(version.content_type);
-                const isLatest = index === 0;
-                
-                return (
-                  <div key={version.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4" />
-                          <Badge 
-                            variant="secondary" 
-                            className={getVersionTypeColor(version.content_type)}
-                          >
-                            {version.content_type === 'enhancement' ? 'Enhancement' : 'Creation'} v{version.version_number}
-                          </Badge>
-                          {isLatest && (
-                            <Badge variant="default">Current</Badge>
-                          )}
-                        </div>
-                        <span className="text-sm text-muted-foreground">
-                          {format(new Date(version.created_at), 'MMM d, yyyy at h:mm a')}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        {version.word_count && (
-                          <span className="text-xs text-muted-foreground">
-                            {version.word_count} words
-                          </span>
-                        )}
-                        {!isLatest && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRestore(version.id)}
-                            disabled={isRestoring === version.id}
-                            className="h-7 px-2"
-                          >
-                            {isRestoring === version.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <RotateCcw className="w-3 h-3" />
-                            )}
-                            <span className="ml-1 text-xs">Restore</span>
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    {version.change_summary && (
-                      <div className="text-sm">
-                        <strong>Summary:</strong> {version.change_summary}
-                      </div>
-                    )}
-
-                    {version.user_notes && (
-                      <div className="text-sm text-muted-foreground">
-                        <strong>Notes:</strong> {version.user_notes}
-                      </div>
-                    )}
-
-                    {version.enhancement_options && Object.keys(version.enhancement_options).length > 0 && (
-                      <div className="text-xs text-muted-foreground">
-                        Enhancement options: {JSON.stringify(version.enhancement_options)}
-                      </div>
-                    )}
-
-                    <Separator />
-                    
-                    <div className="text-sm bg-muted p-3 rounded max-h-32 overflow-auto">
-                      {version.content.substring(0, 300)}
-                      {version.content.length > 300 && '...'}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </ScrollArea>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-32">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span className="ml-2">Loading history...</span>
+          </div>
+        ) : versions.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8">
+            No version history available for this chapter.
+          </div>
+        ) : (
+          <Tabs defaultValue="original" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="original" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Original Versions ({originalVersions.length})
+              </TabsTrigger>
+              <TabsTrigger value="enhanced" className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                Enhanced Versions ({enhancedVersions.length})
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="original" className="mt-4">
+              <ScrollArea className="h-[50vh] pr-4">
+                {renderVersionList(originalVersions)}
+              </ScrollArea>
+            </TabsContent>
+            
+            <TabsContent value="enhanced" className="mt-4">
+              <ScrollArea className="h-[50vh] pr-4">
+                {renderVersionList(enhancedVersions, true)}
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        )}
       </DialogContent>
     </Dialog>
   );
