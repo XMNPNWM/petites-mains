@@ -2043,6 +2043,16 @@ export type Database = {
           suggested_action: string
         }[]
       }
+      check_user_setup_status: {
+        Args: { user_uuid: string }
+        Returns: {
+          has_profile: boolean
+          has_subscriber: boolean
+          has_usage_tracking: boolean
+          ai_credits_limit: number
+          setup_complete: boolean
+        }[]
+      }
       conservative_deduplication: {
         Args: { p_project_id: string }
         Returns: {
