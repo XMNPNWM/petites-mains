@@ -8,9 +8,43 @@ export interface ExportChapterSelection {
   order: number;
 }
 
+export interface ChapterTitleOptions {
+  numberingStyle: 'none' | 'arabic' | 'roman' | 'words';
+  prefix: 'chapter' | 'part' | 'section' | 'custom' | 'none';
+  customPrefix: string;
+  alignment: 'left' | 'center' | 'right';
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: 'normal' | 'medium' | 'semibold' | 'bold';
+  includeUnderline: boolean;
+  includeSeparator: boolean;
+  separatorStyle: 'line' | 'ornament' | 'dots';
+}
+
+export interface ContentFormattingOptions {
+  enableDropCaps: boolean;
+  paragraphIndent: number;
+  paragraphSpacing: number;
+  textAlignment: 'left' | 'justify' | 'center';
+  preserveFormatting: boolean;
+  smartQuotes: boolean;
+  autoTypography: boolean;
+}
+
+export interface TOCOptions {
+  customTitle: string;
+  includePageNumbers: boolean;
+  pageNumberAlignment: 'left' | 'right';
+  dotLeaders: boolean;
+  tocDepth: number;
+  tocFontSize: number;
+  includeChapterNumbers: boolean;
+}
+
 export interface LayoutOptions {
   fontFamily: string;
   fontSize: number;
+  fontWeight: 'light' | 'normal' | 'medium' | 'semibold' | 'bold';
   lineHeight: number;
   margins: {
     top: number;
@@ -22,6 +56,9 @@ export interface LayoutOptions {
   includeTOC: boolean;
   includeTitlePage: boolean;
   headerFooter: boolean;
+  chapterTitleOptions: ChapterTitleOptions;
+  contentFormatting: ContentFormattingOptions;
+  tocOptions: TOCOptions;
 }
 
 interface ExportState {
@@ -49,22 +86,55 @@ interface ExportState {
   setIsAssembling: (isAssembling: boolean) => void;
 }
 
+const getDefaultLayoutOptions = (): LayoutOptions => ({
+  fontFamily: 'serif',
+  fontSize: 12,
+  fontWeight: 'normal',
+  lineHeight: 1.6,
+  margins: { top: 72, bottom: 72, left: 72, right: 72 },
+  chapterSeparator: 'page-break',
+  includeTOC: true,
+  includeTitlePage: true,
+  headerFooter: true,
+  chapterTitleOptions: {
+    numberingStyle: 'arabic',
+    prefix: 'chapter',
+    customPrefix: '',
+    alignment: 'left',
+    fontFamily: 'serif',
+    fontSize: 18,
+    fontWeight: 'bold',
+    includeUnderline: false,
+    includeSeparator: false,
+    separatorStyle: 'line'
+  },
+  contentFormatting: {
+    enableDropCaps: false,
+    paragraphIndent: 0,
+    paragraphSpacing: 1.2,
+    textAlignment: 'left',
+    preserveFormatting: true,
+    smartQuotes: true,
+    autoTypography: true
+  },
+  tocOptions: {
+    customTitle: 'Table of Contents',
+    includePageNumbers: true,
+    pageNumberAlignment: 'right',
+    dotLeaders: true,
+    tocDepth: 1,
+    tocFontSize: 12,
+    includeChapterNumbers: true
+  }
+});
+
 export const useExportStore = create<ExportState>((set, get) => ({
   selectedChapters: [],
   exportFormat: 'pdf',
   includeMetadata: true,
   templateId: 'default',
   assembledContent: '',
-  layoutOptions: {
-    fontFamily: 'serif',
-    fontSize: 12,
-    lineHeight: 1.6,
-    margins: { top: 72, bottom: 72, left: 72, right: 72 },
-    chapterSeparator: 'page-break',
-    includeTOC: true,
-    includeTitlePage: true,
-    headerFooter: true,
-  },
+  layoutOptions: getDefaultLayoutOptions(),
   isAssembling: false,
 
   toggleChapterSelection: (chapterId: string, chapter: Chapter) => {
@@ -134,16 +204,7 @@ export const useExportStore = create<ExportState>((set, get) => ({
     includeMetadata: true,
     templateId: 'default',
     assembledContent: '',
-    layoutOptions: {
-      fontFamily: 'serif',
-      fontSize: 12,
-      lineHeight: 1.6,
-      margins: { top: 72, bottom: 72, left: 72, right: 72 },
-      chapterSeparator: 'page-break',
-      includeTOC: true,
-      includeTitlePage: true,
-      headerFooter: true,
-    },
+    layoutOptions: getDefaultLayoutOptions(),
     isAssembling: false,
   }),
 

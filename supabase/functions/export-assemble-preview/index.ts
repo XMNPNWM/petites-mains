@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
@@ -5,6 +6,39 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+interface ChapterTitleOptions {
+  numberingStyle: 'none' | 'arabic' | 'roman' | 'words';
+  prefix: 'chapter' | 'part' | 'section' | 'custom' | 'none';
+  customPrefix: string;
+  alignment: 'left' | 'center' | 'right';
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: 'normal' | 'medium' | 'semibold' | 'bold';
+  includeUnderline: boolean;
+  includeSeparator: boolean;
+  separatorStyle: 'line' | 'ornament' | 'dots';
+}
+
+interface ContentFormattingOptions {
+  enableDropCaps: boolean;
+  paragraphIndent: number;
+  paragraphSpacing: number;
+  textAlignment: 'left' | 'justify' | 'center';
+  preserveFormatting: boolean;
+  smartQuotes: boolean;
+  autoTypography: boolean;
+}
+
+interface TOCOptions {
+  customTitle: string;
+  includePageNumbers: boolean;
+  pageNumberAlignment: 'left' | 'right';
+  dotLeaders: boolean;
+  tocDepth: number;
+  tocFontSize: number;
+  includeChapterNumbers: boolean;
+}
 
 interface AssembleRequest {
   projectId: string;
@@ -16,16 +50,119 @@ interface AssembleRequest {
   layoutOptions: {
     fontFamily: string;
     fontSize: number;
+    fontWeight: string;
     lineHeight: number;
     margins: { top: number; bottom: number; left: number; right: number };
     chapterSeparator: string;
     includeTOC: boolean;
     includeTitlePage: boolean;
     headerFooter: boolean;
+    chapterTitleOptions: ChapterTitleOptions;
+    contentFormatting: ContentFormattingOptions;
+    tocOptions: TOCOptions;
   };
   templateId: string;
   includeMetadata: boolean;
 }
+
+const getChapterNumber = (index: number, style: string): string => {
+  switch (style) {
+    case 'arabic':
+      return (index + 1).toString();
+    case 'roman':
+      return toRoman(index + 1);
+    case 'words':
+      return toWords(index + 1);
+    default:
+      return '';
+  }
+};
+
+const toRoman = (num: number): string => {
+  const values = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
+  const numerals = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I'];
+  let result = '';
+  
+  for (let i = 0; i < values.length; i++) {
+    while (num >= values[i]) {
+      result += numerals[i];
+      num -= values[i];
+    }
+  }
+  return result;
+};
+
+const toWords = (num: number): string => {
+  const words = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen', 'Twenty'];
+  return words[num] || num.toString();
+};
+
+const getChapterPrefix = (options: ChapterTitleOptions): string => {
+  switch (options.prefix) {
+    case 'chapter': return 'Chapter';
+    case 'part': return 'Part';
+    case 'section': return 'Section';
+    case 'custom': return options.customPrefix;
+    default: return '';
+  }
+};
+
+const applySeparatorStyle = (style: string): string => {
+  switch (style) {
+    case 'ornament':
+      return '<div style="text-align: center; font-size: 1.5em; margin: 20px 0;">❦</div>';
+    case 'dots':
+      return '<div style="text-align: center; margin: 20px 0;">• • •</div>';
+    case 'line':
+    default:
+      return '<hr style="width: 50%; margin: 20px auto; border: 1px solid #ccc;">';
+  }
+};
+
+const processContent = (content: string, options: ContentFormattingOptions): string => {
+  let processedContent = content;
+  
+  // Apply smart quotes
+  if (options.smartQuotes) {
+    processedContent = processedContent
+      .replace(/"/g, '"').replace(/"/g, '"')
+      .replace(/'/g, ''').replace(/'/g, ''');
+  }
+  
+  // Apply auto typography
+  if (options.autoTypography) {
+    processedContent = processedContent
+      .replace(/--/g, '—')
+      .replace(/\.\.\./g, '…');
+  }
+  
+  // Split into paragraphs and format
+  const paragraphs = processedContent.split('\n').filter(p => p.trim());
+  
+  return paragraphs.map((paragraph, index) => {
+    let pStyle = `margin-bottom: ${options.paragraphSpacing}em;`;
+    
+    if (options.paragraphIndent > 0 && index > 0) {
+      pStyle += ` text-indent: ${options.paragraphIndent}em;`;
+    }
+    
+    if (options.textAlignment !== 'left') {
+      pStyle += ` text-align: ${options.textAlignment};`;
+    }
+    
+    let content = paragraph.trim();
+    
+    // Apply drop caps to first paragraph
+    if (options.enableDropCaps && index === 0 && content.length > 0) {
+      const firstLetter = content.charAt(0);
+      const restOfContent = content.slice(1);
+      content = `<span style="float: left; font-size: 3em; line-height: 0.8; margin: 0.1em 0.1em 0 0; font-weight: bold;">${firstLetter}</span>${restOfContent}`;
+    }
+    
+    return `<p style="${pStyle}">${content}</p>`;
+  }).join('');
+};
 
 const getTemplate = (templateId: string) => {
   const templates = {
@@ -40,15 +177,15 @@ const getTemplate = (templateId: string) => {
       `,
       tocTemplate: `
         <div class="table-of-contents" style="margin-bottom: 40px;">
-          <h2 style="font-size: 1.8em; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px;">Table of Contents</h2>
-          <div style="line-height: 1.8;">{{TOC_ENTRIES}}</div>
+          <h2 style="font-size: {{TOC_FONT_SIZE}}pt; margin-bottom: 30px; {{TOC_TITLE_STYLE}}">{{TOC_TITLE}}</h2>
+          <div style="line-height: 1.8; font-size: {{TOC_FONT_SIZE}}pt;">{{TOC_ENTRIES}}</div>
         </div>
         <div style="page-break-after: always;"></div>
       `,
       chapterTemplate: `
         <div class="chapter" style="margin-bottom: 40px;">
-          <h1 class="chapter-title" style="font-size: 1.8em; margin-bottom: 30px; padding-bottom: 10px; border-bottom: 1px solid #ccc;">{{CHAPTER_TITLE}}</h1>
-          <div class="chapter-content" style="line-height: {{LINE_HEIGHT}};">{{CHAPTER_CONTENT}}</div>
+          {{CHAPTER_TITLE_HTML}}
+          <div class="chapter-content">{{CHAPTER_CONTENT}}</div>
         </div>
       `
     },
@@ -64,15 +201,15 @@ const getTemplate = (templateId: string) => {
       `,
       tocTemplate: `
         <div class="table-of-contents" style="margin-bottom: 40px; text-align: center;">
-          <h2 style="font-size: 2em; margin-bottom: 40px; font-weight: normal; letter-spacing: 1px;">Contents</h2>
-          <div style="line-height: 2.0; text-align: left; max-width: 400px; margin: 0 auto;">{{TOC_ENTRIES}}</div>
+          <h2 style="font-size: {{TOC_FONT_SIZE}}pt; margin-bottom: 40px; font-weight: normal; letter-spacing: 1px;">{{TOC_TITLE}}</h2>
+          <div style="line-height: 2.0; text-align: left; max-width: 400px; margin: 0 auto; font-size: {{TOC_FONT_SIZE}}pt;">{{TOC_ENTRIES}}</div>
         </div>
         <div style="page-break-after: always;"></div>
       `,
       chapterTemplate: `
         <div class="chapter" style="margin-bottom: 60px;">
-          <h1 class="chapter-title" style="font-size: 2em; margin-bottom: 40px; text-align: center; font-weight: normal; letter-spacing: 1px;">{{CHAPTER_TITLE}}</h1>
-          <div class="chapter-content" style="line-height: {{LINE_HEIGHT}}; text-align: justify; text-indent: 2em;">{{CHAPTER_CONTENT}}</div>
+          {{CHAPTER_TITLE_HTML}}
+          <div class="chapter-content">{{CHAPTER_CONTENT}}</div>
         </div>
       `
     },
@@ -91,15 +228,15 @@ const getTemplate = (templateId: string) => {
       `,
       tocTemplate: `
         <div class="table-of-contents" style="margin-bottom: 40px;">
-          <h2 style="font-size: 1.5em; margin-bottom: 30px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Table of Contents</h2>
-          <div style="line-height: 1.6;">{{TOC_ENTRIES}}</div>
+          <h2 style="font-size: {{TOC_FONT_SIZE}}pt; margin-bottom: 30px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">{{TOC_TITLE}}</h2>
+          <div style="line-height: 1.6; font-size: {{TOC_FONT_SIZE}}pt;">{{TOC_ENTRIES}}</div>
         </div>
         <div style="page-break-after: always;"></div>
       `,
       chapterTemplate: `
         <div class="chapter" style="margin-bottom: 50px;">
-          <h1 class="chapter-title" style="font-size: 1.6em; margin-bottom: 25px; font-weight: bold; color: #2c3e50;">{{CHAPTER_TITLE}}</h1>
-          <div class="chapter-content" style="line-height: {{LINE_HEIGHT}}; text-align: justify;">{{CHAPTER_CONTENT}}</div>
+          {{CHAPTER_TITLE_HTML}}
+          <div class="chapter-content">{{CHAPTER_CONTENT}}</div>
         </div>
       `
     }
@@ -190,22 +327,38 @@ const handler = async (req: Request): Promise<Response> => {
     // Assemble document
     let htmlContent = '';
     
-    // Apply document styles
+    // Apply document styles with enhanced typography
+    const fontWeightValue = {
+      'light': '300',
+      'normal': '400',
+      'medium': '500',
+      'semibold': '600',
+      'bold': '700'
+    }[layoutOptions.fontWeight] || '400';
+
     const documentStyles = `
       <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Source+Sans+Pro:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap');
+        
         body {
           font-family: ${layoutOptions.fontFamily};
           font-size: ${layoutOptions.fontSize}pt;
+          font-weight: ${fontWeightValue};
           line-height: ${layoutOptions.lineHeight};
           margin: ${layoutOptions.margins.top}pt ${layoutOptions.margins.right}pt ${layoutOptions.margins.bottom}pt ${layoutOptions.margins.left}pt;
           color: #333;
         }
+        
         .chapter-content p {
-          margin-bottom: 1em;
+          margin-bottom: ${layoutOptions.contentFormatting.paragraphSpacing}em;
+          ${layoutOptions.contentFormatting.paragraphIndent > 0 ? `text-indent: ${layoutOptions.contentFormatting.paragraphIndent}em;` : ''}
+          text-align: ${layoutOptions.contentFormatting.textAlignment};
         }
-        .chapter-content {
-          text-align: justify;
+        
+        .chapter-content p:first-child {
+          text-indent: 0;
         }
+        
         @media print {
           .page-break { page-break-after: always; }
         }
@@ -225,32 +378,87 @@ const handler = async (req: Request): Promise<Response> => {
     // Add table of contents
     if (includeMetadata && layoutOptions.includeTOC && sortedChapters.length > 1) {
       const tocEntries = sortedChapters
-        .map((chapter, index) => 
-          `<div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span>${index + 1}. ${chapter!.title || 'Untitled'}</span>
-            <span>${index + 1}</span>
-           </div>`
-        )
+        .map((chapter, index) => {
+          const chapterNumber = layoutOptions.tocOptions.includeChapterNumbers 
+            ? getChapterNumber(index, layoutOptions.chapterTitleOptions.numberingStyle)
+            : '';
+          const prefix = layoutOptions.tocOptions.includeChapterNumbers && chapterNumber
+            ? `${getChapterPrefix(layoutOptions.chapterTitleOptions)} ${chapterNumber}. `
+            : '';
+          
+          const dotLeader = layoutOptions.tocOptions.dotLeaders && layoutOptions.tocOptions.includePageNumbers
+            ? '<span style="flex: 1; border-bottom: 1px dotted #666; margin: 0 8px; height: 1em;"></span>'
+            : '<span style="flex: 1;"></span>';
+          
+          const pageNumber = layoutOptions.tocOptions.includePageNumbers ? (index + 1).toString() : '';
+          
+          return `<div style="display: flex; align-items: baseline; margin-bottom: 8px;">
+            <span>${prefix}${chapter!.title || 'Untitled'}</span>
+            ${dotLeader}
+            ${pageNumber ? `<span>${pageNumber}</span>` : ''}
+           </div>`;
+        })
         .join('');
       
-      htmlContent += template.tocTemplate.replace('{{TOC_ENTRIES}}', tocEntries);
+      htmlContent += template.tocTemplate
+        .replace('{{TOC_TITLE}}', layoutOptions.tocOptions.customTitle)
+        .replace('{{TOC_ENTRIES}}', tocEntries)
+        .replace(/{{TOC_FONT_SIZE}}/g, layoutOptions.tocOptions.tocFontSize.toString())
+        .replace('{{TOC_TITLE_STYLE}}', `text-align: center;`);
     }
 
     // Add chapters
-    for (const chapter of sortedChapters) {
+    for (const [index, chapter] of sortedChapters.entries()) {
       if (!chapter) continue;
       
-      const chapterContent = chapter.content || '';
-      const formattedContent = chapterContent
-        .split('\n')
-        .filter(p => p.trim())
-        .map(p => `<p>${p.trim()}</p>`)
-        .join('');
+      // Generate chapter title HTML
+      const chapterNumber = getChapterNumber(index, layoutOptions.chapterTitleOptions.numberingStyle);
+      const prefix = getChapterPrefix(layoutOptions.chapterTitleOptions);
+      
+      let titleText = '';
+      if (prefix && chapterNumber) {
+        titleText = `${prefix} ${chapterNumber}`;
+      } else if (prefix) {
+        titleText = prefix;
+      } else if (chapterNumber) {
+        titleText = chapterNumber;
+      }
+      
+      if (titleText && chapter.title) {
+        titleText += `: ${chapter.title}`;
+      } else if (chapter.title) {
+        titleText = chapter.title;
+      }
+
+      const titleFontWeight = {
+        'normal': '400',
+        'medium': '500',
+        'semibold': '600',
+        'bold': '700'
+      }[layoutOptions.chapterTitleOptions.fontWeight] || '700';
+
+      let chapterTitleHtml = `
+        <h1 class="chapter-title" style="
+          font-family: ${layoutOptions.chapterTitleOptions.fontFamily};
+          font-size: ${layoutOptions.chapterTitleOptions.fontSize}pt;
+          font-weight: ${titleFontWeight};
+          text-align: ${layoutOptions.chapterTitleOptions.alignment};
+          margin-bottom: 30px;
+          ${layoutOptions.chapterTitleOptions.includeUnderline ? 'border-bottom: 1px solid #ccc; padding-bottom: 10px;' : ''}
+        ">${titleText || 'Untitled'}</h1>
+      `;
+
+      // Add separator if enabled
+      if (layoutOptions.chapterTitleOptions.includeSeparator) {
+        chapterTitleHtml += applySeparatorStyle(layoutOptions.chapterTitleOptions.separatorStyle);
+      }
+      
+      // Process chapter content
+      const processedContent = processContent(chapter.content || '', layoutOptions.contentFormatting);
 
       htmlContent += template.chapterTemplate
-        .replace('{{CHAPTER_TITLE}}', chapter.title || 'Untitled')
-        .replace('{{CHAPTER_CONTENT}}', formattedContent)
-        .replace('{{LINE_HEIGHT}}', layoutOptions.lineHeight.toString());
+        .replace('{{CHAPTER_TITLE_HTML}}', chapterTitleHtml)
+        .replace('{{CHAPTER_CONTENT}}', processedContent);
 
       // Add chapter separator
       if (layoutOptions.chapterSeparator === 'page-break') {
