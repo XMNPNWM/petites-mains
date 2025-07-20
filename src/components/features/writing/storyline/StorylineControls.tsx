@@ -15,7 +15,7 @@ const StorylineControls = ({ zoom, onZoomIn, onZoomOut, onResetView }: Storyline
     <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-slate-50">
       <h3 className="font-semibold text-slate-900 text-sm">Storyline Map</h3>
       <div className="flex items-center space-x-2">
-        <span className="text-xs text-slate-500">Right-click to add nodes</span>
+        <span className="text-sm font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-md">Right-click to add nodes</span>
         <div className="w-px h-4 bg-slate-300"></div>
         <Button
           size="sm"
