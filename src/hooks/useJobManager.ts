@@ -37,17 +37,29 @@ export const useJobManager = () => {
           id,
           title,
           updated_at,
-          content,
-          content_hashes!left (
-            last_processed_at,
-            chapter_id
-          )
+          content
         `)
         .eq('project_id', projectId);
 
       if (chaptersError) {
         console.error('Error fetching chapters analysis status:', chaptersError);
       }
+
+      // Get content hashes for all chapters in this project
+      const { data: contentHashes, error: hashesError } = await supabase
+        .from('content_hashes')
+        .select('chapter_id, last_processed_at')
+        .in('chapter_id', chaptersAnalysisStatus?.map(c => c.id) || []);
+
+      if (hashesError) {
+        console.error('Error fetching content hashes:', hashesError);
+      }
+
+      // Create a map for quick lookup of content hashes by chapter_id
+      const hashesMap = new Map();
+      contentHashes?.forEach(hash => {
+        hashesMap.set(hash.chapter_id, hash.last_processed_at);
+      });
 
       // Analyze which chapters need processing
       let unanalyzedChapterCount = 0;
@@ -59,15 +71,15 @@ export const useJobManager = () => {
           }
 
           // Check if chapter has never been analyzed
-          if (!chapter.content_hashes || chapter.content_hashes.length === 0) {
+          const lastProcessed = hashesMap.get(chapter.id);
+          if (!lastProcessed) {
             unanalyzedChapterCount++;
             console.log(`Unanalyzed chapter found: ${chapter.title} - no content hash record`);
             continue;
           }
 
           // Check if chapter content is newer than last analysis
-          const lastProcessed = chapter.content_hashes[0]?.last_processed_at;
-          if (lastProcessed && chapter.updated_at) {
+          if (chapter.updated_at) {
             const chapterUpdateTime = new Date(chapter.updated_at);
             const lastProcessedTime = new Date(lastProcessed);
             
