@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -6,31 +5,25 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Sparkles, Info, AlertTriangle, Brain } from 'lucide-react';
+import { Sparkles, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EnhancementOptions } from '@/types/enhancement';
 import { CreditWarning } from '@/components/features/ai/CreditWarning';
 import { useUserCreditStatus } from '@/hooks/useUserCreditStatus';
 import { CREDIT_COSTS } from '@/utils/creditUtils';
-import { AIBrainValidationResult } from '@/utils/aiBrainValidation';
 
 interface EnhancementOptionsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (options: EnhancementOptions) => void;
   isProcessing?: boolean;
-  aiBrainValidation?: AIBrainValidationResult;
-  projectId?: string;
 }
 
 const EnhancementOptionsDialog = ({
   isOpen,
   onClose,
   onSubmit,
-  isProcessing = false,
-  aiBrainValidation,
-  projectId
+  isProcessing = false
 }: EnhancementOptionsDialogProps) => {
   const [enhancementLevel, setEnhancementLevel] = useState<'light' | 'moderate' | 'comprehensive'>('moderate');
   const [preserveAuthorVoice, setPreserveAuthorVoice] = useState(true);
@@ -48,13 +41,7 @@ const EnhancementOptionsDialog = ({
   const [enhanceCharacterVoice, setEnhanceCharacterVoice] = useState(true);
   const [addSensoryDetails, setAddSensoryDetails] = useState(true);
 
-  const canEnhance = aiBrainValidation?.isValid && 
-                    creditStatus && 
-                    creditStatus.credits_remaining >= CREDIT_COSTS.ENHANCEMENT;
-
   const handleSubmit = () => {
-    if (!canEnhance) return;
-    
     const options: EnhancementOptions = {
       enhancementLevel,
       preserveAuthorVoice,
@@ -90,47 +77,6 @@ const EnhancementOptionsDialog = ({
               Enhance Chapter Options
             </DialogTitle>
           </DialogHeader>
-
-          {/* AI Brain Data Validation Warning */}
-          {aiBrainValidation && !aiBrainValidation.isValid && (
-            <Alert className="border-amber-200 bg-amber-50">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-800">
-                <div className="space-y-2">
-                  <p className="font-medium">Enhancement requires analysis data</p>
-                  <p className="text-sm">
-                    To provide high-quality enhancements, AI needs to understand your story context. 
-                    Please analyze your content in the Creation Space first.
-                  </p>
-                  <div className="text-sm">
-                    <p className="font-medium mb-1">Missing requirements:</p>
-                    <ul className="list-disc list-inside space-y-1">
-                      {aiBrainValidation.missingRequirements.map((requirement, index) => (
-                        <li key={index} className="text-amber-700">{requirement}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* AI Brain Data Status (when valid) */}
-          {aiBrainValidation && aiBrainValidation.isValid && (
-            <Alert className="border-green-200 bg-green-50">
-              <Brain className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">AI Brain Data Ready</p>
-                    <p className="text-sm">
-                      {aiBrainValidation.totalDataPoints} analysis data points available for enhancement
-                    </p>
-                  </div>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
 
           {/* Credit Warning */}
           {!creditsLoading && creditStatus && (
@@ -303,7 +249,7 @@ const EnhancementOptionsDialog = ({
             </Button>
             <Button 
               onClick={handleSubmit} 
-              disabled={isProcessing || !canEnhance}
+              disabled={isProcessing || (creditStatus && creditStatus.credits_remaining < CREDIT_COSTS.ENHANCEMENT)}
             >
               {isProcessing ? 'Enhancing...' : 'Enhance Chapter'}
             </Button>

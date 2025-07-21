@@ -2,23 +2,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Loader2, AlertTriangle } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
 import EditableSegmentedDisplay from '../components/EditableSegmentedDisplay';
 import EnhancedRichTextToolbar from '../components/EnhancedRichTextToolbar';
 import EnhancedFindReplaceBar from '../components/EnhancedFindReplaceBar';
 import EnhancementOptionsDialog from '../dialogs/EnhancementOptionsDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EnhancementOptions } from '@/types/enhancement';
-import { useAIBrainData } from '@/hooks/useAIBrainData';
-import { validateAIBrainData } from '@/utils/aiBrainValidation';
 
 interface EnhancedEditorPanelProps {
   content: string;
   onContentChange: (content: string) => void;
   chapterTitle: string;
   chapterId?: string;
-  projectId?: string;
-  totalChapters?: number;
   onScrollSync?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
   scrollPosition?: number;
   highlightedRange?: { start: number; end: number } | null;
@@ -33,8 +29,6 @@ const EnhancedEditorPanel = ({
   onContentChange,
   chapterTitle,
   chapterId,
-  projectId,
-  totalChapters = 1,
   onScrollSync,
   scrollPosition,
   highlightedRange,
@@ -47,13 +41,6 @@ const EnhancedEditorPanel = ({
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [showEnhancementDialog, setShowEnhancementDialog] = useState(false);
 
-  // Get AI brain data for validation
-  const aiBrainData = useAIBrainData(projectId || '');
-  
-  // Validate AI brain data
-  const aiBrainValidation = validateAIBrainData(aiBrainData, totalChapters);
-  const canEnhance = aiBrainValidation.isValid && !aiBrainData.isLoading && !aiBrainData.error;
-
   // Close find/replace during transitions
   useEffect(() => {
     if (isTransitioning) {
@@ -63,40 +50,16 @@ const EnhancedEditorPanel = ({
   }, [isTransitioning]);
 
   const handleEnhanceClick = () => {
-    if (onEnhanceChapter && !isTransitioning && canEnhance) {
+    if (onEnhanceChapter && !isTransitioning) {
       setShowEnhancementDialog(true);
     }
   };
 
   const handleEnhancementSubmit = (options: EnhancementOptions) => {
     setShowEnhancementDialog(false);
-    if (onEnhanceChapter && !isTransitioning && canEnhance) {
+    if (onEnhanceChapter && !isTransitioning) {
       onEnhanceChapter(options);
     }
-  };
-
-  const getEnhanceTooltipContent = () => {
-    if (isEnhancing) {
-      return 'Enhancing chapter...';
-    }
-    
-    if (isTransitioning) {
-      return 'Switching chapters...';
-    }
-    
-    if (aiBrainData.isLoading) {
-      return 'Loading AI brain data...';
-    }
-    
-    if (aiBrainData.error) {
-      return 'Error loading AI brain data';
-    }
-    
-    if (!canEnhance) {
-      return `Enhancement requires analysis data. Missing: ${aiBrainValidation.missingRequirements.join(', ')}`;
-    }
-    
-    return hasEnhancedContent ? 'Re-enhance chapter' : 'Enhance chapter';
   };
 
   return (
@@ -114,22 +77,29 @@ const EnhancedEditorPanel = ({
                   <TooltipTrigger asChild>
                     <Button
                       onClick={handleEnhanceClick}
-                      disabled={isEnhancing || isTransitioning || !canEnhance}
+                      disabled={isEnhancing || isTransitioning}
                       variant={hasEnhancedContent ? "outline" : "default"}
                       size="sm"
                       className="w-8 h-8 p-0"
                     >
                       {isEnhancing ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : !canEnhance && !isTransitioning && !aiBrainData.isLoading ? (
-                        <AlertTriangle className="w-4 h-4 text-amber-500" />
                       ) : (
                         <Sparkles className="w-4 h-4" />
                       )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{getEnhanceTooltipContent()}</p>
+                    <p>
+                      {isEnhancing 
+                        ? 'Enhancing chapter...' 
+                        : isTransitioning
+                          ? 'Switching chapters...'
+                          : hasEnhancedContent 
+                            ? 'Re-enhance chapter' 
+                            : 'Enhance chapter'
+                      }
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               )}
@@ -196,8 +166,6 @@ const EnhancedEditorPanel = ({
           onClose={() => setShowEnhancementDialog(false)}
           onSubmit={handleEnhancementSubmit}
           isProcessing={isEnhancing}
-          aiBrainValidation={aiBrainValidation}
-          projectId={projectId}
         />
       </div>
     </TooltipProvider>

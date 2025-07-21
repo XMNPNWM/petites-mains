@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Sparkles, Download, Save, Loader2, Check } from 'lucide-react';
 import ChronologicalTimeline from '../writing/ChronologicalTimeline';
+import AnalysisStatusIndicator from '../writing/AnalysisStatusIndicator';
 import ExportDialog from '../writing/ExportDialog';
 import { useProjectData } from '@/hooks/useProjectData';
 import { Project, Chapter } from '@/types/shared';
@@ -69,6 +70,12 @@ const RefinementSpaceHeader = ({
         </div>
 
         <div className="flex items-center space-x-3">
+          {/* Analysis Status Indicator positioned between timeline and action buttons */}
+          {project && <AnalysisStatusIndicator projectId={project.id} />}
+          
+          <div className="h-6 w-px bg-slate-200" />
+
+
           {/* Save functionality */}
           {onSave && (
             <>
