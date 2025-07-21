@@ -98,6 +98,67 @@ export class AnalysisJobManager {
         .select('id, confidence_score, is_flagged')
         .eq('project_id', projectId);
 
+      // Get chapters with content for unanalyzed content detection
+      const { data: chaptersAnalysisStatus, error: chaptersError } = await supabase
+        .from('chapters')
+        .select(`
+          id,
+          title,
+          updated_at,
+          content
+        `)
+        .eq('project_id', projectId);
+
+      if (chaptersError) {
+        console.error('Error fetching chapters analysis status:', chaptersError);
+      }
+
+      // Get content hashes for all chapters in this project
+      const { data: contentHashes, error: hashesError } = await supabase
+        .from('content_hashes')
+        .select('chapter_id, last_processed_at')
+        .in('chapter_id', chaptersAnalysisStatus?.map(c => c.id) || []);
+
+      if (hashesError) {
+        console.error('Error fetching content hashes:', hashesError);
+      }
+
+      // Create a map for quick lookup of content hashes by chapter_id
+      const hashesMap = new Map();
+      contentHashes?.forEach(hash => {
+        hashesMap.set(hash.chapter_id, hash.last_processed_at);
+      });
+
+      // Analyze which chapters need processing
+      let unanalyzedChapterCount = 0;
+      if (chaptersAnalysisStatus) {
+        for (const chapter of chaptersAnalysisStatus) {
+          // Skip chapters with no content
+          if (!chapter.content || chapter.content.trim().length === 0) {
+            continue;
+          }
+
+          // Check if chapter has never been analyzed
+          const lastProcessed = hashesMap.get(chapter.id);
+          if (!lastProcessed) {
+            unanalyzedChapterCount++;
+            console.log(`Unanalyzed chapter found: ${chapter.title} - no content hash record`);
+            continue;
+          }
+
+          // Check if chapter content is newer than last analysis
+          if (chapter.updated_at) {
+            const chapterUpdateTime = new Date(chapter.updated_at);
+            const lastProcessedTime = new Date(lastProcessed);
+            
+            if (chapterUpdateTime > lastProcessedTime) {
+              unanalyzedChapterCount++;
+              console.log(`Outdated analysis for chapter: ${chapter.title} - content newer than analysis`);
+            }
+          }
+        }
+      }
+
       const errorCount = flaggedFacts?.filter(fact => fact.is_flagged).length || 0;
       const lowConfidenceFactsCount = flaggedFacts?.filter(fact => fact.confidence_score < 0.5).length || 0;
 
@@ -112,10 +173,16 @@ export class AnalysisJobManager {
         };
       }
 
+      const isProcessing = latestJob?.state === 'pending' || latestJob?.state === 'thinking' || 
+                          latestJob?.state === 'analyzing' || latestJob?.state === 'extracting';
+      const hasUnanalyzedContent = unanalyzedChapterCount > 0;
+      const hasErrors = latestJob?.state === 'failed' || errorCount > 0;
+
       return {
-        isProcessing: latestJob?.state === 'pending' || latestJob?.state === 'thinking' || 
-                     latestJob?.state === 'analyzing' || latestJob?.state === 'extracting',
-        hasErrors: latestJob?.state === 'failed' || errorCount > 0,
+        isProcessing,
+        hasErrors,
+        hasUnanalyzedContent,
+        unanalyzedChapterCount,
         lastProcessedAt: latestJob?.completed_at,
         currentJob,
         errorCount,
@@ -126,6 +193,8 @@ export class AnalysisJobManager {
       return {
         isProcessing: false,
         hasErrors: true,
+        hasUnanalyzedContent: false,
+        unanalyzedChapterCount: 0,
         errorCount: 0,
         lowConfidenceFactsCount: 0
       };
