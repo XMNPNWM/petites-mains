@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -6,32 +5,25 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Sparkles, Info, AlertTriangle } from 'lucide-react';
+import { Sparkles, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EnhancementOptions } from '@/types/enhancement';
 import { CreditWarning } from '@/components/features/ai/CreditWarning';
 import { useUserCreditStatus } from '@/hooks/useUserCreditStatus';
 import { CREDIT_COSTS } from '@/utils/creditUtils';
-import { useAIBrainData } from '@/hooks/useAIBrainData';
-import { validateAIBrainData, getDetailedValidationMessage } from '@/utils/aiBrainValidation';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface EnhancementOptionsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (options: EnhancementOptions) => void;
   isProcessing?: boolean;
-  projectId: string;
-  totalChapters?: number;
 }
 
 const EnhancementOptionsDialog = ({
   isOpen,
   onClose,
   onSubmit,
-  isProcessing = false,
-  projectId,
-  totalChapters = 1
+  isProcessing = false
 }: EnhancementOptionsDialogProps) => {
   const [enhancementLevel, setEnhancementLevel] = useState<'light' | 'moderate' | 'comprehensive'>('moderate');
   const [preserveAuthorVoice, setPreserveAuthorVoice] = useState(true);
@@ -43,12 +35,6 @@ const EnhancementOptionsDialog = ({
   
   const { creditStatus, loading: creditsLoading } = useUserCreditStatus();
   
-  // AI Brain data validation
-  const aiBrainData = useAIBrainData(projectId);
-  const validationResult = validateAIBrainData(aiBrainData, totalChapters);
-  const isAIBrainDataSufficient = validationResult.isValid;
-  const validationMessage = getDetailedValidationMessage(validationResult);
-  
   // Style sub-options
   const [improveShowVsTell, setImproveShowVsTell] = useState(true);
   const [refinePacing, setRefinePacing] = useState(true);
@@ -56,10 +42,6 @@ const EnhancementOptionsDialog = ({
   const [addSensoryDetails, setAddSensoryDetails] = useState(true);
 
   const handleSubmit = () => {
-    if (!isAIBrainDataSufficient) {
-      return; // Prevent submission if AI brain data is insufficient
-    }
-
     const options: EnhancementOptions = {
       enhancementLevel,
       preserveAuthorVoice,
@@ -85,11 +67,6 @@ const EnhancementOptionsDialog = ({
     }
   };
 
-  // Determine if submit should be disabled
-  const isSubmitDisabled = isProcessing || 
-    (creditStatus && creditStatus.credits_remaining < CREDIT_COSTS.ENHANCEMENT) ||
-    !isAIBrainDataSufficient;
-
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -100,16 +77,6 @@ const EnhancementOptionsDialog = ({
               Enhance Chapter Options
             </DialogTitle>
           </DialogHeader>
-
-          {/* AI Brain Data Validation Warning */}
-          {!aiBrainData.isLoading && !isAIBrainDataSufficient && (
-            <Alert className="border-amber-200 bg-amber-50">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-800 text-sm whitespace-pre-line">
-                {validationMessage}
-              </AlertDescription>
-            </Alert>
-          )}
 
           {/* Credit Warning */}
           {!creditsLoading && creditStatus && (
@@ -137,11 +104,7 @@ const EnhancementOptionsDialog = ({
                 </Tooltip>
               </div>
               
-              <RadioGroup 
-                value={enhancementLevel} 
-                onValueChange={(value: any) => setEnhancementLevel(value)}
-                disabled={!isAIBrainDataSufficient}
-              >
+              <RadioGroup value={enhancementLevel} onValueChange={(value: any) => setEnhancementLevel(value)}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="light" id="light" />
                   <Label htmlFor="light" className="text-sm">Light (minimal fixes)</Label>
@@ -179,7 +142,6 @@ const EnhancementOptionsDialog = ({
                     id="grammar" 
                     checked={applyGrammarFixes} 
                     onCheckedChange={(checked) => setApplyGrammarFixes(!!checked)}
-                    disabled={!isAIBrainDataSufficient}
                   />
                   <Label htmlFor="grammar" className="text-sm">Fix Grammar (e.g., subject-verb agreement, common errors)</Label>
                 </div>
@@ -189,7 +151,6 @@ const EnhancementOptionsDialog = ({
                     id="punctuation" 
                     checked={applyPunctuationFixes} 
                     onCheckedChange={(checked) => setApplyPunctuationFixes(!!checked)}
-                    disabled={!isAIBrainDataSufficient}
                   />
                   <Label htmlFor="punctuation" className="text-sm">Fix Punctuation (e.g., Oxford commas, correct quote marks)</Label>
                 </div>
@@ -199,7 +160,6 @@ const EnhancementOptionsDialog = ({
                     id="formatting" 
                     checked={applyFormattingFixes} 
                     onCheckedChange={(checked) => setApplyFormattingFixes(!!checked)}
-                    disabled={!isAIBrainDataSufficient}
                   />
                   <Label htmlFor="formatting" className="text-sm">Apply Formatting (e.g., paragraph indents, line spacing)</Label>
                 </div>
@@ -209,7 +169,6 @@ const EnhancementOptionsDialog = ({
                     id="readability" 
                     checked={improveReadability} 
                     onCheckedChange={(checked) => setImproveReadability(!!checked)}
-                    disabled={!isAIBrainDataSufficient}
                   />
                   <Label htmlFor="readability" className="text-sm">Improve Readability (e.g., simplify complex sentences, reduce jargon)</Label>
                 </div>
@@ -219,7 +178,6 @@ const EnhancementOptionsDialog = ({
                     id="style" 
                     checked={improveStyle} 
                     onCheckedChange={(checked) => setImproveStyle(!!checked)}
-                    disabled={!isAIBrainDataSufficient}
                   />
                   <Label htmlFor="style" className="text-sm">Enhance Style/Rephrasing (e.g., show vs. tell, pacing, character voice, sensory details)</Label>
                 </div>
@@ -233,7 +191,6 @@ const EnhancementOptionsDialog = ({
                       id="showTell" 
                       checked={improveShowVsTell} 
                       onCheckedChange={(checked) => setImproveShowVsTell(!!checked)}
-                      disabled={!isAIBrainDataSufficient}
                     />
                     <Label htmlFor="showTell" className="text-sm">Improve "Show, Don't Tell"</Label>
                   </div>
@@ -243,7 +200,6 @@ const EnhancementOptionsDialog = ({
                       id="pacing" 
                       checked={refinePacing} 
                       onCheckedChange={(checked) => setRefinePacing(!!checked)}
-                      disabled={!isAIBrainDataSufficient}
                     />
                     <Label htmlFor="pacing" className="text-sm">Refine Pacing</Label>
                   </div>
@@ -253,7 +209,6 @@ const EnhancementOptionsDialog = ({
                       id="characterVoice" 
                       checked={enhanceCharacterVoice} 
                       onCheckedChange={(checked) => setEnhanceCharacterVoice(!!checked)}
-                      disabled={!isAIBrainDataSufficient}
                     />
                     <Label htmlFor="characterVoice" className="text-sm">Enhance Character Voice Consistency</Label>
                   </div>
@@ -263,7 +218,6 @@ const EnhancementOptionsDialog = ({
                       id="sensoryDetails" 
                       checked={addSensoryDetails} 
                       onCheckedChange={(checked) => setAddSensoryDetails(!!checked)}
-                      disabled={!isAIBrainDataSufficient}
                     />
                     <Label htmlFor="sensoryDetails" className="text-sm">Add Sensory Details</Label>
                   </div>
@@ -280,7 +234,6 @@ const EnhancementOptionsDialog = ({
                   id="preserveVoice" 
                   checked={preserveAuthorVoice} 
                   onCheckedChange={(checked) => setPreserveAuthorVoice(!!checked)}
-                  disabled={!isAIBrainDataSufficient}
                 />
                 <Label htmlFor="preserveVoice" className="text-sm font-medium">Preserve My Author Voice (Recommended)</Label>
               </div>
@@ -296,7 +249,7 @@ const EnhancementOptionsDialog = ({
             </Button>
             <Button 
               onClick={handleSubmit} 
-              disabled={isSubmitDisabled}
+              disabled={isProcessing || (creditStatus && creditStatus.credits_remaining < CREDIT_COSTS.ENHANCEMENT)}
             >
               {isProcessing ? 'Enhancing...' : 'Enhance Chapter'}
             </Button>
