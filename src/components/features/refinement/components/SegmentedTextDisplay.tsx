@@ -1,5 +1,6 @@
 
 import React, { useRef, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 
 interface SegmentedTextDisplayProps {
   content: string;
@@ -17,6 +18,18 @@ const SegmentedTextDisplay = ({
   linesPerPage = 25 // Ignored parameter for backward compatibility
 }: SegmentedTextDisplayProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Configure DOMPurify to allow only safe HTML tags for highlighting
+  const sanitizeHTML = (html: string): string => {
+    return DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: ['mark', 'span', 'br', 'p', 'div'],
+      ALLOWED_ATTR: ['class', 'style'],
+      ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+      KEEP_CONTENT: true,
+      RETURN_DOM_FRAGMENT: false,
+      RETURN_DOM: false
+    });
+  };
 
   // Handle scroll synchronization
   useEffect(() => {
@@ -60,7 +73,7 @@ const SegmentedTextDisplay = ({
     }
   }, [scrollPosition]);
 
-  // Generate highlighted content
+  // Generate highlighted content with XSS protection
   const getHighlightedContent = () => {
     if (!highlightedRange || !content) return content;
     
@@ -69,7 +82,10 @@ const SegmentedTextDisplay = ({
     const highlighted = content.slice(start, end);
     const after = content.slice(end);
     
-    return `${before}<mark class="bg-yellow-200 dark:bg-yellow-800/40 px-1 rounded transition-all duration-300">${highlighted}</mark>${after}`;
+    const htmlContent = `${before}<mark class="bg-yellow-200 dark:bg-yellow-800/40 px-1 rounded transition-all duration-300">${highlighted}</mark>${after}`;
+    
+    // Sanitize the HTML to prevent XSS attacks
+    return sanitizeHTML(htmlContent);
   };
 
   return (
