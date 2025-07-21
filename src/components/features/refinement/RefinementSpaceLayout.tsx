@@ -1,10 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { Separator } from '@/components/ui/separator';
+import React from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import RefinementSpaceHeader from './RefinementSpaceHeader';
-import RefinementMainPanels from './components/RefinementMainPanels';
-import { EnhancementService } from '@/services/EnhancementService';
+import OriginalContentPanel from './panels/OriginalContentPanel';
+import EnhancedEditorPanel from './panels/EnhancedEditorPanel';
+import ChangesReviewPanel from './panels/ChangesReviewPanel';
 import { useRefinementSpace } from '@/hooks/useRefinementSpace';
+import { useProjectData } from '@/hooks/useProjectData';
+import { useEnhancementProcessor } from '@/hooks/useEnhancementProcessor';
 
 interface RefinementSpaceLayoutProps {
   projectId: string;
@@ -13,80 +15,86 @@ interface RefinementSpaceLayoutProps {
 }
 
 const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpaceLayoutProps) => {
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const {
     project,
     chapters,
     currentChapter,
     refinementData,
-    previousRefinementData,
+    isSaving,
+    lastSaved,
     transitionState,
     navigationState,
     handleChapterSelect,
     handleContentChange,
     handleChangeDecision,
-    handleChangeNavigation,
-    handleImportToCreation,
-    refreshData
+    handleSave,
+    clearChangeNavigation
   } = useRefinementSpace(projectId);
 
-  const handleAnalyzeChapter = useCallback(async () => {
-    if (!currentChapter) return;
-    
-    try {
-      setIsAnalyzing(true);
-      await EnhancementService.enhanceChapter(projectId, currentChapter.id, refreshData);
-      
-    } catch (error) {
-      console.error('Error analyzing chapter:', error);
-      // You could add a toast notification here for better UX
-    } finally {
-      setIsAnalyzing(false);
-    }
-  }, [projectId, currentChapter, refreshData]);
+  const { chapters: allChapters } = useProjectData(projectId);
 
-  // Set initial chapter if available
-  useEffect(() => {
-    if (chapters.length > 0 && chapterId && !currentChapter) {
-      const targetChapter = chapters.find(c => c.id === chapterId);
-      if (targetChapter) {
-        handleChapterSelect(targetChapter);
-      } else if (chapters.length > 0) {
-        handleChapterSelect(chapters[0]);
-      }
-    }
-  }, [chapters, chapterId, currentChapter, handleChapterSelect]);
+  const {
+    isEnhancing,
+    enhanceChapter,
+    hasEnhancedContent
+  } = useEnhancementProcessor(
+    currentChapter?.id || '',
+    refinementData,
+    handleContentChange
+  );
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      <RefinementSpaceHeader 
+    <div className="h-full flex flex-col">
+      <RefinementSpaceHeader
         project={project}
         currentChapter={currentChapter}
         onBackClick={onClose}
+        onSave={handleSave}
+        isSaving={isSaving}
+        lastSaved={lastSaved}
       />
-      
-      <Separator />
-      
-      <div className="flex-1 min-h-0">
+
+      <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel defaultSize={100} minSize={30}>
-            <RefinementMainPanels 
-              projectId={projectId}
-              chapterId={chapterId}
+          <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
+            <OriginalContentPanel
+              content={refinementData?.original_content || ''}
+              chapterTitle={currentChapter?.title || ''}
               chapters={chapters}
               currentChapter={currentChapter}
-              refinementData={refinementData}
-              previousRefinementData={previousRefinementData}
               onChapterSelect={handleChapterSelect}
+              isTransitioning={transitionState.isTransitioning}
+            />
+          </ResizablePanel>
+          
+          <ResizableHandle withHandle />
+          
+          <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
+            <EnhancedEditorPanel
+              content={refinementData?.enhanced_content || ''}
               onContentChange={handleContentChange}
+              chapterTitle={currentChapter?.title || ''}
+              chapterId={currentChapter?.id}
+              projectId={projectId}
+              totalChapters={allChapters.length}
+              isEnhancing={isEnhancing}
+              onEnhanceChapter={enhanceChapter}
+              hasEnhancedContent={hasEnhancedContent}
+              isTransitioning={transitionState.isTransitioning}
+            />
+          </ResizablePanel>
+          
+          <ResizableHandle withHandle />
+          
+          <ResizablePanel defaultSize={30} minSize={20} maxSize={45}>
+            <ChangesReviewPanel
+              originalContent={refinementData?.original_content || ''}
+              enhancedContent={refinementData?.enhanced_content || ''}
+              chapterId={currentChapter?.id || ''}
               onChangeDecision={handleChangeDecision}
-              onChangeClick={handleChangeNavigation}
-              onImportToCreation={handleImportToCreation}
-              isEnhancing={isAnalyzing}
-              onEnhanceChapter={handleAnalyzeChapter}
-              hasEnhancedContent={!!(refinementData?.enhanced_content && refinementData.enhanced_content.trim().length > 0)}
-              transitionState={transitionState}
-              navigationState={navigationState}
+              selectedChangeId={navigationState.selectedChangeId}
+              onChangeNavigation={clearChangeNavigation}
+              isTransitioning={transitionState.isTransitioning}
             />
           </ResizablePanel>
         </ResizablePanelGroup>
