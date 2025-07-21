@@ -2,13 +2,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, AlertTriangle } from 'lucide-react';
 import EditableSegmentedDisplay from '../components/EditableSegmentedDisplay';
 import EnhancedRichTextToolbar from '../components/EnhancedRichTextToolbar';
 import EnhancedFindReplaceBar from '../components/EnhancedFindReplaceBar';
 import EnhancementOptionsDialog from '../dialogs/EnhancementOptionsDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EnhancementOptions } from '@/types/enhancement';
+import { useAIBrainData } from '@/hooks/useAIBrainData';
 
 interface EnhancedEditorPanelProps {
   content: string;
@@ -22,6 +23,7 @@ interface EnhancedEditorPanelProps {
   onEnhanceChapter?: (options: EnhancementOptions) => void;
   hasEnhancedContent?: boolean;
   isTransitioning?: boolean;
+  projectId: string;
 }
 
 const EnhancedEditorPanel = ({
@@ -35,11 +37,29 @@ const EnhancedEditorPanel = ({
   isEnhancing = false,
   onEnhanceChapter,
   hasEnhancedContent = false,
-  isTransitioning = false
+  isTransitioning = false,
+  projectId
 }: EnhancedEditorPanelProps) => {
   const [editor, setEditor] = useState<any>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [showEnhancementDialog, setShowEnhancementDialog] = useState(false);
+
+  // Fetch AI brain data to check if enhancement should be allowed
+  const aiBrainData = useAIBrainData(projectId);
+
+  // Simple check for sufficient AI brain data
+  const hasSufficientData = () => {
+    if (aiBrainData.isLoading) return true; // Allow while loading
+    
+    const totalKnowledge = aiBrainData.knowledge.length;
+    const totalRelationships = aiBrainData.characterRelationships.length;
+    const totalPlotElements = aiBrainData.plotThreads.length + aiBrainData.timelineEvents.length;
+    
+    // Simple threshold: at least 3 knowledge entries OR 1 relationship OR 1 plot element
+    return totalKnowledge >= 3 || totalRelationships >= 1 || totalPlotElements >= 1;
+  };
+
+  const isDataSufficient = hasSufficientData();
 
   // Close find/replace during transitions
   useEffect(() => {
@@ -50,16 +70,24 @@ const EnhancedEditorPanel = ({
   }, [isTransitioning]);
 
   const handleEnhanceClick = () => {
-    if (onEnhanceChapter && !isTransitioning) {
+    if (onEnhanceChapter && !isTransitioning && isDataSufficient) {
       setShowEnhancementDialog(true);
     }
   };
 
   const handleEnhancementSubmit = (options: EnhancementOptions) => {
     setShowEnhancementDialog(false);
-    if (onEnhanceChapter && !isTransitioning) {
+    if (onEnhanceChapter && !isTransitioning && isDataSufficient) {
       onEnhanceChapter(options);
     }
+  };
+
+  const getTooltipContent = () => {
+    if (isEnhancing) return 'Enhancing chapter...';
+    if (isTransitioning) return 'Switching chapters...';
+    if (!isDataSufficient) return 'Insufficient AI brain data. Please analyze your content in the Creation Space first to enable enhancement.';
+    if (hasEnhancedContent) return 'Re-enhance chapter';
+    return 'Enhance chapter';
   };
 
   return (
@@ -77,29 +105,22 @@ const EnhancedEditorPanel = ({
                   <TooltipTrigger asChild>
                     <Button
                       onClick={handleEnhanceClick}
-                      disabled={isEnhancing || isTransitioning}
+                      disabled={isEnhancing || isTransitioning || !isDataSufficient}
                       variant={hasEnhancedContent ? "outline" : "default"}
                       size="sm"
                       className="w-8 h-8 p-0"
                     >
                       {isEnhancing ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : !isDataSufficient ? (
+                        <AlertTriangle className="w-4 h-4" />
                       ) : (
                         <Sparkles className="w-4 h-4" />
                       )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>
-                      {isEnhancing 
-                        ? 'Enhancing chapter...' 
-                        : isTransitioning
-                          ? 'Switching chapters...'
-                          : hasEnhancedContent 
-                            ? 'Re-enhance chapter' 
-                            : 'Enhance chapter'
-                      }
-                    </p>
+                    <p>{getTooltipContent()}</p>
                   </TooltipContent>
                 </Tooltip>
               )}
