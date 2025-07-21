@@ -1,4 +1,8 @@
+
 project_id = "zayyumerqynmimokwcro"
 
 [functions.enhance-chapter]
+verify_jwt = false
+
+[functions.check-admin-status]
 verify_jwt = false

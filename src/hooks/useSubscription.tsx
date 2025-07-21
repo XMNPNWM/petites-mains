@@ -23,11 +23,37 @@ export const useSubscription = () => {
   const [usageData, setUsageData] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
 
-  // Admin bypass check
-  const isAdmin = useCallback(() => {
-    return user?.email === 'xmnp306@tutanota.com';
+  // Secure admin check using backend
+  const checkAdminStatus = useCallback(async () => {
+    if (!user) {
+      setIsAdminUser(false);
+      return false;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('check-admin-status');
+      if (error) {
+        console.error('[SUBSCRIPTION] Error checking admin status:', error);
+        setIsAdminUser(false);
+        return false;
+      }
+      
+      const adminStatus = data?.isAdmin || false;
+      setIsAdminUser(adminStatus);
+      console.log('[SUBSCRIPTION] Admin status checked:', { email: user.email, isAdmin: adminStatus });
+      return adminStatus;
+    } catch (error) {
+      console.error('[SUBSCRIPTION] Failed to check admin status:', error);
+      setIsAdminUser(false);
+      return false;
+    }
   }, [user]);
+
+  const isAdmin = useCallback(() => {
+    return isAdminUser;
+  }, [isAdminUser]);
 
   const checkSubscription = useCallback(async () => {
     if (!user) return;
@@ -101,6 +127,7 @@ export const useSubscription = () => {
       setLoading(false);
       setSubscriptionData(null);
       setUsageData(null);
+      setIsAdminUser(false);
       return;
     }
 
@@ -108,7 +135,11 @@ export const useSubscription = () => {
     
     const fetchData = async () => {
       try {
-        await Promise.all([checkSubscription(), fetchUsageData()]);
+        await Promise.all([
+          checkSubscription(), 
+          fetchUsageData(),
+          checkAdminStatus()
+        ]);
       } catch (error) {
         console.error('[SUBSCRIPTION] Failed to fetch data:', error);
       } finally {
@@ -117,7 +148,7 @@ export const useSubscription = () => {
     };
 
     fetchData();
-  }, [user, authLoading, checkSubscription, fetchUsageData]);
+  }, [user, authLoading, checkSubscription, fetchUsageData, checkAdminStatus]);
 
   const canCreateProject = useCallback(() => {
     if (isAdmin()) return true;
