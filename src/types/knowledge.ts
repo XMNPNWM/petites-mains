@@ -79,10 +79,12 @@ export interface ProcessingJob {
 export interface AnalysisStatus {
   isProcessing: boolean;
   hasErrors: boolean;
-  lastProcessedAt?: string;
-  currentJob?: ProcessingJob;
   errorCount: number;
   lowConfidenceFactsCount: number;
+  lastProcessedAt?: string | null;
+  currentJob?: ProcessingJob | null;
+  hasUnanalyzedContent?: boolean;
+  unanalyzedChapterCount?: number;
 }
 
 // Add new extended knowledge categories (union type)

@@ -98,9 +98,9 @@ const WritingSpaceLayout = ({
     setIsWorldbuildingMinimized(size <= 5); // Consider minimized when 5% or less
   }, []);
 
-  // Double-click handler for storyline drag handle
+  // Double-click handler for storyline drag handle - increased max to 85%
   const handleStorylineDragHandleDoubleClick = useCallback(() => {
-    setOverlayHeight(prevHeight => prevHeight <= 10 ? 75 : 5);
+    setOverlayHeight(prevHeight => prevHeight <= 10 ? 85 : 5);
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -119,7 +119,8 @@ const WritingSpaceLayout = ({
       const windowHeight = window.innerHeight;
       const deltaY = startY - e.clientY;
       const deltaPercent = (deltaY / windowHeight) * 100;
-      const newHeight = Math.min(75, Math.max(5, startHeight + deltaPercent));
+      // Updated maximum height from 75% to 85%
+      const newHeight = Math.min(85, Math.max(5, startHeight + deltaPercent));
       setOverlayHeight(newHeight);
     };
 

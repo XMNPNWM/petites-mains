@@ -30,6 +30,55 @@ export const useJobManager = () => {
         console.error('Error fetching knowledge stats:', knowledgeError);
       }
 
+      // Check for unanalyzed content by comparing chapters with content hashes
+      const { data: chaptersAnalysisStatus, error: chaptersError } = await supabase
+        .from('chapters')
+        .select(`
+          id,
+          title,
+          updated_at,
+          content,
+          content_hashes!left (
+            last_processed_at,
+            chapter_id
+          )
+        `)
+        .eq('project_id', projectId);
+
+      if (chaptersError) {
+        console.error('Error fetching chapters analysis status:', chaptersError);
+      }
+
+      // Analyze which chapters need processing
+      let unanalyzedChapterCount = 0;
+      if (chaptersAnalysisStatus) {
+        for (const chapter of chaptersAnalysisStatus) {
+          // Skip chapters with no content
+          if (!chapter.content || chapter.content.trim().length === 0) {
+            continue;
+          }
+
+          // Check if chapter has never been analyzed
+          if (!chapter.content_hashes || chapter.content_hashes.length === 0) {
+            unanalyzedChapterCount++;
+            console.log(`Unanalyzed chapter found: ${chapter.title} - no content hash record`);
+            continue;
+          }
+
+          // Check if chapter content is newer than last analysis
+          const lastProcessed = chapter.content_hashes[0]?.last_processed_at;
+          if (lastProcessed && chapter.updated_at) {
+            const chapterUpdateTime = new Date(chapter.updated_at);
+            const lastProcessedTime = new Date(lastProcessed);
+            
+            if (chapterUpdateTime > lastProcessedTime) {
+              unanalyzedChapterCount++;
+              console.log(`Outdated analysis for chapter: ${chapter.title} - content newer than analysis`);
+            }
+          }
+        }
+      }
+
       const currentJob = jobs?.[0] ? {
         ...jobs[0],
         job_type: jobs[0].job_type as ProcessingJob['job_type'],
@@ -45,6 +94,7 @@ export const useJobManager = () => {
       const lowConfidenceFactsCount = knowledge?.filter(k => k.confidence_score < 0.7).length || 0;
       const errorCount = knowledge?.filter(k => k.is_flagged).length || 0;
       const hasErrors = errorCount > 0;
+      const hasUnanalyzedContent = unanalyzedChapterCount > 0;
 
       return {
         isProcessing,
@@ -52,6 +102,8 @@ export const useJobManager = () => {
         lowConfidenceFactsCount,
         errorCount,
         hasErrors,
+        hasUnanalyzedContent,
+        unanalyzedChapterCount,
         currentJob
       };
     } catch (error) {
@@ -62,6 +114,8 @@ export const useJobManager = () => {
         lowConfidenceFactsCount: 0,
         errorCount: 0,
         hasErrors: false,
+        hasUnanalyzedContent: false,
+        unanalyzedChapterCount: 0,
         currentJob: null
       };
     }
@@ -78,6 +132,31 @@ export const useJobManager = () => {
           schema: 'public',
           table: 'knowledge_processing_jobs',
           filter: `project_id=eq.${projectId}`
+        },
+        async () => {
+          const status = await getProjectAnalysisStatus(projectId);
+          callback(status);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chapters',
+          filter: `project_id=eq.${projectId}`
+        },
+        async () => {
+          const status = await getProjectAnalysisStatus(projectId);
+          callback(status);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'content_hashes'
         },
         async () => {
           const status = await getProjectAnalysisStatus(projectId);

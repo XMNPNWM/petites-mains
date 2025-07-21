@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, AlertCircle, Loader2, Clock, XCircle, RotateCcw } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, Clock, XCircle, RotateCcw, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AnalysisJobManager } from '@/services/AnalysisJobManager';
 import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator';
@@ -18,7 +19,9 @@ const AnalysisStatusIndicator = ({ projectId }: AnalysisStatusIndicatorProps) =>
     isProcessing: false,
     hasErrors: false,
     errorCount: 0,
-    lowConfidenceFactsCount: 0
+    lowConfidenceFactsCount: 0,
+    hasUnanalyzedContent: false,
+    unanalyzedChapterCount: 0
   });
   const [showTooltip, setShowTooltip] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -33,6 +36,8 @@ const AnalysisStatusIndicator = ({ projectId }: AnalysisStatusIndicatorProps) =>
       console.log('📊 Status updated:', {
         isProcessing: analysisStatus.isProcessing,
         hasErrors: analysisStatus.hasErrors,
+        hasUnanalyzedContent: analysisStatus.hasUnanalyzedContent,
+        unanalyzedChapterCount: analysisStatus.unanalyzedChapterCount,
         errorCount: analysisStatus.errorCount
       });
     } catch (error) {
@@ -126,6 +131,10 @@ const AnalysisStatusIndicator = ({ projectId }: AnalysisStatusIndicatorProps) =>
       return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
     }
     
+    if (status.hasUnanalyzedContent) {
+      return <AlertTriangle className="w-4 h-4 text-amber-500" />;
+    }
+    
     if (status.hasErrors || status.errorCount > 0) {
       return <AlertCircle className="w-4 h-4 text-red-500" />;
     }
@@ -172,6 +181,32 @@ const AnalysisStatusIndicator = ({ projectId }: AnalysisStatusIndicatorProps) =>
               <span>Cancel</span>
             </button>
           </div>
+        </div>
+      );
+    }
+    
+    if (status.hasUnanalyzedContent) {
+      return (
+        <div className="text-sm">
+          <p className="font-medium text-amber-900">Unanalyzed Content</p>
+          <p className="text-amber-700 mb-2">
+            {status.unanalyzedChapterCount} chapter{status.unanalyzedChapterCount !== 1 ? 's' : ''} need{status.unanalyzedChapterCount === 1 ? 's' : ''} analysis
+          </p>
+          <div className="flex space-x-1">
+            <button
+              onClick={handleRetryAnalysis}
+              disabled={isRetrying}
+              className="flex items-center space-x-1 text-xs text-amber-600 hover:text-amber-700 px-2 py-1 rounded disabled:opacity-50"
+            >
+              {isRetrying ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <RotateCcw className="w-3 h-3" />
+              )}
+              <span>Analyze</span>
+            </button>
+          </div>
+          <p className="text-xs text-amber-600 mt-1">Click to review in AI Brain</p>
         </div>
       );
     }
