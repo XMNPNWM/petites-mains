@@ -1,248 +1,123 @@
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import ChapterNavigationPanel from '../panels/ChapterNavigationPanel';
 import OriginalTextPanel from '../panels/OriginalTextPanel';
 import EnhancedEditorPanel from '../panels/EnhancedEditorPanel';
 import ChangeTrackingPanel from '../panels/ChangeTrackingPanel';
-import MetricsPanel from '../panels/MetricsPanel';
-import ImportButton from './ImportButton';
-import MetricsToggleButton from './MetricsToggleButton';
-import SimpleRightClickMenu from '@/components/features/writing/simple/SimpleRightClickMenu';
-
-interface Chapter {
-  id: string;
-  title: string;
-  content: string;
-  word_count: number;
-  order_index: number;
-  status: string;
-  project_id: string;
-}
-
-interface RefinementData {
-  id: string;
-  chapter_id: string;
-  original_content: string;
-  enhanced_content: string;
-  refinement_status: 'untouched' | 'in_progress' | 'completed' | 'updated';
-  ai_changes: any[];
-  context_summary: string;
-}
-
-interface AIChange {
-  id: string;
-  change_type: 'grammar' | 'structure' | 'dialogue' | 'style';
-  original_text: string;
-  enhanced_text: string;
-  position_start: number;
-  position_end: number;
-  user_decision: 'accepted' | 'rejected' | 'pending';
-  confidence_score: number;
-}
-
-type ChatType = 'comment' | 'chat';
+import { Chapter, RefinementData, AIChange } from '@/types/shared';
+import { TransitionState } from '@/hooks/useChapterTransition';
+import { NavigationState } from '@/services/ChangeNavigationService';
+import { EnhancementOptions } from '@/types/enhancement';
 
 interface RefinementMainPanelsProps {
   projectId: string;
   chapterId: string;
-  chapters?: Chapter[];
-  currentChapter?: Chapter | null;
-  refinementData?: RefinementData | null;
-  previousRefinementData?: RefinementData | null;
-  onChapterSelect?: (chapter: Chapter) => void;
-  onContentChange?: (content: string) => void;
-  onChangeDecision?: (changeId: string, decision: 'accepted' | 'rejected') => void;
-  onChangeClick?: (change: AIChange) => void;
-  onImportToCreation?: () => Promise<void>;
-  scrollPositions?: {
-    original: number;
-    enhanced: number;
-    changeTracking: number;
-  };
-  handleScrollSync?: (
-    panelType: 'original' | 'enhanced' | 'changeTracking',
-    scrollTop: number,
-    scrollHeight: number,
-    clientHeight: number
-  ) => void;
-  highlightedRange?: { start: number; end: number } | null;
-  onRightClickMenuClick?: (type: ChatType, position: { x: number; y: number }, selectedText?: string, lineNumber?: number) => void;
-  metricsExpanded?: boolean;
-  onMetricsToggle?: () => void;
-  isEnhancing?: boolean;
-  onEnhanceChapter?: (options: any) => void;
-  hasEnhancedContent?: boolean;
-  transitionState?: any;
-  navigationState?: any;
+  chapters: Chapter[];
+  currentChapter: Chapter | null;
+  refinementData: RefinementData | null;
+  previousRefinementData: RefinementData | null;
+  onChapterSelect: (chapter: Chapter) => void;
+  onContentChange: (content: string) => void;
+  onChangeDecision: (changeId: string, decision: 'accepted' | 'rejected') => void;
+  onChangeClick: (change: AIChange) => void;
+  onImportToCreation: () => void;
+  isEnhancing: boolean;
+  onEnhanceChapter: (options: EnhancementOptions) => void;
+  hasEnhancedContent: boolean;
+  transitionState: TransitionState;
+  navigationState: NavigationState;
 }
 
 const RefinementMainPanels = ({
   projectId,
   chapterId,
-  chapters = [],
-  currentChapter = null,
-  refinementData = null,
-  previousRefinementData = null,
-  onChapterSelect = () => {},
-  onContentChange = () => {},
-  onChangeDecision = () => {},
-  onChangeClick = () => {},
-  onImportToCreation = async () => {},
-  scrollPositions = { original: 0, enhanced: 0, changeTracking: 0 },
-  handleScrollSync = () => {},
-  highlightedRange = null,
-  onRightClickMenuClick = () => {},
-  metricsExpanded = false,
-  onMetricsToggle = () => {},
-  isEnhancing = false,
-  onEnhanceChapter = () => {},
-  hasEnhancedContent = false,
+  chapters,
+  currentChapter,
+  refinementData,
+  previousRefinementData,
+  onChapterSelect,
+  onContentChange,
+  onChangeDecision,
+  onChangeClick,
+  onImportToCreation,
+  isEnhancing,
+  onEnhanceChapter,
+  hasEnhancedContent,
   transitionState,
-  navigationState,
-  ...restProps
+  navigationState
 }: RefinementMainPanelsProps) => {
-  
-  // SIMPLIFIED: Use current refinement data only
-  const isTransitioning = transitionState?.isTransitioning || false;
-  const activeRefinementData = refinementData;
-  
-  // SIMPLIFIED: Enhanced content display logic
-  const shouldShowContent = activeRefinementData?.chapter_id === currentChapter?.id &&
-    activeRefinementData?.enhanced_content &&
-    (activeRefinementData.refinement_status === 'completed' || 
-     activeRefinementData.refinement_status === 'in_progress');
+  const [scrollPositions, setScrollPositions] = useState<{
+    original: number;
+    enhanced: number;
+  }>({ original: 0, enhanced: 0 });
 
-  const enhancedContent = shouldShowContent ? activeRefinementData.enhanced_content : '';
-  const hasValidEnhancedContent = shouldShowContent;
+  const handleOriginalScroll = useCallback((scrollTop: number, scrollHeight: number, clientHeight: number) => {
+    const scrollPercent = scrollHeight > clientHeight ? scrollTop / (scrollHeight - clientHeight) : 0;
+    setScrollPositions(prev => ({ ...prev, original: scrollPercent }));
+  }, []);
 
-  console.log('🎛️ RefinementMainPanels - SIMPLIFIED Enhanced content display logic:', {
-    currentChapterId: currentChapter?.id,
-    refinementChapterId: activeRefinementData?.chapter_id,
-    refinementStatus: activeRefinementData?.refinement_status,
-    hasEnhancedContent: !!activeRefinementData?.enhanced_content,
-    enhancedContentLength: activeRefinementData?.enhanced_content?.length || 0,
-    shouldShowContent,
-    hasValidEnhancedContent,
-    isTransitioning
-  });
+  const handleEnhancedScroll = useCallback((scrollTop: number, scrollHeight: number, clientHeight: number) => {
+    const scrollPercent = scrollHeight > clientHeight ? scrollTop / (scrollHeight - clientHeight) : 0;
+    setScrollPositions(prev => ({ ...prev, enhanced: scrollPercent }));
+  }, []);
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full">
-      {/* Panel 1: Chapter Navigation */}
-      <ResizablePanel defaultSize={12} minSize={8} maxSize={20}>
-        <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
-          <ChapterNavigationPanel
+    <div className="h-full flex flex-col">
+      <ResizablePanelGroup direction="horizontal" className="flex-1">
+        {/* Original Content Panel */}
+        <ResizablePanel defaultSize={33} minSize={25}>
+          <OriginalTextPanel
+            content={refinementData?.original_content || ''}
+            chapterTitle={currentChapter?.title || ''}
             chapters={chapters}
             currentChapter={currentChapter}
             onChapterSelect={onChapterSelect}
-            isTransitioning={isTransitioning}
+            onScrollSync={handleOriginalScroll}
+            scrollPosition={scrollPositions.enhanced}
+            highlightedRange={navigationState.highlightedRange?.original || null}
+            isTransitioning={transitionState.isTransitioning}
           />
-        </SimpleRightClickMenu>
-      </ResizablePanel>
-      
-      <ResizableHandle />
-      
-      {/* Panel 2: Original Text */}
-      <ResizablePanel defaultSize={28} minSize={20} maxSize={40}>
-        <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
-          <OriginalTextPanel
-            content={currentChapter?.content || ''}
-            chapterTitle={currentChapter?.title || ''}
-            onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
-              handleScrollSync('original', scrollTop, scrollHeight, clientHeight)
-            }
-            scrollPosition={navigationState?.originalScrollPosition || scrollPositions.original}
-            highlightedRange={navigationState?.highlightedRange}
-            hasContentConflict={
-              currentChapter?.content !== undefined && 
-              activeRefinementData?.original_content !== undefined &&
-              currentChapter.content !== activeRefinementData.original_content
-            }
-            currentChapterContent={currentChapter?.content}
-            isTransitioning={isTransitioning}
-          />
-        </SimpleRightClickMenu>
-      </ResizablePanel>
-      
-      <ResizableHandle />
-      
-      {/* Import Arrow Button */}
-      <ImportButton 
-        onImportToCreation={onImportToCreation} 
-        isDisabled={isTransitioning}
-      />
-      
-      {/* Panel 3: Enhanced Editor */}
-      <ResizablePanel defaultSize={28} minSize={20} maxSize={40}>
-        <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
+        </ResizablePanel>
+
+        <ResizableHandle />
+
+        {/* Enhanced Content Panel */}
+        <ResizablePanel defaultSize={34} minSize={25}>
           <EnhancedEditorPanel
-            content={enhancedContent}
+            content={refinementData?.enhanced_content || ''}
             onContentChange={onContentChange}
             chapterTitle={currentChapter?.title || ''}
             chapterId={currentChapter?.id}
-            onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
-              handleScrollSync('enhanced', scrollTop, scrollHeight, clientHeight)
-            }
-            scrollPosition={navigationState?.enhancedScrollPosition || scrollPositions.enhanced}
-            highlightedRange={navigationState?.highlightedRange}
+            onScrollSync={handleEnhancedScroll}
+            scrollPosition={scrollPositions.original}
+            highlightedRange={navigationState.highlightedRange?.enhanced || null}
             isEnhancing={isEnhancing}
             onEnhanceChapter={onEnhanceChapter}
-            hasEnhancedContent={hasValidEnhancedContent}
-            isTransitioning={isTransitioning}
+            hasEnhancedContent={hasEnhancedContent}
+            isTransitioning={transitionState.isTransitioning}
+            projectId={projectId}
+            totalChapters={chapters.length}
           />
-        </SimpleRightClickMenu>
-      </ResizablePanel>
-      
-      <ResizableHandle />
-      
-      {/* Panel 4: Change Tracking */}
-      <ResizablePanel defaultSize={17} minSize={12} maxSize={25}>
-        <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
+        </ResizablePanel>
+
+        <ResizableHandle />
+
+        {/* Changes Review Panel */}
+        <ResizablePanel defaultSize={33} minSize={25}>
           <ChangeTrackingPanel
-            refinementId={activeRefinementData?.id || ''}
+            refinementData={refinementData}
+            previousRefinementData={previousRefinementData}
             onChangeDecision={onChangeDecision}
             onChangeClick={onChangeClick}
-            scrollPosition={scrollPositions.changeTracking}
-            onScrollSync={(scrollTop, scrollHeight, clientHeight) => 
-              handleScrollSync('changeTracking', scrollTop, scrollHeight, clientHeight)
-            }
-            chapterId={chapterId}
-            chapterTitle={currentChapter?.title || ''}
-            isTransitioning={isTransitioning}
-            selectedChangeId={navigationState?.selectedChangeId}
+            onImportToCreation={onImportToCreation}
+            isEnhancing={isEnhancing}
+            hasEnhancedContent={hasEnhancedContent}
+            selectedChangeId={navigationState.selectedChangeId}
+            isTransitioning={transitionState.isTransitioning}
           />
-        </SimpleRightClickMenu>
-      </ResizablePanel>
-      
-      <ResizableHandle />
-      
-      {/* Metrics Panel Toggle Button */}
-      {!metricsExpanded && (
-        <MetricsToggleButton onToggle={onMetricsToggle} />
-      )}
-      
-      {/* Panel 5: Metrics (Collapsible) */}
-      {metricsExpanded && (
-        <>
-          <ResizableHandle />
-          <ResizablePanel 
-            defaultSize={15} 
-            minSize={12} 
-            maxSize={25}
-          >
-            <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
-              <MetricsPanel
-                refinementId={activeRefinementData?.id || ''}
-                isExpanded={metricsExpanded}
-                onToggleExpanded={onMetricsToggle}
-                content={enhancedContent}
-              />
-            </SimpleRightClickMenu>
-          </ResizablePanel>
-        </>
-      )}
-    </ResizablePanelGroup>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
   );
 };
 
