@@ -13,6 +13,7 @@ import DistributionAnalysis from '../analytics/DistributionAnalysis';
 import EnhancedInsights from '../analytics/EnhancedInsights';
 import VelocityInsights from '../analytics/VelocityInsights';
 import { useEnhancedProjectAnalytics } from '@/hooks/useEnhancedProjectAnalytics';
+import AIBrainBreakdownChart from '../analytics/AIBrainBreakdownChart';
 
 interface Chapter {
   id: string;
@@ -52,7 +53,7 @@ const ProjectDashboardPanels = ({
     updated_at: chapter.updated_at || new Date().toISOString()
   }));
 
-  const analytics = useEnhancedProjectAnalytics(chaptersWithTimestamps, totalWorldElements, worldElementsByType);
+  const analytics = useEnhancedProjectAnalytics(chaptersWithTimestamps, totalWorldElements, worldElementsByType, projectId);
 
   const renderStorylinePanel = () => (
     <div className="h-full">
@@ -134,8 +135,11 @@ const ProjectDashboardPanels = ({
           <WritingTrendsChart data={analytics.velocityData} />
         </div>
 
-        {/* Content Analysis */}
-        <ContentBreakdownChart data={analytics.contentBreakdown} />
+        {/* Content Analysis and AI Brain Analysis Side by Side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ContentBreakdownChart data={analytics.contentBreakdown} />
+          <AIBrainBreakdownChart data={analytics.aiBrainBreakdown} />
+        </div>
 
         {/* Enhanced Pattern Analysis */}
         <WritingPatternsChart analytics={analytics.enhanced} />

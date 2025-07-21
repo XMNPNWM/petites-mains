@@ -1,11 +1,14 @@
+
 import { useMemo } from 'react';
 import { 
   calculateWritingVelocity, 
   generateHeatmapData, 
   calculateContentBreakdown, 
-  analyzeWritingPatterns 
+  analyzeWritingPatterns,
+  calculateAIBrainBreakdown
 } from '@/lib/analyticsUtils';
 import { calculateEnhancedAnalytics, EnhancedAnalyticsData } from '@/lib/enhancedAnalyticsUtils';
+import { useAIBrainData } from './useAIBrainData';
 
 interface Chapter {
   id: string;
@@ -24,8 +27,12 @@ interface WorldbuildingElementsByType {
 export const useEnhancedProjectAnalytics = (
   chapters: Chapter[], 
   totalWorldElements: number, 
-  worldElementsByType: WorldbuildingElementsByType
+  worldElementsByType: WorldbuildingElementsByType,
+  projectId?: string
 ) => {
+  // Fetch AI brain data if projectId is provided
+  const aiBrainData = useAIBrainData(projectId || '');
+
   const analytics = useMemo(() => {
     // Keep existing analytics for compatibility
     const velocityData = calculateWritingVelocity(chapters, 30);
@@ -36,6 +43,21 @@ export const useEnhancedProjectAnalytics = (
     // Add enhanced analytics
     const enhancedAnalytics = calculateEnhancedAnalytics(chapters, totalWorldElements, worldElementsByType);
 
+    // Calculate AI brain breakdown only if we have projectId and AI brain data
+    let aiBrainBreakdown = [];
+    if (projectId && !aiBrainData.isLoading && !aiBrainData.error) {
+      aiBrainBreakdown = calculateAIBrainBreakdown(
+        aiBrainData.knowledge,
+        aiBrainData.chapterSummaries,
+        aiBrainData.plotPoints,
+        aiBrainData.plotThreads,
+        aiBrainData.timelineEvents,
+        aiBrainData.characterRelationships,
+        aiBrainData.worldBuilding,
+        aiBrainData.themes
+      );
+    }
+
     return {
       // Existing analytics (preserved for compatibility)
       velocityData,
@@ -44,9 +66,12 @@ export const useEnhancedProjectAnalytics = (
       writingPatterns,
       
       // Enhanced analytics
-      enhanced: enhancedAnalytics
+      enhanced: enhancedAnalytics,
+      
+      // AI brain breakdown
+      aiBrainBreakdown
     };
-  }, [chapters, totalWorldElements, worldElementsByType]);
+  }, [chapters, totalWorldElements, worldElementsByType, projectId, aiBrainData]);
 
   return analytics;
 };

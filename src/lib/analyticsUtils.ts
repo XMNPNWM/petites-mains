@@ -35,6 +35,12 @@ export interface ContentBreakdown {
   color: string;
 }
 
+export interface AIBrainBreakdown {
+  name: string;
+  value: number;
+  color: string;
+}
+
 export const calculateWritingVelocity = (chapters: Chapter[], days: number = 30): WritingVelocityData[] => {
   const endDate = new Date();
   const startDate = subDays(endDate, days - 1);
@@ -143,6 +149,106 @@ export const calculateContentBreakdown = (chapters: Chapter[], worldElementsByTy
       });
     }
   });
+
+  return result;
+};
+
+export const calculateAIBrainBreakdown = (
+  knowledge: any[],
+  chapterSummaries: any[],
+  plotPoints: any[],
+  plotThreads: any[],
+  timelineEvents: any[],
+  characterRelationships: any[],
+  worldBuilding: any[],
+  themes: any[]
+): AIBrainBreakdown[] => {
+  const result: AIBrainBreakdown[] = [];
+
+  // Define colors for AI brain categories (matching tab functionality)
+  const categoryColors = {
+    'Characters': '#3B82F6',      // Blue
+    'Relations': '#EF4444',       // Red
+    'Plot Points': '#10B981',     // Green
+    'Threads': '#8B5CF6',         // Purple
+    'Timeline': '#F59E0B',        // Orange
+    'World': '#06B6D4',           // Cyan
+    'Summaries': '#6366F1',       // Indigo
+    'Themes': '#EC4899'           // Pink
+  };
+
+  // Count characters (from knowledge where category = 'character')
+  const charactersCount = knowledge.filter(item => item.category === 'character').length;
+  if (charactersCount > 0) {
+    result.push({
+      name: 'Characters',
+      value: charactersCount,
+      color: categoryColors['Characters']
+    });
+  }
+
+  // Count character relationships
+  if (characterRelationships.length > 0) {
+    result.push({
+      name: 'Relations',
+      value: characterRelationships.length,
+      color: categoryColors['Relations']
+    });
+  }
+
+  // Count plot points
+  if (plotPoints.length > 0) {
+    result.push({
+      name: 'Plot Points',
+      value: plotPoints.length,
+      color: categoryColors['Plot Points']
+    });
+  }
+
+  // Count plot threads
+  if (plotThreads.length > 0) {
+    result.push({
+      name: 'Threads',
+      value: plotThreads.length,
+      color: categoryColors['Threads']
+    });
+  }
+
+  // Count timeline events
+  if (timelineEvents.length > 0) {
+    result.push({
+      name: 'Timeline',
+      value: timelineEvents.length,
+      color: categoryColors['Timeline']
+    });
+  }
+
+  // Count world building elements
+  if (worldBuilding.length > 0) {
+    result.push({
+      name: 'World',
+      value: worldBuilding.length,
+      color: categoryColors['World']
+    });
+  }
+
+  // Count chapter summaries
+  if (chapterSummaries.length > 0) {
+    result.push({
+      name: 'Summaries',
+      value: chapterSummaries.length,
+      color: categoryColors['Summaries']
+    });
+  }
+
+  // Count themes
+  if (themes.length > 0) {
+    result.push({
+      name: 'Themes',
+      value: themes.length,
+      color: categoryColors['Themes']
+    });
+  }
 
   return result;
 };
