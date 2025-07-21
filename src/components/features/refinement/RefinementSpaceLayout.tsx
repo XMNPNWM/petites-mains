@@ -1,12 +1,11 @@
 import React from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import RefinementSpaceHeader from './RefinementSpaceHeader';
-import OriginalContentPanel from './panels/OriginalContentPanel';
+import OriginalTextPanel from './panels/OriginalTextPanel';
 import EnhancedEditorPanel from './panels/EnhancedEditorPanel';
-import ChangesReviewPanel from './panels/ChangesReviewPanel';
+import ChangeTrackingPanel from './panels/ChangeTrackingPanel';
 import { useRefinementSpace } from '@/hooks/useRefinementSpace';
 import { useProjectData } from '@/hooks/useProjectData';
-import { useEnhancementProcessor } from '@/hooks/useEnhancementProcessor';
 
 interface RefinementSpaceLayoutProps {
   projectId: string;
@@ -33,15 +32,6 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
 
   const { chapters: allChapters } = useProjectData(projectId);
 
-  const {
-    isEnhancing,
-    enhanceChapter,
-    hasEnhancedContent
-  } = useEnhancementProcessor(
-    currentChapter?.id || '',
-    refinementData,
-    handleContentChange
-  );
 
   return (
     <div className="h-full flex flex-col">
@@ -57,12 +47,9 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="h-full">
           <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
-            <OriginalContentPanel
+            <OriginalTextPanel
               content={refinementData?.original_content || ''}
               chapterTitle={currentChapter?.title || ''}
-              chapters={chapters}
-              currentChapter={currentChapter}
-              onChapterSelect={handleChapterSelect}
               isTransitioning={transitionState.isTransitioning}
             />
           </ResizablePanel>
@@ -77,9 +64,6 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
               chapterId={currentChapter?.id}
               projectId={projectId}
               totalChapters={allChapters.length}
-              isEnhancing={isEnhancing}
-              onEnhanceChapter={enhanceChapter}
-              hasEnhancedContent={hasEnhancedContent}
               isTransitioning={transitionState.isTransitioning}
             />
           </ResizablePanel>
@@ -87,13 +71,12 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
           <ResizableHandle withHandle />
           
           <ResizablePanel defaultSize={30} minSize={20} maxSize={45}>
-            <ChangesReviewPanel
-              originalContent={refinementData?.original_content || ''}
-              enhancedContent={refinementData?.enhanced_content || ''}
+            <ChangeTrackingPanel
+              refinementId={refinementData?.id || ''}
               chapterId={currentChapter?.id || ''}
+              chapterTitle={currentChapter?.title || ''}
               onChangeDecision={handleChangeDecision}
               selectedChangeId={navigationState.selectedChangeId}
-              onChangeNavigation={clearChangeNavigation}
               isTransitioning={transitionState.isTransitioning}
             />
           </ResizablePanel>
