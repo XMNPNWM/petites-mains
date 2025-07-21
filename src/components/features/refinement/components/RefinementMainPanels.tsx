@@ -190,6 +190,7 @@ const RefinementMainPanels = ({
             onEnhanceChapter={onEnhanceChapter}
             hasEnhancedContent={hasValidEnhancedContent}
             isTransitioning={isTransitioning}
+            projectId={projectId}
           />
         </SimpleRightClickMenu>
       </ResizablePanel>
