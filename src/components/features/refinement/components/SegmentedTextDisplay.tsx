@@ -18,8 +18,9 @@ const SegmentedTextDisplay = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [isScrolling, setIsScrolling] = useState(false);
-  const [lastNavigatedRange, setLastNavigatedRange] = useState<string | null>(null);
+  const [lastNavigatedRangeId, setLastNavigatedRangeId] = useState<string | null>(null);
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const navigationCooldownRef = useRef<NodeJS.Timeout | null>(null);
 
   // Escape HTML to prevent XSS attacks
   const escapeHtml = (unsafe: string): string => {
@@ -74,32 +75,48 @@ const SegmentedTextDisplay = ({
     return 0;
   };
 
-  // Smooth scroll to character position with highlighting and navigation tracking
-  const scrollToCharacterPosition = (charPosition: number, rangeKey: string) => {
+  // Improved scroll to character position with better loop prevention
+  const scrollToCharacterPosition = (charPosition: number, rangeId: string) => {
     const container = containerRef.current;
-    if (!container || lastNavigatedRange === rangeKey) return;
+    if (!container) return;
 
-    // Clear any existing navigation timeout
+    // Prevent duplicate navigation attempts
+    if (lastNavigatedRangeId === rangeId) {
+      console.log('🔄 SegmentedTextDisplay: Skipping duplicate navigation to range:', rangeId);
+      return;
+    }
+
+    console.log('🧭 SegmentedTextDisplay: Navigating to character position:', charPosition, 'rangeId:', rangeId);
+
+    // Clear any existing timeouts
     if (navigationTimeoutRef.current) {
       clearTimeout(navigationTimeoutRef.current);
+    }
+    if (navigationCooldownRef.current) {
+      clearTimeout(navigationCooldownRef.current);
     }
 
     const targetScrollPosition = getScrollPositionFromCharacter(charPosition);
     
-    // Set navigation state
+    // Set navigation state immediately to prevent re-entry
     setIsScrolling(true);
-    setLastNavigatedRange(rangeKey);
+    setLastNavigatedRangeId(rangeId);
     
     container.scrollTo({
       top: targetScrollPosition - 100, // Offset for better visibility
       behavior: 'smooth'
     });
 
-    // Reset navigation state after completion
+    // Reset scrolling flag after animation completes
     navigationTimeoutRef.current = setTimeout(() => {
       setIsScrolling(false);
-      // Keep lastNavigatedRange for a bit longer to prevent immediate re-navigation
-      setTimeout(() => setLastNavigatedRange(null), 1000);
+      console.log('🧭 SegmentedTextDisplay: Navigation completed for range:', rangeId);
+      
+      // Keep the range ID for longer to prevent immediate re-navigation
+      navigationCooldownRef.current = setTimeout(() => {
+        setLastNavigatedRangeId(null);
+        console.log('🧭 SegmentedTextDisplay: Navigation cooldown ended for range:', rangeId);
+      }, 2000); // Longer cooldown to prevent loops
     }, 600);
   };
 
@@ -147,15 +164,18 @@ const SegmentedTextDisplay = ({
     }
   }, [scrollPosition, isScrolling]);
 
-  // Handle highlighted range navigation with improved logic
+  // Handle highlighted range navigation with improved loop prevention
   useEffect(() => {
     if (highlightedRange && !isScrolling) {
-      const rangeKey = `${highlightedRange.start}-${highlightedRange.end}`;
-      if (lastNavigatedRange !== rangeKey) {
-        scrollToCharacterPosition(highlightedRange.start, rangeKey);
+      const rangeId = `${highlightedRange.start}-${highlightedRange.end}`;
+      console.log('🧭 SegmentedTextDisplay: Highlighted range changed:', rangeId, 'lastNavigated:', lastNavigatedRangeId);
+      
+      // Only navigate if this is a different range than the last one we navigated to
+      if (lastNavigatedRangeId !== rangeId) {
+        scrollToCharacterPosition(highlightedRange.start, rangeId);
       }
     }
-  }, [highlightedRange, isScrolling, lastNavigatedRange]);
+  }, [highlightedRange, isScrolling, lastNavigatedRangeId]);
 
   // Generate highlighted content with XSS protection
   const getHighlightedContent = () => {
@@ -169,11 +189,14 @@ const SegmentedTextDisplay = ({
     return `${before}<mark class="bg-yellow-200 dark:bg-yellow-800/40 px-1 rounded transition-all duration-300 animate-pulse">${highlighted}</mark>${after}`;
   };
 
-  // Cleanup navigation timeout on unmount
+  // Cleanup navigation timeouts on unmount
   useEffect(() => {
     return () => {
       if (navigationTimeoutRef.current) {
         clearTimeout(navigationTimeoutRef.current);
+      }
+      if (navigationCooldownRef.current) {
+        clearTimeout(navigationCooldownRef.current);
       }
     };
   }, []);
