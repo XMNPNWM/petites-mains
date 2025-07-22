@@ -65,6 +65,10 @@ export class EnhancementService {
         hasExistingEnhancedContent: !!refinementData.enhanced_content
       });
 
+      // ENHANCED: Clear ALL old change tracking data before starting new enhancement
+      console.log('🧹 Clearing all old change tracking data for refinement:', refinementData.id);
+      await EnhancementService.clearChangeTrackingData(refinementData.id);
+
       // NEW: Create backup of existing enhanced content before overwriting
       if (refinementData.enhanced_content && refinementData.enhanced_content.trim().length > 0) {
         console.log('💾 Creating backup of existing enhanced content before re-enhancement');
@@ -173,7 +177,7 @@ export class EnhancementService {
           
           // Process and save individual changes to the ai_change_tracking table
           if (enhancementResult.changes && Array.isArray(enhancementResult.changes)) {
-            console.log('💾 Saving change tracking data, count:', enhancementResult.changes.length);
+            console.log('💾 Saving NEW change tracking data, count:', enhancementResult.changes.length);
             await EnhancementService.saveChangeTrackingData(refinementData.id, enhancementResult.changes);
           }
         } else {
@@ -220,6 +224,74 @@ export class EnhancementService {
     } catch (error) {
       console.error('❌ EnhancementService error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * ENHANCED: Clear all change tracking data for a refinement
+   */
+  static async clearChangeTrackingData(refinementId: string): Promise<void> {
+    try {
+      console.log('🧹 Clearing change tracking data for refinement:', refinementId);
+      
+      // First, verify the refinement exists
+      const { data: refinementCheck, error: checkError } = await supabase
+        .from('chapter_refinements')
+        .select('id, chapter_id')
+        .eq('id', refinementId)
+        .single();
+
+      if (checkError || !refinementCheck) {
+        console.warn('⚠️ Refinement not found for change tracking cleanup:', refinementId);
+        return;
+      }
+
+      console.log('✅ Refinement verified for cleanup:', {
+        refinementId: refinementCheck.id,
+        chapterId: refinementCheck.chapter_id
+      });
+
+      // Delete ALL existing changes for this refinement
+      const { data: deletedChanges, error: deleteError } = await supabase
+        .from('ai_change_tracking')
+        .delete()
+        .eq('refinement_id', refinementId)
+        .select('id');
+
+      if (deleteError) {
+        console.error('❌ Error clearing change tracking data:', deleteError);
+        throw deleteError;
+      }
+
+      const deletedCount = deletedChanges?.length || 0;
+      console.log('✅ Successfully cleared change tracking data:', {
+        refinementId,
+        deletedCount
+      });
+
+      // Verify cleanup was successful
+      const { data: remainingChanges, error: verifyError } = await supabase
+        .from('ai_change_tracking')
+        .select('id')
+        .eq('refinement_id', refinementId);
+
+      if (verifyError) {
+        console.warn('⚠️ Error verifying change tracking cleanup:', verifyError);
+      } else {
+        const remainingCount = remainingChanges?.length || 0;
+        if (remainingCount > 0) {
+          console.warn('⚠️ Some change tracking data may not have been cleared:', {
+            refinementId,
+            remainingCount
+          });
+        } else {
+          console.log('✅ Change tracking cleanup verified successful');
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Error in clearChangeTrackingData:', error);
+      // Don't throw error here as it's not critical for the main functionality
     }
   }
 
@@ -294,13 +366,24 @@ export class EnhancementService {
 
   static async saveChangeTrackingData(refinementId: string, changes: any[]): Promise<void> {
     try {
-      console.log('💾 Saving change tracking data for refinement:', refinementId);
+      console.log('💾 Saving NEW change tracking data for refinement:', refinementId);
       
-      // First, clear existing changes for this refinement
-      await supabase
+      // ENHANCED: Verify the cleanup was successful before inserting new data
+      const { data: existingChanges, error: checkError } = await supabase
         .from('ai_change_tracking')
-        .delete()
+        .select('id')
         .eq('refinement_id', refinementId);
+
+      if (checkError) {
+        console.warn('⚠️ Error checking existing changes:', checkError);
+      } else if (existingChanges && existingChanges.length > 0) {
+        console.warn('⚠️ Found existing changes that should have been cleared:', {
+          refinementId,
+          existingCount: existingChanges.length
+        });
+        // Force clear them again
+        await EnhancementService.clearChangeTrackingData(refinementId);
+      }
       
       // Insert new changes
       const changeRecords = changes.map(change => ({
@@ -320,11 +403,11 @@ export class EnhancementService {
           .insert(changeRecords);
         
         if (error) {
-          console.error('❌ Error saving change tracking data:', error);
+          console.error('❌ Error saving NEW change tracking data:', error);
           throw error;
         }
         
-        console.log('✅ Successfully saved', changeRecords.length, 'change tracking records');
+        console.log('✅ Successfully saved', changeRecords.length, 'NEW change tracking records');
       }
     } catch (error) {
       console.error('❌ Error in saveChangeTrackingData:', error);
