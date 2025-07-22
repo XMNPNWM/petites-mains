@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 
 interface SegmentedTextDisplayProps {
@@ -18,9 +19,8 @@ const SegmentedTextDisplay = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [isScrolling, setIsScrolling] = useState(false);
-  const [lastNavigatedRangeId, setLastNavigatedRangeId] = useState<string | null>(null);
+  const [lastNavigatedRange, setLastNavigatedRange] = useState<string | null>(null);
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const navigationCooldownRef = useRef<NodeJS.Timeout | null>(null);
 
   // Escape HTML to prevent XSS attacks
   const escapeHtml = (unsafe: string): string => {
@@ -75,32 +75,23 @@ const SegmentedTextDisplay = ({
     return 0;
   };
 
-  // Improved scroll to character position with better loop prevention
+  // Fixed scroll to character position with proper loop prevention
   const scrollToCharacterPosition = (charPosition: number, rangeId: string) => {
     const container = containerRef.current;
-    if (!container) return;
-
-    // Prevent duplicate navigation attempts
-    if (lastNavigatedRangeId === rangeId) {
-      console.log('🔄 SegmentedTextDisplay: Skipping duplicate navigation to range:', rangeId);
-      return;
-    }
+    if (!container || isScrolling) return;
 
     console.log('🧭 SegmentedTextDisplay: Navigating to character position:', charPosition, 'rangeId:', rangeId);
 
-    // Clear any existing timeouts
+    // Clear any existing timeout
     if (navigationTimeoutRef.current) {
       clearTimeout(navigationTimeoutRef.current);
-    }
-    if (navigationCooldownRef.current) {
-      clearTimeout(navigationCooldownRef.current);
     }
 
     const targetScrollPosition = getScrollPositionFromCharacter(charPosition);
     
-    // Set navigation state immediately to prevent re-entry
+    // Set navigation state to prevent re-entry
     setIsScrolling(true);
-    setLastNavigatedRangeId(rangeId);
+    setLastNavigatedRange(rangeId);
     
     container.scrollTo({
       top: targetScrollPosition - 100, // Offset for better visibility
@@ -111,12 +102,6 @@ const SegmentedTextDisplay = ({
     navigationTimeoutRef.current = setTimeout(() => {
       setIsScrolling(false);
       console.log('🧭 SegmentedTextDisplay: Navigation completed for range:', rangeId);
-      
-      // Keep the range ID for longer to prevent immediate re-navigation
-      navigationCooldownRef.current = setTimeout(() => {
-        setLastNavigatedRangeId(null);
-        console.log('🧭 SegmentedTextDisplay: Navigation cooldown ended for range:', rangeId);
-      }, 2000); // Longer cooldown to prevent loops
     }, 600);
   };
 
@@ -164,20 +149,18 @@ const SegmentedTextDisplay = ({
     }
   }, [scrollPosition, isScrolling]);
 
-  // Handle highlighted range navigation with improved loop prevention  
+  // FIXED: Handle highlighted range navigation with proper comparison and no automatic reset
   useEffect(() => {
-    if (highlightedRange && !isScrolling) {
-      const rangeId = `${highlightedRange.start}-${highlightedRange.end}`;
-      console.log('🧭 SegmentedTextDisplay: Highlighted range changed:', rangeId, 'lastNavigated:', lastNavigatedRangeId);
-      
-      // Only navigate if this is a different range AND we're not in cooldown
-      if (lastNavigatedRangeId !== rangeId) {
-        scrollToCharacterPosition(highlightedRange.start, rangeId);
-      } else {
-        console.log('🧭 SegmentedTextDisplay: Skipping - same range as last navigation');
-      }
+    if (!highlightedRange || isScrolling) return;
+    
+    const rangeId = `${highlightedRange.start}-${highlightedRange.end}`;
+    
+    // Only navigate if this is actually a different range
+    if (lastNavigatedRange !== rangeId) {
+      console.log('🧭 SegmentedTextDisplay: New highlighted range detected:', rangeId);
+      scrollToCharacterPosition(highlightedRange.start, rangeId);
     }
-  }, [highlightedRange?.start, highlightedRange?.end, isScrolling, lastNavigatedRangeId]); // More specific dependencies
+  }, [highlightedRange?.start, highlightedRange?.end]); // Only depend on the actual range values
 
   // Generate highlighted content with XSS protection
   const getHighlightedContent = () => {
@@ -191,14 +174,11 @@ const SegmentedTextDisplay = ({
     return `${before}<mark class="bg-yellow-200 dark:bg-yellow-800/40 px-1 rounded transition-all duration-300 animate-pulse">${highlighted}</mark>${after}`;
   };
 
-  // Cleanup navigation timeouts on unmount
+  // Cleanup navigation timeout on unmount
   useEffect(() => {
     return () => {
       if (navigationTimeoutRef.current) {
         clearTimeout(navigationTimeoutRef.current);
-      }
-      if (navigationCooldownRef.current) {
-        clearTimeout(navigationCooldownRef.current);
       }
     };
   }, []);

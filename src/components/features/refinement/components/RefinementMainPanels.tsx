@@ -4,7 +4,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import OriginalTextPanel from '../panels/OriginalTextPanel';
 import EnhancedEditorPanel from '../panels/EnhancedEditorPanel';
 import ChangeTrackingPanel from '../panels/ChangeTrackingPanel';
-import ChapterNavigationPanel from '../panels/ChapterNavigationPanel';
+import ImportButton from './ImportButton';
 import { Chapter, RefinementData, AIChange, ChapterTransitionState, NavigationState } from '@/types/shared';
 import { EnhancementOptions } from '@/types/enhancement';
 import { ContentVersioningService } from '@/services/ContentVersioningService';
@@ -163,7 +163,13 @@ const RefinementMainPanels = ({
             />
           </ResizablePanel>
 
-          <ResizableHandle withHandle />
+          {/* Import Button in Resizable Handle */}
+          <ResizableHandle withHandle>
+            <ImportButton 
+              onImportToCreation={onImportToCreation}
+              isDisabled={!hasEnhancedContent || isTransitioning || isEnhancing}
+            />
+          </ResizableHandle>
 
           {/* Enhanced Content Panel */}
           <ResizablePanel defaultSize={45} minSize={30}>
