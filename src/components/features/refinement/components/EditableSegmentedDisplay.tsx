@@ -315,12 +315,14 @@ const EditableSegmentedDisplay = ({
       const rangeId = `${highlightedRange.start}-${highlightedRange.end}`;
       console.log('🧭 EditableSegmentedDisplay: Highlighted range changed:', rangeId, 'lastNavigated:', lastNavigatedRangeId);
       
-      // Only navigate if this is a different range than the last one we navigated to
+      // Only navigate if this is a different range AND we're not in cooldown
       if (lastNavigatedRangeId !== rangeId) {
         highlightTextRange(highlightedRange.start, highlightedRange.end, rangeId);
+      } else {
+        console.log('🧭 EditableSegmentedDisplay: Skipping - same range as last navigation');
       }
     }
-  }, [highlightedRange, highlightTextRange, isNavigating, isTransitioning, lastNavigatedRangeId]);
+  }, [highlightedRange?.start, highlightedRange?.end, isNavigating, isTransitioning, lastNavigatedRangeId]); // More specific dependencies
 
   // Handle scroll position navigation with improved logic
   useEffect(() => {
@@ -328,12 +330,14 @@ const EditableSegmentedDisplay = ({
       const positionId = `scroll-${scrollPosition}`;
       console.log('🧭 EditableSegmentedDisplay: Scroll position changed:', scrollPosition, 'positionId:', positionId, 'lastNavigated:', lastNavigatedRangeId);
       
-      // Only navigate if this is a different position than the last one we navigated to
+      // Only navigate if this is a different position AND we're not in cooldown
       if (lastNavigatedRangeId !== positionId) {
         navigateToCharacterPosition(scrollPosition, positionId);
+      } else {
+        console.log('🧭 EditableSegmentedDisplay: Skipping - same position as last navigation');
       }
     }
-  }, [scrollPosition, navigateToCharacterPosition, isNavigating, isTransitioning, lastNavigatedRangeId]);
+  }, [scrollPosition, isNavigating, isTransitioning, lastNavigatedRangeId]); // More specific dependencies
 
   // Cleanup navigation timeouts on unmount
   useEffect(() => {

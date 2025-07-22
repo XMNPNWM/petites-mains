@@ -146,16 +146,6 @@ const RefinementMainPanels = ({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Chapter Navigation */}
-      <div className="border-b border-slate-200 bg-white">
-        <ChapterNavigationPanel
-          chapters={chapters}
-          currentChapter={currentChapter}
-          onChapterSelect={onChapterSelect}
-          isTransitioning={isTransitioning}
-        />
-      </div>
-
       {/* Main Content Panels */}
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup direction="horizontal" className="h-full">

@@ -164,18 +164,20 @@ const SegmentedTextDisplay = ({
     }
   }, [scrollPosition, isScrolling]);
 
-  // Handle highlighted range navigation with improved loop prevention
+  // Handle highlighted range navigation with improved loop prevention  
   useEffect(() => {
     if (highlightedRange && !isScrolling) {
       const rangeId = `${highlightedRange.start}-${highlightedRange.end}`;
       console.log('🧭 SegmentedTextDisplay: Highlighted range changed:', rangeId, 'lastNavigated:', lastNavigatedRangeId);
       
-      // Only navigate if this is a different range than the last one we navigated to
+      // Only navigate if this is a different range AND we're not in cooldown
       if (lastNavigatedRangeId !== rangeId) {
         scrollToCharacterPosition(highlightedRange.start, rangeId);
+      } else {
+        console.log('🧭 SegmentedTextDisplay: Skipping - same range as last navigation');
       }
     }
-  }, [highlightedRange, isScrolling, lastNavigatedRangeId]);
+  }, [highlightedRange?.start, highlightedRange?.end, isScrolling, lastNavigatedRangeId]); // More specific dependencies
 
   // Generate highlighted content with XSS protection
   const getHighlightedContent = () => {

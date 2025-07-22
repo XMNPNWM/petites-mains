@@ -69,7 +69,36 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
       
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel defaultSize={100} minSize={30}>
+          {/* Chapter Navigation Panel - Left Sidebar */}
+          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+            <div className="h-full bg-slate-50 border-r border-slate-200">
+              <div className="p-4">
+                <h3 className="text-sm font-medium text-slate-700 mb-3">Chapters</h3>
+                <div className="space-y-1">
+                  {chapters.map((chapter, index) => (
+                    <button
+                      key={chapter.id}
+                      onClick={() => handleChapterSelect(chapter)}
+                      disabled={transitionState.isTransitioning}
+                      className={`w-full text-left p-2 rounded text-sm transition-colors ${
+                        currentChapter?.id === chapter.id
+                          ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                          : 'hover:bg-slate-100 text-slate-600'
+                      } ${transitionState.isTransitioning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <div className="font-medium">Chapter {index + 1}</div>
+                      <div className="text-xs opacity-75 truncate">{chapter.title}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
+
+          {/* Main Content Panels */}
+          <ResizablePanel defaultSize={80} minSize={70}>
             <RefinementMainPanels 
               projectId={projectId}
               chapterId={chapterId}
