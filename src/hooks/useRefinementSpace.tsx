@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,9 +18,6 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   const [isLoadingRefinementData, setIsLoadingRefinementData] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  
-  // NEW: Enhancement lock to prevent content conflicts
-  const [isEnhancing, setIsEnhancing] = useState(false);
 
   // New navigation state management
   const [navigationState, setNavigationState] = useState<NavigationState>(
@@ -152,9 +148,9 @@ export const useRefinementSpace = (projectId: string | undefined) => {
       return;
     }
 
-    // FIXED: Prevent rapid chapter switches during transition or enhancement
-    if (transitionState.isTransitioning || isEnhancing) {
-      console.log('⏸️ Skipping chapter select - transition or enhancement in progress');
+    // FIXED: Prevent rapid chapter switches during transition
+    if (transitionState.isTransitioning) {
+      console.log('⏸️ Skipping chapter select - transition in progress');
       return;
     }
     
@@ -176,10 +172,10 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     
     // Navigate to the new chapter URL to sync URL with selected chapter
     navigate(`/project/${projectId}/refine/${chapter.id}`);
-  }, [projectId, navigate, currentChapter, transitionState.isTransitioning, isEnhancing, startTransition, refinementData]);
+  }, [projectId, navigate, currentChapter, transitionState.isTransitioning, startTransition, refinementData]);
 
   const handleContentChange = useCallback(async (content: string) => {
-    if (!refinementData || !currentChapter || isEnhancing) return;
+    if (!refinementData || !currentChapter) return;
     
     // CRITICAL VALIDATION: Ensure we're updating the correct chapter's content
     if (refinementData.chapter_id !== currentChapter.id) {
@@ -192,12 +188,6 @@ export const useRefinementSpace = (projectId: string | undefined) => {
         description: "Chapter synchronization error. Please refresh the page.",
         variant: "destructive"
       });
-      return;
-    }
-
-    // PREVENT AUTO-SAVES DURING ENHANCEMENT
-    if (isEnhancing) {
-      console.log('⏸️ Skipping content change - enhancement in progress');
       return;
     }
     
@@ -227,7 +217,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
         variant: "destructive"
       });
     }
-  }, [refinementData, currentChapter, isEnhancing, toast]);
+  }, [refinementData, currentChapter, toast]);
 
   const handleChangeDecision = useCallback(async (changeId: string, decision: 'accepted' | 'rejected') => {
     if (!refinementData) return;
@@ -279,7 +269,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   }, [toast, refinementData, handleContentChange]);
 
   const handleSave = useCallback(async (isAutoSave = false) => {
-    if (!refinementData || !currentChapter || isSaving || isEnhancing) return;
+    if (!refinementData || !currentChapter || isSaving) return;
     
     // CRITICAL VALIDATION: Ensure we're saving the correct chapter's content
     if (refinementData.chapter_id !== currentChapter.id) {
@@ -316,7 +306,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     } finally {
       setIsSaving(false);
     }
-  }, [refinementData, currentChapter, isSaving, isEnhancing, toast]);
+  }, [refinementData, currentChapter, isSaving, toast]);
 
   const handleBackClick = useCallback(() => {
     navigate(`/project/${projectId}/write`);
@@ -367,25 +357,10 @@ export const useRefinementSpace = (projectId: string | undefined) => {
 
   const refreshData = useCallback(() => {
     console.log('🔄 useRefinementSpace - Refreshing data');
-    if (currentChapter && !isEnhancing) {
-      fetchRefinementData(currentChapter.id);
-    }
-  }, [fetchRefinementData, currentChapter, isEnhancing]);
-
-  // NEW: Enhancement state management
-  const startEnhancement = useCallback(() => {
-    console.log('🔒 Starting enhancement - locking content updates');
-    setIsEnhancing(true);
-  }, []);
-
-  const completeEnhancement = useCallback(() => {
-    console.log('🔓 Enhancement complete - unlocking content updates');
-    setIsEnhancing(false);
-    // Refresh data after enhancement
     if (currentChapter) {
       fetchRefinementData(currentChapter.id);
     }
-  }, [currentChapter, fetchRefinementData]);
+  }, [fetchRefinementData, currentChapter]);
 
   // Clear previous refinement data when transition completes
   useEffect(() => {
@@ -411,18 +386,18 @@ export const useRefinementSpace = (projectId: string | undefined) => {
 
   // Fetch refinement data when current chapter changes - SIMPLIFIED
   useEffect(() => {
-    if (currentChapter && !isEnhancing) {
+    if (currentChapter) {
       console.log('📋 useRefinementSpace - Current chapter changed, fetching refinement data for:', currentChapter.title, currentChapter.id);
       fetchRefinementData(currentChapter.id);
     }
-  }, [currentChapter?.id, fetchRefinementData, isEnhancing]);
+  }, [currentChapter?.id, fetchRefinementData]);
 
   // SIMPLIFIED: Handle URL chapter ID synchronization without causing loops
   useEffect(() => {
     const urlChapterId = window.location.pathname.split('/').pop();
     if (urlChapterId && chapters.length > 0 && currentChapter) {
       const targetChapter = chapters.find(c => c.id === urlChapterId);
-      if (targetChapter && currentChapter.id !== urlChapterId && !transitionState.isTransitioning && !isEnhancing) {
+      if (targetChapter && currentChapter.id !== urlChapterId && !transitionState.isTransitioning) {
         console.log('🔗 useRefinementSpace - URL mismatch, setting current chapter from URL:', targetChapter.title, urlChapterId);
         handleChapterSelect(targetChapter);
       }
@@ -439,11 +414,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     isSaving,
     lastSaved,
     transitionState,
-    // Enhancement state (NEW)
-    isEnhancing,
-    startEnhancement,
-    completeEnhancement,
-    // Navigation state and handlers
+    // Navigation state and handlers (NEW)
     navigationState,
     handleChangeNavigation,
     clearChangeNavigation,

@@ -73,15 +73,20 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
             <RefinementMainPanels 
               projectId={projectId}
               chapterId={chapterId}
+              chapters={chapters}
+              currentChapter={currentChapter}
               refinementData={refinementData}
+              previousRefinementData={previousRefinementData}
+              onChapterSelect={handleChapterSelect}
               onContentChange={handleContentChange}
               onChangeDecision={handleChangeDecision}
+              onChangeClick={handleChangeNavigation}
               onImportToCreation={handleImportToCreation}
-              onRefreshData={refreshData}
-              onChangeNavigation={handleChangeNavigation}
               isEnhancing={isAnalyzing}
-              startEnhancement={() => {}}
-              completeEnhancement={() => setIsAnalyzing(false)}
+              onEnhanceChapter={handleAnalyzeChapter}
+              hasEnhancedContent={!!(refinementData?.enhanced_content && refinementData.enhanced_content.trim().length > 0)}
+              transitionState={transitionState}
+              navigationState={navigationState}
             />
           </ResizablePanel>
         </ResizablePanelGroup>

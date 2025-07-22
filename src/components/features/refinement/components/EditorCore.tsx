@@ -14,7 +14,6 @@ interface EditorCoreProps {
   chapterKey?: string;
   isTransitioning?: boolean;
   highlightedRange?: { start: number; end: number } | null;
-  isEnhancing?: boolean; // NEW: Enhancement lock
 }
 
 const EditorCore = ({ 
@@ -25,8 +24,7 @@ const EditorCore = ({
   readOnly = false,
   chapterKey,
   isTransitioning = false,
-  highlightedRange,
-  isEnhancing = false // NEW: Enhancement lock
+  highlightedRange
 }: EditorCoreProps) => {
   const [isUpdatingFromProp, setIsUpdatingFromProp] = useState(false);
   const [editorReady, setEditorReady] = useState(false);
@@ -39,20 +37,18 @@ const EditorCore = ({
   // Cursor position preservation
   const cursorPositionRef = useRef<{ from: number; to: number } | null>(null);
 
-  // Content update debounce - prevent updates during enhancement
+  // Reduced debounce for better responsiveness and cursor preservation
   const debouncedContentChange = useCallback((content: string) => {
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
     }
     
     updateTimeoutRef.current = setTimeout(() => {
-      if (!isDestroyingRef.current && !isTransitioning && !isEnhancing) {
+      if (!isDestroyingRef.current && !isTransitioning) {
         onContentChange(content);
-      } else if (isEnhancing) {
-        console.log('⏸️ EditorCore: Skipping content change - enhancement in progress');
       }
-    }, 50);
-  }, [onContentChange, isTransitioning, isEnhancing]);
+    }, 50); // Reduced from 100ms to 50ms
+  }, [onContentChange, isTransitioning]);
 
   // Stable editor options for export use case
   const editorDependencies = chapterKey === 'export-preview' ? [] : [chapterKey];
@@ -64,18 +60,14 @@ const EditorCore = ({
         heading: {
           levels: [1, 2, 3, 4, 5, 6],
         },
-        history: {
-          depth: 100,
-          newGroupDelay: 500,
-        },
       }),
       SearchReplaceExtension,
       PageBreakExtension,
     ],
     content: content || '',
-    editable: !readOnly && !isEnhancing, // Disable editing during enhancement
+    editable: !readOnly,
     onUpdate: ({ editor }) => {
-      if (!editor.isDestroyed && !isUpdatingFromProp && editorReady && !isEnhancing) {
+      if (!editor.isDestroyed && !isUpdatingFromProp && editorReady) {
         try {
           // Store cursor position before content change
           const selection = editor.state.selection;
@@ -87,8 +79,6 @@ const EditorCore = ({
         } catch (error) {
           console.warn('EditorCore: Failed to process content update:', error);
         }
-      } else if (isEnhancing) {
-        console.log('⏸️ EditorCore: Skipping update - enhancement in progress');
       }
     },
     onCreate: ({ editor }) => {
@@ -144,7 +134,7 @@ const EditorCore = ({
     },
   }, editorDependencies);
 
-  // Content synchronization with better stability and enhancement protection
+  // Content synchronization with better stability
   useEffect(() => {
     if (!editor || editor.isDestroyed || isDestroyingRef.current || !editorReady) return;
     
@@ -159,41 +149,32 @@ const EditorCore = ({
       incomingLength: incomingContent.length,
       currentEditorLength: editor.getHTML().length,
       isTransitioning,
-      editorReady,
-      isEnhancing
+      editorReady
     });
     
     setIsUpdatingFromProp(true);
     
     try {
-      // CLEAR UNDO HISTORY when loading new enhanced content to prevent conflicts
-      if (isEnhancing || incomingContent !== lastContentRef.current) {
-        console.log('🧹 EditorCore: Clearing undo history for new content');
-        editor.commands.clearContent();
-        editor.commands.setContent(incomingContent, false);
-        // Note: TipTap doesn't have clearHistory command
-      } else {
-        // Store current cursor position before content update
-        const currentSelection = editor.state.selection;
-        const preservedCursor = { from: currentSelection.from, to: currentSelection.to };
-        
-        // Use transaction to preserve cursor position
-        editor.chain()
-          .setContent(incomingContent, false)
-          .focus()
-          .setTextSelection(preservedCursor.from)
-          .run();
-      }
+      // Store current cursor position before content update
+      const currentSelection = editor.state.selection;
+      const preservedCursor = { from: currentSelection.from, to: currentSelection.to };
+      
+      // Use transaction to preserve cursor position
+      editor.chain()
+        .setContent(incomingContent, false)
+        .focus()
+        .setTextSelection(preservedCursor.from)
+        .run();
       
       lastContentRef.current = incomingContent;
-      console.log('EditorCore: Content updated successfully');
+      console.log('EditorCore: Content updated successfully with cursor preservation');
       
       setTimeout(() => {
         if (!isDestroyingRef.current) {
           setIsUpdatingFromProp(false);
           
-          // Restore cursor position if it was stored during typing (but not during enhancement)
-          if (cursorPositionRef.current && editor && !editor.isDestroyed && !isEnhancing) {
+          // Restore cursor position if it was stored during typing
+          if (cursorPositionRef.current && editor && !editor.isDestroyed) {
             try {
               const maxPos = editor.state.doc.content.size;
               const safeFrom = Math.min(cursorPositionRef.current.from, maxPos);
@@ -206,25 +187,23 @@ const EditorCore = ({
             }
           }
         }
-      }, 50);
+      }, 50); // Reduced timeout for better responsiveness
     } catch (error) {
       console.error('EditorCore: Failed to update content:', error);
       setIsUpdatingFromProp(false);
     }
-  }, [content, editor, chapterKey, isTransitioning, editorReady, isEnhancing]);
+  }, [content, editor, chapterKey, isTransitioning, editorReady]);
 
-  // Update read-only state safely - also consider enhancement state
+  // Update read-only state safely
   useEffect(() => {
     if (editor && !editor.isDestroyed && !isDestroyingRef.current && editorReady) {
       try {
-        const shouldBeEditable = !readOnly && !isEnhancing;
-        editor.setEditable(shouldBeEditable);
-        console.log('EditorCore: Editable state updated:', shouldBeEditable);
+        editor.setEditable(!readOnly);
       } catch (e) {
         console.warn('Failed to update editor editable state:', e);
       }
     }
-  }, [editor, readOnly, editorReady, isEnhancing]);
+  }, [editor, readOnly, editorReady]);
 
   // Enhanced cleanup on unmount
   useEffect(() => {
@@ -255,14 +234,12 @@ const EditorCore = ({
     };
   }, [editor, chapterKey]);
 
-  // Show loading state during transitions, enhancement, or while editor is initializing
-  if (isTransitioning || !editorReady || isEnhancing) {
+  // Show loading state during transitions or while editor is initializing
+  if (isTransitioning || !editorReady) {
     return (
       <div className="h-full flex items-center justify-center bg-slate-50">
         <div className="text-slate-500 text-sm">
-          {isEnhancing ? 'Processing enhancement...' : 
-           isTransitioning ? 'Switching chapters...' : 
-           'Loading editor...'}
+          {isTransitioning ? 'Switching chapters...' : 'Loading editor...'}
         </div>
       </div>
     );
