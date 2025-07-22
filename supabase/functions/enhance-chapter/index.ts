@@ -955,6 +955,82 @@ function calculateShowVsTellRatio(content: string): number {
 }
 
 /**
+ * Validate and fix paragraph structure preservation
+ */
+function validateAndFixParagraphStructure(originalContent: string, enhancedContent: string): string {
+  // Count paragraphs in original content
+  const originalParagraphs = originalContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+  const enhancedParagraphs = enhancedContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+  
+  console.log('📊 Paragraph structure validation:', {
+    originalParagraphs: originalParagraphs.length,
+    enhancedParagraphs: enhancedParagraphs.length,
+    structurePreserved: originalParagraphs.length === enhancedParagraphs.length
+  });
+  
+  // If paragraph count doesn't match, attempt to fix
+  if (originalParagraphs.length !== enhancedParagraphs.length) {
+    console.warn('⚠️ Paragraph structure mismatch detected - attempting to fix...');
+    
+    // If enhanced content is one big paragraph, try to restore breaks
+    if (enhancedParagraphs.length === 1 && originalParagraphs.length > 1) {
+      console.log('🔧 Restoring paragraph breaks from original structure...');
+      
+      // Use the original paragraph breaks as a guide
+      let fixedContent = enhancedContent;
+      
+      // Find natural break points in the enhanced content that align with original breaks
+      for (let i = 1; i < originalParagraphs.length; i++) {
+        const originalBreakContext = originalParagraphs[i-1].slice(-20) + originalParagraphs[i].slice(0, 20);
+        const cleanContext = originalBreakContext.replace(/[^\w\s]/g, '').toLowerCase();
+        
+        // Look for similar context in enhanced content
+        const enhancedLower = fixedContent.toLowerCase();
+        const contextIndex = enhancedLower.indexOf(cleanContext.slice(10, -10));
+        
+        if (contextIndex > 0) {
+          // Insert paragraph break at this position
+          const beforeBreak = fixedContent.slice(0, contextIndex);
+          const afterBreak = fixedContent.slice(contextIndex);
+          fixedContent = beforeBreak.trim() + '\n\n' + afterBreak.trim();
+        }
+      }
+      
+      const revalidatedParagraphs = fixedContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+      console.log('✅ Paragraph structure fixed:', {
+        fixedParagraphs: revalidatedParagraphs.length,
+        targetParagraphs: originalParagraphs.length
+      });
+      
+      return fixedContent;
+    }
+    
+    // If we still have issues, fall back to a more aggressive fix
+    if (originalParagraphs.length > enhancedParagraphs.length) {
+      console.log('🚨 Fallback: Using original paragraph structure as template...');
+      
+      // Split enhanced content into roughly equal parts matching original paragraph count
+      const words = enhancedContent.split(/\s+/);
+      const wordsPerParagraph = Math.ceil(words.length / originalParagraphs.length);
+      
+      const reconstructedParagraphs: string[] = [];
+      for (let i = 0; i < originalParagraphs.length; i++) {
+        const start = i * wordsPerParagraph;
+        const end = Math.min((i + 1) * wordsPerParagraph, words.length);
+        const paragraphWords = words.slice(start, end);
+        if (paragraphWords.length > 0) {
+          reconstructedParagraphs.push(paragraphWords.join(' '));
+        }
+      }
+      
+      return reconstructedParagraphs.join('\n\n');
+    }
+  }
+  
+  return enhancedContent;
+}
+
+/**
  * Determine the type of change based on content analysis
  */
 function determineChangeType(original: string, enhanced: string): string {
@@ -1102,13 +1178,17 @@ function buildEnhancementPrompt(
 
   // CRITICAL OUTPUT FORMATTING REQUIREMENTS
   const outputRequirements = [
-    "🚨 CRITICAL OUTPUT FORMATTING:",
-    "- PRESERVE paragraph structure EXACTLY - maintain ALL paragraph breaks",
-    "- Use ONLY simple double line breaks (\\n\\n) between paragraphs",
+    "🚨 CRITICAL OUTPUT FORMATTING - ABSOLUTELY MANDATORY:",
+    "- PRESERVE paragraph structure EXACTLY - maintain ALL paragraph breaks from original",
+    "- Each paragraph in original MUST remain a separate paragraph in enhanced version",
+    "- Use ONLY simple double line breaks (\\n\\n) between paragraphs - NO HTML tags",
+    "- NEVER merge multiple original paragraphs into one enhanced paragraph",
     "- NEVER add 'Page Break', 'Page BreakPage Break', or any formatting markers",
     "- NEVER add artificial separators, dividers, or section breaks",
     "- Return ONLY the enhanced text with no explanations or comments",
-    "- Maintain the exact number of paragraphs as the original"
+    "- Count: Original has X paragraphs, enhanced MUST have X paragraphs",
+    "- VALIDATE: If original starts with paragraph A, enhanced must start with enhanced version of paragraph A",
+    "- VALIDATE: Each original paragraph break position must be preserved in enhanced version"
   ];
 
   return `# PROFESSIONAL NOVEL ENHANCEMENT SYSTEM
@@ -1254,11 +1334,14 @@ serve(async (req) => {
     }
 
     // Clean any unwanted formatting markers
-    const cleanedContent = enhancedContent
+    let cleanedContent = enhancedContent
       .replace(/Page Break/gi, '')
       .replace(/\[Page Break\]/gi, '')
       .replace(/---+/g, '')
       .trim();
+
+    // CRITICAL: Validate and fix paragraph structure preservation
+    cleanedContent = validateAndFixParagraphStructure(contentToEnhance, cleanedContent);
 
     const improvedMetrics = calculateQualityMetrics(cleanedContent);
     

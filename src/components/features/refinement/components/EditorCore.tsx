@@ -34,7 +34,10 @@ const EditorCore = ({
   const editorInstanceRef = useRef<any>(null);
   const readyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Debounced content change handler
+  // Cursor position preservation
+  const cursorPositionRef = useRef<{ from: number; to: number } | null>(null);
+
+  // Reduced debounce for better responsiveness and cursor preservation
   const debouncedContentChange = useCallback((content: string) => {
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
@@ -44,7 +47,7 @@ const EditorCore = ({
       if (!isDestroyingRef.current && !isTransitioning) {
         onContentChange(content);
       }
-    }, 100);
+    }, 50); // Reduced from 100ms to 50ms
   }, [onContentChange, isTransitioning]);
 
   // Stable editor options for export use case
@@ -66,6 +69,10 @@ const EditorCore = ({
     onUpdate: ({ editor }) => {
       if (!editor.isDestroyed && !isUpdatingFromProp && editorReady) {
         try {
+          // Store cursor position before content change
+          const selection = editor.state.selection;
+          cursorPositionRef.current = { from: selection.from, to: selection.to };
+          
           const htmlContent = editor.getHTML();
           const cleanContent = htmlContent.replace(/<div[^>]*data-type="page-break"[^>]*>.*?<\/div>/g, '');
           debouncedContentChange(cleanContent);
@@ -148,15 +155,39 @@ const EditorCore = ({
     setIsUpdatingFromProp(true);
     
     try {
-      editor.commands.setContent(incomingContent, false);
+      // Store current cursor position before content update
+      const currentSelection = editor.state.selection;
+      const preservedCursor = { from: currentSelection.from, to: currentSelection.to };
+      
+      // Use transaction to preserve cursor position
+      editor.chain()
+        .setContent(incomingContent, false)
+        .focus()
+        .setTextSelection(preservedCursor.from)
+        .run();
+      
       lastContentRef.current = incomingContent;
-      console.log('EditorCore: Content updated successfully');
+      console.log('EditorCore: Content updated successfully with cursor preservation');
       
       setTimeout(() => {
         if (!isDestroyingRef.current) {
           setIsUpdatingFromProp(false);
+          
+          // Restore cursor position if it was stored during typing
+          if (cursorPositionRef.current && editor && !editor.isDestroyed) {
+            try {
+              const maxPos = editor.state.doc.content.size;
+              const safeFrom = Math.min(cursorPositionRef.current.from, maxPos);
+              const safeTo = Math.min(cursorPositionRef.current.to, maxPos);
+              
+              editor.commands.setTextSelection({ from: safeFrom, to: safeTo });
+              cursorPositionRef.current = null; // Clear after use
+            } catch (e) {
+              console.warn('Failed to restore cursor position:', e);
+            }
+          }
         }
-      }, 100);
+      }, 50); // Reduced timeout for better responsiveness
     } catch (error) {
       console.error('EditorCore: Failed to update content:', error);
       setIsUpdatingFromProp(false);
