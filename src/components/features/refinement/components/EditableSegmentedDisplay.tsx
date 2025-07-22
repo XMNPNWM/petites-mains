@@ -6,6 +6,8 @@ import ScrollSyncHandler from './ScrollSyncHandler';
 import ContentProcessor from './ContentProcessor';
 import EditorStylesProvider from './EditorStylesProvider';
 import ErrorBoundary from './ErrorBoundary';
+import { useNavigationState } from '@/hooks/useNavigationState';
+import { DOMNavigationUtils } from '@/utils/DOMNavigationUtils';
 
 interface EditableSegmentedDisplayProps {
   content: string;
@@ -38,90 +40,89 @@ const EditableSegmentedDisplay = ({
 }: EditableSegmentedDisplayProps) => {
   const [editor, setEditor] = useState<any>(null);
   const [isEditorReady, setIsEditorReady] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false);
   const editorContainerRef = useRef<HTMLDivElement>(null);
-  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const {
+    navigationState,
+    startNavigation,
+    endNavigation,
+    cleanup
+  } = useNavigationState();
 
-  // Simplified character position to scroll calculation using DOM traversal
-  const scrollToCharacterPosition = useCallback((charPosition: number) => {
+  // Improved character position navigation with proper DOM handling
+  const navigateToCharacterPosition = useCallback((charPosition: number, type: 'auto' | 'manual' | 'click') => {
     const container = editorContainerRef.current;
-    if (!container || isNavigating) return;
-
-    console.log('🧭 EditableSegmentedDisplay: Navigating to character position:', charPosition);
-
-    setIsNavigating(true);
-
-    // Clear any existing timeout
-    if (navigationTimeoutRef.current) {
-      clearTimeout(navigationTimeoutRef.current);
+    if (!container || !isEditorReady || isTransitioning) {
+      console.log('🧭 Navigation skipped - container not ready:', {
+        hasContainer: !!container,
+        isEditorReady,
+        isTransitioning
+      });
+      return;
     }
+
+    // Validate character position
+    const textContent = container.textContent || '';
+    if (!DOMNavigationUtils.validateCharacterPosition(textContent, charPosition)) {
+      console.warn('🧭 Invalid character position:', charPosition, 'text length:', textContent.length);
+      return;
+    }
+
+    // Start navigation with lock
+    if (!startNavigation(type)) {
+      return; // Navigation already in progress
+    }
+
+    console.log('🧭 EditableSegmentedDisplay: Navigating to character:', charPosition, 'type:', type);
 
     try {
       // Find the ProseMirror editor element
-      const proseMirrorElement = container.querySelector('.ProseMirror');
+      const proseMirrorElement = container.querySelector('.ProseMirror') as HTMLElement;
       if (!proseMirrorElement) {
         console.warn('ProseMirror element not found');
-        setIsNavigating(false);
+        endNavigation();
         return;
       }
 
-      // Get text content and calculate rough scroll position
-      const textContent = proseMirrorElement.textContent || '';
-      const totalLength = textContent.length;
-      
-      if (totalLength === 0 || charPosition >= totalLength) {
-        console.warn('Invalid character position or empty content');
-        setIsNavigating(false);
-        return;
-      }
-
-      // Calculate scroll position as a percentage of content height
-      const scrollPercentage = charPosition / totalLength;
-      const maxScrollTop = proseMirrorElement.scrollHeight - container.clientHeight;
-      const targetScrollTop = Math.max(0, scrollPercentage * maxScrollTop);
-
-      console.log('🧭 EditableSegmentedDisplay: Calculated scroll position:', {
+      // Use precise DOM navigation
+      const success = DOMNavigationUtils.scrollToCharacterPosition(
+        proseMirrorElement,
         charPosition,
-        totalLength,
-        scrollPercentage,
-        targetScrollTop
-      });
+        'smooth'
+      );
 
-      // Scroll to the calculated position
-      container.scrollTo({
-        top: targetScrollTop,
-        behavior: 'smooth'
-      });
+      if (!success) {
+        console.warn('🧭 DOM navigation failed');
+        endNavigation();
+        return;
+      }
 
-      // Try TipTap selection if editor is available
-      if (editor && !editor.isDestroyed) {
+      // Only set TipTap cursor for manual/click navigation, not auto-navigation
+      if (type !== 'auto' && editor && !editor.isDestroyed) {
         try {
-          // Simple approach: try to set cursor position
           const doc = editor.state.doc;
           const maxPos = doc.content.size;
-          const safePos = Math.min(charPosition + 1, maxPos); // +1 for TipTap positioning
+          const safePos = Math.min(charPosition + 1, maxPos);
           
+          // Set cursor without focusing to avoid disrupting user
           editor.chain()
-            .setTextSelection({ from: safePos, to: safePos })
-            .focus()
+            .setTextSelection(safePos)
             .run();
             
-          console.log('🧭 EditableSegmentedDisplay: TipTap selection set to position:', safePos);
+          console.log('🧭 TipTap cursor set for manual navigation:', safePos);
         } catch (e) {
-          console.warn('TipTap selection failed:', e);
+          console.warn('TipTap cursor setting failed:', e);
         }
       }
 
+      console.log('🧭 Navigation completed successfully');
+
     } catch (error) {
       console.error('Navigation failed:', error);
+    } finally {
+      endNavigation();
     }
-
-    // Reset navigation flag after a delay
-    navigationTimeoutRef.current = setTimeout(() => {
-      setIsNavigating(false);
-      console.log('🧭 EditableSegmentedDisplay: Navigation completed');
-    }, 1000);
-  }, [editor, isNavigating]);
+  }, [editor, isEditorReady, isTransitioning, startNavigation, endNavigation]);
 
   // Enhanced editor ready handler
   const handleEditorReady = useCallback((editorInstance: any) => {
@@ -149,9 +150,9 @@ const EditableSegmentedDisplay = ({
     if (isTransitioning) {
       setIsEditorReady(false);
       setEditor(null);
-      setIsNavigating(false);
+      cleanup(); // Clear navigation state
     }
-  }, [isTransitioning]);
+  }, [isTransitioning, cleanup]);
 
   // Update read-only state
   useEffect(() => {
@@ -164,30 +165,39 @@ const EditableSegmentedDisplay = ({
     }
   }, [editor, readOnly, isEditorReady, isTransitioning]);
 
-  // Handle highlighted range navigation
+  // Handle highlighted range navigation (from change clicks)
   useEffect(() => {
-    if (!highlightedRange || isNavigating || isTransitioning || !isEditorReady) return;
+    if (!highlightedRange || navigationState.isNavigating || isTransitioning || !isEditorReady) {
+      return;
+    }
     
-    console.log('🧭 EditableSegmentedDisplay: New highlighted range detected:', highlightedRange);
-    scrollToCharacterPosition(highlightedRange.start);
-  }, [highlightedRange?.start, highlightedRange?.end, isNavigating, isTransitioning, isEditorReady, scrollToCharacterPosition]);
+    console.log('🧭 EditableSegmentedDisplay: Highlighted range change detected:', highlightedRange);
+    navigateToCharacterPosition(highlightedRange.start, 'click');
+  }, [highlightedRange?.start, navigationState.isNavigating, isTransitioning, isEditorReady, navigateToCharacterPosition]);
 
-  // Handle scroll position navigation
+  // Handle scroll position navigation (separate from highlighted range)
   useEffect(() => {
-    if (scrollPosition === undefined || isNavigating || isTransitioning || !isEditorReady) return;
+    if (
+      scrollPosition === undefined || 
+      scrollPosition === 0 || 
+      navigationState.isNavigating || 
+      isTransitioning || 
+      !isEditorReady ||
+      highlightedRange // Don't auto-scroll if we have a highlighted range
+    ) {
+      return;
+    }
     
-    console.log('🧭 EditableSegmentedDisplay: New scroll position detected:', scrollPosition);
-    scrollToCharacterPosition(scrollPosition);
-  }, [scrollPosition, isNavigating, isTransitioning, isEditorReady, scrollToCharacterPosition]);
+    console.log('🧭 EditableSegmentedDisplay: Scroll position change detected:', scrollPosition);
+    navigateToCharacterPosition(scrollPosition, 'auto');
+  }, [scrollPosition, navigationState.isNavigating, isTransitioning, isEditorReady, highlightedRange, navigateToCharacterPosition]);
 
-  // Cleanup navigation timeouts on unmount
+  // Cleanup navigation on unmount
   useEffect(() => {
     return () => {
-      if (navigationTimeoutRef.current) {
-        clearTimeout(navigationTimeoutRef.current);
-      }
+      cleanup();
     };
-  }, []);
+  }, [cleanup]);
 
   return (
     <ErrorBoundary>

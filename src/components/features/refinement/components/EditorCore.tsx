@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -34,10 +33,7 @@ const EditorCore = ({
   const editorInstanceRef = useRef<any>(null);
   const readyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Cursor position preservation
-  const cursorPositionRef = useRef<{ from: number; to: number } | null>(null);
-
-  // Optimized debounce for better responsiveness and cursor preservation
+  // Optimized debounce without cursor manipulation
   const debouncedContentChange = useCallback((content: string) => {
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
@@ -50,16 +46,15 @@ const EditorCore = ({
     }, 50);
   }, [onContentChange, isTransitioning]);
 
-  // Stable editor dependencies - only recreate when absolutely necessary
+  // Stable editor dependencies
   const stableEditorDependencies = useMemo(() => {
-    // Only include essential dependencies that require editor recreation
     return [
-      chapterKey === 'export-preview' ? 'export' : chapterKey, // Stable chapter reference
-      isTransitioning ? 'transitioning' : 'stable' // Transition state
+      chapterKey === 'export-preview' ? 'export' : chapterKey,
+      isTransitioning ? 'transitioning' : 'stable'
     ];
   }, [chapterKey, isTransitioning]);
 
-  // Safe editor creation with optimized dependencies
+  // Safe editor creation with improved content handling
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -75,10 +70,7 @@ const EditorCore = ({
     onUpdate: ({ editor }) => {
       if (!editor.isDestroyed && !isUpdatingFromProp && editorReady) {
         try {
-          // Store cursor position before content change
-          const selection = editor.state.selection;
-          cursorPositionRef.current = { from: selection.from, to: selection.to };
-          
+          // Don't store cursor position to avoid conflicts
           const htmlContent = editor.getHTML();
           const cleanContent = htmlContent.replace(/<div[^>]*data-type="page-break"[^>]*>.*?<\/div>/g, '');
           debouncedContentChange(cleanContent);
@@ -118,7 +110,7 @@ const EditorCore = ({
             onEditorReady(editor);
           }
         }
-      }, 150); // Slightly longer timeout for stability
+      }, 100); // Reduced timeout for better responsiveness
     },
     onDestroy: () => {
       console.log('EditorCore: Editor destroyed for:', chapterKey || 'unknown');
@@ -138,9 +130,9 @@ const EditorCore = ({
         spellcheck: 'true',
       },
     },
-  }, stableEditorDependencies); // Use stable dependencies
+  }, stableEditorDependencies);
 
-  // Improved content synchronization with better stability
+  // Improved content synchronization without cursor manipulation
   useEffect(() => {
     if (!editor || editor.isDestroyed || isDestroyingRef.current || !editorReady || isTransitioning) return;
     
@@ -161,45 +153,25 @@ const EditorCore = ({
     setIsUpdatingFromProp(true);
     
     try {
-      // Store current cursor position before content update
-      const currentSelection = editor.state.selection;
-      const preservedCursor = { from: currentSelection.from, to: currentSelection.to };
-      
-      // Use transaction to preserve cursor position
+      // Set content without cursor manipulation to avoid conflicts
       editor.chain()
         .setContent(incomingContent, false)
-        .focus()
-        .setTextSelection(preservedCursor.from)
         .run();
       
       lastContentRef.current = incomingContent;
-      console.log('EditorCore: Content updated successfully with cursor preservation');
+      console.log('EditorCore: Content updated successfully');
       
       // Reduced timeout for better responsiveness
       setTimeout(() => {
         if (!isDestroyingRef.current) {
           setIsUpdatingFromProp(false);
-          
-          // Restore cursor position if it was stored during typing
-          if (cursorPositionRef.current && editor && !editor.isDestroyed) {
-            try {
-              const maxPos = editor.state.doc.content.size;
-              const safeFrom = Math.min(cursorPositionRef.current.from, maxPos);
-              const safeTo = Math.min(cursorPositionRef.current.to, maxPos);
-              
-              editor.commands.setTextSelection({ from: safeFrom, to: safeTo });
-              cursorPositionRef.current = null; // Clear after use
-            } catch (e) {
-              console.warn('Failed to restore cursor position:', e);
-            }
-          }
         }
-      }, 30); // Reduced timeout for better responsiveness
+      }, 30);
     } catch (error) {
       console.error('EditorCore: Failed to update content:', error);
       setIsUpdatingFromProp(false);
     }
-  }, [content, editor, chapterKey, editorReady]); // Removed isTransitioning from dependencies to reduce recreation
+  }, [content, editor, chapterKey, editorReady]);
 
   // Update read-only state safely
   useEffect(() => {
