@@ -23,7 +23,6 @@ export class ChangeNavigationService {
 
   /**
    * Calculate scroll position from character position in text
-   * Enhanced with better line height estimation
    */
   static calculateScrollPosition(
     text: string, 
@@ -34,33 +33,20 @@ export class ChangeNavigationService {
     
     const textBeforePosition = text.substring(0, characterPosition);
     const lines = textBeforePosition.split('\n');
+    const lineHeight = 24; // Approximate line height in pixels
+    const estimatedScrollPosition = Math.max(0, (lines.length - 1) * lineHeight);
     
-    // More accurate line height estimation
-    const baseLineHeight = 24; // Base line height in pixels
-    const lineSpacing = 1.6; // Line spacing multiplier
-    const effectiveLineHeight = baseLineHeight * lineSpacing;
-    
-    // Calculate scroll position with some padding
-    const estimatedScrollPosition = Math.max(0, (lines.length - 1) * effectiveLineHeight);
-    const maxScrollHeight = text.split('\n').length * effectiveLineHeight;
-    
-    return Math.min(estimatedScrollPosition, Math.max(0, maxScrollHeight - containerHeight));
+    return Math.min(estimatedScrollPosition, text.split('\n').length * lineHeight - containerHeight);
   }
 
   /**
-   * Convert character positions to highlighting range with validation
+   * Convert character positions to highlighting range
    */
   static createHighlightRange(startPos: number, endPos: number): { start: number; end: number } {
-    const start = Math.max(0, startPos);
-    const end = Math.max(start, endPos);
-    
-    // Ensure the range is valid
-    if (end <= start) {
-      console.warn('Invalid highlight range:', { startPos, endPos, start, end });
-      return { start, end: start + 1 }; // Minimum 1 character range
-    }
-    
-    return { start, end };
+    return {
+      start: Math.max(0, startPos),
+      end: Math.max(startPos, endPos)
+    };
   }
 
   /**
@@ -80,17 +66,6 @@ export class ChangeNavigationService {
     startPosition: number,
     endPosition: number
   ): NavigationState {
-    // Validate positions
-    if (startPosition < 0 || endPosition > originalText.length || startPosition >= endPosition) {
-      console.warn('Invalid change positions:', {
-        changeId,
-        startPosition,
-        endPosition,
-        originalTextLength: originalText.length
-      });
-      return this.clearSelection();
-    }
-
     const highlightedRange = this.createHighlightRange(startPosition, endPosition);
     const originalScrollPosition = this.calculateScrollPosition(originalText, startPosition);
     const enhancedScrollPosition = this.calculateScrollPosition(enhancedText, startPosition);
@@ -106,11 +81,7 @@ export class ChangeNavigationService {
       changeId,
       highlightedRange,
       originalScrollPosition,
-      enhancedScrollPosition,
-      textValidation: {
-        originalExtract: originalText.substring(startPosition, endPosition),
-        extractLength: endPosition - startPosition
-      }
+      enhancedScrollPosition
     });
 
     return this.getNavigationState();
@@ -139,8 +110,7 @@ export class ChangeNavigationService {
   }
 
   /**
-   * Enhanced position adjustment after text changes
-   * Handles various edge cases and provides better accuracy
+   * Calculate position adjustments after text changes
    */
   static adjustPositionsAfterChange(
     originalPosition: number,
@@ -148,68 +118,17 @@ export class ChangeNavigationService {
     changeEnd: number,
     replacementLength: number
   ): number {
-    // Position is before the change - no adjustment needed
     if (originalPosition <= changeStart) {
-      return originalPosition;
+      return originalPosition; // Position before change, no adjustment needed
     }
     
-    // Position is after the change - adjust by the length difference
     if (originalPosition >= changeEnd) {
+      // Position after change, adjust by the difference in length
       const lengthDifference = replacementLength - (changeEnd - changeStart);
-      const newPosition = originalPosition + lengthDifference;
-      
-      console.log('🔄 Adjusting position after change:', {
-        originalPosition,
-        changeStart,
-        changeEnd,
-        replacementLength,
-        lengthDifference,
-        newPosition
-      });
-      
-      return Math.max(changeStart + replacementLength, newPosition);
+      return originalPosition + lengthDifference;
     }
     
-    // Position is within the changed range
-    // Move to the end of the replacement to avoid conflicts
-    const newPosition = changeStart + replacementLength;
-    
-    console.log('🔄 Position within change range, moving to end:', {
-      originalPosition,
-      changeStart,
-      changeEnd,
-      replacementLength,
-      newPosition
-    });
-    
-    return newPosition;
-  }
-
-  /**
-   * Validate that a position is valid for the given text
-   */
-  static validatePosition(text: string, position: number): boolean {
-    return position >= 0 && position <= text.length;
-  }
-
-  /**
-   * Validate that a range is valid for the given text
-   */
-  static validateRange(text: string, start: number, end: number): boolean {
-    return this.validatePosition(text, start) && 
-           this.validatePosition(text, end) && 
-           start <= end;
-  }
-
-  /**
-   * Extract text at given range with validation
-   */
-  static extractTextAtRange(text: string, start: number, end: number): string | null {
-    if (!this.validateRange(text, start, end)) {
-      console.warn('Invalid range for text extraction:', { start, end, textLength: text.length });
-      return null;
-    }
-    
-    return text.substring(start, end);
+    // Position within the changed range, move to start of replacement
+    return changeStart;
   }
 }
