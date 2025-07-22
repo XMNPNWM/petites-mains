@@ -252,6 +252,15 @@ export const useRefinementSpace = (projectId: string | undefined) => {
         
         // Update the enhanced content
         await handleContentChange(newContent);
+        
+        // CRITICAL: Recalculate positions for all subsequent changes
+        await recalculatePositionsAfterChange(
+          refinementData.id,
+          change.position_start,
+          change.position_end,
+          change.original_text.length,
+          newContent
+        );
       }
       
       toast({
@@ -267,6 +276,96 @@ export const useRefinementSpace = (projectId: string | undefined) => {
       });
     }
   }, [toast, refinementData, handleContentChange]);
+
+  const recalculatePositionsAfterChange = useCallback(async (
+    refinementId: string,
+    changeStart: number,
+    changeEnd: number,
+    originalLength: number,
+    newContent: string
+  ) => {
+    try {
+      console.log('🔄 Recalculating positions after change rejection');
+      
+      // Get all pending changes that come after this position
+      const { data: subsequentChanges, error: fetchError } = await supabase
+        .from('ai_change_tracking')
+        .select('*')
+        .eq('refinement_id', refinementId)
+        .eq('user_decision', 'pending')
+        .gt('position_start', changeStart)
+        .order('position_start');
+
+      if (fetchError) {
+        console.error('Error fetching subsequent changes:', fetchError);
+        return;
+      }
+
+      if (!subsequentChanges || subsequentChanges.length === 0) {
+        console.log('No subsequent changes to recalculate');
+        return;
+      }
+
+      const lengthDifference = originalLength - (changeEnd - changeStart);
+      const updatedChanges = [];
+
+      for (const subsequentChange of subsequentChanges) {
+        // Calculate new positions using the ChangeNavigationService logic
+        const newStartPosition = ChangeNavigationService.adjustPositionsAfterChange(
+          subsequentChange.position_start,
+          changeStart,
+          changeEnd,
+          originalLength
+        );
+        
+        const newEndPosition = ChangeNavigationService.adjustPositionsAfterChange(
+          subsequentChange.position_end,
+          changeStart,
+          changeEnd,
+          originalLength
+        );
+
+        // Validate the new positions against the new content
+        const extractedText = newContent.substring(newStartPosition, newEndPosition);
+        
+        // Only update if the extracted text still matches the original text from the change
+        if (extractedText === subsequentChange.original_text) {
+          updatedChanges.push({
+            id: subsequentChange.id,
+            position_start: newStartPosition,
+            position_end: newEndPosition
+          });
+        } else {
+          console.warn('Position recalculation failed for change:', subsequentChange.id, {
+            expected: subsequentChange.original_text,
+            found: extractedText,
+            newPositions: { start: newStartPosition, end: newEndPosition }
+          });
+        }
+      }
+
+      // Update the database with new positions
+      if (updatedChanges.length > 0) {
+        for (const updatedChange of updatedChanges) {
+          await supabase
+            .from('ai_change_tracking')
+            .update({
+              position_start: updatedChange.position_start,
+              position_end: updatedChange.position_end
+            })
+            .eq('id', updatedChange.id);
+        }
+        
+        console.log(`✅ Updated positions for ${updatedChanges.length} subsequent changes`);
+        
+        // Refresh the data to reflect the changes
+        refreshData();
+      }
+      
+    } catch (error) {
+      console.error('❌ Error recalculating positions:', error);
+    }
+  }, [refreshData]);
 
   const handleSave = useCallback(async (isAutoSave = false) => {
     if (!refinementData || !currentChapter || isSaving) return;
