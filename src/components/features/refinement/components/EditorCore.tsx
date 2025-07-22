@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { SearchReplaceExtension } from '../extensions/SearchReplaceExtension';
@@ -37,7 +37,7 @@ const EditorCore = ({
   // Cursor position preservation
   const cursorPositionRef = useRef<{ from: number; to: number } | null>(null);
 
-  // Reduced debounce for better responsiveness and cursor preservation
+  // Optimized debounce for better responsiveness and cursor preservation
   const debouncedContentChange = useCallback((content: string) => {
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
@@ -47,13 +47,19 @@ const EditorCore = ({
       if (!isDestroyingRef.current && !isTransitioning) {
         onContentChange(content);
       }
-    }, 50); // Reduced from 100ms to 50ms
+    }, 50);
   }, [onContentChange, isTransitioning]);
 
-  // Stable editor options for export use case
-  const editorDependencies = chapterKey === 'export-preview' ? [] : [chapterKey];
+  // Stable editor dependencies - only recreate when absolutely necessary
+  const stableEditorDependencies = useMemo(() => {
+    // Only include essential dependencies that require editor recreation
+    return [
+      chapterKey === 'export-preview' ? 'export' : chapterKey, // Stable chapter reference
+      isTransitioning ? 'transitioning' : 'stable' // Transition state
+    ];
+  }, [chapterKey, isTransitioning]);
 
-  // Safe editor creation
+  // Safe editor creation with optimized dependencies
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -103,7 +109,7 @@ const EditorCore = ({
         clearTimeout(readyTimeoutRef.current);
       }
       
-      // Mark editor as ready with extended timeout for stability
+      // Mark editor as ready with stability timeout
       readyTimeoutRef.current = setTimeout(() => {
         if (!isDestroyingRef.current && !editor.isDestroyed) {
           console.log('EditorCore: Setting editor ready to true');
@@ -112,7 +118,7 @@ const EditorCore = ({
             onEditorReady(editor);
           }
         }
-      }, 100);
+      }, 150); // Slightly longer timeout for stability
     },
     onDestroy: () => {
       console.log('EditorCore: Editor destroyed for:', chapterKey || 'unknown');
@@ -132,11 +138,11 @@ const EditorCore = ({
         spellcheck: 'true',
       },
     },
-  }, editorDependencies);
+  }, stableEditorDependencies); // Use stable dependencies
 
-  // Content synchronization with better stability
+  // Improved content synchronization with better stability
   useEffect(() => {
-    if (!editor || editor.isDestroyed || isDestroyingRef.current || !editorReady) return;
+    if (!editor || editor.isDestroyed || isDestroyingRef.current || !editorReady || isTransitioning) return;
     
     const incomingContent = content || '';
     
@@ -169,6 +175,7 @@ const EditorCore = ({
       lastContentRef.current = incomingContent;
       console.log('EditorCore: Content updated successfully with cursor preservation');
       
+      // Reduced timeout for better responsiveness
       setTimeout(() => {
         if (!isDestroyingRef.current) {
           setIsUpdatingFromProp(false);
@@ -187,12 +194,12 @@ const EditorCore = ({
             }
           }
         }
-      }, 50); // Reduced timeout for better responsiveness
+      }, 30); // Reduced timeout for better responsiveness
     } catch (error) {
       console.error('EditorCore: Failed to update content:', error);
       setIsUpdatingFromProp(false);
     }
-  }, [content, editor, chapterKey, isTransitioning, editorReady]);
+  }, [content, editor, chapterKey, editorReady]); // Removed isTransitioning from dependencies to reduce recreation
 
   // Update read-only state safely
   useEffect(() => {

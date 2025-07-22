@@ -22,8 +22,8 @@ export class ChangeNavigationService {
   };
 
   /**
-   * Calculate precise scroll position from character position
-   * Now uses DOM-based calculation instead of line estimation
+   * DOM-based scroll position calculation using actual text measurements
+   * This replaces the previous line estimation approach
    */
   static calculateScrollPosition(
     text: string, 
@@ -32,19 +32,77 @@ export class ChangeNavigationService {
   ): number {
     if (!text || characterPosition < 0) return 0;
     
-    // More accurate estimation based on content structure
-    const beforePosition = text.substring(0, characterPosition);
-    const lines = beforePosition.split('\n');
-    const lineHeight = 24; // Consistent with component line height
+    // Create a temporary DOM element to measure actual text layout
+    const tempDiv = document.createElement('div');
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.visibility = 'hidden';
+    tempDiv.style.whiteSpace = 'pre-wrap';
+    tempDiv.style.fontSize = '14px';
+    tempDiv.style.lineHeight = '1.6';
+    tempDiv.style.fontFamily = 'inherit';
+    tempDiv.style.width = '100%';
     
-    // Account for actual content density and wrapping
-    const avgCharsPerLine = 80; // Typical line character count
-    const estimatedLines = lines.length + Math.floor(beforePosition.length / avgCharsPerLine);
+    // Add the text up to the character position
+    const textBeforePosition = text.substring(0, characterPosition);
+    tempDiv.textContent = textBeforePosition;
     
-    const estimatedScrollPosition = Math.max(0, (estimatedLines - 1) * lineHeight);
-    const maxScroll = Math.max(0, text.split('\n').length * lineHeight - containerHeight);
+    document.body.appendChild(tempDiv);
     
-    return Math.min(estimatedScrollPosition, maxScroll);
+    // Measure the actual height
+    const measuredHeight = tempDiv.offsetHeight;
+    
+    // Clean up
+    document.body.removeChild(tempDiv);
+    
+    // Return the measured scroll position with offset for visibility
+    return Math.max(0, measuredHeight - (containerHeight / 3));
+  }
+
+  /**
+   * Alternative DOM-based calculation using range measurement
+   * Fallback method for more precise positioning
+   */
+  static calculateScrollPositionWithRange(
+    containerElement: HTMLElement,
+    characterPosition: number
+  ): number {
+    if (!containerElement) return 0;
+    
+    const walker = document.createTreeWalker(
+      containerElement,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+
+    let currentPos = 0;
+    let node;
+    const range = document.createRange();
+
+    while (node = walker.nextNode()) {
+      const textNode = node as Text;
+      const nodeLength = textNode.textContent?.length || 0;
+      
+      if (currentPos + nodeLength >= characterPosition) {
+        // Found the target text node
+        const offsetInNode = characterPosition - currentPos;
+        try {
+          range.setStart(textNode, Math.min(offsetInNode, nodeLength));
+          range.setEnd(textNode, Math.min(offsetInNode, nodeLength));
+          
+          const rect = range.getBoundingClientRect();
+          const containerRect = containerElement.getBoundingClientRect();
+          
+          return rect.top - containerRect.top + containerElement.scrollTop;
+        } catch (e) {
+          console.warn('Range creation failed:', e);
+          return 0;
+        }
+      }
+      
+      currentPos += nodeLength;
+    }
+
+    return 0;
   }
 
   /**
@@ -88,7 +146,7 @@ export class ChangeNavigationService {
   }
 
   /**
-   * Set selected change with improved position validation
+   * Set selected change with improved position validation and DOM-based calculation
    */
   static setSelectedChange(
     changeId: string,
@@ -104,7 +162,7 @@ export class ChangeNavigationService {
     // Create safe highlight ranges
     const highlightedRange = this.createHighlightRange(startPosition, endPosition, originalLength);
     
-    // Calculate scroll positions for both panels
+    // Calculate scroll positions using DOM-based measurement for both panels
     const originalScrollPosition = this.calculateScrollPosition(originalText, startPosition);
     const enhancedScrollPosition = this.calculateScrollPosition(enhancedText, startPosition);
 
@@ -115,7 +173,7 @@ export class ChangeNavigationService {
       enhancedScrollPosition
     };
 
-    console.log('🧭 ChangeNavigationService - Selected change with validation:', {
+    console.log('🧭 ChangeNavigationService - Selected change with DOM-based calculation:', {
       changeId,
       highlightedRange,
       originalScrollPosition,

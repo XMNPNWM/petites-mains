@@ -1,5 +1,4 @@
-
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import RichTextBubbleMenu from './RichTextBubbleMenu';
 import EditorCore from './EditorCore';
 import ScrollSyncHandler from './ScrollSyncHandler';
@@ -39,8 +38,39 @@ const EditableSegmentedDisplay = ({
   const [editor, setEditor] = useState<any>(null);
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [lastNavigatedRange, setLastNavigatedRange] = useState<string | null>(null);
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Enhanced editor ready handler
+  // Convert plain text character position to TipTap document position
+  const convertCharPositionToTipTap = useCallback((editor: any, charPosition: number): number => {
+    if (!editor || editor.isDestroyed) return 1;
+    
+    try {
+      const doc = editor.state.doc;
+      let currentPos = 0;
+      let tiptapPos = 1; // TipTap positions start at 1
+      
+      // Walk through document nodes to find character mapping
+      doc.descendants((node: any, pos: number) => {
+        if (node.isText) {
+          const nodeLength = node.text?.length || 0;
+          if (currentPos + nodeLength >= charPosition) {
+            tiptapPos = pos + (charPosition - currentPos) + 1;
+            return false; // Stop iteration
+          }
+          currentPos += nodeLength;
+        }
+        return true;
+      });
+      
+      return Math.min(tiptapPos, doc.content.size);
+    } catch (e) {
+      console.warn('Failed to convert character position to TipTap:', e);
+      return 1;
+    }
+  }, []);
+
+  // Enhanced editor ready handler with better stability
   const handleEditorReady = useCallback((editorInstance: any) => {
     if (!editorInstance || editorInstance.isDestroyed) return;
     
@@ -62,55 +92,81 @@ const EditableSegmentedDisplay = ({
     }
   }, [readOnly, onEditorReady, chapterKey]);
 
-  // DOM-based scroll to character position in TipTap editor
-  const scrollToCharacterPosition = useCallback((charPosition: number) => {
-    if (!editor || !isEditorReady || isTransitioning) return;
+  // Improved navigation with lifecycle awareness and duplicate prevention
+  const navigateToCharacterPosition = useCallback((charPosition: number, rangeKey: string) => {
+    if (!editor || !isEditorReady || isTransitioning || lastNavigatedRange === rangeKey) return;
+
+    // Clear any existing navigation timeout
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current);
+    }
 
     try {
       setIsNavigating(true);
+      setLastNavigatedRange(rangeKey);
       
       // Convert character position to TipTap position
-      const doc = editor.state.doc;
-      const resolvedPos = Math.min(charPosition + 1, doc.content.size); // +1 for TipTap's positioning
+      const tiptapPos = convertCharPositionToTipTap(editor, charPosition);
       
-      // Set text selection at the target position
-      editor.commands.setTextSelection({ from: resolvedPos, to: resolvedPos });
-      
-      // Scroll the selection into view with animation
-      editor.commands.scrollIntoView();
+      // Create selection and scroll into view with validation
+      if (!editor.isDestroyed) {
+        editor.chain()
+          .setTextSelection({ from: tiptapPos, to: tiptapPos })
+          .scrollIntoView()
+          .run();
+      }
 
-      // Reset navigation flag after animation
-      setTimeout(() => setIsNavigating(false), 600);
+      // Reset navigation flag after animation with extended timeout for range tracking
+      navigationTimeoutRef.current = setTimeout(() => {
+        setIsNavigating(false);
+        // Keep lastNavigatedRange for longer to prevent immediate re-navigation
+        setTimeout(() => setLastNavigatedRange(null), 1000);
+      }, 600);
       
     } catch (e) {
-      console.warn('Failed to scroll to character position:', e);
+      console.warn('Failed to navigate to character position:', e);
       setIsNavigating(false);
+      setLastNavigatedRange(null);
     }
-  }, [editor, isEditorReady, isTransitioning]);
+  }, [editor, isEditorReady, isTransitioning, convertCharPositionToTipTap, lastNavigatedRange]);
 
-  // Highlight text range in TipTap editor
-  const highlightTextRange = useCallback((start: number, end: number) => {
-    if (!editor || !isEditorReady || isTransitioning) return;
+  // Highlight text range in TipTap editor with improved logic
+  const highlightTextRange = useCallback((start: number, end: number, rangeKey: string) => {
+    if (!editor || !isEditorReady || isTransitioning || lastNavigatedRange === rangeKey) return;
+
+    // Clear any existing navigation timeout
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current);
+    }
 
     try {
       setIsNavigating(true);
+      setLastNavigatedRange(rangeKey);
       
-      const doc = editor.state.doc;
-      const fromPos = Math.min(start + 1, doc.content.size);
-      const toPos = Math.min(end + 1, doc.content.size);
+      const fromPos = convertCharPositionToTipTap(editor, start);
+      const toPos = convertCharPositionToTipTap(editor, end);
       
       // Create selection and scroll into view
-      editor.commands.setTextSelection({ from: fromPos, to: toPos });
-      editor.commands.scrollIntoView();
+      if (!editor.isDestroyed) {
+        editor.chain()
+          .setTextSelection({ from: fromPos, to: toPos })
+          .scrollIntoView()
+          .run();
+      }
 
       // Reset navigation flag after animation
-      setTimeout(() => setIsNavigating(false), 600);
+      navigationTimeoutRef.current = setTimeout(() => {
+        setIsNavigating(false);
+        // Keep lastNavigatedRange for longer to prevent immediate re-navigation
+        setTimeout(() => setLastNavigatedRange(null), 1000);
+      }, 600);
       
     } catch (e) {
       console.warn('Failed to highlight text range:', e);
       setIsNavigating(false);
+      setLastNavigatedRange(null);
     }
-  }, [editor, isEditorReady, isTransitioning]);
+  }, [editor, isEditorReady, isTransitioning, convertCharPositionToTipTap, lastNavigatedRange]);
 
   // Reset editor ready state when transitioning
   useEffect(() => {
@@ -118,6 +174,7 @@ const EditableSegmentedDisplay = ({
       setIsEditorReady(false);
       setEditor(null);
       setIsNavigating(false);
+      setLastNavigatedRange(null);
     }
   }, [isTransitioning]);
 
@@ -132,19 +189,34 @@ const EditableSegmentedDisplay = ({
     }
   }, [editor, readOnly, isEditorReady, isTransitioning]);
 
-  // Handle highlighted range navigation
+  // Handle highlighted range navigation with improved duplicate prevention
   useEffect(() => {
     if (highlightedRange && !isNavigating && !isTransitioning) {
-      highlightTextRange(highlightedRange.start, highlightedRange.end);
+      const rangeKey = `${highlightedRange.start}-${highlightedRange.end}`;
+      if (lastNavigatedRange !== rangeKey) {
+        highlightTextRange(highlightedRange.start, highlightedRange.end, rangeKey);
+      }
     }
-  }, [highlightedRange, highlightTextRange, isNavigating, isTransitioning]);
+  }, [highlightedRange, highlightTextRange, isNavigating, isTransitioning, lastNavigatedRange]);
 
-  // Handle scroll position navigation
+  // Handle scroll position navigation with improved logic
   useEffect(() => {
     if (scrollPosition !== undefined && !isNavigating && !isTransitioning) {
-      scrollToCharacterPosition(scrollPosition);
+      const positionKey = `scroll-${scrollPosition}`;
+      if (lastNavigatedRange !== positionKey) {
+        navigateToCharacterPosition(scrollPosition, positionKey);
+      }
     }
-  }, [scrollPosition, scrollToCharacterPosition, isNavigating, isTransitioning]);
+  }, [scrollPosition, navigateToCharacterPosition, isNavigating, isTransitioning, lastNavigatedRange]);
+
+  // Cleanup navigation timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <ErrorBoundary>
