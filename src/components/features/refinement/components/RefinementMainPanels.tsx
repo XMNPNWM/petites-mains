@@ -4,7 +4,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import OriginalTextPanel from '../panels/OriginalTextPanel';
 import EnhancedEditorPanel from '../panels/EnhancedEditorPanel';
 import ChangeTrackingPanel from '../panels/ChangeTrackingPanel';
-import ChapterNavigation from './ChapterNavigation';
+import ChapterNavigationPanel from '../panels/ChapterNavigationPanel';
 import { Chapter, RefinementData, AIChange, ChapterTransitionState, NavigationState } from '@/types/shared';
 import { EnhancementOptions } from '@/types/enhancement';
 import { ContentVersioningService } from '@/services/ContentVersioningService';
@@ -66,8 +66,8 @@ const RefinementMainPanels = ({
   useEffect(() => {
     console.log('🔄 RefinementMainPanels: Transition state changed:', {
       isTransitioning: transitionState.isTransitioning,
-      fromChapterId: transitionState.fromChapterId,
-      toChapterId: transitionState.toChapterId,
+      previousChapterId: transitionState.previousChapterId,
+      currentChapterId: transitionState.currentChapterId,
       currentChapter: currentChapter?.id
     });
   }, [transitionState, currentChapter?.id]);
@@ -148,7 +148,7 @@ const RefinementMainPanels = ({
     <div className="h-full flex flex-col">
       {/* Chapter Navigation */}
       <div className="border-b border-slate-200 bg-white">
-        <ChapterNavigation
+        <ChapterNavigationPanel
           chapters={chapters}
           currentChapter={currentChapter}
           onChapterSelect={onChapterSelect}
@@ -198,12 +198,13 @@ const RefinementMainPanels = ({
           {/* Change Tracking Panel */}
           <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
             <ChangeTrackingPanel
-              refinementData={displayData}
+              refinementId={displayData?.id || ''}
               onChangeDecision={onChangeDecision}
               onChangeClick={handleChangeClickWithDebug}
-              onImportToCreation={onImportToCreation}
               selectedChangeId={navigationState.selectedChangeId}
               isTransitioning={isTransitioning}
+              chapterId={currentChapter?.id}
+              chapterTitle={currentChapter?.title}
             />
           </ResizablePanel>
         </ResizablePanelGroup>

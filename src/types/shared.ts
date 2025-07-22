@@ -69,3 +69,10 @@ export interface NavigationState {
   originalScrollPosition: number;
   enhancedScrollPosition: number;
 }
+
+export interface ChapterTransitionState {
+  isTransitioning: boolean;
+  previousChapterId: string | null;
+  currentChapterId: string | null;
+  transitionStartTime: number | null;
+}
