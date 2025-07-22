@@ -38,6 +38,7 @@ const EditableSegmentedDisplay = ({
 }: EditableSegmentedDisplayProps) => {
   const [editor, setEditor] = useState<any>(null);
   const [isEditorReady, setIsEditorReady] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // Enhanced editor ready handler
   const handleEditorReady = useCallback((editorInstance: any) => {
@@ -61,11 +62,62 @@ const EditableSegmentedDisplay = ({
     }
   }, [readOnly, onEditorReady, chapterKey]);
 
+  // DOM-based scroll to character position in TipTap editor
+  const scrollToCharacterPosition = useCallback((charPosition: number) => {
+    if (!editor || !isEditorReady || isTransitioning) return;
+
+    try {
+      setIsNavigating(true);
+      
+      // Convert character position to TipTap position
+      const doc = editor.state.doc;
+      const resolvedPos = Math.min(charPosition + 1, doc.content.size); // +1 for TipTap's positioning
+      
+      // Set text selection at the target position
+      editor.commands.setTextSelection({ from: resolvedPos, to: resolvedPos });
+      
+      // Scroll the selection into view with animation
+      editor.commands.scrollIntoView();
+
+      // Reset navigation flag after animation
+      setTimeout(() => setIsNavigating(false), 600);
+      
+    } catch (e) {
+      console.warn('Failed to scroll to character position:', e);
+      setIsNavigating(false);
+    }
+  }, [editor, isEditorReady, isTransitioning]);
+
+  // Highlight text range in TipTap editor
+  const highlightTextRange = useCallback((start: number, end: number) => {
+    if (!editor || !isEditorReady || isTransitioning) return;
+
+    try {
+      setIsNavigating(true);
+      
+      const doc = editor.state.doc;
+      const fromPos = Math.min(start + 1, doc.content.size);
+      const toPos = Math.min(end + 1, doc.content.size);
+      
+      // Create selection and scroll into view
+      editor.commands.setTextSelection({ from: fromPos, to: toPos });
+      editor.commands.scrollIntoView();
+
+      // Reset navigation flag after animation
+      setTimeout(() => setIsNavigating(false), 600);
+      
+    } catch (e) {
+      console.warn('Failed to highlight text range:', e);
+      setIsNavigating(false);
+    }
+  }, [editor, isEditorReady, isTransitioning]);
+
   // Reset editor ready state when transitioning
   useEffect(() => {
     if (isTransitioning) {
       setIsEditorReady(false);
       setEditor(null);
+      setIsNavigating(false);
     }
   }, [isTransitioning]);
 
@@ -79,6 +131,20 @@ const EditableSegmentedDisplay = ({
       }
     }
   }, [editor, readOnly, isEditorReady, isTransitioning]);
+
+  // Handle highlighted range navigation
+  useEffect(() => {
+    if (highlightedRange && !isNavigating && !isTransitioning) {
+      highlightTextRange(highlightedRange.start, highlightedRange.end);
+    }
+  }, [highlightedRange, highlightTextRange, isNavigating, isTransitioning]);
+
+  // Handle scroll position navigation
+  useEffect(() => {
+    if (scrollPosition !== undefined && !isNavigating && !isTransitioning) {
+      scrollToCharacterPosition(scrollPosition);
+    }
+  }, [scrollPosition, scrollToCharacterPosition, isNavigating, isTransitioning]);
 
   return (
     <ErrorBoundary>
