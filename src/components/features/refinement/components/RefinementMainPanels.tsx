@@ -1,9 +1,9 @@
 
 import React from 'react';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import OriginalEditorPanel from './OriginalEditorPanel';
+import OriginalEditorPanel from '../panels/OriginalEditorPanel';
 import EnhancedEditorPanel from './EnhancedEditorPanel';
-import ChangeTrackingPanel from './ChangeTrackingPanel';
+import ChangeTrackingPanel from '../panels/ChangeTrackingPanel';
 import { RefinementData, AIChange } from '@/types/shared';
 
 interface RefinementMainPanelsProps {
@@ -68,9 +68,9 @@ const RefinementMainPanels = ({
       {/* Change Tracking Panel - 20% */}
       <ResizablePanel defaultSize={20} minSize={15} maxSize={40}>
         <ChangeTrackingPanel
-          refinementData={refinementData}
+          refinementId={refinementData?.id || ''}
           onChangeDecision={onChangeDecision}
-          onChangeNavigation={onChangeNavigation}
+          onChangeClick={onChangeNavigation}
         />
       </ResizablePanel>
     </ResizablePanelGroup>

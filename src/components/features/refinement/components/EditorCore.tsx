@@ -171,10 +171,7 @@ const EditorCore = ({
         console.log('🧹 EditorCore: Clearing undo history for new content');
         editor.commands.clearContent();
         editor.commands.setContent(incomingContent, false);
-        // Clear the history after setting content
-        if (editor.commands.clearHistory) {
-          editor.commands.clearHistory();
-        }
+        // Note: TipTap doesn't have clearHistory command
       } else {
         // Store current cursor position before content update
         const currentSelection = editor.state.selection;
