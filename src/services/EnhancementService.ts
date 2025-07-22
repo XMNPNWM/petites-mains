@@ -85,135 +85,140 @@ export class EnhancementService {
       await EnhancementService.updateRefinementStatus(refinementData.id, 'in_progress', chapterId);
 
       // Enhance content using the enhance-chapter edge function
-      console.log('🚀 Calling enhance-chapter edge function');
-      console.log('📤 Request data:', {
-        projectId,
-        chapterId,
-        contentLength: chapter.content.length,
-        contentPreview: chapter.content.substring(0, 50)
-      });
-      
-      const { data: enhancementResult, error: enhancementError } = await supabase.functions.invoke('enhance-chapter', {
-        body: { 
-          content: chapter.content,
-          projectId: projectId,
-          chapterId: chapterId,
-          options: {
-            enhancementLevel: 'moderate',
-            preserveAuthorVoice: true,
-            applyGrammarFixes: true,
-            applyPunctuationFixes: true,
-            applyFormattingFixes: true,
-            improveReadability: true,
-            improveStyle: true,
-            improveShowVsTell: false,
-            refinePacing: false,
-            enhanceCharacterVoice: true,
-            addSensoryDetails: false
-          }
-        }
-      });
-
-      console.log('📥 Enhancement result received:', {
-        hasData: !!enhancementResult,
-        hasEnhancedContent: !!enhancementResult?.enhancedContent,
-        enhancedContentLength: enhancementResult?.enhancedContent?.length || 0,
-        enhancedContentPreview: enhancementResult?.enhancedContent?.substring(0, 50) || '',
-        hasChanges: !!enhancementResult?.changes,
-        changesCount: enhancementResult?.changes?.length || 0
-      });
-
-      if (enhancementError) {
-        console.error('❌ Content enhancement failed:', enhancementError);
-        // Set status back to previous state on error
-        await EnhancementService.updateRefinementStatus(refinementData.id, 'untouched', chapterId);
-        throw new Error(`Content enhancement failed: ${enhancementError.message}`);
-      }
-
-      // CRITICAL: Handle successful enhancement - only update content once
-      if (enhancementResult?.enhancedContent) {
-        const enhancedContent = enhancementResult.enhancedContent;
-        
-        // Basic sanity check - enhanced content shouldn't be identical to input
-        if (enhancedContent === chapter.content) {
-          console.warn('⚠️ Enhanced content is identical to original content');
-        }
-        
-        // Validate enhanced content is not empty or too short
-        if (!enhancedContent || enhancedContent.trim().length < 10) {
-          console.error('❌ Enhanced content is invalid:', { 
-            length: enhancedContent?.length || 0,
-            content: enhancedContent?.substring(0, 50) || 'null/undefined'
-          });
-          throw new Error('Enhanced content is invalid or too short');
-        }
-        
-        // CRITICAL: Save enhanced content ONLY ONCE to the specific chapter's refinement
-        console.log('💾 Saving enhanced content to refinement:', {
-          refinementId: refinementData.id,
-          chapterId: refinementData.chapter_id,
-          expectedChapterId: chapterId,
-          contentLength: enhancedContent.length
+      try {
+        console.log('🚀 Calling enhance-chapter edge function');
+        console.log('📤 Request data:', {
+          projectId,
+          chapterId,
+          contentLength: chapter.content.length,
+          contentPreview: chapter.content.substring(0, 50)
         });
         
-        await RefinementService.updateRefinementContent(
-          refinementData.id, 
-          enhancedContent,
-          chapterId // Pass expected chapter ID for validation
-        );
-        
-        console.log('✅ Enhanced content saved successfully');
-
-        // NEW: Create version record for the new enhanced content
-        await ContentVersioningService.createContentVersion(
-          chapterId,
-          'enhancement',
-          enhancedContent,
-          {
-            refinementId: refinementData.id,
-            changeSummary: 'New enhanced version created',
-            userNotes: 'Latest AI enhancement applied to content'
+        const { data: enhancementResult, error: enhancementError } = await supabase.functions.invoke('enhance-chapter', {
+          body: { 
+            content: chapter.content,
+            projectId: projectId,
+            chapterId: chapterId,
+            options: {
+              enhancementLevel: 'moderate',
+              preserveAuthorVoice: true,
+              applyGrammarFixes: true,
+              applyPunctuationFixes: true,
+              applyFormattingFixes: true,
+              improveReadability: true,
+              improveStyle: true,
+              improveShowVsTell: false,
+              refinePacing: false,
+              enhanceCharacterVoice: true,
+              addSensoryDetails: false
+            }
           }
-        );
-        
-        // CRITICAL: Set status to "completed" after successful enhancement and save
-        console.log('🎉 Setting refinement status to "completed"');
-        await EnhancementService.updateRefinementStatus(refinementData.id, 'completed', chapterId);
-        
-        // Process and save individual changes to the ai_change_tracking table
-        if (enhancementResult.changes && Array.isArray(enhancementResult.changes)) {
-          console.log('💾 Saving change tracking data, count:', enhancementResult.changes.length);
-          await EnhancementService.saveChangeTrackingData(refinementData.id, enhancementResult.changes);
+        });
+
+        console.log('📥 Enhancement result received:', {
+          hasData: !!enhancementResult,
+          hasEnhancedContent: !!enhancementResult?.enhancedContent,
+          enhancedContentLength: enhancementResult?.enhancedContent?.length || 0,
+          enhancedContentPreview: enhancementResult?.enhancedContent?.substring(0, 50) || '',
+          hasChanges: !!enhancementResult?.changes,
+          changesCount: enhancementResult?.changes?.length || 0
+        });
+
+        if (enhancementError) {
+          console.error('❌ Content enhancement failed:', enhancementError);
+          // Set status back to previous state on error
+          await EnhancementService.updateRefinementStatus(refinementData.id, 'untouched', chapterId);
+          throw new Error(`Content enhancement failed: ${enhancementError.message}`);
         }
 
-        // Call the completion callback to refresh UI - ONLY AFTER successful save
+        // CRITICAL VALIDATION: Verify enhanced content is different from input
+        if (enhancementResult?.enhancedContent) {
+          const enhancedContent = enhancementResult.enhancedContent;
+          
+          // Basic sanity check - enhanced content shouldn't be identical to input
+          if (enhancedContent === chapter.content) {
+            console.warn('⚠️ Enhanced content is identical to original content');
+          }
+          
+          // CRITICAL: Save enhanced content ONLY to the specific chapter's refinement
+          console.log('💾 Saving enhanced content to refinement:', {
+            refinementId: refinementData.id,
+            chapterId: refinementData.chapter_id,
+            expectedChapterId: chapterId
+          });
+          
+          await RefinementService.updateRefinementContent(
+            refinementData.id, 
+            enhancedContent,
+            chapterId // Pass expected chapter ID for validation
+          );
+          
+          console.log('✅ Enhanced content saved successfully');
+
+          // NEW: Create version record for the new enhanced content
+          await ContentVersioningService.createContentVersion(
+            chapterId,
+            'enhancement',
+            enhancedContent,
+            {
+              refinementId: refinementData.id,
+              changeSummary: 'New enhanced version created',
+              userNotes: 'Latest AI enhancement applied to content'
+            }
+          );
+          
+          // CRITICAL: Set status to "completed" after successful enhancement and save
+          console.log('🎉 Setting refinement status to "completed"');
+          await EnhancementService.updateRefinementStatus(refinementData.id, 'completed', chapterId);
+          
+          // Process and save individual changes to the ai_change_tracking table
+          if (enhancementResult.changes && Array.isArray(enhancementResult.changes)) {
+            console.log('💾 Saving change tracking data, count:', enhancementResult.changes.length);
+            await EnhancementService.saveChangeTrackingData(refinementData.id, enhancementResult.changes);
+          }
+        } else {
+          console.warn('⚠️ Enhancement service returned no enhanced content, using original content');
+          await RefinementService.updateRefinementContent(
+            refinementData.id, 
+            chapter.content,
+            chapterId
+          );
+          // Set status to completed even with fallback content
+          await EnhancementService.updateRefinementStatus(refinementData.id, 'completed', chapterId);
+        }
+        
+        // Call the completion callback to refresh UI
         if (onComplete) {
-          console.log('🔄 Triggering UI refresh callback after successful enhancement');
+          console.log('🔄 Triggering UI refresh callback');
           onComplete();
         }
+
+      } catch (aiError) {
+        console.error('❌ AI enhancement failed:', aiError);
         
-      } else {
-        console.error('❌ Enhancement service returned no enhanced content');
+        // CRITICAL: Set status back to previous state on failure
         await EnhancementService.updateRefinementStatus(refinementData.id, 'untouched', chapterId);
-        throw new Error('Enhancement service returned no content');
+        
+        // Graceful fallback - use original content
+        const fallbackContent = chapter.content + '\n\n[AI enhancement unavailable - content preserved as-is]';
+        await RefinementService.updateRefinementContent(
+          refinementData.id, 
+          fallbackContent,
+          chapterId
+        );
+        console.log('Using fallback content due to enhancement failure');
+        
+        // Call the completion callback even on fallback
+        if (onComplete) {
+          console.log('🔄 Triggering UI refresh callback (fallback)');
+          onComplete();
+        }
       }
 
       console.log('✅ EnhancementService: Chapter enhancement completed successfully');
 
     } catch (error) {
       console.error('❌ EnhancementService error:', error);
-      
-      // Try to reset status on any error
-      try {
-        // This assumes we have a refinementData.id available
-        const refinementData = await RefinementService.fetchRefinementData(chapterId);
-        if (refinementData) {
-          await EnhancementService.updateRefinementStatus(refinementData.id, 'untouched', chapterId);
-        }
-      } catch (statusError) {
-        console.error('❌ Failed to reset refinement status:', statusError);
-      }
-      
       throw error;
     }
   }

@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
@@ -70,34 +69,7 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
       
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Chapter Navigation Panel - Left Sidebar - Fixed at 12% */}
-          <ResizablePanel defaultSize={12} minSize={12} maxSize={12}>
-            <div className="h-full bg-slate-50 border-r border-slate-200">
-              <div className="p-4">
-                <h3 className="text-sm font-medium text-slate-700 mb-3">Chapters</h3>
-                <div className="space-y-1">
-                  {chapters.map((chapter, index) => (
-                    <button
-                      key={chapter.id}
-                      onClick={() => handleChapterSelect(chapter)}
-                      disabled={transitionState.isTransitioning}
-                      className={`w-full text-left p-2 rounded text-sm transition-colors ${
-                        currentChapter?.id === chapter.id
-                          ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                          : 'hover:bg-slate-100 text-slate-600'
-                      } ${transitionState.isTransitioning ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <div className="font-medium">Chapter {index + 1}</div>
-                      <div className="text-xs opacity-75 truncate">{chapter.title}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </ResizablePanel>
-
-          {/* Main Content Panels - 88% total */}
-          <ResizablePanel defaultSize={88} minSize={70}>
+          <ResizablePanel defaultSize={100} minSize={30}>
             <RefinementMainPanels 
               projectId={projectId}
               chapterId={chapterId}

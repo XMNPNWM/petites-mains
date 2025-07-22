@@ -223,7 +223,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     if (!refinementData) return;
     
     try {
-      // First get the change details and all subsequent changes
+      // First get the change details
       const { data: change, error: changeError } = await supabase
         .from('ai_change_tracking')
         .select('*')
@@ -231,14 +231,6 @@ export const useRefinementSpace = (projectId: string | undefined) => {
         .single();
 
       if (changeError) throw changeError;
-
-      const { data: allChanges, error: allChangesError } = await supabase
-        .from('ai_change_tracking')
-        .select('id, position_start, position_end, original_text')
-        .eq('refinement_id', refinementData.id)
-        .order('position_start');
-
-      if (allChangesError) throw allChangesError;
 
       // Update the change decision in database
       const { error } = await supabase
@@ -248,76 +240,24 @@ export const useRefinementSpace = (projectId: string | undefined) => {
 
       if (error) throw error;
 
-      let newContent = refinementData.enhanced_content || '';
-
       // If change is rejected, apply the original text to enhanced content
       if (decision === 'rejected' && change) {
         const currentContent = refinementData.enhanced_content || '';
-        
-        // Validate the change position before applying
-        const isValidPosition = ChangeNavigationService.validatePositions(
+        const newContent = applyTextReplacement(
           currentContent,
           change.position_start,
           change.position_end,
-          change.enhanced_text
+          change.original_text
         );
-
-        if (isValidPosition) {
-          newContent = applyTextReplacement(
-            currentContent,
-            change.position_start,
-            change.position_end,
-            change.original_text
-          );
-
-          // Recalculate positions for all subsequent changes
-          const updatedPositions = ChangeNavigationService.recalculateAllPositions(
-            allChanges,
-            changeId,
-            change.original_text,
-            change.enhanced_text
-          );
-
-          // Update positions in database for subsequent changes
-          if (updatedPositions.length > 0) {
-            console.log('🔄 Updating positions for subsequent changes:', updatedPositions.length);
-            
-            for (const updatedChange of updatedPositions) {
-              const { error: updateError } = await supabase
-                .from('ai_change_tracking')
-                .update({
-                  position_start: updatedChange.position_start,
-                  position_end: updatedChange.position_end
-                })
-                .eq('id', updatedChange.id);
-
-              if (updateError) {
-                console.error('Error updating change position:', updateError);
-              }
-            }
-          }
-
-          // Update the enhanced content
-          await handleContentChange(newContent);
-        } else {
-          console.warn('Change position validation failed, skipping rejection application');
-        }
+        
+        // Update the enhanced content
+        await handleContentChange(newContent);
       }
       
       toast({
         title: "Change Updated",
         description: `Change ${decision} successfully`,
       });
-
-      // Refresh the change tracking panel to show updated positions
-      setTimeout(() => {
-        if (currentChapter) {
-          console.log('🔄 Refreshing change tracking data after position updates');
-          // This will trigger a re-fetch of the changes with updated positions
-          fetchRefinementData(currentChapter.id);
-        }
-      }, 500);
-      
     } catch (error) {
       console.error('❌ Error updating change decision:', error);
       toast({
@@ -326,7 +266,7 @@ export const useRefinementSpace = (projectId: string | undefined) => {
         variant: "destructive"
       });
     }
-  }, [toast, refinementData, handleContentChange, supabase, currentChapter, fetchRefinementData]);
+  }, [toast, refinementData, handleContentChange]);
 
   const handleSave = useCallback(async (isAutoSave = false) => {
     if (!refinementData || !currentChapter || isSaving) return;
