@@ -1079,9 +1079,40 @@ function buildEnhancementPrompt(
   currentMetrics: QualityMetrics,
   options: EnhancementOptions
 ): string {
+  // LANGUAGE DETECTION - CRITICAL
+  const frenchIndicators = (content.match(/[àâäéèêëïîôöùûüÿç]/g) || []).length;
+  const frenchWords = (content.match(/\b(le|la|les|de|du|des|et|un|une|dans|pour|avec|sur|par|il|elle|ils|elles|nous|vous|que|qui|mais|ou|où|dont|être|avoir|faire|aller|voir|savoir|pouvoir|falloir|vouloir|venir|dire|prendre|donner|partir|sentir|vivre|sortir|tenir|devenir|porter|paraître|naître|mourir|passer|rester|arriver|entrer|regarder|suivre|rencontrer|trouver|rendre|aimer|croire|comprendre|mettre|parler|montrer|continuer|penser|aider|demander|tourner|essayer)\b/gi) || []).length;
+  const totalWords = content.split(/\s+/).length;
+  const frenchScore = (frenchIndicators * 3 + frenchWords) / totalWords;
+  const detectedLanguage = frenchScore > 0.15 ? 'French' : 'English';
+  
+  // PARAGRAPH STRUCTURE ANALYSIS - CRITICAL
+  const originalParagraphs = content.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+  const paragraphCount = originalParagraphs.length;
+  const paragraphLengths = originalParagraphs.map(p => p.split(/\s+/).length);
+  const avgParagraphLength = paragraphLengths.reduce((a, b) => a + b, 0) / paragraphLengths.length;
+
   const enhancementDirectives: string[] = [];
   const specificInstructions: string[] = [];
   const criticalSafeguards: string[] = [];
+
+  // ABSOLUTE LANGUAGE REQUIREMENT (ALL LEVELS)
+  enhancementDirectives.push("🌍 LANGUAGE REQUIREMENT - ABSOLUTELY CRITICAL:");
+  enhancementDirectives.push(`- DETECTED LANGUAGE: ${detectedLanguage} (confidence: ${(frenchScore * 100).toFixed(1)}%)`);
+  enhancementDirectives.push(`- OUTPUT LANGUAGE: You MUST write your enhanced version in ${detectedLanguage} ONLY`);
+  enhancementDirectives.push("- NEVER translate or change the language of the content");
+  enhancementDirectives.push(`- Maintain ALL linguistic patterns, idioms, and cultural expressions of ${detectedLanguage}`);
+  enhancementDirectives.push("- If original is French, enhanced MUST be French. If English, enhanced MUST be English.");
+
+  // PARAGRAPH STRUCTURE REQUIREMENT (ALL LEVELS)  
+  enhancementDirectives.push("📐 PARAGRAPH STRUCTURE REQUIREMENT - CRITICAL:");
+  enhancementDirectives.push(`- ORIGINAL PARAGRAPH COUNT: ${paragraphCount} paragraphs`);
+  enhancementDirectives.push(`- AVERAGE PARAGRAPH LENGTH: ${avgParagraphLength.toFixed(1)} words`);
+  enhancementDirectives.push("- RESPECT 80% of original paragraph breaks and line structure");
+  enhancementDirectives.push("- You may reorganize up to 20% of paragraphs ONLY if absolutely necessary for flow");
+  enhancementDirectives.push("- Each paragraph break in the original should generally be preserved");
+  enhancementDirectives.push("- Maintain similar paragraph lengths and natural breaking points");
+  enhancementDirectives.push("- Enhanced content should have approximately the same number of paragraphs");
 
   // LEVEL-SPECIFIC ENHANCEMENT PHILOSOPHY
   switch (options.enhancementLevel) {
