@@ -149,8 +149,8 @@ const RefinementMainPanels = ({
       {/* Main Content Panels */}
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Original Content Panel */}
-          <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
+          {/* Original Content Panel - 34% */}
+          <ResizablePanel defaultSize={34} minSize={20} maxSize={50}>
             <OriginalTextPanel
               content={displayData?.original_content || currentChapter.content || ''}
               chapterTitle={currentChapter.title}
@@ -171,8 +171,8 @@ const RefinementMainPanels = ({
             />
           </ResizableHandle>
 
-          {/* Enhanced Content Panel */}
-          <ResizablePanel defaultSize={45} minSize={30}>
+          {/* Enhanced Content Panel - 34% */}
+          <ResizablePanel defaultSize={34} minSize={30}>
             <EnhancedEditorPanel
               content={displayData?.enhanced_content || ''}
               onContentChange={onContentChange}
@@ -191,8 +191,8 @@ const RefinementMainPanels = ({
 
           <ResizableHandle withHandle />
 
-          {/* Change Tracking Panel */}
-          <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+          {/* Change Tracking Panel - 20% */}
+          <ResizablePanel defaultSize={20} minSize={15} maxSize={40}>
             <ChangeTrackingPanel
               refinementId={displayData?.id || ''}
               onChangeDecision={onChangeDecision}

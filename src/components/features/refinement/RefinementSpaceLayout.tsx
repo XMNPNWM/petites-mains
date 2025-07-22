@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
@@ -69,8 +70,8 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
       
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Chapter Navigation Panel - Left Sidebar */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+          {/* Chapter Navigation Panel - Left Sidebar - Fixed at 12% */}
+          <ResizablePanel defaultSize={12} minSize={12} maxSize={12}>
             <div className="h-full bg-slate-50 border-r border-slate-200">
               <div className="p-4">
                 <h3 className="text-sm font-medium text-slate-700 mb-3">Chapters</h3>
@@ -95,10 +96,8 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
             </div>
           </ResizablePanel>
 
-          <ResizableHandle withHandle />
-
-          {/* Main Content Panels */}
-          <ResizablePanel defaultSize={80} minSize={70}>
+          {/* Main Content Panels - 88% total */}
+          <ResizablePanel defaultSize={88} minSize={70}>
             <RefinementMainPanels 
               projectId={projectId}
               chapterId={chapterId}
