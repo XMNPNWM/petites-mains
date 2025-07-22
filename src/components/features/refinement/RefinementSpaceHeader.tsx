@@ -51,10 +51,15 @@ const RefinementSpaceHeader = ({
 
           <div className="h-6 w-px bg-slate-200" />
 
-          {/* Simplified Project Info Display */}
+          {/* Project Info Display */}
           {project && (
-            <div className="flex items-center">
-              <span className="font-medium text-slate-900 text-sm">{project.title}</span>
+            <div className="flex items-center space-x-2">
+              <div className="text-sm">
+                <span className="font-medium text-slate-900">{project.title}</span>
+                {chapters.length > 0 && (
+                  <span className="text-slate-600 ml-2">• {chapters.length} chapters</span>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -65,6 +70,8 @@ const RefinementSpaceHeader = ({
         </div>
 
         <div className="flex items-center space-x-3">
+
+
           {/* Save functionality */}
           {onSave && (
             <>
