@@ -20,7 +20,7 @@ interface RefinementMainPanelsProps {
   onContentChange: (content: string) => void;
   onChangeDecision: (changeId: string, decision: 'accepted' | 'rejected') => void;
   onChangeClick: (change: AIChange) => void;
-  onImportToCreation: () => void;
+  onImportToCreation: () => Promise<void>;
   isEnhancing: boolean;
   onEnhanceChapter: (options: EnhancementOptions) => void;
   hasEnhancedContent: boolean;
