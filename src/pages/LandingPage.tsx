@@ -1,15 +1,14 @@
-
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PenTool, BookOpen, Brain, Users, Zap, FileText, Sparkles, ArrowRight, CheckCircle, Globe, Edit3, BarChart3, Map, Settings, Upload, Lightbulb } from 'lucide-react';
-
 const LandingPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-
+  const {
+    user
+  } = useAuth();
   const handleGetStarted = () => {
     if (user) {
       navigate('/dashboard');
@@ -17,27 +16,23 @@ const LandingPage = () => {
       navigate('/auth');
     }
   };
-
   const handleLearnMore = () => {
     document.getElementById('features')?.scrollIntoView({
       behavior: 'smooth'
     });
   };
-
   const scrollToFeatures = () => {
     document.getElementById('features')?.scrollIntoView({
       behavior: 'smooth'
     });
   };
-
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{
-          backgroundImage: `url('/lovable-uploads/4d8525af-0ad1-416c-ad3d-4b87573fd372.png')`
-        }}>
+        backgroundImage: `url('/lovable-uploads/4d8525af-0ad1-416c-ad3d-4b87573fd372.png')`
+      }}>
           <div className="absolute inset-0 bg-black/40"></div>
         </div>
         
@@ -52,7 +47,7 @@ const LandingPage = () => {
         <div className="relative z-10 container mx-auto px-6 text-center text-white">
           <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
             Unleash Your
-            <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Chef-d'Oeuvre</span>
+            <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Novels</span>
           </h1>
           <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto leading-relaxed text-gray-200">
             A specialized workspace for creative writers with smooth AI assistance. From first draft to published masterpiece.
@@ -474,22 +469,13 @@ const LandingPage = () => {
             <div className="space-y-4">
               <h4 className="font-semibold">Product</h4>
               <div className="space-y-2 text-sm">
-                <button 
-                  onClick={scrollToFeatures}
-                  className="text-muted-foreground cursor-pointer hover:text-foreground block text-left"
-                >
+                <button onClick={scrollToFeatures} className="text-muted-foreground cursor-pointer hover:text-foreground block text-left">
                   Features
                 </button>
-                <Link 
-                  to="/pricing" 
-                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
-                >
+                <Link to="/pricing" className="text-muted-foreground cursor-pointer hover:text-foreground block">
                   Pricing
                 </Link>
-                <Link 
-                  to="/user-guide" 
-                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
-                >
+                <Link to="/user-guide" className="text-muted-foreground cursor-pointer hover:text-foreground block">
                   User Guide
                 </Link>
               </div>
@@ -498,22 +484,13 @@ const LandingPage = () => {
             <div className="space-y-4">
               <h4 className="font-semibold">Support</h4>
               <div className="space-y-2 text-sm">
-                <Link 
-                  to="/help-center" 
-                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
-                >
+                <Link to="/help-center" className="text-muted-foreground cursor-pointer hover:text-foreground block">
                   Help Center
                 </Link>
-                <Link 
-                  to="/contact" 
-                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
-                >
+                <Link to="/contact" className="text-muted-foreground cursor-pointer hover:text-foreground block">
                   Contact
                 </Link>
-                <Link 
-                  to="/developer-blog" 
-                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
-                >
+                <Link to="/developer-blog" className="text-muted-foreground cursor-pointer hover:text-foreground block">
                   Developer Updates
                 </Link>
               </div>
@@ -522,16 +499,10 @@ const LandingPage = () => {
             <div className="space-y-4">
               <h4 className="font-semibold">Legal</h4>
               <div className="space-y-2 text-sm">
-                <Link 
-                  to="/privacy" 
-                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
-                >
+                <Link to="/privacy" className="text-muted-foreground cursor-pointer hover:text-foreground block">
                   Privacy
                 </Link>
-                <Link 
-                  to="/terms" 
-                  className="text-muted-foreground cursor-pointer hover:text-foreground block"
-                >
+                <Link to="/terms" className="text-muted-foreground cursor-pointer hover:text-foreground block">
                   Terms of Service
                 </Link>
               </div>
@@ -545,8 +516,6 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default LandingPage;
