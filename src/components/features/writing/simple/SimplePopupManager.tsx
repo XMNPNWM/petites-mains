@@ -89,7 +89,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
     };
 
     const newPopup: SimplePopupSession = {
-      id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: crypto.randomUUID(),
       type,
       position: safePosition,
       isMinimized: false,
