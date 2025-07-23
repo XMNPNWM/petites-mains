@@ -35,10 +35,8 @@ export const useTimelineData = (projectId: string) => {
 
   useEffect(() => {
     if (timelineVersion > 0) {
-      console.log('Timeline version changed, reloading data...');
-      setTimeout(() => {
-        reloadTimelineData();
-      }, 500);
+      console.log('Timeline version changed, reloading data immediately...');
+      reloadTimelineData();
     }
   }, [timelineVersion, reloadTimelineData]);
 

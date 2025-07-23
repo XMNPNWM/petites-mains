@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface SimplePopupContextType {
   popups: SimplePopupSession[];
-  openPopup: (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => void;
+  openPopup: (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => Promise<void>;
   closePopup: (id: string) => void;
   minimizePopup: (id: string) => void;
   createPopup: (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string, lineNumber?: number) => Promise<void>;
@@ -69,15 +69,17 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
 
       if (error) {
         console.error('❌ SimplePopupManager: Error saving popup to database:', error);
+        throw error;
       } else {
         console.log('✅ SimplePopupManager: Popup saved to database successfully:', popup.id);
       }
     } catch (error) {
       console.error('❌ SimplePopupManager: Exception saving popup to database:', error);
+      throw error;
     }
   }, []);
 
-  const openPopup = useCallback((type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => {
+  const openPopup = useCallback(async (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: SelectedTextContext) => {
     console.log('Opening popup:', { type, position, projectId, chapterId, selectedText });
     
     // Ensure position is within viewport bounds
@@ -105,11 +107,19 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       status: 'open'
     };
     
+    // Add to local state first
     setPopups(prev => [...prev, newPopup]);
-    incrementTimelineVersion();
 
-    // Save to database in background
-    savePopupToDatabase(newPopup);
+    // Wait for database save to complete before incrementing timeline version
+    try {
+      await savePopupToDatabase(newPopup);
+      console.log('✅ Popup saved to database, incrementing timeline version');
+      incrementTimelineVersion();
+    } catch (error) {
+      console.error('❌ Failed to save popup to database:', error);
+      // Remove from local state if database save failed
+      setPopups(prev => prev.filter(p => p.id !== newPopup.id));
+    }
   }, [incrementTimelineVersion, savePopupToDatabase]);
 
   const createPopup = useCallback(async (type: 'comment' | 'chat', position: { x: number; y: number }, projectId: string, chapterId?: string, selectedText?: string, lineNumber?: number) => {
@@ -120,7 +130,7 @@ export const SimplePopupProvider = ({ children }: SimplePopupProviderProps) => {
       lineNumber
     } : undefined;
     
-    openPopup(type, position, projectId, chapterId, selectedTextContext);
+    await openPopup(type, position, projectId, chapterId, selectedTextContext);
   }, [openPopup]);
 
   const updatePopup = useCallback((id: string, updates: Partial<SimplePopupSession>) => {
