@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PenTool, BookOpen, Brain, Users, Zap, FileText, Sparkles, ArrowRight, CheckCircle, Globe, Edit3, BarChart3, Map, Settings, Upload, Lightbulb } from 'lucide-react';
+import { PenTool, BookOpen, Brain, Users, Zap, FileText, Sparkles, ArrowRight, CheckCircle, Globe, Edit3, BarChart3, Map, Settings, Upload, Lightbulb, ChevronDown } from 'lucide-react';
 const LandingPage = () => {
   const navigate = useNavigate();
   const {
@@ -43,6 +43,16 @@ const LandingPage = () => {
           </div>
         </div>
         
+        {/* Top Right Navigation Buttons */}
+        <div className="absolute top-6 right-6 z-20 flex space-x-4">
+          <Button variant="ghost" onClick={() => navigate('/pricing')} className="text-white border-white/20 hover:bg-white/10">
+            Pricing
+          </Button>
+          <Button variant="ghost" onClick={() => navigate('/user-guide')} className="text-white border-white/20 hover:bg-white/10">
+            User Guide
+          </Button>
+        </div>
+        
         {/* Content */}
         <div className="relative z-10 container mx-auto px-6 text-center text-white">
           <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
@@ -58,6 +68,17 @@ const LandingPage = () => {
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </div>
+        </div>
+        
+        {/* Scroll Down Arrow */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 animate-bounce">
+          <button 
+            onClick={scrollToFeatures}
+            className="flex flex-col items-center text-white hover:text-blue-200 transition-colors duration-200"
+          >
+            <ChevronDown className="h-8 w-8" />
+            <span className="text-sm mt-1">Scroll down</span>
+          </button>
         </div>
       </section>
 

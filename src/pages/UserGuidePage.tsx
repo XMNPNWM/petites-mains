@@ -3,7 +3,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, BookOpen, Edit3, Settings, Upload, Users, Brain } from 'lucide-react';
+import { ArrowLeft, BookOpen, Edit3, Settings, Upload, Users, Brain, Map, MousePointer, MessageSquare, FileText, BarChart3 } from 'lucide-react';
 
 const UserGuidePage = () => {
   const navigate = useNavigate();
@@ -55,21 +55,34 @@ const UserGuidePage = () => {
             <CardHeader>
               <div className="flex items-center space-x-3">
                 <Edit3 className="h-6 w-6 text-primary" />
-                <CardTitle>Writing & Organization</CardTitle>
+                <CardTitle>Creative Space</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-semibold mb-2">AI Brain Data Management</h4>
-                <p className="text-muted-foreground">Review and improve AI-gathered data directly in the AI Brain tab. Edit character details, relationships, and story elements to maintain accuracy.</p>
+                <h4 className="font-semibold mb-2 flex items-center">
+                  <Map className="h-4 w-4 mr-2" />
+                  Storyline Mindmap
+                </h4>
+                <p className="text-muted-foreground">Right-click to create nodes, connect story elements, and visualize your narrative flow with an interactive mindmap interface.</p>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">World Building</h4>
-                <p className="text-muted-foreground">Organize locations, cultures, and world rules to maintain consistency across your narrative.</p>
+                <h4 className="font-semibold mb-2 flex items-center">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Chapter Editor
+                </h4>
+                <p className="text-muted-foreground">Distraction-free writing environment with AI assistance, where you can focus on your creativity chapter by chapter.</p>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Chapter Management</h4>
-                <p className="text-muted-foreground">Structure your story with chapters, track progress, and maintain narrative flow.</p>
+                <h4 className="font-semibold mb-2 flex items-center">
+                  <MousePointer className="h-4 w-4 mr-2" />
+                  Right-click Interactions
+                </h4>
+                <p className="text-muted-foreground">AI chat popups for instant help and comment popups for notes and feedback - all accessible with simple right-click interactions.</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Real-time Organization</h4>
+                <p className="text-muted-foreground">Character and world-building panels work alongside your writing space for seamless organization.</p>
               </div>
             </CardContent>
           </Card>
@@ -78,21 +91,55 @@ const UserGuidePage = () => {
             <CardHeader>
               <div className="flex items-center space-x-3">
                 <Brain className="h-6 w-6 text-primary" />
-                <CardTitle>AI Assistance</CardTitle>
+                <CardTitle>AI Brain Analysis</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-semibold mb-2">Gentle Suggestions</h4>
-                <p className="text-muted-foreground">Our AI provides subtle writing suggestions that enhance your voice without overwhelming it.</p>
+                <h4 className="font-semibold mb-2 flex items-center">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Data Extraction (User-Triggered)
+                </h4>
+                <p className="text-muted-foreground">When you trigger the analysis, AI extracts characters, relationships, themes, and plot elements from your writing to build a comprehensive understanding.</p>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Style Enhancement</h4>
-                <p className="text-muted-foreground">Get recommendations for improving clarity, flow, and engagement while maintaining your unique style.</p>
+                <h4 className="font-semibold mb-2">Knowledge Management</h4>
+                <p className="text-muted-foreground">Review and adjust AI-gathered data for accuracy. Edit character details, relationships, and story elements to ensure AI has the best understanding of your work.</p>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Consistency Checking</h4>
-                <p className="text-muted-foreground">AI analyzes your story for character and plot consistency across chapters.</p>
+                <h4 className="font-semibold mb-2">Story Understanding</h4>
+                <p className="text-muted-foreground">AI builds comprehensive understanding of your narrative, enabling context-aware recommendations based on deep story analysis.</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Intelligent Suggestions</h4>
+                <p className="text-muted-foreground">Context-aware recommendations that enhance your unique voice without overwhelming your creative process.</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center space-x-3">
+                <Settings className="h-6 w-6 text-primary" />
+                <CardTitle>Refinement Space</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h4 className="font-semibold mb-2">Enhancement Process</h4>
+                <p className="text-muted-foreground">AI-powered text improvement with multiple intensity levels to refine your writing while preserving your unique style.</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Version History</h4>
+                <p className="text-muted-foreground">Track all changes and revert to previous versions. Complete history of your writing evolution with easy restoration options.</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Change Tracking</h4>
+                <p className="text-muted-foreground">Granular view of all modifications with accept/reject options for each suggested change, giving you complete control.</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Precision Editing</h4>
+                <p className="text-muted-foreground">Fine-tune AI suggestions to match your style perfectly with detailed editing controls and customizable parameters.</p>
               </div>
             </CardContent>
           </Card>
@@ -101,17 +148,25 @@ const UserGuidePage = () => {
             <CardHeader>
               <div className="flex items-center space-x-3">
                 <Upload className="h-6 w-6 text-primary" />
-                <CardTitle>Export & Publishing</CardTitle>
+                <CardTitle>Export Space</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-semibold mb-2">Professional Formats</h4>
-                <p className="text-muted-foreground">Export your manuscript in PDF, DOCX, or EPUB formats ready for submission or self-publishing.</p>
+                <h4 className="font-semibold mb-2">Professional Formatting</h4>
+                <p className="text-muted-foreground">Export your manuscript in PDF, DOCX, or EPUB formats with professional layouts ready for submission or self-publishing.</p>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Formatting Options</h4>
-                <p className="text-muted-foreground">Choose from various professional formatting templates suitable for different publishing platforms.</p>
+                <h4 className="font-semibold mb-2">Layout Customization</h4>
+                <p className="text-muted-foreground">Control margins, fonts, spacing, chapter breaks, and formatting details to meet specific publishing requirements.</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Final Edition Details</h4>
+                <p className="text-muted-foreground">Add metadata, configure table of contents, and apply final formatting touches for publishing-ready output.</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Quality Assurance</h4>
+                <p className="text-muted-foreground">Pre-export validation and formatting checks ensure your manuscript meets professional publishing standards.</p>
               </div>
             </CardContent>
           </Card>
