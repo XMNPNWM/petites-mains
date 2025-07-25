@@ -71,7 +71,7 @@ const LandingPage = () => {
         </div>
         
         {/* Scroll Down Arrow */}
-        <div className="absolute bottom-8 left-[calc(50%-4px)] -translate-x-1/2 z-20 animate-bounce">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 animate-bounce">
           <button 
             onClick={scrollToFeatures}
             className="flex flex-col items-center text-white hover:text-blue-200 transition-colors duration-200"
