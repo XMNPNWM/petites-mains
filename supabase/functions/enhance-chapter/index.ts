@@ -666,18 +666,18 @@ function smartFilterChangesEnhanced(changes: any[]): any[] {
       return true;
     }
     
-    // Include medium semantic impact with good confidence
-    if (change.semantic_impact === 'medium' && change.confidence_score > 0.6) {
+    // Include medium semantic impact with decent confidence (lowered threshold)
+    if (change.semantic_impact === 'medium' && change.confidence_score > 0.4) {
       return true;
     }
     
-    // Include changes with high confidence and relevance
-    if (change.confidence_score > 0.7 && relevanceScore > 0.6) {
+    // Include changes with decent confidence and relevance (lowered thresholds)
+    if (change.confidence_score > 0.5 && relevanceScore > 0.25) {
       return true;
     }
     
-    // Include meaningful structural changes
-    if (change.change_type === 'structure' && change.confidence_score > 0.5) {
+    // Include meaningful structural changes (lowered threshold)
+    if (change.change_type === 'structure' && change.confidence_score > 0.3) {
       return true;
     }
     
@@ -696,6 +696,17 @@ function smartFilterChangesEnhanced(changes: any[]): any[] {
   });
   
   console.log(`🎯 Enhanced filtering complete: ${filtered.length}/${changes.length} changes kept`);
+  
+  // Safety net: if we filtered out everything but have changes, keep some high-confidence ones
+  if (filtered.length === 0 && changes.length > 0) {
+    console.log('🚨 All changes filtered out - applying safety net');
+    const safekeepChanges = changes
+      .filter(change => change.confidence_score > 0.3)
+      .slice(0, Math.min(5, changes.length)); // Keep up to 5 changes
+    console.log(`🛡️ Safety net kept ${safekeepChanges.length} changes`);
+    return safekeepChanges;
+  }
+  
   return filtered;
 }
 
