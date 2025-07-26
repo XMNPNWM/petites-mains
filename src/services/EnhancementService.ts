@@ -83,9 +83,7 @@ export class EnhancementService {
         );
       }
 
-      // REQUIREMENT 1: Clear previous changes before starting enhancement
-      console.log('🧹 Clearing previous changes for fresh enhancement');
-      await EnhancementService.clearPreviousChanges(refinementData.id, chapterId);
+      // Note: Changes will be cleared automatically when saving new tracking data
 
       // CRITICAL: Set status to "in_progress" at the start of enhancement
       console.log('🔄 Setting refinement status to "in_progress"');
@@ -529,11 +527,31 @@ export class EnhancementService {
     try {
       console.log('💾 Saving change tracking data for refinement:', refinementId);
       
-      // First, clear existing changes for this refinement
-      await supabase
+      // ROBUST CLEARING: Clear existing changes with verification
+      console.log('🧹 Clearing existing changes before inserting new ones...');
+      
+      const { data: existingChanges, error: countError } = await supabase
         .from('ai_change_tracking')
-        .delete()
+        .select('id')
         .eq('refinement_id', refinementId);
+      
+      if (countError) {
+        console.error('❌ Error checking existing changes:', countError);
+      } else {
+        console.log(`🔍 Found ${existingChanges?.length || 0} existing changes to clear`);
+      }
+      
+      const { error: deleteError, count } = await supabase
+        .from('ai_change_tracking')
+        .delete({ count: 'exact' })
+        .eq('refinement_id', refinementId);
+      
+      if (deleteError) {
+        console.error('❌ Error clearing existing changes:', deleteError);
+        throw deleteError;
+      }
+      
+      console.log(`✅ Cleared ${count || 0} existing changes`);
       
       // Insert new changes with dual-position format
       const changeRecords = changes.map(change => ({
