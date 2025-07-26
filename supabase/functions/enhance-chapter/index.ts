@@ -1479,6 +1479,26 @@ serve(async (req) => {
       .replace(/---+/g, '')
       .trim();
 
+    // CRITICAL: Normalize paragraph breaks - convert single \n to double \n\n where appropriate
+    // This fixes the issue where AI outputs single line breaks between paragraphs
+    console.log('📝 Normalizing paragraph breaks...');
+    console.log('Before normalization - paragraph count:', cleanedContent.split('\n\n').filter(p => p.trim()).length);
+    
+    // Step 1: Convert sequences of single line breaks between sentences to double line breaks
+    // This pattern looks for: sentence ending + single newline + capital letter (new sentence)
+    cleanedContent = cleanedContent.replace(/([.!?])\n([A-Z])/g, '$1\n\n$2');
+    
+    // Step 2: Handle dialogue and scene breaks - convert single breaks after quotes to double
+    cleanedContent = cleanedContent.replace(/([.!?"])\n([A-Z"])/g, '$1\n\n$2');
+    
+    // Step 3: Clean up any triple+ line breaks to double line breaks
+    cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n');
+    
+    // Step 4: Ensure proper spacing around remaining content
+    cleanedContent = cleanedContent.trim();
+    
+    console.log('After normalization - paragraph count:', cleanedContent.split('\n\n').filter(p => p.trim()).length);
+
     // CRITICAL: Validate paragraph structure preservation (simplified approach)
     const validation = validateParagraphStructure(contentToEnhance, cleanedContent);
     
