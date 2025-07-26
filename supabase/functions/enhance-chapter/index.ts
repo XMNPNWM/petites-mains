@@ -450,7 +450,6 @@ async function detectChangesEnhanced(originalContent: string, enhancedContent: s
   console.log('⚠️ Using legacy detectChangesEnhanced - should use DiffBasedChangeTrackingService instead');
   return [];
 }
-}
 
 /**
  * Enhanced text similarity calculation using multiple algorithms
