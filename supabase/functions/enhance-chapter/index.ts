@@ -172,194 +172,284 @@ function calculateCosineSimilarity(embeddingA: number[], embeddingB: number[]): 
 }
 
 /**
- * Enhanced word-level diff algorithm for more accurate change detection
+ * Accurate character-level change tracking using Myers' diff algorithm
+ * Replaces primitive word-based diffing for precise position tracking
  */
-function diffWords(originalContent: string, enhancedContent: string): any[] {
-  const originalWords = originalContent.split(/(\s+)/);
-  const enhancedWords = enhancedContent.split(/(\s+)/);
-  
-  const changes: any[] = [];
-  let i = 0, j = 0;
-  
-  while (i < originalWords.length || j < enhancedWords.length) {
-    if (i >= originalWords.length) {
-      // Remaining words are additions
-      changes.push({
-        added: true,
-        value: enhancedWords.slice(j).join('')
-      });
-      break;
-    }
+class DiffBasedChangeTrackingService {
+  private static dmp = new DiffMatchPatch.diff_match_patch();
+
+  /**
+   * Generate accurate character-level changes between original and enhanced content
+   */
+  static getChanges(originalContent: string, enhancedContent: string): any[] {
+    console.log('🔍 Starting character-level diff analysis...');
+    console.log(`Original length: ${originalContent.length}, Enhanced length: ${enhancedContent.length}`);
+
+    // Generate character-level diff using Myers' algorithm
+    const rawDiffs = this.dmp.diff_main(originalContent, enhancedContent);
+    this.dmp.diff_cleanupSemantic(rawDiffs); // Optimize for human readability
     
-    if (j >= enhancedWords.length) {
-      // Remaining words are deletions
-      changes.push({
-        removed: true,
-        value: originalWords.slice(i).join('')
-      });
-      break;
-    }
-    
-    if (originalWords[i] === enhancedWords[j]) {
-      // Words match, keep as unchanged
-      changes.push({
-        value: originalWords[i]
-      });
-      i++;
-      j++;
-    } else {
-      // Find the longest common subsequence to determine best alignment
-      let originalEnd = i + 1;
-      let enhancedEnd = j + 1;
+    console.log(`Generated ${rawDiffs.length} raw diff operations`);
+
+    // Convert raw diffs to position-aware segments
+    const diffSegments = this.processDiffOperations(rawDiffs);
+    console.log(`Processed into ${diffSegments.length} diff segments`);
+
+    // Convert segments to change records with enhanced classification
+    const changeRecords = this.convertSegmentsToChangeRecords(diffSegments);
+    console.log(`Created ${changeRecords.length} change records`);
+
+    return changeRecords;
+  }
+
+  /**
+   * Convert raw diff operations to position-aware segments
+   */
+  private static processDiffOperations(diffs: [number, string][]): any[] {
+    const segments: any[] = [];
+    let originalPos = 0;
+    let enhancedPos = 0;
+    let pendingDelete: any = null;
+
+    for (const [operation, text] of diffs) {
+      const opType = this.getOperationType(operation);
       
-      // Look ahead to find matching sections
-      while (originalEnd < originalWords.length && enhancedEnd < enhancedWords.length) {
-        if (originalWords[originalEnd] === enhancedWords[enhancedEnd]) {
-          break;
+      if (opType === 'EQUAL') {
+        // Handle any pending delete before processing equal
+        if (pendingDelete) {
+          segments.push(pendingDelete);
+          pendingDelete = null;
         }
-        originalEnd++;
-        enhancedEnd++;
+
+        // Skip empty equal operations
+        if (text.length > 0) {
+          originalPos += text.length;
+          enhancedPos += text.length;
+        }
+      } 
+      else if (opType === 'DELETE') {
+        // Store delete operation, might be part of a replace
+        pendingDelete = {
+          operation: 'DELETE',
+          originalText: text,
+          enhancedText: '',
+          originalStart: originalPos,
+          originalEnd: originalPos + text.length,
+          enhancedStart: enhancedPos,
+          enhancedEnd: enhancedPos
+        };
+        originalPos += text.length;
+      } 
+      else if (opType === 'INSERT') {
+        if (pendingDelete) {
+          // Combine DELETE + INSERT into REPLACE
+          segments.push({
+            operation: 'REPLACE',
+            originalText: pendingDelete.originalText,
+            enhancedText: text,
+            originalStart: pendingDelete.originalStart,
+            originalEnd: pendingDelete.originalEnd,
+            enhancedStart: pendingDelete.enhancedStart,
+            enhancedEnd: enhancedPos + text.length
+          });
+          pendingDelete = null;
+        } else {
+          // Pure insertion
+          segments.push({
+            operation: 'INSERT',
+            originalText: '',
+            enhancedText: text,
+            originalStart: originalPos,
+            originalEnd: originalPos,
+            enhancedStart: enhancedPos,
+            enhancedEnd: enhancedPos + text.length
+          });
+        }
+        enhancedPos += text.length;
       }
-      
-      // Add removed section
-      if (originalEnd > i) {
-        changes.push({
-          removed: true,
-          value: originalWords.slice(i, originalEnd).join('')
-        });
-      }
-      
-      // Add added section
-      if (enhancedEnd > j) {
-        changes.push({
-          added: true,
-          value: enhancedWords.slice(j, enhancedEnd).join('')
-        });
-      }
-      
-      i = originalEnd;
-      j = enhancedEnd;
+    }
+
+    // Handle any remaining pending delete
+    if (pendingDelete) {
+      segments.push(pendingDelete);
+    }
+
+    return segments.filter(segment => 
+      segment.operation !== 'EQUAL' && 
+      (segment.originalText.length > 0 || segment.enhancedText.length > 0)
+    );
+  }
+
+  /**
+   * Convert operation number to type string
+   */
+  private static getOperationType(operation: number): string {
+    switch (operation) {
+      case 0: return 'EQUAL';
+      case 1: return 'INSERT';  
+      case -1: return 'DELETE';
+      default: return 'EQUAL';
     }
   }
-  
-  return changes;
+
+  /**
+   * Convert diff segments to change records with semantic classification
+   */
+  private static convertSegmentsToChangeRecords(segments: any[]): any[] {
+    return segments.map(segment => ({
+      change_type: this.classifyChangeType(segment),
+      original_text: segment.originalText,
+      enhanced_text: segment.enhancedText,
+      position_start: segment.originalStart, // For backward compatibility with current schema
+      position_end: segment.originalEnd,
+      original_position_start: segment.originalStart,
+      original_position_end: segment.originalEnd,
+      enhanced_position_start: segment.enhancedStart,
+      enhanced_position_end: segment.enhancedEnd,
+      confidence_score: this.calculateConfidenceScore(segment),
+      user_decision: 'pending',
+      semantic_impact: this.assessSemanticImpact(segment)
+    }));
+  }
+
+  /**
+   * Enhanced change type classification for character-level changes
+   */
+  private static classifyChangeType(segment: any): string {
+    const { operation, originalText, enhancedText } = segment;
+
+    // Handle pure insertions and deletions
+    if (operation === 'INSERT') return 'insertion';
+    if (operation === 'DELETE') return 'deletion';
+
+    // Character-level replacements
+    if (operation === 'REPLACE') {
+      // Single character changes
+      if (originalText.length === 1 && enhancedText.length === 1) {
+        if (originalText.toLowerCase() === enhancedText.toLowerCase()) {
+          return 'capitalization';
+        }
+        if (/[.!?,:;]/.test(originalText) || /[.!?,:;]/.test(enhancedText)) {
+          return 'punctuation_correction';
+        }
+      }
+
+      // Whitespace changes
+      if (originalText.trim() === enhancedText.trim() && originalText !== enhancedText) {
+        return 'whitespace_adjustment';
+      }
+
+      // Word boundary changes - likely grammar
+      if (originalText.length <= 10 && enhancedText.length <= 10) {
+        return 'grammar';
+      }
+
+      // Sentence-level changes - likely style  
+      if (originalText.length > 50 || enhancedText.length > 50) {
+        return 'style';
+      }
+
+      // Dialogue detection
+      if ((originalText.includes('"') || enhancedText.includes('"')) ||
+          (originalText.includes("'") || enhancedText.includes("'"))) {
+        return 'dialogue';
+      }
+
+      // Medium-length changes - likely structure
+      return 'structure';
+    }
+
+    return 'grammar'; // fallback
+  }
+
+  /**
+   * Calculate confidence score based on change characteristics
+   */
+  private static calculateConfidenceScore(segment: any): number {
+    const { operation, originalText, enhancedText } = segment;
+
+    // High confidence for simple operations
+    if (operation === 'INSERT' || operation === 'DELETE') {
+      return 0.9;
+    }
+
+    // Very high confidence for obvious corrections
+    if (originalText.length === 1 && enhancedText.length === 1) {
+      return 0.95;
+    }
+
+    // Lower confidence for larger changes
+    const totalLength = originalText.length + enhancedText.length;
+    if (totalLength > 100) {
+      return 0.6;
+    } else if (totalLength > 50) {
+      return 0.75;
+    } else {
+      return 0.85;
+    }
+  }
+
+  /**
+   * Assess semantic impact of the change
+   */
+  private static assessSemanticImpact(segment: any): string {
+    const { originalText, enhancedText } = segment;
+    const totalLength = originalText.length + enhancedText.length;
+
+    // Low impact for punctuation, capitalization, whitespace
+    if (totalLength <= 3) {
+      return 'low';
+    }
+
+    // High impact for large changes
+    if (totalLength > 50) {
+      return 'high';
+    }
+
+    // Medium impact for word-level changes
+    return 'medium';
+  }
 }
 
 /**
- * Enhanced hybrid diff + embedding change tracking
+ * Accurate character-level change tracking using Myers' diff algorithm
  */
 async function generateChangeTrackingData(originalContent: string, enhancedContent: string): Promise<any[]> {
   try {
-    console.log('🔍 Starting enhanced hybrid change tracking...');
+    console.log('🔍 Starting character-level diff-based change tracking...');
     
-    // Phase 1: Enhanced diff detection for accurate change identification
-    const diffChanges = await detectChangesEnhanced(originalContent, enhancedContent);
+    // Use new character-level diff service
+    const changes = DiffBasedChangeTrackingService.getChanges(originalContent, enhancedContent);
     
-    if (diffChanges.length === 0) {
+    if (changes.length === 0) {
       console.log('✅ No changes detected - content is identical');
       return [];
     }
     
-    console.log(`📊 Phase 1 complete: ${diffChanges.length} changes detected via enhanced diff`);
+    console.log(`📊 Generated ${changes.length} character-level changes via Myers' diff`);
     
-    // Phase 2: Semantic enhancement for better categorization
-    const enhancedChanges = await enhanceChangesWithSemantics(diffChanges, originalContent, enhancedContent);
+    // Apply semantic enhancement to all change operations
+    const enhancedChanges = await enhanceChangesWithSemantics(changes, originalContent, enhancedContent);
     
-    // Phase 3: Improved smart filtering
+    // Apply improved filtering
     const finalChanges = smartFilterChangesEnhanced(enhancedChanges);
     
-    console.log(`✅ Enhanced change tracking complete: ${finalChanges.length} meaningful changes detected`);
+    console.log(`✅ Character-level change tracking complete: ${finalChanges.length} meaningful changes detected`);
     return finalChanges;
     
   } catch (error) {
-    console.error('❌ Error in enhanced change tracking:', error);
+    console.error('❌ Error in character-level change tracking:', error);
     return generateFallbackChangeTracking(originalContent, enhancedContent);
   }
 }
 
 /**
- * Phase 1: Enhanced diff detection using proper word-level algorithms
+ * Legacy function - now replaced by DiffBasedChangeTrackingService
  */
 async function detectChangesEnhanced(originalContent: string, enhancedContent: string): Promise<any[]> {
-  const changes: any[] = [];
-  
-  try {
-    console.log('📊 Phase 1: Starting enhanced word-level diff detection...');
-    
-    // Use enhanced word-level diff for better granularity
-    const wordChanges = diffWords(originalContent, enhancedContent);
-    
-    // Process word-level changes with improved position tracking
-    let position = 0;
-    
-    for (let i = 0; i < wordChanges.length; i++) {
-      const change = wordChanges[i];
-      
-      if (change.added || change.removed) {
-        const nextChange = wordChanges[i + 1];
-        
-        // Look for replacement pairs (removed + added)
-        if (change.removed && nextChange?.added) {
-          const originalText = change.value.trim();
-          const enhancedText = nextChange.value.trim();
-          
-          // Only process meaningful changes
-          if (originalText && enhancedText && originalText !== enhancedText) {
-            // Enhanced similarity calculation
-            const similarity = calculateEnhancedTextSimilarity(originalText, enhancedText);
-            const diffConfidence = Math.max(0.3, 1 - similarity);
-            
-            // Enhanced change type detection
-            const changeType = determineChangeTypeEnhanced(originalText, enhancedText);
-            
-            // Validate position accuracy
-            const positionStart = position;
-            const positionEnd = position + originalText.length;
-            
-            if (validateChangePosition(originalContent, originalText, positionStart)) {
-              const detectedChange = {
-                change_type: changeType,
-                original_text: originalText,
-                enhanced_text: enhancedText,
-                position_start: positionStart,
-                position_end: positionEnd,
-                confidence_score: diffConfidence,
-                user_decision: 'pending',
-                diff_confidence: diffConfidence,
-                similarity_score: similarity
-              };
-
-              changes.push(detectedChange);
-              
-              console.log(`✅ Enhanced change detected:`, {
-                type: changeType,
-                similarity: similarity.toFixed(3),
-                confidence: diffConfidence.toFixed(3),
-                originalLength: originalText.length,
-                enhancedLength: enhancedText.length
-              });
-            } else {
-              console.warn(`⚠️ Position validation failed for change at position ${positionStart}`);
-            }
-          }
-          
-          i++; // Skip the next change as we've processed it
-        }
-      }
-      
-      // Update position tracking
-      if (!change.added) {
-        position += change.value.length;
-      }
-    }
-    
-    console.log(`📊 Enhanced diff analysis complete: ${changes.length} validated changes detected`);
-    return changes;
-    
-  } catch (error) {
-    console.error('❌ Error in enhanced diff detection:', error);
-    return [];
-  }
+  console.log('⚠️ Using legacy detectChangesEnhanced - should use DiffBasedChangeTrackingService instead');
+  return [];
+}
 }
 
 /**
