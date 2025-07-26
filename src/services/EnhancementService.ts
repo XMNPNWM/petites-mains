@@ -15,7 +15,7 @@ export class EnhancementService {
    * @param chapterId - The chapter ID to enhance
    * @param onComplete - Optional callback when enhancement is complete
    */
-  static async enhanceChapter(projectId: string, chapterId: string, onComplete?: () => void): Promise<void> {
+  static async enhanceChapter(projectId: string, chapterId: string, onComplete?: () => void, options: any = {}): Promise<void> {
     let refinementData: any = null; // Declare in outer scope for error handling
     
     try {
@@ -108,26 +108,53 @@ export class EnhancementService {
         const invokeStartTime = Date.now();
         console.log('⏰ Edge function invocation starting at:', new Date().toISOString());
         
-        const { data: enhancementResult, error: enhancementError } = await supabase.functions.invoke('enhance-chapter', {
-          body: { 
-            content: chapter.content,
-            projectId: projectId,
-            chapterId: chapterId,
-            options: {
-              enhancementLevel: 'moderate',
-              preserveAuthorVoice: true,
-              applyGrammarFixes: true,
-              applyPunctuationFixes: true,
-              applyFormattingFixes: true,
-              improveReadability: true,
-              improveStyle: true,
-              improveShowVsTell: false,
-              refinePacing: false,
-              enhanceCharacterVoice: true,
-              addSensoryDetails: false
+        let enhancementResult, enhancementError;
+        
+        try {
+          const result = await supabase.functions.invoke('enhance-chapter', {
+            body: { 
+              content: chapter.content,
+              projectId: projectId,
+              chapterId: chapterId,
+              options: {
+                enhancementLevel: 'moderate',
+                preserveAuthorVoice: true,
+                applyGrammarFixes: true,
+                applyPunctuationFixes: true,
+                applyFormattingFixes: true,
+                improveReadability: true,
+                improveStyle: true,
+                improveShowVsTell: false,
+                refinePacing: false,
+                enhanceCharacterVoice: true,
+                addSensoryDetails: false,
+                ...options // Override defaults with any provided options
+              }
             }
+          });
+          
+          enhancementResult = result.data;
+          enhancementError = result.error;
+          
+          // CRITICAL: Check HTTP status if there's an error
+          if (enhancementError || !enhancementResult) {
+            console.error('🚨 Edge function call failed completely:', {
+              error: enhancementError,
+              result: enhancementResult,
+              timestamp: new Date().toISOString()
+            });
+            
+            await EnhancementService.updateRefinementStatus(refinementData.id, 'failed', chapterId);
+            EnhancementTimeoutService.clearTimeout(refinementData.id);
+            throw new Error(`Enhancement edge function failed: ${enhancementError?.message || 'No response received'}`);
           }
-        });
+          
+        } catch (invokeError) {
+          console.error('💥 Function invocation exception:', invokeError);
+          await EnhancementService.updateRefinementStatus(refinementData.id, 'failed', chapterId);
+          EnhancementTimeoutService.clearTimeout(refinementData.id);
+          throw new Error(`Enhancement function invocation failed: ${invokeError.message}`);
+        }
 
         // ============= CRITICAL DEBUGGING SECTION =============
         console.group('🔍 DETAILED EDGE FUNCTION RESPONSE ANALYSIS');

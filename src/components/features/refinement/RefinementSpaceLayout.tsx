@@ -39,7 +39,7 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
     
     try {
       setIsAnalyzing(true);
-      await EnhancementService.enhanceChapter(projectId, currentChapter.id, refreshData);
+      await EnhancementService.enhanceChapter(projectId, currentChapter.id, refreshData, {});
       
     } catch (error) {
       console.error('Error analyzing chapter:', error);
