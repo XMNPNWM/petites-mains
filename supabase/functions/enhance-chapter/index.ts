@@ -1436,7 +1436,7 @@ serve(async (req) => {
       contents: enhancementPrompt
     });
 
-    const enhancedContent = response.text;
+    const enhancedContent = response.text();
 
     if (!enhancedContent) {
       throw new Error('Empty response from AI');
