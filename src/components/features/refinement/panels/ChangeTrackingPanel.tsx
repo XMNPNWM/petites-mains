@@ -90,22 +90,52 @@ const ChangeTrackingPanel = ({
     
     setLoading(true);
     try {
+      console.log('🔍 PHASE 3: Fetching changes for refinement:', refinementId);
+      
+      // PHASE 3: Enhanced query with explicit column selection and error handling
       const { data, error } = await supabase
         .from('ai_change_tracking')
-        .select('*')
+        .select(`
+          *,
+          original_position_start,
+          original_position_end,
+          enhanced_position_start,
+          enhanced_position_end,
+          semantic_similarity,
+          semantic_impact
+        `)
         .eq('refinement_id', refinementId)
-        .order('original_position_start');
+        .order('original_position_start', { nullsFirst: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('💥 PHASE 3: Database query error:', error);
+        throw error;
+      }
+      
+      console.log('📊 PHASE 3: Raw database response:', {
+        recordCount: data?.length || 0,
+        sampleRecord: data?.[0] || null,
+        hasNewPositionColumns: data?.[0]?.original_position_start !== undefined
+      });
       
       // Cast database results to proper types
       const typedChanges = (data || []).map(castToAIChange);
       
       setChanges(typedChanges);
       
-      console.log(`📊 Loaded ${typedChanges.length} changes with dual positions`);
+      console.log(`📊 PHASE 3: Loaded ${typedChanges.length} changes with dual positions`);
+      
+      if (typedChanges.length === 0) {
+        console.warn('⚠️ PHASE 3: No changes found for refinement:', refinementId);
+      }
     } catch (error) {
-      console.error('Error fetching changes:', error);
+      console.error('💥 PHASE 3: Error fetching changes:', error);
+      console.error('💥 PHASE 3: Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
     } finally {
       setLoading(false);
     }

@@ -102,9 +102,15 @@ export function applyMultipleChanges(
 
   // Apply changes from end to beginning to avoid position shift issues
   sortedChanges.forEach(change => {
-    // Use enhanced positions if available, fall back to legacy positions
+    // PHASE 2: Use dual-position system with better validation
     const startPos = change.enhanced_position_start ?? change.position_start;
     const endPos = change.enhanced_position_end ?? change.position_end;
+    
+    // Validate position data exists
+    if (startPos === undefined || endPos === undefined) {
+      console.warn('⚠️ PHASE 2: Invalid position data for change');
+      return;
+    }
     
     // Validate that the position and text still match before applying
     const currentText = result.slice(startPos, endPos);
@@ -154,9 +160,15 @@ export function validateEnhancedPositions(
   const invalidChanges: number[] = [];
   
   changes.forEach((change, index) => {
-    // Use enhanced positions if available
+    // PHASE 2: Use dual-position system with validation
     const startPos = change.enhanced_position_start ?? change.position_start;
     const endPos = change.enhanced_position_end ?? change.position_end;
+    
+    // Skip invalid positions
+    if (startPos === undefined || endPos === undefined) {
+      invalidChanges.push(index);
+      return;
+    }
     
     const extractedText = content.slice(startPos, endPos);
     const isValid = extractedText === change.enhanced_text ||

@@ -9,6 +9,7 @@ import MetricsPanel from '../panels/MetricsPanel';
 import ImportButton from './ImportButton';
 import MetricsToggleButton from './MetricsToggleButton';
 import SimpleRightClickMenu from '@/components/features/writing/simple/SimpleRightClickMenu';
+import RefinementDebugPanel from './RefinementDebugPanel';
 
 interface Chapter {
   id: string;
@@ -98,16 +99,28 @@ const RefinementMainPanels = ({
   const isTransitioning = transitionState?.isTransitioning || false;
   const activeRefinementData = refinementData;
   
-  // SIMPLIFIED: Enhanced content display logic
-  const shouldShowContent = activeRefinementData?.chapter_id === currentChapter?.id &&
+  // PHASE 1: Enhanced content display logic with strict chapter validation
+  const shouldShowContent = !!(
+    activeRefinementData?.chapter_id === currentChapter?.id &&
     activeRefinementData?.enhanced_content &&
+    activeRefinementData.enhanced_content.trim().length > 0 &&
     (activeRefinementData.refinement_status === 'completed' || 
-     activeRefinementData.refinement_status === 'in_progress');
+     activeRefinementData.refinement_status === 'in_progress') &&
+    !isTransitioning
+  );
 
   const enhancedContent = shouldShowContent ? activeRefinementData.enhanced_content : '';
   const hasValidEnhancedContent = shouldShowContent;
 
-  console.log('🎛️ RefinementMainPanels - SIMPLIFIED Enhanced content display logic:', {
+  // PHASE 1: Add defensive validation
+  if (activeRefinementData && currentChapter && activeRefinementData.chapter_id !== currentChapter.id) {
+    console.warn('⚠️ PHASE 1: Chapter ID mismatch detected in RefinementMainPanels', {
+      refinementChapterId: activeRefinementData.chapter_id,
+      currentChapterId: currentChapter.id
+    });
+  }
+
+  console.log('🎛️ RefinementMainPanels - PHASE 1: Enhanced content display logic:', {
     currentChapterId: currentChapter?.id,
     refinementChapterId: activeRefinementData?.chapter_id,
     refinementStatus: activeRefinementData?.refinement_status,
@@ -115,11 +128,22 @@ const RefinementMainPanels = ({
     enhancedContentLength: activeRefinementData?.enhanced_content?.length || 0,
     shouldShowContent,
     hasValidEnhancedContent,
-    isTransitioning
+    isTransitioning,
+    chapterIdsMatch: activeRefinementData?.chapter_id === currentChapter?.id
   });
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full">
+    <div className="h-full flex flex-col">
+      {/* Debug Panel - Remove this after testing */}
+      <RefinementDebugPanel
+        currentChapter={currentChapter}
+        refinementData={activeRefinementData}
+        transitionState={transitionState}
+        navigationState={navigationState}
+        isVisible={true}
+      />
+      
+    <ResizablePanelGroup direction="horizontal" className="flex-1">
       {/* Panel 1: Chapter Navigation */}
       <ResizablePanel defaultSize={12} minSize={8} maxSize={20}>
         <SimpleRightClickMenu onMenuClick={onRightClickMenuClick}>
@@ -235,6 +259,7 @@ const RefinementMainPanels = ({
         </>
       )}
     </ResizablePanelGroup>
+    </div>
   );
 };
 

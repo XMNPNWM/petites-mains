@@ -68,14 +68,27 @@ export const DualPanelNavigation: React.FC<DualPanelNavigationProps> = ({
         'bg-green-100 border-l-4 border-green-400'
       );
     } else if (enhancedPanelRef.current) {
-      // Fallback to legacy positions for enhanced panel
-      highlightTextInPanel(
-        enhancedPanelRef.current,
-        enhancedContent,
-        change.position_start,
-        change.position_end,
-        'bg-green-100 border-l-4 border-green-400'
-      );
+      // PHASE 2: Fallback logic with better validation
+      const fallbackStart = change.position_start;
+      const fallbackEnd = change.position_end;
+      
+      if (fallbackStart !== undefined && fallbackEnd !== undefined) {
+        console.warn('⚠️ PHASE 2: Using fallback legacy positions for enhanced panel', {
+          changeId: change.id,
+          legacyStart: fallbackStart,
+          legacyEnd: fallbackEnd
+        });
+        
+        highlightTextInPanel(
+          enhancedPanelRef.current,
+          enhancedContent,
+          fallbackStart,
+          fallbackEnd,
+          'bg-green-100 border-l-4 border-green-400'
+        );
+      } else {
+        console.warn('⚠️ PHASE 2: No valid position data available for change', change.id);
+      }
     }
 
     // Auto-clear highlighting after 10 seconds

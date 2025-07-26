@@ -33,14 +33,25 @@ export const useRefinementSpace = (projectId: string | undefined) => {
   const handleChangeNavigation = useCallback((change: AIChange) => {
     if (!refinementData || !currentChapter) return;
     
+    // PHASE 1: Add chapter ID validation
+    if (refinementData.chapter_id !== currentChapter.id) {
+      console.error('❌ CRITICAL: Change navigation attempted on wrong chapter!', {
+        refinementChapterId: refinementData.chapter_id,
+        currentChapterId: currentChapter.id,
+        changeId: change.id
+      });
+      return;
+    }
+    
     console.log('🧭 useRefinementSpace - Navigating to change:', change.id);
     
+    // PHASE 2: Use dual-position system instead of legacy position_start
     const newNavigationState = ChangeNavigationService.setSelectedChange(
       change.id,
       refinementData.original_content,
       refinementData.enhanced_content,
-      change.position_start,
-      change.position_end
+      change.original_position_start || change.position_start, // Fallback for legacy data
+      change.original_position_end || change.position_end
     );
     
     setNavigationState(newNavigationState);
@@ -63,6 +74,10 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     if (!chapterId) return;
     
     console.log('🔍 useRefinementSpace - Fetching refinement data for chapter:', chapterId);
+    
+    // PHASE 1: Clear existing refinement data immediately to prevent mismatched content display
+    setRefinementData(null);
+    clearChangeNavigation();
     
     setIsLoadingRefinementData(true);
     
@@ -157,6 +172,11 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     // Start transition from current chapter to new chapter
     console.log('🔄 Starting transition from', currentChapter?.id, 'to', chapter.id);
     startTransition(currentChapter?.id || null, chapter.id);
+    
+    // PHASE 1: Clear refinement data immediately to prevent content mismatch
+    console.log('🧹 Clearing current refinement data to prevent chapter mismatch');
+    setRefinementData(null);
+    clearChangeNavigation();
     
     // Preserve current refinement data during transition
     if (refinementData) {

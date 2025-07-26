@@ -162,14 +162,28 @@ export class EnhancementService {
         console.log('⏱️ Total invocation time:', (invokeEndTime - invokeStartTime), 'ms');
         console.log('🔍 Raw enhancement response:', { enhancementResult, enhancementError });
 
+        // PHASE 3: Enhanced logging for debugging
         console.log('📥 Enhancement result received:', {
           hasData: !!enhancementResult,
           hasEnhancedContent: !!enhancementResult?.enhancedContent,
           enhancedContentLength: enhancementResult?.enhancedContent?.length || 0,
           enhancedContentPreview: enhancementResult?.enhancedContent?.substring(0, 50) || '',
           hasChanges: !!enhancementResult?.changes,
-          changesCount: enhancementResult?.changes?.length || 0
+          changesCount: enhancementResult?.changes?.length || 0,
+          enhancementError: enhancementError ? enhancementError.message : null
         });
+
+        // PHASE 3: Log changes structure for debugging
+        if (enhancementResult?.changes && Array.isArray(enhancementResult.changes)) {
+          console.log('🔍 PHASE 3: Changes array structure analysis:', {
+            totalChanges: enhancementResult.changes.length,
+            firstChangeKeys: enhancementResult.changes[0] ? Object.keys(enhancementResult.changes[0]) : [],
+            hasDualPositions: enhancementResult.changes.some(c => 
+              c.original_position_start !== undefined && c.enhanced_position_start !== undefined
+            ),
+            sampleChange: enhancementResult.changes[0]
+          });
+        }
 
         if (enhancementError) {
           console.error('❌ Content enhancement failed:', enhancementError);
@@ -239,21 +253,55 @@ export class EnhancementService {
           }
           console.groupEnd();
           
-          // Process and save individual changes to the ai_change_tracking table
+          // PHASE 3: Process and save individual changes to the ai_change_tracking table
           if (enhancementResult.changes && Array.isArray(enhancementResult.changes)) {
-            console.group('🔍 CHANGE TRACKING DEBUGGING');
+            console.group('🔍 PHASE 3: CHANGE TRACKING DEBUGGING');
             console.log('💾 Saving change tracking data, count:', enhancementResult.changes.length);
+            console.log('📊 Changes validation:', {
+              allHaveRequiredFields: enhancementResult.changes.every(c => 
+                c.original_text !== undefined && c.enhanced_text !== undefined
+              ),
+              allHaveDualPositions: enhancementResult.changes.every(c => 
+                c.original_position_start !== undefined && c.enhanced_position_start !== undefined
+              ),
+              changesWithValidPositions: enhancementResult.changes.filter(c => 
+                c.original_position_start !== undefined && c.enhanced_position_start !== undefined
+              ).length
+            });
             
             try {
               await EnhancementService.saveChangeTrackingData(refinementData.id, enhancementResult.changes);
               console.log('✅ Change tracking data saved successfully');
+              
+              // PHASE 3: Verify data was actually saved
+              const { data: verificationData, error: verificationError } = await supabase
+                .from('ai_change_tracking')
+                .select('id, change_type, original_position_start, enhanced_position_start')
+                .eq('refinement_id', refinementData.id)
+                .limit(5);
+                
+              if (verificationError) {
+                console.error('💥 Change tracking verification failed:', verificationError);
+              } else {
+                console.log('🔍 PHASE 3: Change tracking verification - saved records sample:', verificationData);
+              }
             } catch (trackingError) {
               console.error('💥 Change tracking save failed:', trackingError);
+              console.error('💥 Error details:', {
+                message: trackingError.message,
+                code: trackingError.code,
+                details: trackingError.details
+              });
               // Don't throw here since it's not critical for main functionality
             }
             console.groupEnd();
           } else {
-            console.warn('⚠️ No changes array found in enhancement result - skipping change tracking');
+            console.warn('⚠️ PHASE 3: No changes array found in enhancement result - skipping change tracking');
+            console.log('🔍 PHASE 3: Enhancement result structure:', {
+              keys: enhancementResult ? Object.keys(enhancementResult) : 'null',
+              changesProperty: enhancementResult?.changes,
+              changesType: typeof enhancementResult?.changes
+            });
           }
         } else {
           console.warn('⚠️ Enhancement service returned no enhanced content, using original content');
