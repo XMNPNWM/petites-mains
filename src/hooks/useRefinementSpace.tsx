@@ -263,15 +263,24 @@ export const useRefinementSpace = (projectId: string | undefined) => {
       // If change is rejected, apply the original text to enhanced content
       if (decision === 'rejected' && change) {
         const currentContent = refinementData.enhanced_content || '';
-        const newContent = applyTextReplacement(
-          currentContent,
-          change.enhanced_position_start,
-          change.enhanced_position_end,
-          change.original_text
-        );
+        // PHASE 2: Use dual-position system for text replacement
+        const startPos = change.enhanced_position_start ?? change.original_position_start;
+        const endPos = change.enhanced_position_end ?? change.original_position_end;
         
-        // Update the enhanced content
-        await handleContentChange(newContent);
+        if (startPos !== undefined && endPos !== undefined) {
+          console.log('🔄 PHASE 2: Applying text replacement using dual-position system');
+          const newContent = applyTextReplacement(
+            currentContent,
+            startPos,
+            endPos,
+            change.original_text
+          );
+          
+          // Update the enhanced content
+          await handleContentChange(newContent);
+        } else {
+          console.warn('⚠️ PHASE 2: No valid position data found for change');
+        }
       }
       
       toast({
