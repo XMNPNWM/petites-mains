@@ -1043,9 +1043,15 @@ function calculateShowVsTellRatio(content: string): number {
 }
 
 /**
- * Simple paragraph structure validation - trusts AI instructions
+ * Enhanced paragraph structure validation with dynamic tolerance
  */
 function validateParagraphStructure(originalContent: string, enhancedContent: string): { isValid: boolean; shouldRetry: boolean } {
+  // Ensure we have actual content to validate
+  if (!enhancedContent || enhancedContent.trim() === '<p></p>' || enhancedContent.trim().length < 10) {
+    console.error('❌ Enhanced content is empty or invalid');
+    return { isValid: false, shouldRetry: true };
+  }
+  
   // Count paragraphs in original and enhanced content
   const originalParagraphs = originalContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
   const enhancedParagraphs = enhancedContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
@@ -1064,14 +1070,29 @@ function validateParagraphStructure(originalContent: string, enhancedContent: st
     return { isValid: true, shouldRetry: false };
   }
   
-  // Small difference (1 paragraph) - acceptable, just warn
-  if (paragraphDifference === 1) {
-    console.warn('⚠️ Minor paragraph structure difference (1 paragraph) - acceptable');
+  // Dynamic tolerance based on content size
+  let allowedDifference = 1;
+  if (originalParagraphs.length >= 20) {
+    allowedDifference = 2; // More tolerance for larger content
+  }
+  if (originalParagraphs.length >= 50) {
+    allowedDifference = 3; // Even more tolerance for very large content
+  }
+  
+  // Acceptable difference based on content size
+  if (paragraphDifference <= allowedDifference) {
+    console.warn(`⚠️ Paragraph structure difference (${paragraphDifference} paragraphs) within tolerance (${allowedDifference}) - acceptable`);
+    return { isValid: true, shouldRetry: false };
+  }
+  
+  // Too large difference - but for very large content, be more lenient
+  if (originalParagraphs.length >= 30 && paragraphDifference <= Math.floor(originalParagraphs.length * 0.15)) {
+    console.warn(`⚠️ Large paragraph difference (${paragraphDifference}) but within 15% threshold for large content - accepting`);
     return { isValid: true, shouldRetry: false };
   }
   
   // Large difference - reject and retry
-  console.error('❌ Significant paragraph structure mismatch - rejecting AI response');
+  console.error(`❌ Significant paragraph structure mismatch - rejecting AI response (difference: ${paragraphDifference}, allowed: ${allowedDifference})`);
   return { isValid: false, shouldRetry: true };
 }
 
