@@ -203,9 +203,26 @@ export class EnhancementService {
           throw new Error(`Content enhancement failed: ${enhancementError.message}`);
         }
 
-        // CRITICAL VALIDATION: Verify enhanced content is different from input
+        // CRITICAL VALIDATION: Verify enhanced content is valid and meaningful
         if (enhancementResult?.enhancedContent) {
           const enhancedContent = enhancementResult.enhancedContent;
+          
+          // PHASE 3: Additional validation to prevent empty/minimal content
+          const isEmptyOrMinimal = !enhancedContent || 
+                                   enhancedContent.trim().length === 0 || 
+                                   enhancedContent.trim() === '<p></p>' ||
+                                   enhancedContent.trim().length < 10;
+          
+          if (isEmptyOrMinimal) {
+            console.error('❌ Enhanced content is empty or minimal:', {
+              enhancedContent: enhancedContent,
+              length: enhancedContent?.length || 0
+            });
+            // Set failed status and don't save empty content
+            await EnhancementService.updateRefinementStatus(refinementData.id, 'failed', chapterId);
+            EnhancementTimeoutService.clearTimeout(refinementData.id);
+            throw new Error('Enhancement failed: Received empty or minimal content from AI service');
+          }
           
           // Basic sanity check - enhanced content shouldn't be identical to input
           if (enhancedContent === chapter.content) {

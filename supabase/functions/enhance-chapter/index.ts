@@ -1357,14 +1357,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Ensure the request origin is allowed before proceeding with the main logic
-  if (requestOrigin && !ALLOWED_ORIGINS.includes(requestOrigin)) {
-    console.warn('🚫 Blocked unauthorized origin:', requestOrigin);
-    return new Response('Unauthorized', {
-      status: 403, // Forbidden
-      headers: corsHeaders, // Still return CORS headers for potential debugging
-    });
-  }
+  // Origin validation is handled by getCorsHeaders
 
   try {
     // Get user from authorization header
