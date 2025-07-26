@@ -234,7 +234,7 @@ export const useDualPanelNavigation = () => {
       type: change.change_type,
       originalPos: change.original_position_start,
       enhancedPos: change.enhanced_position_start,
-      isLegacy: change.is_legacy_data
+      isLegacy: false
     });
 
     // The actual highlighting is handled by DualPanelNavigation component

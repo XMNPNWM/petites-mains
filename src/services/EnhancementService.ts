@@ -381,15 +381,19 @@ export class EnhancementService {
         .delete()
         .eq('refinement_id', refinementId);
       
-      // Insert new changes
+      // Insert new changes with dual-position format
       const changeRecords = changes.map(change => ({
         refinement_id: refinementId,
         change_type: change.change_type || 'style',
         original_text: change.original_text || '',
         enhanced_text: change.enhanced_text || '',
-        position_start: change.position_start || 0,
-        position_end: change.position_end || 0,
+        original_position_start: change.original_position_start || 0,
+        original_position_end: change.original_position_end || 0,
+        enhanced_position_start: change.enhanced_position_start || 0,
+        enhanced_position_end: change.enhanced_position_end || 0,
         confidence_score: change.confidence_score || 0.5,
+        semantic_similarity: change.semantic_similarity,
+        semantic_impact: change.semantic_impact,
         user_decision: change.user_decision || 'pending'
       }));
       
@@ -403,7 +407,7 @@ export class EnhancementService {
           throw error;
         }
         
-        console.log('✅ Successfully saved', changeRecords.length, 'change tracking records');
+        console.log('✅ Successfully saved', changeRecords.length, 'change tracking records with dual positions');
       }
     } catch (error) {
       console.error('❌ Error in saveChangeTrackingData:', error);

@@ -19,36 +19,48 @@ export type Database = {
           change_type: string
           confidence_score: number | null
           created_at: string | null
+          enhanced_position_end: number
+          enhanced_position_start: number
           enhanced_text: string
           id: string
+          original_position_end: number
+          original_position_start: number
           original_text: string
-          position_end: number
-          position_start: number
           refinement_id: string
+          semantic_impact: string | null
+          semantic_similarity: number | null
           user_decision: string | null
         }
         Insert: {
           change_type: string
           confidence_score?: number | null
           created_at?: string | null
+          enhanced_position_end: number
+          enhanced_position_start: number
           enhanced_text: string
           id?: string
+          original_position_end: number
+          original_position_start: number
           original_text: string
-          position_end: number
-          position_start: number
           refinement_id: string
+          semantic_impact?: string | null
+          semantic_similarity?: number | null
           user_decision?: string | null
         }
         Update: {
           change_type?: string
           confidence_score?: number | null
           created_at?: string | null
+          enhanced_position_end?: number
+          enhanced_position_start?: number
           enhanced_text?: string
           id?: string
+          original_position_end?: number
+          original_position_start?: number
           original_text?: string
-          position_end?: number
-          position_start?: number
           refinement_id?: string
+          semantic_impact?: string | null
+          semantic_similarity?: number | null
           user_decision?: string | null
         }
         Relationships: [

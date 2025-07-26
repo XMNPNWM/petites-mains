@@ -301,8 +301,6 @@ class DiffBasedChangeTrackingService {
       change_type: this.classifyChangeType(segment),
       original_text: segment.originalText,
       enhanced_text: segment.enhancedText,
-      position_start: segment.originalStart, // For backward compatibility with current schema
-      position_end: segment.originalEnd,
       original_position_start: segment.originalStart,
       original_position_end: segment.originalEnd,
       enhanced_position_start: segment.enhancedStart,
@@ -444,13 +442,6 @@ async function generateChangeTrackingData(originalContent: string, enhancedConte
   }
 }
 
-/**
- * Legacy function - now replaced by DiffBasedChangeTrackingService
- */
-async function detectChangesEnhanced(originalContent: string, enhancedContent: string): Promise<any[]> {
-  console.log('⚠️ Using legacy detectChangesEnhanced - should use DiffBasedChangeTrackingService instead');
-  return [];
-}
 
 /**
  * Enhanced text similarity calculation using multiple algorithms

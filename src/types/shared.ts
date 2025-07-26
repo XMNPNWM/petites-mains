@@ -33,19 +33,17 @@ export interface AIChange {
   change_type: 'grammar' | 'structure' | 'dialogue' | 'style' | 'insertion' | 'deletion' | 'replacement' | 'capitalization' | 'punctuation_correction' | 'whitespace_adjustment';
   original_text: string;
   enhanced_text: string;
-  position_start: number; // Backward compatibility - refers to original position
-  position_end: number;   // Backward compatibility - refers to original position
+  position_start: number; // Maps to original_position_start for backward compatibility
+  position_end: number;   // Maps to original_position_end for backward compatibility
   user_decision: 'accepted' | 'rejected' | 'pending';
   confidence_score: number;
-  // Enhanced dual position tracking
-  original_position_start?: number; // Start index in ORIGINAL chapter content
-  original_position_end?: number;   // End index in ORIGINAL chapter content
-  enhanced_position_start?: number; // Start index in ENHANCED chapter content
-  enhanced_position_end?: number;   // End index in ENHANCED chapter content
+  // Enhanced dual position tracking (required fields)
+  original_position_start: number; // Start index in ORIGINAL chapter content
+  original_position_end: number;   // End index in ORIGINAL chapter content
+  enhanced_position_start: number; // Start index in ENHANCED chapter content
+  enhanced_position_end: number;   // End index in ENHANCED chapter content
   semantic_similarity?: number;
   semantic_impact?: 'low' | 'medium' | 'high';
-  // Legacy data indicator
-  is_legacy_data?: boolean;
 }
 
 export interface TimelineChat {

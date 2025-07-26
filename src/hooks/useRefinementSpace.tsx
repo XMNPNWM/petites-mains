@@ -245,8 +245,8 @@ export const useRefinementSpace = (projectId: string | undefined) => {
         const currentContent = refinementData.enhanced_content || '';
         const newContent = applyTextReplacement(
           currentContent,
-          change.position_start,
-          change.position_end,
+          change.enhanced_position_start,
+          change.enhanced_position_end,
           change.original_text
         );
         
