@@ -9,7 +9,7 @@ import MetricsPanel from '../panels/MetricsPanel';
 import ImportButton from './ImportButton';
 import MetricsToggleButton from './MetricsToggleButton';
 import SimpleRightClickMenu from '@/components/features/writing/simple/SimpleRightClickMenu';
-import RefinementDebugPanel from './RefinementDebugPanel';
+
 
 interface Chapter {
   id: string;
@@ -134,14 +134,6 @@ const RefinementMainPanels = ({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Debug Panel - Remove this after testing */}
-      <RefinementDebugPanel
-        currentChapter={currentChapter}
-        refinementData={activeRefinementData}
-        transitionState={transitionState}
-        navigationState={navigationState}
-        isVisible={true}
-      />
       
     <ResizablePanelGroup direction="horizontal" className="flex-1">
       {/* Panel 1: Chapter Navigation */}
