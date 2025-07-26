@@ -83,7 +83,9 @@ export class EnhancementService {
         );
       }
 
-      // Note: Changes will be cleared automatically when saving new tracking data
+      // CRITICAL: Clear previous changes immediately before starting enhancement
+      console.log('🧹 Clearing previous changes before enhancement starts');
+      await EnhancementService.clearPreviousChanges(refinementData.id, chapterId);
 
       // CRITICAL: Set status to "in_progress" at the start of enhancement
       console.log('🔄 Setting refinement status to "in_progress"');
@@ -327,27 +329,22 @@ export class EnhancementService {
             try {
               await EnhancementService.saveChangeTrackingData(refinementData.id, enhancementResult.changes);
               console.log('✅ Change tracking data saved successfully');
-              
-              // PHASE 3: Verify data was actually saved
-              const { data: verificationData, error: verificationError } = await supabase
-                .from('ai_change_tracking')
-                .select('id, change_type, original_position_start, enhanced_position_start')
-                .eq('refinement_id', refinementData.id)
-                .limit(5);
-                
-              if (verificationError) {
-                console.error('💥 Change tracking verification failed:', verificationError);
-              } else {
-                console.log('🔍 PHASE 3: Change tracking verification - saved records sample:', verificationData);
-              }
             } catch (trackingError) {
-              console.error('💥 Change tracking save failed:', trackingError);
+              console.error('💥 CRITICAL: Change tracking save failed:', trackingError);
+              console.error('💥 This will cause accumulation - enhancement marked as failed');
               console.error('💥 Error details:', {
                 message: trackingError.message,
                 code: trackingError.code,
                 details: trackingError.details
               });
-              // Don't throw here since it's not critical for main functionality
+              
+              // CRITICAL: Mark enhancement as failed if change tracking fails
+              // This prevents accumulation by ensuring we don't have "completed" status with bad change data
+              await EnhancementService.updateRefinementStatus(refinementData.id, 'failed', chapterId);
+              EnhancementTimeoutService.clearTimeout(refinementData.id);
+              
+              // Throw the error to prevent the enhancement from being marked as successful
+              throw new Error(`Enhancement failed due to change tracking error: ${trackingError.message}`);
             }
             console.groupEnd();
           } else {
@@ -527,9 +524,10 @@ export class EnhancementService {
     try {
       console.log('💾 Saving change tracking data for refinement:', refinementId);
       
-      // ROBUST CLEARING: Clear existing changes with verification
+      // CRITICAL: Enhanced clearing with verification and failure detection
       console.log('🧹 Clearing existing changes before inserting new ones...');
       
+      // First, check what exists
       const { data: existingChanges, error: countError } = await supabase
         .from('ai_change_tracking')
         .select('id')
@@ -537,21 +535,32 @@ export class EnhancementService {
       
       if (countError) {
         console.error('❌ Error checking existing changes:', countError);
-      } else {
-        console.log(`🔍 Found ${existingChanges?.length || 0} existing changes to clear`);
+        throw new Error(`Failed to check existing changes: ${countError.message}`);
       }
       
+      const existingCount = existingChanges?.length || 0;
+      console.log(`🔍 Found ${existingCount} existing changes to clear`);
+      
+      // Perform the deletion with count verification
       const { error: deleteError, count } = await supabase
         .from('ai_change_tracking')
         .delete({ count: 'exact' })
         .eq('refinement_id', refinementId);
       
       if (deleteError) {
-        console.error('❌ Error clearing existing changes:', deleteError);
-        throw deleteError;
+        console.error('❌ CRITICAL: Error clearing existing changes:', deleteError);
+        throw new Error(`Failed to clear existing changes: ${deleteError.message}`);
       }
       
-      console.log(`✅ Cleared ${count || 0} existing changes`);
+      // CRITICAL: Verify that the expected number of records were actually deleted
+      const actualDeletedCount = count || 0;
+      if (existingCount > 0 && actualDeletedCount !== existingCount) {
+        const errorMsg = `CRITICAL: Deletion count mismatch! Expected to delete ${existingCount} records, but only deleted ${actualDeletedCount}`;
+        console.error('❌', errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      console.log(`✅ Successfully cleared ${actualDeletedCount} existing changes`);
       
       // Insert new changes with dual-position format
       const changeRecords = changes.map(change => ({
@@ -575,15 +584,33 @@ export class EnhancementService {
           .insert(changeRecords);
         
         if (error) {
-          console.error('❌ Error saving change tracking data:', error);
-          throw error;
+          console.error('❌ CRITICAL: Error inserting change tracking data:', error);
+          throw new Error(`Failed to insert change tracking data: ${error.message}`);
         }
         
         console.log('✅ Successfully saved', changeRecords.length, 'change tracking records with dual positions');
+        
+        // CRITICAL: Final verification that changes were actually saved
+        const { data: verificationData, error: verifyError } = await supabase
+          .from('ai_change_tracking')
+          .select('id', { count: 'exact' })
+          .eq('refinement_id', refinementId);
+          
+        if (verifyError) {
+          throw new Error(`Failed to verify saved changes: ${verifyError.message}`);
+        }
+        
+        const savedCount = verificationData?.length || 0;
+        if (savedCount !== changeRecords.length) {
+          throw new Error(`CRITICAL: Save verification failed! Expected ${changeRecords.length} records, but found ${savedCount}`);
+        }
+        
+        console.log(`✅ Verification complete: ${savedCount} changes successfully persisted`);
       }
     } catch (error) {
-      console.error('❌ Error in saveChangeTrackingData:', error);
-      // Don't throw error here as change tracking is not critical for the main functionality
+      console.error('❌ CRITICAL: Error in saveChangeTrackingData:', error);
+      // CRITICAL: This error MUST be thrown to prevent accumulation
+      throw new Error(`Failed to save change tracking data: ${error.message}`);
     }
   }
 }
