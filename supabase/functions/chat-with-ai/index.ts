@@ -2,11 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenAI } from "https://esm.sh/@google/genai@1.7.0"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 // Initialize Supabase client for data fetching
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -144,6 +140,8 @@ Use this context to provide informed and relevant assistance. Reference specific
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

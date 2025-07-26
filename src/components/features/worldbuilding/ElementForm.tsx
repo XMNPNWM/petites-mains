@@ -141,9 +141,16 @@ const ElementForm = ({ projectId, element, onSubmit, onCancel }: ElementFormProp
                 <div className="space-y-1 text-center">
                   <Upload className="mx-auto h-12 w-12 text-slate-400" />
                   <div className="flex text-sm text-slate-600">
-                    <label className="relative cursor-pointer bg-white rounded-md font-medium text-purple-600 hover:text-purple-500">
+                    <label htmlFor="element-image-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-purple-600 hover:text-purple-500">
                       <span>Upload a file</span>
-                      <input type="file" className="sr-only" accept="image/*" />
+                      <input 
+                        id="element-image-upload"
+                        name="elementImage"
+                        type="file" 
+                        className="sr-only" 
+                        accept="image/*" 
+                        aria-label="Upload element image"
+                      />
                     </label>
                     <p className="pl-1">or drag and drop</p>
                   </div>

@@ -5,6 +5,7 @@ import RefinementSpaceHeader from './RefinementSpaceHeader';
 import RefinementMainPanels from './components/RefinementMainPanels';
 import { EnhancementService } from '@/services/EnhancementService';
 import { useRefinementSpace } from '@/hooks/useRefinementSpace';
+import { useSimplePopups } from '@/components/features/writing/simple/SimplePopupManager';
 
 interface RefinementSpaceLayoutProps {
   projectId: string;
@@ -12,8 +13,11 @@ interface RefinementSpaceLayoutProps {
   onClose: () => void;
 }
 
+type ChatType = 'comment' | 'chat';
+
 const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpaceLayoutProps) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { createPopup } = useSimplePopups();
   const {
     project,
     chapters,
@@ -44,6 +48,20 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
       setIsAnalyzing(false);
     }
   }, [projectId, currentChapter, refreshData]);
+
+  // PHASE 1: Add right-click popup handler (matches WritingSpaceLayout pattern)
+  const handleRightClickMenuClick = useCallback((type: ChatType, position: { x: number; y: number }, selectedText?: string, lineNumber?: number) => {
+    console.log('Refinement space right-click menu click:', {
+      type, 
+      position, 
+      selectedText, 
+      lineNumber,
+      currentChapterId: currentChapter?.id
+    });
+    
+    // Create popup with all parameters including lineNumber
+    createPopup(type, position, projectId, currentChapter?.id, selectedText, lineNumber);
+  }, [createPopup, projectId, currentChapter?.id]);
 
   // Set initial chapter if available
   useEffect(() => {
@@ -81,6 +99,7 @@ const RefinementSpaceLayout = ({ projectId, chapterId, onClose }: RefinementSpac
               onContentChange={handleContentChange}
               onChangeDecision={handleChangeDecision}
               onChangeClick={handleChangeNavigation}
+              onRightClickMenuClick={handleRightClickMenuClick}
               onImportToCreation={handleImportToCreation}
               isEnhancing={isAnalyzing}
               onEnhanceChapter={handleAnalyzeChapter}

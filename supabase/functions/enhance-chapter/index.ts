@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenAI } from "https://esm.sh/@google/genai@1.7.0"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8'
 import DiffMatchPatch from "https://esm.sh/diff-match-patch@1.0.5"
-import { getCorsHeaders, ALLOWED_ORIGINS } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 // Initialize Supabase client
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
