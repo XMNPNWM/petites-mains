@@ -2,11 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenAI } from "https://esm.sh/@google/genai@1.7.0"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8'
 import DiffMatchPatch from "https://esm.sh/diff-match-patch@1.0.5"
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { getCorsHeaders, ALLOWED_ORIGINS } from '../_shared/cors.ts'
 
 // Initialize Supabase client
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -1334,14 +1330,29 @@ ${content}`;
 }
 
 serve(async (req) => {
+  // Get the Origin header from the request
+  const requestOrigin = req.headers.get('Origin');
+  // Get the appropriate CORS headers for this request
+  const corsHeaders = getCorsHeaders(requestOrigin);
+
   // DIAGNOSTIC: Log function entry immediately
   console.log('🚀 enhance-chapter edge function called at:', new Date().toISOString());
   console.log('📥 Request method:', req.method);
   console.log('📥 Request URL:', req.url);
+  console.log('📥 Request origin:', requestOrigin);
   
   if (req.method === 'OPTIONS') {
-    console.log('⚡ Handling CORS preflight request');
+    console.log('⚡ Handling CORS preflight request for origin:', requestOrigin);
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Ensure the request origin is allowed before proceeding with the main logic
+  if (requestOrigin && !ALLOWED_ORIGINS.includes(requestOrigin)) {
+    console.warn('🚫 Blocked unauthorized origin:', requestOrigin);
+    return new Response('Unauthorized', {
+      status: 403, // Forbidden
+      headers: corsHeaders, // Still return CORS headers for potential debugging
+    });
   }
 
   try {
