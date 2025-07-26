@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { RefinementService } from './RefinementService';
 import { ContentVersioningService } from './ContentVersioningService';
+import { EnhancementTimeoutService } from './EnhancementTimeoutService';
 
 /**
  * Dedicated service for content enhancement functionality
@@ -80,9 +81,16 @@ export class EnhancementService {
         );
       }
 
+      // REQUIREMENT 1: Clear previous changes before starting enhancement
+      console.log('🧹 Clearing previous changes for fresh enhancement');
+      await EnhancementService.clearPreviousChanges(refinementData.id, chapterId);
+
       // CRITICAL: Set status to "in_progress" at the start of enhancement
       console.log('🔄 Setting refinement status to "in_progress"');
       await EnhancementService.updateRefinementStatus(refinementData.id, 'in_progress', chapterId);
+
+      // REQUIREMENT 3: Start timeout monitoring
+      EnhancementTimeoutService.startTimeout(refinementData.id, chapterId);
 
       // Enhance content using the enhance-chapter edge function
       try {
@@ -187,8 +195,9 @@ export class EnhancementService {
 
         if (enhancementError) {
           console.error('❌ Content enhancement failed:', enhancementError);
-          // Set status back to previous state on error
-          await EnhancementService.updateRefinementStatus(refinementData.id, 'untouched', chapterId);
+          // REQUIREMENT 3: Set terminal status on failure and clear timeout
+          await EnhancementService.updateRefinementStatus(refinementData.id, 'failed', chapterId);
+          EnhancementTimeoutService.clearTimeout(refinementData.id);
           throw new Error(`Content enhancement failed: ${enhancementError.message}`);
         }
 
@@ -245,6 +254,8 @@ export class EnhancementService {
           
           try {
             await EnhancementService.updateRefinementStatus(refinementData.id, 'completed', chapterId);
+            // REQUIREMENT 3: Clear timeout monitoring on completion
+            EnhancementTimeoutService.clearTimeout(refinementData.id);
             console.log('✅ Status update to "completed" successful');
           } catch (statusError) {
             console.error('💥 Status update failed:', statusError);
@@ -323,29 +334,78 @@ export class EnhancementService {
       } catch (aiError) {
         console.error('❌ AI enhancement failed:', aiError);
         
-        // CRITICAL: Set status back to previous state on failure
-        await EnhancementService.updateRefinementStatus(refinementData.id, 'untouched', chapterId);
+        // REQUIREMENT 3: Set terminal status on failure and clear timeout
+        await EnhancementService.updateRefinementStatus(refinementData.id, 'failed', chapterId);
+        EnhancementTimeoutService.clearTimeout(refinementData.id);
         
-        // Graceful fallback - use original content
-        const fallbackContent = chapter.content + '\n\n[AI enhancement unavailable - content preserved as-is]';
-        await RefinementService.updateRefinementContent(
-          refinementData.id, 
-          fallbackContent,
-          chapterId
-        );
-        console.log('Using fallback content due to enhancement failure');
-        
-        // Call the completion callback even on fallback
+        // Call the completion callback to ensure UI updates
         if (onComplete) {
-          console.log('🔄 Triggering UI refresh callback (fallback)');
+          console.log('🔄 Triggering UI refresh callback (failure)');
           onComplete();
         }
+        
+        // Re-throw to maintain error handling
+        throw aiError;
       }
 
       console.log('✅ EnhancementService: Chapter enhancement completed successfully');
 
     } catch (error) {
       console.error('❌ EnhancementService error:', error);
+      
+      // REQUIREMENT 3: Ensure terminal status on any error and clear timeout
+      try {
+        if (refinementData?.id) {
+          await EnhancementService.updateRefinementStatus(refinementData.id, 'failed', chapterId);
+          EnhancementTimeoutService.clearTimeout(refinementData.id);
+        }
+      } catch (statusError) {
+        console.error('❌ Failed to set terminal status on error:', statusError);
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * REQUIREMENT 1: Clear previous changes to ensure fresh display
+   */
+  static async clearPreviousChanges(refinementId: string, expectedChapterId: string): Promise<void> {
+    try {
+      console.log('🧹 Clearing previous changes:', { refinementId, expectedChapterId });
+
+      // REQUIREMENT 2: Validate chapter ownership before clearing
+      const { data: refinementData, error: fetchError } = await supabase
+        .from('chapter_refinements')
+        .select('chapter_id')
+        .eq('id', refinementId)
+        .single();
+
+      if (fetchError) {
+        console.error('❌ Failed to validate refinement for change clearing:', fetchError);
+        throw fetchError;
+      }
+
+      if (refinementData.chapter_id !== expectedChapterId) {
+        const error = new Error(`CRITICAL: Change clearing chapter mismatch! Expected: ${expectedChapterId}, Found: ${refinementData.chapter_id}`);
+        console.error('❌ Change clearing validation failed:', error.message);
+        throw error;
+      }
+
+      // Clear previous changes for this specific refinement
+      const { error: deleteError } = await supabase
+        .from('ai_change_tracking')
+        .delete()
+        .eq('refinement_id', refinementId);
+
+      if (deleteError) {
+        console.error('❌ Failed to clear previous changes:', deleteError);
+        throw deleteError;
+      }
+
+      console.log('✅ Previous changes cleared successfully');
+    } catch (error) {
+      console.error('❌ Error clearing previous changes:', error);
       throw error;
     }
   }
@@ -355,7 +415,7 @@ export class EnhancementService {
    */
   static async updateRefinementStatus(
     refinementId: string, 
-    status: 'untouched' | 'in_progress' | 'completed', 
+    status: 'untouched' | 'in_progress' | 'completed' | 'failed', 
     expectedChapterId: string
   ): Promise<void> {
     try {

@@ -67,9 +67,19 @@ const ChangeTrackingPanel = ({
   useEffect(() => {
     if (refinementId && refinementId !== currentRefinementId && !isTransitioning) {
       setCurrentRefinementId(refinementId);
+      // Clear previous changes immediately when starting new enhancement
+      setChanges([]);
+      setLoading(true);
       fetchChanges();
     }
   }, [refinementId, currentRefinementId, isTransitioning]);
+
+  // Clear changes when enhancement starts (when loading begins)
+  useEffect(() => {
+    if (loading) {
+      setChanges([]);
+    }
+  }, [loading]);
 
   // Handle scroll synchronization
   useEffect(() => {
