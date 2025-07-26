@@ -30,13 +30,22 @@ export interface RefinementData {
 
 export interface AIChange {
   id: string;
-  change_type: 'grammar' | 'structure' | 'dialogue' | 'style';
+  change_type: 'grammar' | 'structure' | 'dialogue' | 'style' | 'insertion' | 'deletion' | 'replacement' | 'capitalization' | 'punctuation_correction' | 'whitespace_adjustment';
   original_text: string;
   enhanced_text: string;
-  position_start: number;
-  position_end: number;
+  position_start: number; // Backward compatibility - refers to original position
+  position_end: number;   // Backward compatibility - refers to original position
   user_decision: 'accepted' | 'rejected' | 'pending';
   confidence_score: number;
+  // Enhanced dual position tracking
+  original_position_start?: number; // Start index in ORIGINAL chapter content
+  original_position_end?: number;   // End index in ORIGINAL chapter content
+  enhanced_position_start?: number; // Start index in ENHANCED chapter content
+  enhanced_position_end?: number;   // End index in ENHANCED chapter content
+  semantic_similarity?: number;
+  semantic_impact?: 'low' | 'medium' | 'high';
+  // Legacy data indicator
+  is_legacy_data?: boolean;
 }
 
 export interface TimelineChat {

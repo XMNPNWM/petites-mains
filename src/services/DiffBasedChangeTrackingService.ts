@@ -10,8 +10,9 @@ export class DiffBasedChangeTrackingService {
 
   /**
    * Generate accurate character-level changes between original and enhanced content
+   * Returns change records compatible with AIChange interface
    */
-  static getChanges(originalContent: string, enhancedContent: string): DiffChangeRecord[] {
+  static getChanges(originalContent: string, enhancedContent: string): any[] {
     console.log('🔍 Starting character-level diff analysis...');
     console.log(`Original length: ${originalContent.length}, Enhanced length: ${enhancedContent.length}`);
 
@@ -123,32 +124,30 @@ export class DiffBasedChangeTrackingService {
   }
 
   /**
-   * Convert diff segments to change records with semantic classification
+   * Convert diff segments to change records compatible with AIChange interface
    */
-  private static convertSegmentsToChangeRecords(segments: DiffSegment[]): DiffChangeRecord[] {
-    return segments.map(segment => {
-      const changeType = this.classifyChangeType(segment);
-      
-      return {
-        change_type: changeType,
-        original_text_snippet: segment.originalText,
-        enhanced_text_snippet: segment.enhancedText,
-        original_position_start: segment.originalStart,
-        original_position_end: segment.originalEnd,
-        enhanced_position_start: segment.enhancedStart,
-        enhanced_position_end: segment.enhancedEnd,
-        confidence_score: this.calculateConfidenceScore(segment),
-        user_decision: 'pending' as const,
-        semantic_similarity: undefined,
-        semantic_impact: this.assessSemanticImpact(segment)
-      };
-    });
+  private static convertSegmentsToChangeRecords(segments: DiffSegment[]): any[] {
+    return segments.map((segment, index) => ({
+      id: `temp_${Date.now()}_${index}`, // Temporary ID for edge function use
+      change_type: this.classifyChangeType(segment),
+      original_text: segment.originalText,
+      enhanced_text: segment.enhancedText,
+      position_start: segment.originalStart, // For backward compatibility with current schema
+      position_end: segment.originalEnd,
+      original_position_start: segment.originalStart,
+      original_position_end: segment.originalEnd,
+      enhanced_position_start: segment.enhancedStart,
+      enhanced_position_end: segment.enhancedEnd,
+      confidence_score: this.calculateConfidenceScore(segment),
+      user_decision: 'pending' as const,
+      semantic_impact: this.assessSemanticImpact(segment)
+    }));
   }
 
   /**
    * Enhanced change type classification for character-level changes
    */
-  private static classifyChangeType(segment: DiffSegment): DiffChangeRecord['change_type'] {
+  private static classifyChangeType(segment: DiffSegment): string {
     const { operation, originalText, enhancedText } = segment;
 
     // Handle pure insertions and deletions

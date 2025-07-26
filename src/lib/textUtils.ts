@@ -73,7 +73,7 @@ export function calculatePositionShifts(
 
 /**
  * Apply multiple text changes while handling position shifts
- * Updated for hybrid diff + embedding change detection system
+ * Enhanced for character-level diff tracking with dual position support
  */
 export function applyMultipleChanges(
   content: string,
@@ -83,6 +83,12 @@ export function applyMultipleChanges(
     original_text: string;
     enhanced_text: string;
     user_decision: string;
+    // Enhanced position tracking
+    original_position_start?: number;
+    original_position_end?: number;
+    enhanced_position_start?: number;
+    enhanced_position_end?: number;
+    is_legacy_data?: boolean;
   }>
 ): string {
   if (!changes.length) return content;
@@ -96,29 +102,75 @@ export function applyMultipleChanges(
 
   // Apply changes from end to beginning to avoid position shift issues
   sortedChanges.forEach(change => {
-    // Validate that the position and text still match before applying
-    const currentText = result.slice(change.position_start, change.position_end);
+    // Use enhanced positions if available, fall back to legacy positions
+    const startPos = change.enhanced_position_start ?? change.position_start;
+    const endPos = change.enhanced_position_end ?? change.position_end;
     
-    // For hybrid detection, we need to be more flexible with text matching
-    // since the enhanced text might have slight variations
+    // Validate that the position and text still match before applying
+    const currentText = result.slice(startPos, endPos);
+    
+    // Enhanced validation for character-level changes
     if (currentText === change.enhanced_text || 
         normalizeForComparison(currentText) === normalizeForComparison(change.enhanced_text)) {
       result = applyTextReplacement(
         result,
-        change.position_start,
-        change.position_end,
+        startPos,
+        endPos,
         change.original_text
       );
+      
+      console.log('✅ Applied change:', {
+        type: 'character-level',
+        position: `${startPos}-${endPos}`,
+        isLegacy: change.is_legacy_data || false
+      });
     } else {
       console.warn('Position mismatch detected - skipping change application:', {
         expectedText: change.enhanced_text.substring(0, 50),
         actualText: currentText.substring(0, 50),
-        position: change.position_start
+        position: startPos,
+        isLegacy: change.is_legacy_data || false
       });
     }
   });
 
   return result;
+}
+
+/**
+ * Enhanced position validation for dual position system
+ */
+export function validateEnhancedPositions(
+  content: string,
+  changes: Array<{
+    position_start: number;
+    position_end: number;
+    enhanced_text: string;
+    enhanced_position_start?: number;
+    enhanced_position_end?: number;
+    is_legacy_data?: boolean;
+  }>
+): { isValid: boolean; invalidChanges: number[] } {
+  const invalidChanges: number[] = [];
+  
+  changes.forEach((change, index) => {
+    // Use enhanced positions if available
+    const startPos = change.enhanced_position_start ?? change.position_start;
+    const endPos = change.enhanced_position_end ?? change.position_end;
+    
+    const extractedText = content.slice(startPos, endPos);
+    const isValid = extractedText === change.enhanced_text ||
+                   normalizeForComparison(extractedText) === normalizeForComparison(change.enhanced_text);
+    
+    if (!isValid) {
+      invalidChanges.push(index);
+    }
+  });
+  
+  return {
+    isValid: invalidChanges.length === 0,
+    invalidChanges
+  };
 }
 
 /**

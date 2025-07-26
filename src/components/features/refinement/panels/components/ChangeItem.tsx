@@ -4,16 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, X, Edit, MessageSquare, Type, Palette } from 'lucide-react';
 
-interface AIChange {
-  id: string;
-  change_type: 'grammar' | 'structure' | 'dialogue' | 'style';
-  original_text: string;
-  enhanced_text: string;
-  position_start: number;
-  position_end: number;
-  user_decision: 'accepted' | 'rejected' | 'pending';
-  confidence_score: number;
-}
+import { AIChange } from '@/types/shared';
 
 interface ChangeItemProps {
   change: AIChange;

@@ -1,8 +1,10 @@
+import { AIChange } from './shared';
+
 /**
  * Enhanced change tracking data structure for character-level diffing
  * Supports dual position tracking (original and enhanced text coordinates)
  */
-export interface DiffChangeRecord {
+export interface DiffChangeRecord extends AIChange {
   change_type: 'grammar' | 'structure' | 'dialogue' | 'style' | 'insertion' | 'deletion' | 'replacement' | 'capitalization' | 'punctuation_correction' | 'whitespace_adjustment';
   original_text_snippet: string;   // Text from original version that was affected/removed
   enhanced_text_snippet: string;   // Text from enhanced version that was added/changed
@@ -35,4 +37,13 @@ export interface DiffSegment {
   originalEnd: number;
   enhancedStart: number;
   enhancedEnd: number;
+}
+
+/**
+ * Dual panel navigation context
+ */
+export interface DualPanelContext {
+  originalPanelRef?: React.RefObject<HTMLElement>;
+  enhancedPanelRef?: React.RefObject<HTMLElement>;
+  onHighlightChange?: (change: AIChange, panelType: 'original' | 'enhanced') => void;
 }

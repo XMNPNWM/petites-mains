@@ -3,16 +3,7 @@ import React from 'react';
 import { Eye } from 'lucide-react';
 import ChangeItem from './ChangeItem';
 
-interface AIChange {
-  id: string;
-  change_type: 'grammar' | 'structure' | 'dialogue' | 'style';
-  original_text: string;
-  enhanced_text: string;
-  position_start: number;
-  position_end: number;
-  user_decision: 'accepted' | 'rejected' | 'pending';
-  confidence_score: number;
-}
+import { AIChange } from '@/types/shared';
 
 interface ChangeListProps {
   changes: AIChange[];
