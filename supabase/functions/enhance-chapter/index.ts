@@ -1043,10 +1043,10 @@ function calculateShowVsTellRatio(content: string): number {
 }
 
 /**
- * Validate and fix paragraph structure preservation
+ * Simple paragraph structure validation - trusts AI instructions
  */
-function validateAndFixParagraphStructure(originalContent: string, enhancedContent: string): string {
-  // Count paragraphs in original content
+function validateParagraphStructure(originalContent: string, enhancedContent: string): { isValid: boolean; shouldRetry: boolean } {
+  // Count paragraphs in original and enhanced content
   const originalParagraphs = originalContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
   const enhancedParagraphs = enhancedContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
   
@@ -1056,66 +1056,23 @@ function validateAndFixParagraphStructure(originalContent: string, enhancedConte
     structurePreserved: originalParagraphs.length === enhancedParagraphs.length
   });
   
-  // If paragraph count doesn't match, attempt to fix
-  if (originalParagraphs.length !== enhancedParagraphs.length) {
-    console.warn('⚠️ Paragraph structure mismatch detected - attempting to fix...');
-    
-    // If enhanced content is one big paragraph, try to restore breaks
-    if (enhancedParagraphs.length === 1 && originalParagraphs.length > 1) {
-      console.log('🔧 Restoring paragraph breaks from original structure...');
-      
-      // Use the original paragraph breaks as a guide
-      let fixedContent = enhancedContent;
-      
-      // Find natural break points in the enhanced content that align with original breaks
-      for (let i = 1; i < originalParagraphs.length; i++) {
-        const originalBreakContext = originalParagraphs[i-1].slice(-20) + originalParagraphs[i].slice(0, 20);
-        const cleanContext = originalBreakContext.replace(/[^\w\s]/g, '').toLowerCase();
-        
-        // Look for similar context in enhanced content
-        const enhancedLower = fixedContent.toLowerCase();
-        const contextIndex = enhancedLower.indexOf(cleanContext.slice(10, -10));
-        
-        if (contextIndex > 0) {
-          // Insert paragraph break at this position
-          const beforeBreak = fixedContent.slice(0, contextIndex);
-          const afterBreak = fixedContent.slice(contextIndex);
-          fixedContent = beforeBreak.trim() + '\n\n' + afterBreak.trim();
-        }
-      }
-      
-      const revalidatedParagraphs = fixedContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-      console.log('✅ Paragraph structure fixed:', {
-        fixedParagraphs: revalidatedParagraphs.length,
-        targetParagraphs: originalParagraphs.length
-      });
-      
-      return fixedContent;
-    }
-    
-    // If we still have issues, fall back to a more aggressive fix
-    if (originalParagraphs.length > enhancedParagraphs.length) {
-      console.log('🚨 Fallback: Using original paragraph structure as template...');
-      
-      // Split enhanced content into roughly equal parts matching original paragraph count
-      const words = enhancedContent.split(/\s+/);
-      const wordsPerParagraph = Math.ceil(words.length / originalParagraphs.length);
-      
-      const reconstructedParagraphs: string[] = [];
-      for (let i = 0; i < originalParagraphs.length; i++) {
-        const start = i * wordsPerParagraph;
-        const end = Math.min((i + 1) * wordsPerParagraph, words.length);
-        const paragraphWords = words.slice(start, end);
-        if (paragraphWords.length > 0) {
-          reconstructedParagraphs.push(paragraphWords.join(' '));
-        }
-      }
-      
-      return reconstructedParagraphs.join('\n\n');
-    }
+  const paragraphDifference = Math.abs(originalParagraphs.length - enhancedParagraphs.length);
+  
+  // Perfect match - ideal case
+  if (paragraphDifference === 0) {
+    console.log('✅ Perfect paragraph structure preservation');
+    return { isValid: true, shouldRetry: false };
   }
   
-  return enhancedContent;
+  // Small difference (1 paragraph) - acceptable, just warn
+  if (paragraphDifference === 1) {
+    console.warn('⚠️ Minor paragraph structure difference (1 paragraph) - acceptable');
+    return { isValid: true, shouldRetry: false };
+  }
+  
+  // Large difference - reject and retry
+  console.error('❌ Significant paragraph structure mismatch - rejecting AI response');
+  return { isValid: false, shouldRetry: true };
 }
 
 /**
@@ -1196,11 +1153,11 @@ function buildEnhancementPrompt(
   enhancementDirectives.push("📐 PARAGRAPH STRUCTURE REQUIREMENT - CRITICAL:");
   enhancementDirectives.push(`- ORIGINAL PARAGRAPH COUNT: ${paragraphCount} paragraphs`);
   enhancementDirectives.push(`- AVERAGE PARAGRAPH LENGTH: ${avgParagraphLength.toFixed(1)} words`);
-  enhancementDirectives.push("- RESPECT 80% of original paragraph breaks and line structure");
-  enhancementDirectives.push("- You may reorganize up to 20% of paragraphs ONLY if absolutely necessary for flow");
-  enhancementDirectives.push("- Each paragraph break in the original should generally be preserved");
-  enhancementDirectives.push("- Maintain similar paragraph lengths and natural breaking points");
-  enhancementDirectives.push("- Enhanced content should have approximately the same number of paragraphs");
+  enhancementDirectives.push("- Each paragraph in the original content MUST remain as a separate paragraph in the enhanced content");
+  enhancementDirectives.push("- Paragraphs must be separated by a line break (double newline: \\n\\n)");
+  enhancementDirectives.push("- NEVER merge multiple paragraphs into one paragraph");
+  enhancementDirectives.push("- NEVER split one paragraph into multiple paragraphs");
+  enhancementDirectives.push("- Maintain the exact paragraph structure and breaking points from the original");
 
   // LEVEL-SPECIFIC ENHANCEMENT PHILOSOPHY
   switch (options.enhancementLevel) {
@@ -1299,15 +1256,15 @@ function buildEnhancementPrompt(
   const outputRequirements = [
     "🚨 CRITICAL OUTPUT FORMATTING - ABSOLUTELY MANDATORY:",
     "- PRESERVE paragraph structure EXACTLY - maintain ALL paragraph breaks from original",
-    "- Each paragraph in original MUST remain a separate paragraph in enhanced version",
+    "- Each paragraph in original MUST remain as a separate paragraph in enhanced version",
     "- Use ONLY simple double line breaks (\\n\\n) between paragraphs - NO HTML tags",
     "- NEVER merge multiple original paragraphs into one enhanced paragraph",
+    "- NEVER split one paragraph into multiple paragraphs",
     "- NEVER add 'Page Break', 'Page BreakPage Break', or any formatting markers",
     "- NEVER add artificial separators, dividers, or section breaks",
     "- Return ONLY the enhanced text with no explanations or comments",
-    "- Count: Original has X paragraphs, enhanced MUST have X paragraphs",
-    "- VALIDATE: If original starts with paragraph A, enhanced must start with enhanced version of paragraph A",
-    "- VALIDATE: Each original paragraph break position must be preserved in enhanced version"
+    `- REQUIRED: Enhanced content must have exactly ${paragraphCount} paragraphs (same as original)`,
+    "- Each original paragraph position must be preserved in enhanced version"
   ];
 
   return `# PROFESSIONAL NOVEL ENHANCEMENT SYSTEM
@@ -1473,8 +1430,12 @@ serve(async (req) => {
       .replace(/---+/g, '')
       .trim();
 
-    // CRITICAL: Validate and fix paragraph structure preservation
-    cleanedContent = validateAndFixParagraphStructure(contentToEnhance, cleanedContent);
+    // CRITICAL: Validate paragraph structure preservation (simplified approach)
+    const validation = validateParagraphStructure(contentToEnhance, cleanedContent);
+    
+    if (!validation.isValid && validation.shouldRetry) {
+      throw new Error('Paragraph structure not preserved - AI did not follow instructions properly');
+    }
 
     const improvedMetrics = calculateQualityMetrics(cleanedContent);
     
