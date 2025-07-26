@@ -1042,6 +1042,38 @@ function calculateShowVsTellRatio(content: string): number {
   return totalIndicators > 0 ? (sensoryWords.length / totalIndicators) * 100 : 50;
 }
 
+/**
+ * Simple paragraph structure validation - trusts AI instructions
+ */
+function validateParagraphStructure(originalContent: string, enhancedContent: string): { isValid: boolean; shouldRetry: boolean } {
+  // Count paragraphs in original and enhanced content
+  const originalParagraphs = originalContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+  const enhancedParagraphs = enhancedContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+  
+  console.log('📊 Paragraph structure validation:', {
+    originalParagraphs: originalParagraphs.length,
+    enhancedParagraphs: enhancedParagraphs.length,
+    structurePreserved: originalParagraphs.length === enhancedParagraphs.length
+  });
+  
+  const paragraphDifference = Math.abs(originalParagraphs.length - enhancedParagraphs.length);
+  
+  // Perfect match - ideal case
+  if (paragraphDifference === 0) {
+    console.log('✅ Perfect paragraph structure preservation');
+    return { isValid: true, shouldRetry: false };
+  }
+  
+  // Small difference (1 paragraph) - acceptable, just warn
+  if (paragraphDifference === 1) {
+    console.warn('⚠️ Minor paragraph structure difference (1 paragraph) - acceptable');
+    return { isValid: true, shouldRetry: false };
+  }
+  
+  // Large difference - reject and retry
+  console.error('❌ Significant paragraph structure mismatch - rejecting AI response');
+  return { isValid: false, shouldRetry: true };
+}
 
 /**
  * Determine the type of change based on content analysis
@@ -1417,26 +1449,12 @@ serve(async (req) => {
       .replace(/---+/g, '')
       .trim();
 
-    // CRITICAL: Normalize paragraph breaks - convert single \n to double \n\n where appropriate
-    // This fixes the issue where AI outputs single line breaks between paragraphs
-    console.log('📝 Normalizing paragraph breaks...');
-    console.log('Before normalization - paragraph count:', cleanedContent.split('\n\n').filter(p => p.trim()).length);
+    // CRITICAL: Validate paragraph structure preservation (simplified approach)
+    const validation = validateParagraphStructure(contentToEnhance, cleanedContent);
     
-    // Step 1: Convert sequences of single line breaks between sentences to double line breaks
-    // This pattern looks for: sentence ending + single newline + capital letter (new sentence)
-    cleanedContent = cleanedContent.replace(/([.!?])\n([A-Z])/g, '$1\n\n$2');
-    
-    // Step 2: Handle dialogue and scene breaks - convert single breaks after quotes to double
-    cleanedContent = cleanedContent.replace(/([.!?"])\n([A-Z"])/g, '$1\n\n$2');
-    
-    // Step 3: Clean up any triple+ line breaks to double line breaks
-    cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n');
-    
-    // Step 4: Ensure proper spacing around remaining content
-    cleanedContent = cleanedContent.trim();
-    
-    console.log('After normalization - paragraph count:', cleanedContent.split('\n\n').filter(p => p.trim()).length);
-
+    if (!validation.isValid && validation.shouldRetry) {
+      throw new Error('Paragraph structure not preserved - AI did not follow instructions properly');
+    }
 
     const improvedMetrics = calculateQualityMetrics(cleanedContent);
     
