@@ -71,6 +71,13 @@ export type Database = {
             referencedRelation: "chapter_refinements"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_ai_change_tracking_refinement"
+            columns: ["refinement_id"]
+            isOneToOne: false
+            referencedRelation: "chapter_refinements"
+            referencedColumns: ["id"]
+          },
         ]
       }
       analysis_results: {

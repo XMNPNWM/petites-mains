@@ -1,5 +1,6 @@
 
 import React from 'react';
+import './services/EnhancementMonitoringService'; // Auto-start background monitoring
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
