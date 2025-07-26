@@ -148,65 +148,49 @@ const processContent = (content: string, options: ContentFormattingOptions): str
       .replace(/\.\.\./g, '…');
   }
   
-  // Enhanced paragraph processing with scene break detection
-  const lines = processedContent.split('\n');
-  const processedLines = [];
+  // CRITICAL: Split by double line breaks FIRST to preserve paragraph structure
+  // This ensures proper paragraph separation as intended by the AI enhancement
+  const rawParagraphs = processedContent.split('\n\n');
+  const processedParagraphs = [];
   
-  for (let i = 0; i < lines.length; i++) {
-    const currentLine = lines[i].trim();
-    const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : '';
-    const prevLine = i > 0 ? lines[i - 1].trim() : '';
+  for (let i = 0; i < rawParagraphs.length; i++) {
+    let paragraph = rawParagraphs[i].trim();
     
-    // Detect scene breaks (multiple empty lines or standalone * * *)
+    // Skip completely empty paragraphs
+    if (!paragraph) continue;
+    
+    // Detect scene breaks within paragraphs
     if (options.detectSceneBreaks && 
-        (currentLine === '' && prevLine === '' && nextLine !== '') ||
-        (currentLine.match(/^\s*\*\s*\*\s*\*\s*$/) || currentLine.match(/^\s*---\s*$/))) {
-      // Add scene break spacing
-      processedLines.push(`<div style="margin: ${options.sceneBreakSpacing}em 0; text-align: center;">* * *</div>`);
+        (paragraph.match(/^\s*\*\s*\*\s*\*\s*$/) || paragraph.match(/^\s*---\s*$/))) {
+      processedParagraphs.push(`<div style="margin: ${options.sceneBreakSpacing}em 0; text-align: center;">* * *</div>`);
       continue;
     }
     
-    // Handle empty lines
-    if (currentLine === '') {
-      if (options.preserveEmptyLines) {
-        processedLines.push('<br>');
-      }
-      continue;
-    }
+    // Clean up internal line breaks within paragraphs (convert single \n to spaces)
+    paragraph = paragraph.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
     
-    // Process regular content lines
-    processedLines.push(currentLine);
-  }
-  
-  // Group consecutive content lines into paragraphs
-  const paragraphs = [];
-  let currentParagraph = [];
-  
-  for (const line of processedLines) {
-    if (line === '<br>' || line.includes('scene break') || line.includes('* * *')) {
-      if (currentParagraph.length > 0) {
-        paragraphs.push(currentParagraph.join(' '));
-        currentParagraph = [];
-      }
-      paragraphs.push(line);
-    } else {
-      currentParagraph.push(line);
+    // Only add non-empty paragraphs
+    if (paragraph) {
+      processedParagraphs.push(paragraph);
     }
   }
   
-  if (currentParagraph.length > 0) {
-    paragraphs.push(currentParagraph.join(' '));
+  // If no double line breaks were found, treat as single paragraph
+  if (processedParagraphs.length === 0 && processedContent.trim()) {
+    const singleParagraph = processedContent.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    processedParagraphs.push(singleParagraph);
   }
   
-  // Format paragraphs with proper styling
-  return paragraphs.map((paragraph, index) => {
+  // Format paragraphs with proper styling - each paragraph gets proper <p> tags
+  return processedParagraphs.map((paragraph, index) => {
     // Skip processing for break elements
-    if (paragraph === '<br>' || paragraph.includes('scene break') || paragraph.includes('* * *')) {
+    if (paragraph.includes('scene break') || paragraph.includes('* * *')) {
       return paragraph;
     }
     
     let pStyle = `margin-bottom: ${options.paragraphSpacing}em;`;
     
+    // First paragraph gets no indent, subsequent paragraphs get indent
     if (options.paragraphIndent > 0 && index > 0) {
       pStyle += ` text-indent: ${options.paragraphIndent}em;`;
     }
@@ -217,7 +201,7 @@ const processContent = (content: string, options: ContentFormattingOptions): str
     
     let content = paragraph;
     
-    // Apply drop caps to first paragraph
+    // Apply drop caps to first paragraph only
     if (options.enableDropCaps && index === 0 && content.length > 0) {
       const firstLetter = content.charAt(0);
       const restOfContent = content.slice(1);

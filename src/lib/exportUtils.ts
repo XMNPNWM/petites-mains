@@ -19,8 +19,24 @@ interface Project {
 
 export const stripHtmlTags = (html: string): string => {
   if (!html) return '';
+  
+  // First, convert HTML paragraph structure back to double line breaks
+  let processed = html
+    .replace(/<\/p>\s*<p[^>]*>/gi, '\n\n')  // Convert </p><p> to \n\n
+    .replace(/<p[^>]*>/gi, '')              // Remove opening <p> tags
+    .replace(/<\/p>/gi, '\n\n')             // Convert closing </p> to \n\n
+    .replace(/<br\s*\/?>/gi, '\n')          // Convert <br> to single line break
+    .replace(/<[^>]*>/g, '');               // Remove all other HTML tags
+  
+  // Clean up excessive line breaks but preserve paragraph structure
+  processed = processed
+    .replace(/\n{3,}/g, '\n\n')             // Max 2 consecutive line breaks
+    .replace(/^\n+/, '')                    // Remove leading line breaks
+    .replace(/\n+$/, '');                   // Remove trailing line breaks
+  
+  // Decode HTML entities
   const textarea = document.createElement('textarea');
-  textarea.innerHTML = html.replace(/<[^>]*>/g, '');
+  textarea.innerHTML = processed;
   return textarea.value;
 };
 
@@ -127,9 +143,9 @@ export const exportToDOCX = async (
       })
     );
 
-    // Chapter content
+    // Chapter content - split by double line breaks to preserve paragraph structure
     const content = stripHtmlTags(chapter.content);
-    const paragraphs = content.split('\n').filter(p => p.trim());
+    const paragraphs = content.split('\n\n').filter(p => p.trim());
     
     for (const paragraph of paragraphs) {
       children.push(
