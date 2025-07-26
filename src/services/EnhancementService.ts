@@ -119,6 +119,43 @@ export class EnhancementService {
           }
         });
 
+        // ============= CRITICAL DEBUGGING SECTION =============
+        console.group('🔍 DETAILED EDGE FUNCTION RESPONSE ANALYSIS');
+        console.log('📊 Response structure analysis:');
+        console.log('- Raw enhancementResult:', enhancementResult);
+        console.log('- Type of enhancementResult:', typeof enhancementResult);
+        console.log('- Is enhancementResult null?:', enhancementResult === null);
+        console.log('- Is enhancementResult undefined?:', enhancementResult === undefined);
+        console.log('- enhancementResult keys:', enhancementResult ? Object.keys(enhancementResult) : 'N/A');
+        
+        if (enhancementResult) {
+          console.log('📝 Enhanced content analysis:');
+          console.log('- Has enhancedContent property?:', 'enhancedContent' in enhancementResult);
+          console.log('- enhancedContent type:', typeof enhancementResult.enhancedContent);
+          console.log('- enhancedContent length:', enhancementResult.enhancedContent?.length || 0);
+          console.log('- enhancedContent preview:', enhancementResult.enhancedContent?.substring(0, 100) || '[EMPTY]');
+          
+          console.log('🔄 Changes analysis:');
+          console.log('- Has changes property?:', 'changes' in enhancementResult);
+          console.log('- changes type:', typeof enhancementResult.changes);
+          console.log('- changes is array?:', Array.isArray(enhancementResult.changes));
+          console.log('- changes length:', enhancementResult.changes?.length || 0);
+          
+          if (enhancementResult.changes && Array.isArray(enhancementResult.changes)) {
+            console.log('- First change sample:', enhancementResult.changes[0]);
+          }
+        }
+        
+        if (enhancementError) {
+          console.error('💥 Enhancement error details:');
+          console.error('- Error object:', enhancementError);
+          console.error('- Error message:', enhancementError.message);
+          console.error('- Error details:', enhancementError.details);
+          console.error('- Error code:', enhancementError.code);
+        }
+        console.groupEnd();
+        // ============= END DEBUGGING SECTION =============
+
         // DIAGNOSTIC: Log function call completion
         const invokeEndTime = Date.now();
         console.log('⏰ Edge function invocation completed at:', new Date().toISOString());
@@ -157,13 +194,24 @@ export class EnhancementService {
             expectedChapterId: chapterId
           });
           
-          await RefinementService.updateRefinementContent(
-            refinementData.id, 
-            enhancedContent,
-            chapterId // Pass expected chapter ID for validation
-          );
+          console.group('🔍 DATABASE UPDATE DEBUGGING');
+          console.log('🏁 Starting updateRefinementContent...');
+          
+          try {
+            await RefinementService.updateRefinementContent(
+              refinementData.id, 
+              enhancedContent,
+              chapterId // Pass expected chapter ID for validation
+            );
+            console.log('✅ updateRefinementContent completed successfully');
+          } catch (updateError) {
+            console.error('💥 updateRefinementContent failed:', updateError);
+            console.groupEnd();
+            throw updateError;
+          }
           
           console.log('✅ Enhanced content saved successfully');
+          console.groupEnd();
 
           // NEW: Create version record for the new enhanced content
           await ContentVersioningService.createContentVersion(
@@ -178,13 +226,34 @@ export class EnhancementService {
           );
           
           // CRITICAL: Set status to "completed" after successful enhancement and save
+          console.group('🔍 STATUS UPDATE DEBUGGING');
           console.log('🎉 Setting refinement status to "completed"');
-          await EnhancementService.updateRefinementStatus(refinementData.id, 'completed', chapterId);
+          
+          try {
+            await EnhancementService.updateRefinementStatus(refinementData.id, 'completed', chapterId);
+            console.log('✅ Status update to "completed" successful');
+          } catch (statusError) {
+            console.error('💥 Status update failed:', statusError);
+            console.groupEnd();
+            throw statusError;
+          }
+          console.groupEnd();
           
           // Process and save individual changes to the ai_change_tracking table
           if (enhancementResult.changes && Array.isArray(enhancementResult.changes)) {
+            console.group('🔍 CHANGE TRACKING DEBUGGING');
             console.log('💾 Saving change tracking data, count:', enhancementResult.changes.length);
-            await EnhancementService.saveChangeTrackingData(refinementData.id, enhancementResult.changes);
+            
+            try {
+              await EnhancementService.saveChangeTrackingData(refinementData.id, enhancementResult.changes);
+              console.log('✅ Change tracking data saved successfully');
+            } catch (trackingError) {
+              console.error('💥 Change tracking save failed:', trackingError);
+              // Don't throw here since it's not critical for main functionality
+            }
+            console.groupEnd();
+          } else {
+            console.warn('⚠️ No changes array found in enhancement result - skipping change tracking');
           }
         } else {
           console.warn('⚠️ Enhancement service returned no enhanced content, using original content');

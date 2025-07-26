@@ -142,6 +142,12 @@ export class RefinementService {
       }
 
       // CRITICAL: Update ONLY the specific refinement record
+      console.group('🔍 REFINEMENT SERVICE DATABASE UPDATE');
+      console.log('📤 About to execute database update with:');
+      console.log('- refinementId:', refinementId);
+      console.log('- content length:', content?.length || 0);
+      console.log('- content preview:', content?.substring(0, 50) || '[EMPTY]');
+      
       const { data, error } = await supabase
         .from('chapter_refinements')
         .update({
@@ -152,14 +158,20 @@ export class RefinementService {
         .eq('id', refinementId)
         .select('id, chapter_id');
 
+      console.log('📥 Database update response:');
+      console.log('- data:', data);
+      console.log('- error:', error);
+
       if (error) {
         console.error('❌ RefinementService: Update failed:', error);
+        console.groupEnd();
         throw error;
       }
 
       if (!data || data.length === 0) {
         const error = new Error('No refinement record was updated - this should not happen!');
         console.error('❌ RefinementService:', error.message);
+        console.groupEnd();
         throw error;
       }
 
@@ -168,6 +180,7 @@ export class RefinementService {
         refinementId: data[0].id,
         chapterId: data[0].chapter_id
       });
+      console.groupEnd();
       
     } catch (error) {
       console.error('❌ RefinementService: Error updating refinement content:', error);
