@@ -1342,7 +1342,13 @@ ${content}`;
 }
 
 serve(async (req) => {
+  // DIAGNOSTIC: Log function entry immediately
+  console.log('🚀 enhance-chapter edge function called at:', new Date().toISOString());
+  console.log('📥 Request method:', req.method);
+  console.log('📥 Request URL:', req.url);
+  
   if (req.method === 'OPTIONS') {
+    console.log('⚡ Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -1443,7 +1449,7 @@ serve(async (req) => {
     const ai = new GoogleGenAI({ apiKey });
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-exp",
+      model: "gemini-2.5-flash-lite",
       contents: enhancementPrompt
     });
 

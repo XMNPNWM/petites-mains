@@ -94,6 +94,10 @@ export class EnhancementService {
           contentPreview: chapter.content.substring(0, 50)
         });
         
+        // DIAGNOSTIC: Add timestamp and detailed logging
+        const invokeStartTime = Date.now();
+        console.log('⏰ Edge function invocation starting at:', new Date().toISOString());
+        
         const { data: enhancementResult, error: enhancementError } = await supabase.functions.invoke('enhance-chapter', {
           body: { 
             content: chapter.content,
@@ -114,6 +118,12 @@ export class EnhancementService {
             }
           }
         });
+
+        // DIAGNOSTIC: Log function call completion
+        const invokeEndTime = Date.now();
+        console.log('⏰ Edge function invocation completed at:', new Date().toISOString());
+        console.log('⏱️ Total invocation time:', (invokeEndTime - invokeStartTime), 'ms');
+        console.log('🔍 Raw enhancement response:', { enhancementResult, enhancementError });
 
         console.log('📥 Enhancement result received:', {
           hasData: !!enhancementResult,
