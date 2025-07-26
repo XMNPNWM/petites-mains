@@ -1436,11 +1436,13 @@ serve(async (req) => {
       contents: enhancementPrompt
     });
 
-    const enhancedContent = response.text();
+    const enhancedContent = response.text;
 
     if (!enhancedContent) {
       throw new Error('Empty response from AI');
     }
+
+    console.log(`📝 Enhanced content received: ${enhancedContent.length} characters`);
 
     // Clean any unwanted formatting markers
     let cleanedContent = enhancedContent
