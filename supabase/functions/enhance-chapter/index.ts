@@ -1070,13 +1070,16 @@ function validateParagraphStructure(originalContent: string, enhancedContent: st
     return { isValid: true, shouldRetry: false };
   }
   
-  // Dynamic tolerance based on content size
-  let allowedDifference = 1;
-  if (originalParagraphs.length >= 20) {
-    allowedDifference = 2; // More tolerance for larger content
+  // Much more flexible tolerance based on content size
+  let allowedDifference = 2; // Base tolerance increased
+  if (originalParagraphs.length >= 10) {
+    allowedDifference = 4; // Medium content tolerance
+  }
+  if (originalParagraphs.length >= 30) {
+    allowedDifference = 6; // Large content tolerance
   }
   if (originalParagraphs.length >= 50) {
-    allowedDifference = 3; // Even more tolerance for very large content
+    allowedDifference = 8; // Very large content tolerance
   }
   
   // Acceptable difference based on content size
@@ -1085,9 +1088,15 @@ function validateParagraphStructure(originalContent: string, enhancedContent: st
     return { isValid: true, shouldRetry: false };
   }
   
-  // Too large difference - but for very large content, be more lenient
-  if (originalParagraphs.length >= 30 && paragraphDifference <= Math.floor(originalParagraphs.length * 0.15)) {
-    console.warn(`⚠️ Large paragraph difference (${paragraphDifference}) but within 15% threshold for large content - accepting`);
+  // Percentage-based fallback - much more lenient
+  const percentageDifference = (paragraphDifference / originalParagraphs.length) * 100;
+  let allowedPercentage = 25; // Base 25% tolerance
+  if (originalParagraphs.length >= 50) {
+    allowedPercentage = 35; // Very large content gets 35% tolerance
+  }
+  
+  if (percentageDifference <= allowedPercentage) {
+    console.warn(`⚠️ Large paragraph difference (${paragraphDifference}) but within ${allowedPercentage}% threshold - accepting`);
     return { isValid: true, shouldRetry: false };
   }
   
