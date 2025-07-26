@@ -9,7 +9,7 @@ import EnhancedFindReplaceBar from '../components/EnhancedFindReplaceBar';
 import EnhancementOptionsDialog from '../dialogs/EnhancementOptionsDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EnhancementOptions } from '@/types/enhancement';
-import { useAIBrainData } from '@/hooks/useAIBrainData';
+import { EnhancementDataValidator } from '@/services/EnhancementDataValidator';
 
 interface EnhancedEditorPanelProps {
   content: string;
@@ -43,23 +43,46 @@ const EnhancedEditorPanel = ({
   const [editor, setEditor] = useState<any>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [showEnhancementDialog, setShowEnhancementDialog] = useState(false);
+  const [validationState, setValidationState] = useState<{
+    isValid: boolean;
+    isLoading: boolean;
+    tooltip: string;
+  }>({ isValid: true, isLoading: false, tooltip: 'Enhance chapter' });
 
-  // Fetch AI brain data to check if enhancement should be allowed
-  const aiBrainData = useAIBrainData(projectId);
-
-  // Simple check for sufficient AI brain data
-  const hasSufficientData = () => {
-    if (aiBrainData.isLoading) return true; // Allow while loading
-    
-    const totalKnowledge = aiBrainData.knowledge.length;
-    const totalRelationships = aiBrainData.characterRelationships.length;
-    const totalPlotElements = aiBrainData.plotThreads.length + aiBrainData.timelineEvents.length;
-    
-    // Simple threshold: at least 3 knowledge entries OR 1 relationship OR 1 plot element
-    return totalKnowledge >= 3 || totalRelationships >= 1 || totalPlotElements >= 1;
-  };
-
-  const isDataSufficient = hasSufficientData();
+  // Validate enhancement requirements
+  useEffect(() => {
+    if (projectId && chapterId) {
+      setValidationState(prev => ({ ...prev, isLoading: true }));
+      
+      const validator = new EnhancementDataValidator(projectId, chapterId);
+      validator.validateEnhancementRequirements()
+        .then(result => {
+          if (result.isValid) {
+            setValidationState({
+              isValid: true,
+              isLoading: false,
+              tooltip: hasEnhancedContent ? 'Re-enhance chapter' : 'Enhance chapter'
+            });
+          } else {
+            const unmetReqs = result.requirements.filter(req => !req.met);
+            const tooltip = `Missing requirements: ${unmetReqs.map(req => req.name).join(', ')}. Check enhancement dialog for details.`;
+            setValidationState({
+              isValid: false,
+              isLoading: false,
+              tooltip
+            });
+          }
+        })
+        .catch(error => {
+          console.error('Validation error:', error);
+          setValidationState({
+            isValid: true, // Allow on error
+            isLoading: false,
+            tooltip: 'Enhancement validation failed, but you can still proceed'
+          });
+        });
+    }
+  }, [projectId, chapterId, hasEnhancedContent]);
 
   // Close find/replace during transitions
   useEffect(() => {
@@ -70,14 +93,14 @@ const EnhancedEditorPanel = ({
   }, [isTransitioning]);
 
   const handleEnhanceClick = () => {
-    if (onEnhanceChapter && !isTransitioning && isDataSufficient) {
+    if (onEnhanceChapter && !isTransitioning && validationState.isValid) {
       setShowEnhancementDialog(true);
     }
   };
 
   const handleEnhancementSubmit = (options: EnhancementOptions) => {
     setShowEnhancementDialog(false);
-    if (onEnhanceChapter && !isTransitioning && isDataSufficient) {
+    if (onEnhanceChapter && !isTransitioning && validationState.isValid) {
       onEnhanceChapter(options);
     }
   };
@@ -85,9 +108,8 @@ const EnhancedEditorPanel = ({
   const getTooltipContent = () => {
     if (isEnhancing) return 'Enhancing chapter...';
     if (isTransitioning) return 'Switching chapters...';
-    if (!isDataSufficient) return 'Insufficient AI brain data. Please analyze your content in the Creation Space first to enable enhancement.';
-    if (hasEnhancedContent) return 'Re-enhance chapter';
-    return 'Enhance chapter';
+    if (validationState.isLoading) return 'Checking requirements...';
+    return validationState.tooltip;
   };
 
   return (
@@ -105,14 +127,16 @@ const EnhancedEditorPanel = ({
                   <TooltipTrigger asChild>
                     <Button
                       onClick={handleEnhanceClick}
-                      disabled={isEnhancing || isTransitioning || !isDataSufficient}
+                      disabled={isEnhancing || isTransitioning || !validationState.isValid}
                       variant={hasEnhancedContent ? "outline" : "default"}
                       size="sm"
                       className="w-8 h-8 p-0"
                     >
                       {isEnhancing ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : !isDataSufficient ? (
+                      ) : validationState.isLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : !validationState.isValid ? (
                         <AlertTriangle className="w-4 h-4" />
                       ) : (
                         <Sparkles className="w-4 h-4" />
@@ -187,6 +211,8 @@ const EnhancedEditorPanel = ({
           onClose={() => setShowEnhancementDialog(false)}
           onSubmit={handleEnhancementSubmit}
           isProcessing={isEnhancing}
+          projectId={projectId}
+          chapterId={chapterId}
         />
       </div>
     </TooltipProvider>

@@ -1,29 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Sparkles, Info } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Sparkles, Info, AlertTriangle, Check, ExternalLink } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EnhancementOptions } from '@/types/enhancement';
 import { CreditWarning } from '@/components/features/ai/CreditWarning';
 import { useUserCreditStatus } from '@/hooks/useUserCreditStatus';
 import { CREDIT_COSTS } from '@/utils/creditUtils';
+import { EnhancementDataValidator, ValidationResult } from '@/services/EnhancementDataValidator';
 
 interface EnhancementOptionsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (options: EnhancementOptions) => void;
   isProcessing?: boolean;
+  projectId?: string;
+  chapterId?: string;
 }
 
 const EnhancementOptionsDialog = ({
   isOpen,
   onClose,
   onSubmit,
-  isProcessing = false
+  isProcessing = false,
+  projectId,
+  chapterId
 }: EnhancementOptionsDialogProps) => {
   const [enhancementLevel, setEnhancementLevel] = useState<'light' | 'moderate' | 'comprehensive'>('moderate');
   const [preserveAuthorVoice, setPreserveAuthorVoice] = useState(true);
@@ -41,7 +47,51 @@ const EnhancementOptionsDialog = ({
   const [enhanceCharacterVoice, setEnhanceCharacterVoice] = useState(true);
   const [addSensoryDetails, setAddSensoryDetails] = useState(true);
 
+  // Enhancement validation
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+
+  // Validate requirements when dialog opens
+  useEffect(() => {
+    if (isOpen && projectId && chapterId) {
+      setIsValidating(true);
+      const validator = new EnhancementDataValidator(projectId, chapterId);
+      validator.validateEnhancementRequirements()
+        .then(setValidationResult)
+        .catch(error => {
+          console.error('Validation error:', error);
+          setValidationResult(null);
+        })
+        .finally(() => setIsValidating(false));
+    }
+  }, [isOpen, projectId, chapterId]);
+
+  const handleActionClick = (action: string) => {
+    switch (action) {
+      case 'worldbuilding':
+        window.open(`/project/${projectId}#worldbuilding`, '_blank');
+        break;
+      case 'writing':
+        window.open(`/project/${projectId}/write/${chapterId}`, '_blank');
+        break;
+      case 'analyze':
+        window.open(`/project/${projectId}`, '_blank');
+        break;
+    }
+  };
+
+  const canSubmit = () => {
+    // Check credit requirements
+    const hasCredits = !creditStatus || creditStatus.credits_remaining >= CREDIT_COSTS.ENHANCEMENT;
+    
+    // Check validation requirements
+    const meetsValidation = !validationResult || validationResult.isValid;
+    
+    return hasCredits && meetsValidation && !isProcessing;
+  };
+
   const handleSubmit = () => {
+    if (!canSubmit()) return;
     const options: EnhancementOptions = {
       enhancementLevel,
       preserveAuthorVoice,
@@ -77,6 +127,86 @@ const EnhancementOptionsDialog = ({
               Enhance Chapter Options
             </DialogTitle>
           </DialogHeader>
+
+          {/* Enhancement Requirements Validation */}
+          {isValidating && (
+            <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Sparkles className="w-4 h-4 animate-pulse" />
+                Checking enhancement requirements...
+              </div>
+            </div>
+          )}
+
+          {validationResult && !isValidating && (
+            <div className="mt-4">
+              <div className={`p-4 rounded-lg border ${
+                validationResult.isValid 
+                  ? 'bg-green-50 border-green-200' 
+                  : 'bg-amber-50 border-amber-200'
+              }`}>
+                <div className="flex items-center gap-2 mb-3">
+                  {validationResult.isValid ? (
+                    <Check className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                  )}
+                  <h4 className="font-medium text-sm">
+                    {validationResult.isValid ? 'Ready for Enhancement' : 'Requirements Not Met'}
+                  </h4>
+                  <div className="ml-auto text-xs text-muted-foreground">
+                    {validationResult.totalScore}/{validationResult.maxScore}
+                  </div>
+                </div>
+
+                {!validationResult.isValid && (
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Enhancement works best with sufficient project data. Complete the requirements below for optimal results.
+                  </p>
+                )}
+
+                <div className="space-y-3">
+                  {validationResult.requirements.map((req, index) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {req.met ? (
+                            <Check className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <AlertTriangle className="w-4 h-4 text-amber-600" />
+                          )}
+                          <span className="text-sm font-medium">{req.name}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {req.current}/{req.required}
+                        </span>
+                      </div>
+                      
+                      <Progress 
+                        value={(req.current / req.required) * 100} 
+                        className="h-2"
+                      />
+                      
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">{req.message}</p>
+                        {req.actionButton && !req.met && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 text-xs px-2"
+                            onClick={() => handleActionClick(req.actionButton!.action)}
+                          >
+                            {req.actionButton.text}
+                            <ExternalLink className="w-3 h-3 ml-1" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Credit Warning */}
           {!creditsLoading && creditStatus && (
@@ -249,7 +379,7 @@ const EnhancementOptionsDialog = ({
             </Button>
             <Button 
               onClick={handleSubmit} 
-              disabled={isProcessing || (creditStatus && creditStatus.credits_remaining < CREDIT_COSTS.ENHANCEMENT)}
+              disabled={!canSubmit()}
             >
               {isProcessing ? 'Enhancing...' : 'Enhance Chapter'}
             </Button>
