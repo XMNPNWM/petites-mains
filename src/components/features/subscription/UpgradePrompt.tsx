@@ -53,11 +53,11 @@ const UpgradePrompt = ({ type, currentTier, limit }: UpgradePromptProps) => {
         return {
           title: 'AI Credits Exhausted',
           description: currentTier === 'plume' 
-            ? 'AI credits are available with paid plans starting at $5/month.'
+            ? 'You\'ve used all 15 AI credits for this month.'
             : 'You\'ve used all your AI credits for this month.',
           suggestion: currentTier === 'plume'
-            ? 'Upgrade to Une Main (50 credits) or Deux Mains (100 credits) for AI assistance.'
-            : 'Upgrade for more monthly credits or get an AI Credit Booster for $3.'
+            ? 'Upgrade to Une Main (50 credits) or Deux Mains (120 credits) for more AI assistance.'
+            : 'Upgrade for more monthly credits or get an AI Credit Booster for $5.'
         };
       default:
         return {

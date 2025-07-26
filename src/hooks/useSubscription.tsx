@@ -213,7 +213,7 @@ export const useSubscription = () => {
     
     switch (tier) {
       case 'plume':
-        return false; // No AI credits for Plume
+        return usageData.ai_credits_used < 15; // Plume now has 15 AI credits
       case 'une_main':
         return usageData.ai_credits_used < 50;
       case 'deux_mains':

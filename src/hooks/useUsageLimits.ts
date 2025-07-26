@@ -99,8 +99,8 @@ export const useUsageLimits = () => {
       switch (tier) {
         case 'plume':
           toast({
-            title: "AI credits not available",
-            description: "AI features are not included in the Plume plan. Upgrade to Une Main or Deux Mains to access AI assistance.",
+            title: "AI credits limit reached",
+            description: `Your Plume plan includes 15 AI credits per month. You've used ${usageData?.ai_credits_used || 0}/15 credits. Upgrade for more credits.`,
             variant: "destructive"
           });
           break;
@@ -154,7 +154,7 @@ export const useUsageLimits = () => {
       },
       aiCredits: {
         current: usageData.ai_credits_used,
-        limit: tier === 'plume' ? 0 : tier === 'une_main' ? 50 : tier === 'deux_mains' ? 120 : -1,
+        limit: tier === 'plume' ? 15 : tier === 'une_main' ? 50 : tier === 'deux_mains' ? 120 : -1,
         unlimited: tier === 'enterprise'
       }
     };

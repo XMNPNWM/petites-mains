@@ -58,6 +58,10 @@ const PricingPage = () => {
                 </li>
                 <li className="flex items-center">
                   <Check className="h-4 w-4 text-primary mr-2" />
+                  <span>15 AI credits per month</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-primary mr-2" />
                   <span>Character management</span>
                 </li>
               </ul>
@@ -80,7 +84,7 @@ const PricingPage = () => {
                 <Crown className="h-8 w-8 text-primary" />
               </div>
               <CardTitle className="text-2xl">Une Main</CardTitle>
-              <CardDescription className="text-3xl font-bold text-foreground">$7</CardDescription>
+              <CardDescription className="text-3xl font-bold text-foreground">$5</CardDescription>
               <CardDescription>per month</CardDescription>
             </CardHeader>
             <CardContent>
@@ -123,7 +127,7 @@ const PricingPage = () => {
                 <Crown className="h-8 w-8 text-primary" />
               </div>
               <CardTitle className="text-2xl">Deux Mains</CardTitle>
-              <CardDescription className="text-3xl font-bold text-foreground">$12</CardDescription>
+              <CardDescription className="text-3xl font-bold text-foreground">$10</CardDescription>
               <CardDescription>per month</CardDescription>
             </CardHeader>
             <CardContent>

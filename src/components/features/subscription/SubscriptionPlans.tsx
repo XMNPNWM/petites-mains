@@ -50,13 +50,15 @@ const SubscriptionPlans = ({ subscriptionData, usageData }: SubscriptionPlansPro
         'Up to 1 project',
         'Up to 10,000 words',
         'Up to 40 worldbuilding elements',
+        '15 AI credits per month',
         'Advanced writing tools',
         'Character management'
       ],
       limits: {
         projects: 1,
         words: 10000,
-        worldbuilding: 40
+        worldbuilding: 40,
+        aiCredits: 15
       },
       buttonText: 'Current Plan',
       buttonVariant: 'secondary' as const,
@@ -65,7 +67,7 @@ const SubscriptionPlans = ({ subscriptionData, usageData }: SubscriptionPlansPro
     {
       id: 'une_main',
       name: 'Une Main',
-      price: '$7',
+      price: '$5',
       period: 'month',
       description: 'For dedicated writers',
       features: [
@@ -90,7 +92,7 @@ const SubscriptionPlans = ({ subscriptionData, usageData }: SubscriptionPlansPro
     {
       id: 'deux_mains',
       name: 'Deux Mains',
-      price: '$12',
+      price: '$10',
       period: 'month',
       description: 'For professional writers',
       features: [
