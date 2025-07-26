@@ -16,6 +16,8 @@ export class EnhancementService {
    * @param onComplete - Optional callback when enhancement is complete
    */
   static async enhanceChapter(projectId: string, chapterId: string, onComplete?: () => void): Promise<void> {
+    let refinementData: any = null; // Declare in outer scope for error handling
+    
     try {
       console.log('🎯 EnhancementService: Starting chapter enhancement:', { projectId, chapterId });
 
@@ -43,7 +45,7 @@ export class EnhancementService {
       });
 
       // Get or create refinement data for THIS SPECIFIC CHAPTER
-      let refinementData = await RefinementService.fetchRefinementData(chapterId);
+      refinementData = await RefinementService.fetchRefinementData(chapterId);
       if (!refinementData) {
         console.log('Creating new refinement data for chapter:', chapterId);
         refinementData = await RefinementService.createRefinementData(chapterId, chapter.content);
