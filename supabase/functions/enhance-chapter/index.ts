@@ -1141,6 +1141,27 @@ function buildEnhancementPrompt(
   const specificInstructions: string[] = [];
   const criticalSafeguards: string[] = [];
 
+  // 🚨 PARAGRAPH STRUCTURE REQUIREMENT - TOP PRIORITY - ABSOLUTELY MANDATORY
+  enhancementDirectives.push("🚨 PARAGRAPH FORMATTING - HIGHEST PRIORITY - ABSOLUTELY CRITICAL:");
+  enhancementDirectives.push(`- ORIGINAL PARAGRAPH COUNT: ${paragraphCount} paragraphs - MUST REMAIN EXACTLY ${paragraphCount} paragraphs`);
+  enhancementDirectives.push("- MANDATORY: Each paragraph MUST be separated by EXACTLY \\n\\n (double newline)");
+  enhancementDirectives.push("- ZERO TOLERANCE: Enhanced text MUST have identical paragraph count as original");
+  enhancementDirectives.push("- NEVER merge paragraphs - each original paragraph stays separate");
+  enhancementDirectives.push("- NEVER split paragraphs - one original paragraph = one enhanced paragraph");
+  enhancementDirectives.push("- VERIFICATION REQUIRED: Count your paragraphs before responding");
+  
+  enhancementDirectives.push("");
+  enhancementDirectives.push("📋 PARAGRAPH FORMATTING EXAMPLES:");
+  enhancementDirectives.push("✅ CORRECT FORMAT:");
+  enhancementDirectives.push("Original: 'First paragraph.\\n\\nSecond paragraph.'");
+  enhancementDirectives.push("Enhanced: 'Enhanced first paragraph.\\n\\nEnhanced second paragraph.'");
+  enhancementDirectives.push("");
+  enhancementDirectives.push("❌ WRONG FORMATS:");
+  enhancementDirectives.push("- Single newline: 'Para 1.\\nPara 2.' ← FORBIDDEN");
+  enhancementDirectives.push("- HTML breaks: 'Para 1.<br>Para 2.' ← FORBIDDEN");
+  enhancementDirectives.push("- Merged: 'Para 1 and Para 2 combined.' ← FORBIDDEN");
+  enhancementDirectives.push("- Split: 'Para 1a.\\n\\nPara 1b.\\n\\nPara 2.' ← FORBIDDEN");
+
   // ABSOLUTE LANGUAGE REQUIREMENT (ALL LEVELS)
   enhancementDirectives.push("🌍 LANGUAGE REQUIREMENT - ABSOLUTELY CRITICAL:");
   enhancementDirectives.push(`- DETECTED LANGUAGE: ${detectedLanguage} (confidence: ${(frenchScore * 100).toFixed(1)}%)`);
@@ -1148,16 +1169,6 @@ function buildEnhancementPrompt(
   enhancementDirectives.push("- NEVER translate or change the language of the content");
   enhancementDirectives.push(`- Maintain ALL linguistic patterns, idioms, and cultural expressions of ${detectedLanguage}`);
   enhancementDirectives.push("- If original is French, enhanced MUST be French. If English, enhanced MUST be English.");
-
-  // PARAGRAPH STRUCTURE REQUIREMENT (ALL LEVELS)  
-  enhancementDirectives.push("📐 PARAGRAPH STRUCTURE REQUIREMENT - CRITICAL:");
-  enhancementDirectives.push(`- ORIGINAL PARAGRAPH COUNT: ${paragraphCount} paragraphs`);
-  enhancementDirectives.push(`- AVERAGE PARAGRAPH LENGTH: ${avgParagraphLength.toFixed(1)} words`);
-  enhancementDirectives.push("- Each paragraph in the original content MUST remain as a separate paragraph in the enhanced content");
-  enhancementDirectives.push("- Paragraphs must be separated by a line break (double newline: \\n\\n)");
-  enhancementDirectives.push("- NEVER merge multiple paragraphs into one paragraph");
-  enhancementDirectives.push("- NEVER split one paragraph into multiple paragraphs");
-  enhancementDirectives.push("- Maintain the exact paragraph structure and breaking points from the original");
 
   // LEVEL-SPECIFIC ENHANCEMENT PHILOSOPHY
   switch (options.enhancementLevel) {
@@ -1254,17 +1265,25 @@ function buildEnhancementPrompt(
 
   // CRITICAL OUTPUT FORMATTING REQUIREMENTS
   const outputRequirements = [
-    "🚨 CRITICAL OUTPUT FORMATTING - ABSOLUTELY MANDATORY:",
-    "- PRESERVE paragraph structure EXACTLY - maintain ALL paragraph breaks from original",
-    "- Each paragraph in original MUST remain as a separate paragraph in enhanced version",
-    "- Use ONLY simple double line breaks (\\n\\n) between paragraphs - NO HTML tags",
-    "- NEVER merge multiple original paragraphs into one enhanced paragraph",
-    "- NEVER split one paragraph into multiple paragraphs",
-    "- NEVER add 'Page Break', 'Page BreakPage Break', or any formatting markers",
-    "- NEVER add artificial separators, dividers, or section breaks",
-    "- Return ONLY the enhanced text with no explanations or comments",
-    `- REQUIRED: Enhanced content must have exactly ${paragraphCount} paragraphs (same as original)`,
-    "- Each original paragraph position must be preserved in enhanced version"
+    "🚨 FINAL FORMATTING CHECKLIST - VERIFY BEFORE RESPONDING:",
+    "1. COUNT CHECK: Does enhanced text have exactly " + paragraphCount + " paragraphs? (Count with \\n\\n splits)",
+    "2. FORMAT CHECK: Are paragraphs separated by \\n\\n ONLY? (No HTML, no single \\n)",
+    "3. CONTENT CHECK: Each original paragraph enhanced separately? (No merging/splitting)",
+    "4. VALIDATION: Enhanced paragraph count = " + paragraphCount + " ← MUST MATCH",
+    "",
+    "ABSOLUTE REQUIREMENTS:",
+    "- Use EXACTLY \\n\\n between paragraphs (double newline character)",
+    "- NO HTML tags, NO <br>, NO <p>, NO formatting markers",
+    "- NO Page Break text, NO artificial separators",
+    "- Return ONLY enhanced text with no explanations",
+    "- SELF-CHECK: Count paragraphs by splitting on \\n\\n before responding",
+    "",
+    "PARAGRAPH PRESERVATION RULES:",
+    "- Original paragraph 1 → Enhanced paragraph 1",
+    "- Original paragraph 2 → Enhanced paragraph 2", 
+    "- Continue 1:1 mapping for all " + paragraphCount + " paragraphs",
+    "- Each dialogue exchange stays in separate paragraphs",
+    "- Short paragraphs remain short and separate"
   ];
 
   return `# PROFESSIONAL NOVEL ENHANCEMENT SYSTEM
