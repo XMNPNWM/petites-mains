@@ -17,8 +17,21 @@
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 
-    <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https:; frame-src 'self';">
+    <!-- Content Security Policy - Dynamically set based on environment -->
+    <meta id="csp-meta" http-equiv="Content-Security-Policy" content="">
+    <script>
+      // Set CSP based on environment - stricter for production
+      const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port;
+      const cspMeta = document.getElementById('csp-meta');
+      
+      if (isDev) {
+        // Development CSP - allows unsafe-eval for Lovable tooling
+        cspMeta.content = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https:; frame-src 'self';";
+      } else {
+        // Production CSP - no unsafe-eval for maximum security
+        cspMeta.content = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https:; frame-src 'self';";
+      }
+    </script>
 
     <!-- Google Fonts for Enhanced Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
