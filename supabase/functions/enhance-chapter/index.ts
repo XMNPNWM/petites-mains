@@ -1042,68 +1042,6 @@ function calculateShowVsTellRatio(content: string): number {
   return totalIndicators > 0 ? (sensoryWords.length / totalIndicators) * 100 : 50;
 }
 
-/**
- * Enhanced paragraph structure validation with dynamic tolerance
- */
-function validateParagraphStructure(originalContent: string, enhancedContent: string): { isValid: boolean; shouldRetry: boolean } {
-  // Ensure we have actual content to validate
-  if (!enhancedContent || enhancedContent.trim() === '<p></p>' || enhancedContent.trim().length < 10) {
-    console.error('❌ Enhanced content is empty or invalid');
-    return { isValid: false, shouldRetry: true };
-  }
-  
-  // Count paragraphs in original and enhanced content
-  const originalParagraphs = originalContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-  const enhancedParagraphs = enhancedContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-  
-  console.log('📊 Paragraph structure validation:', {
-    originalParagraphs: originalParagraphs.length,
-    enhancedParagraphs: enhancedParagraphs.length,
-    structurePreserved: originalParagraphs.length === enhancedParagraphs.length
-  });
-  
-  const paragraphDifference = Math.abs(originalParagraphs.length - enhancedParagraphs.length);
-  
-  // Perfect match - ideal case
-  if (paragraphDifference === 0) {
-    console.log('✅ Perfect paragraph structure preservation');
-    return { isValid: true, shouldRetry: false };
-  }
-  
-  // Much more flexible tolerance based on content size
-  let allowedDifference = 2; // Base tolerance increased
-  if (originalParagraphs.length >= 10) {
-    allowedDifference = 4; // Medium content tolerance
-  }
-  if (originalParagraphs.length >= 30) {
-    allowedDifference = 6; // Large content tolerance
-  }
-  if (originalParagraphs.length >= 50) {
-    allowedDifference = 8; // Very large content tolerance
-  }
-  
-  // Acceptable difference based on content size
-  if (paragraphDifference <= allowedDifference) {
-    console.warn(`⚠️ Paragraph structure difference (${paragraphDifference} paragraphs) within tolerance (${allowedDifference}) - acceptable`);
-    return { isValid: true, shouldRetry: false };
-  }
-  
-  // Percentage-based fallback - much more lenient
-  const percentageDifference = (paragraphDifference / originalParagraphs.length) * 100;
-  let allowedPercentage = 25; // Base 25% tolerance
-  if (originalParagraphs.length >= 50) {
-    allowedPercentage = 35; // Very large content gets 35% tolerance
-  }
-  
-  if (percentageDifference <= allowedPercentage) {
-    console.warn(`⚠️ Large paragraph difference (${paragraphDifference}) but within ${allowedPercentage}% threshold - accepting`);
-    return { isValid: true, shouldRetry: false };
-  }
-  
-  // Large difference - reject and retry
-  console.error(`❌ Significant paragraph structure mismatch - rejecting AI response (difference: ${paragraphDifference}, allowed: ${allowedDifference})`);
-  return { isValid: false, shouldRetry: true };
-}
 
 /**
  * Determine the type of change based on content analysis
@@ -1499,12 +1437,6 @@ serve(async (req) => {
     
     console.log('After normalization - paragraph count:', cleanedContent.split('\n\n').filter(p => p.trim()).length);
 
-    // CRITICAL: Validate paragraph structure preservation (simplified approach)
-    const validation = validateParagraphStructure(contentToEnhance, cleanedContent);
-    
-    if (!validation.isValid && validation.shouldRetry) {
-      throw new Error('Paragraph structure not preserved - AI did not follow instructions properly');
-    }
 
     const improvedMetrics = calculateQualityMetrics(cleanedContent);
     
