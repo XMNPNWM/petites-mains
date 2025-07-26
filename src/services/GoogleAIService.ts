@@ -29,7 +29,7 @@ class GoogleAIServiceClass {
       }
 
       this.client = new GoogleGenerativeAI(apiKey);
-      this.model = this.client.getGenerativeModel({ model: 'gemini-pro' });
+      this.model = this.client.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
       
       console.log('Google AI Service initialized successfully');
     } catch (error) {

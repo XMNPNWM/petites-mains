@@ -83,7 +83,7 @@ Return a JSON object with this exact structure:
 Extract only clearly evident characters. Assign confidence scores based on how explicit their presence and description is in the text.`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-2.5-flash-lite",
     contents: charactersPrompt
   });
 
@@ -135,7 +135,7 @@ Utiliser UNIQUEMENT les noms exacts de la liste des personnages disponibles.
 Si aucune relation trouvée, retourner: {"relationships": []}`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-2.5-flash-lite",
     contents: relationshipsPrompt
   });
 
@@ -197,7 +197,7 @@ Retourner un objet JSON avec cette structure exacte:
 }`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-2.5-flash-lite",
     contents: timelinePrompt
   });
 
@@ -226,7 +226,7 @@ Return a JSON object with this exact structure:
 }`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-2.5-flash-lite",
     contents: plotPrompt
   });
 
@@ -425,7 +425,7 @@ Extract only clearly evident characters. Assign confidence scores based on how e
       console.log('📝 Characters prompt length:', charactersPrompt.length);
       
       const charactersResponse = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.5-flash-lite",
         contents: charactersPrompt
       });
 
@@ -505,7 +505,7 @@ Si aucune relation trouvée, retourner: {"relationships": []}`;
           console.log('📝 Relationships prompt length:', relationshipsPrompt.length);
 
           const relationshipsResponse = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-2.5-flash-lite",
             contents: relationshipsPrompt
           });
 
@@ -628,7 +628,7 @@ Si des personnages sont impliqués, utiliser les noms exacts de la liste des per
         console.log('📝 Timeline prompt length:', timelinePrompt.length);
 
         const timelineResponse = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: "gemini-2.5-flash-lite",
           contents: timelinePrompt
         });
 
@@ -664,7 +664,7 @@ Return a JSON object with this exact structure:
 Extract story elements, narrative threads, and chapter-level information.`;
 
       const plotResponse = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.5-flash-lite",
         contents: plotPrompt
       });
 
@@ -696,7 +696,7 @@ Return a JSON object with this exact structure:
 Extract locations, objects, cultural elements, and thematic content.`;
 
       const worldResponse = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.5-flash-lite",
         contents: worldPrompt
       });
 
