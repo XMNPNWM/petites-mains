@@ -12,10 +12,32 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CHECK-ADMIN-STATUS] ${step}${detailsStr}`);
 };
 
-// Admin emails list - centralized and secure
-const ADMIN_EMAILS = [
-  "xmnp306@tutanota.com"
-];
+// Admin emails list - loaded from Supabase secrets
+const getAdminEmails = async (): Promise<string[]> => {
+  try {
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+    
+    const { data, error } = await supabaseClient.functions.invoke('get-secret', {
+      body: { name: 'ADMIN_EMAILS' }
+    });
+    
+    if (error) {
+      console.warn('Failed to load admin emails from secrets, using fallback');
+      return ["xmnp306@tutanota.com"]; // Fallback for safety
+    }
+    
+    // Expect comma-separated emails
+    const emails = data?.value?.split(',').map((email: string) => email.trim()) || [];
+    return emails.length > 0 ? emails : ["xmnp306@tutanota.com"];
+  } catch (error) {
+    console.warn('Error loading admin emails:', error);
+    return ["xmnp306@tutanota.com"]; // Fallback for safety
+  }
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -45,8 +67,9 @@ serve(async (req) => {
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     // Check if user email is in admin list
-    const isAdmin = ADMIN_EMAILS.includes(user.email);
-    logStep("Admin status checked", { email: user.email, isAdmin });
+    const adminEmails = await getAdminEmails();
+    const isAdmin = adminEmails.includes(user.email);
+    logStep("Admin status checked", { email: user.email, isAdmin, adminEmails: adminEmails.length });
 
     return new Response(JSON.stringify({
       isAdmin,

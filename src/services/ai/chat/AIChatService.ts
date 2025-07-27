@@ -3,6 +3,7 @@ import { AIClient } from '../core/AIClient';
 import { AIConfigManager } from '../core/AIConfigManager';
 import { AIErrorHandler } from '../core/AIErrorHandler';
 import { ChapterContextService, ChapterContext } from '../../ChapterContextService';
+import { validateContent, checkRateLimit, sanitizeHtml } from '@/lib/securityUtils';
 
 export interface AIMessage {
   role: 'user' | 'assistant' | 'system';
@@ -32,6 +33,32 @@ export class AIChatService {
     chapterId?: string
   ): Promise<AIChatResponse> {
     try {
+      // Security: Rate limiting check
+      if (!checkRateLimit(`ai-chat-${projectId}`, 50, 60000)) {
+        return {
+          content: "Rate limit exceeded. Please wait before sending another message.",
+          error: "Rate limit exceeded"
+        };
+      }
+
+      // Security: Input validation and size limit
+      if (!message || message.length > 4000) {
+        return {
+          content: "Please provide a valid message under 4000 characters.",
+          error: "Invalid input"
+        };
+      }
+
+      // Security: Content validation for prompt injection
+      const validation = validateContent(message);
+      if (!validation.isValid && validation.riskLevel === 'high') {
+        console.warn('High-risk content detected in AI chat:', validation.issues);
+        return {
+          content: "I cannot process this request due to security concerns. Please rephrase your message.",
+          error: "Security validation failed"
+        };
+      }
+
       console.log('Generating AI chat response for project:', projectId);
       
       // Load project context
@@ -62,8 +89,11 @@ export class AIChatService {
         'AI chat generation'
       );
       
+      // Security: Sanitize AI response
+      const sanitizedContent = sanitizeHtml(response.content);
+      
       return {
-        content: response.content,
+        content: sanitizedContent,
         usage: response.usage
       };
     } catch (error) {

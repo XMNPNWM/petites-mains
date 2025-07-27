@@ -5,6 +5,7 @@ import StarterKit from '@tiptap/starter-kit';
 import RichTextBubbleMenu from './RichTextBubbleMenu';
 import { SearchReplaceExtension } from '../extensions/SearchReplaceExtension';
 import { useTextSegmentation } from '@/hooks/useTextSegmentation';
+import { sanitizeHtml, validateContent } from '@/lib/securityUtils';
 
 interface SegmentedRichTextEditorProps {
   content: string;
@@ -167,7 +168,7 @@ const SegmentedRichTextEditor = ({
                   <div className="text-xs text-slate-400 mb-2 text-right">Page {segment.pageNumber}</div>
                   <div 
                     className="whitespace-pre-wrap leading-relaxed break-words text-sm"
-                    dangerouslySetInnerHTML={{ __html: segment.content }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(segment.content) }}
                   />
                 </div>
               ))}
