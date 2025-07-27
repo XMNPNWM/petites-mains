@@ -1110,8 +1110,6 @@ async function applyAIPostFormatting(enhancedContent: string, apiKey: string): P
     let formattedContent = response.text;
     console.log('🔍 DEBUG: Response text received, length:', formattedContent ? formattedContent.length : 'null');
 
-    let formattedContent = response.text;
-
     if (!formattedContent) {
       console.warn('⚠️ Empty response from formatting AI - using original enhanced content');
       return enhancedContent;
@@ -1461,10 +1459,19 @@ serve(async (req) => {
       processingStatus: 'starting_enhanced_processing'
     });
 
-    const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
-    if (!apiKey) {
-      throw new Error('Google AI API key not configured');
+    // Get API key from Supabase secrets
+    console.log('🔑 Fetching Google AI API key from Supabase secrets...');
+    const { data: secretData, error: secretError } = await supabase.functions.invoke('get-secret', {
+      body: { name: 'GOOGLE_AI_API_KEY' }
+    });
+    
+    if (secretError || !secretData?.value) {
+      console.error('❌ Failed to retrieve API key from Supabase secrets:', secretError);
+      throw new Error('Google AI API key not found in Supabase secrets. Please configure GOOGLE_AI_API_KEY in your project secrets.');
     }
+    
+    const apiKey = secretData.value;
+    console.log('✅ API key retrieved from Supabase secrets');
 
     let contentToEnhance = content;
     if (!contentToEnhance && prompt) {
