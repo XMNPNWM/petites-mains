@@ -212,18 +212,19 @@ export const useRefinementSpace = (projectId: string | undefined) => {
     }
     
     try {
-      // Optimize paragraph organization
-      const optimizedContent = optimizeParagraphs(content);
+      // Detect content type - only optimize paragraphs for plain text
+      const isHTML = /<[^>]+>/.test(content);
+      const finalContent = isHTML ? content : optimizeParagraphs(content);
       
       await RefinementService.updateRefinementContent(
         refinementData.id, 
-        optimizedContent, 
+        finalContent, 
         currentChapter.id
       );
       
       setRefinementData(prev => prev ? {
         ...prev,
-        enhanced_content: optimizedContent,
+        enhanced_content: finalContent,
         refinement_status: 'in_progress'
       } : null);
       
