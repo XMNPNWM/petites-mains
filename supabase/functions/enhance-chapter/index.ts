@@ -1043,36 +1043,101 @@ function calculateShowVsTellRatio(content: string): number {
 }
 
 /**
- * Simple paragraph structure validation - trusts AI instructions
+ * Build AI post-formatting prompt for intelligent paragraphing
  */
-function validateParagraphStructure(originalContent: string, enhancedContent: string): { isValid: boolean; shouldRetry: boolean } {
-  // Count paragraphs in original and enhanced content
-  const originalParagraphs = originalContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-  const enhancedParagraphs = enhancedContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+function buildAIPostFormattingPrompt(enhancedContent: string): string {
+  const language = detectLanguage(enhancedContent);
   
-  console.log('📊 Paragraph structure validation:', {
-    originalParagraphs: originalParagraphs.length,
-    enhancedParagraphs: enhancedParagraphs.length,
-    structurePreserved: originalParagraphs.length === enhancedParagraphs.length
-  });
-  
-  const paragraphDifference = Math.abs(originalParagraphs.length - enhancedParagraphs.length);
-  
-  // Perfect match - ideal case
-  if (paragraphDifference === 0) {
-    console.log('✅ Perfect paragraph structure preservation');
-    return { isValid: true, shouldRetry: false };
+  return `You are a professional text formatter specializing in intelligent paragraphing for novels and creative writing.
+
+🎯 YOUR MISSION: Apply intelligent paragraph formatting to the enhanced content below while preserving ALL content.
+
+📋 FORMATTING RULES:
+1. NEVER change, add, or remove any words or phrases
+2. NEVER alter the meaning, tone, or style of the text
+3. ONLY adjust paragraph breaks for better readability
+4. Use *** to indicate suggested paragraph breaks
+5. Maximum 4 line breaks between any two sentences
+6. Focus on natural narrative flow and pacing
+
+🔧 PARAGRAPH BREAK GUIDELINES:
+- Scene transitions or time jumps
+- Change in perspective or focus
+- Dialogue shifts between characters
+- Emotional tone changes
+- Action sequence breaks
+- Descriptive passages vs dialogue
+
+✅ FORMATTING INSTRUCTIONS:
+- Insert *** where you want to create a new paragraph
+- Do NOT use any other formatting markers
+- Preserve all existing paragraph breaks
+- Add new breaks only where they enhance readability
+
+🌍 LANGUAGE: Maintain ${language} throughout
+🚫 FORBIDDEN: Any content alteration, translation, or rewriting
+
+ENHANCED CONTENT TO FORMAT:
+${enhancedContent}`;
+}
+
+/**
+ * Apply AI post-formatting with content protection
+ */
+async function applyAIPostFormatting(enhancedContent: string): Promise<string> {
+  try {
+    console.log('🎨 Starting AI post-formatting for intelligent paragraphing...');
+    
+    const formattingPrompt = buildAIPostFormattingPrompt(enhancedContent);
+    
+    const response = await client.models.generateContent({
+      model: 'gemini-1.5-flash',
+      contents: formattingPrompt
+    });
+
+    let formattedContent = response.text;
+
+    if (!formattedContent) {
+      console.warn('⚠️ Empty response from formatting AI - using original enhanced content');
+      return enhancedContent;
+    }
+
+    // Check for content alteration
+    const originalWords = enhancedContent.replace(/[^\w\s]/g, '').toLowerCase().split(/\s+/).filter(w => w.length > 0);
+    const formattedWords = formattedContent.replace(/[^\w\s*]/g, '').toLowerCase().split(/\s+/).filter(w => w.length > 0 && w !== '***');
+    
+    // Allow for minor differences in punctuation/spacing but catch major content changes
+    const wordDifference = Math.abs(originalWords.length - formattedWords.length);
+    const maxAllowedDifference = Math.max(3, Math.floor(originalWords.length * 0.02)); // 2% tolerance
+    
+    if (wordDifference > maxAllowedDifference) {
+      console.error('🚨 Content alteration detected in formatting pass:', {
+        originalWords: originalWords.length,
+        formattedWords: formattedWords.length,
+        difference: wordDifference,
+        maxAllowed: maxAllowedDifference
+      });
+      throw new Error('Content altered during formatting - user decision required');
+    }
+
+    // Apply *** markers as paragraph breaks
+    formattedContent = formattedContent
+      .replace(/\*\*\*/g, '\n\n')
+      .replace(/\n{3,}/g, '\n\n') // Normalize multiple line breaks
+      .trim();
+
+    console.log('✅ AI post-formatting completed successfully:', {
+      originalLength: enhancedContent.length,
+      formattedLength: formattedContent.length,
+      paragraphBreaksAdded: (formattedContent.match(/\n\n/g) || []).length - (enhancedContent.match(/\n\n/g) || []).length
+    });
+
+    return formattedContent;
+    
+  } catch (error) {
+    console.error('❌ AI post-formatting failed:', error);
+    throw error;
   }
-  
-  // Small difference (1 paragraph) - acceptable, just warn
-  if (paragraphDifference === 1) {
-    console.warn('⚠️ Minor paragraph structure difference (1 paragraph) - acceptable');
-    return { isValid: true, shouldRetry: false };
-  }
-  
-  // Large difference - reject and retry
-  console.error('❌ Significant paragraph structure mismatch - rejecting AI response');
-  return { isValid: false, shouldRetry: true };
 }
 
 /**
@@ -1141,26 +1206,12 @@ function buildEnhancementPrompt(
   const specificInstructions: string[] = [];
   const criticalSafeguards: string[] = [];
 
-  // 🚨 PARAGRAPH STRUCTURE REQUIREMENT - TOP PRIORITY - ABSOLUTELY MANDATORY
-  enhancementDirectives.push("🚨 PARAGRAPH FORMATTING - HIGHEST PRIORITY - ABSOLUTELY CRITICAL:");
-  enhancementDirectives.push(`- ORIGINAL PARAGRAPH COUNT: ${paragraphCount} paragraphs - MUST REMAIN EXACTLY ${paragraphCount} paragraphs`);
-  enhancementDirectives.push("- MANDATORY: Each paragraph MUST be separated by EXACTLY \\n\\n (double newline)");
-  enhancementDirectives.push("- ZERO TOLERANCE: Enhanced text MUST have identical paragraph count as original");
-  enhancementDirectives.push("- NEVER merge paragraphs - each original paragraph stays separate");
-  enhancementDirectives.push("- NEVER split paragraphs - one original paragraph = one enhanced paragraph");
-  enhancementDirectives.push("- VERIFICATION REQUIRED: Count your paragraphs before responding");
-  
-  enhancementDirectives.push("");
-  enhancementDirectives.push("📋 PARAGRAPH FORMATTING EXAMPLES:");
-  enhancementDirectives.push("✅ CORRECT FORMAT:");
-  enhancementDirectives.push("Original: 'First paragraph.\\n\\nSecond paragraph.'");
-  enhancementDirectives.push("Enhanced: 'Enhanced first paragraph.\\n\\nEnhanced second paragraph.'");
-  enhancementDirectives.push("");
-  enhancementDirectives.push("❌ WRONG FORMATS:");
-  enhancementDirectives.push("- Single newline: 'Para 1.\\nPara 2.' ← FORBIDDEN");
-  enhancementDirectives.push("- HTML breaks: 'Para 1.<br>Para 2.' ← FORBIDDEN");
-  enhancementDirectives.push("- Merged: 'Para 1 and Para 2 combined.' ← FORBIDDEN");
-  enhancementDirectives.push("- Split: 'Para 1a.\\n\\nPara 1b.\\n\\nPara 2.' ← FORBIDDEN");
+  // Focus on content enhancement only - formatting will be handled separately
+  enhancementDirectives.push("📝 CONTENT ENHANCEMENT FOCUS:");
+  enhancementDirectives.push("- Focus on improving word choice, clarity, and narrative flow");
+  enhancementDirectives.push("- Enhance descriptions, dialogue, and character development");
+  enhancementDirectives.push("- Don't worry about paragraph structure - this will be optimized separately");
+  enhancementDirectives.push("- Preserve the overall structure but prioritize content quality");
 
   // ABSOLUTE LANGUAGE REQUIREMENT (ALL LEVELS)
   enhancementDirectives.push("🌍 LANGUAGE REQUIREMENT - ABSOLUTELY CRITICAL:");
@@ -1451,26 +1502,35 @@ serve(async (req) => {
       .replace(/---+/g, '')
       .trim();
 
-    // CRITICAL: Validate paragraph structure preservation (simplified approach)
-    const validation = validateParagraphStructure(contentToEnhance, cleanedContent);
+    // 🎨 PHASE 2: Apply AI post-formatting for intelligent paragraphing
+    console.log('🎨 Starting Phase 2: AI post-formatting...');
     
-    if (!validation.isValid && validation.shouldRetry) {
-      throw new Error('Paragraph structure not preserved - AI did not follow instructions properly');
+    let finalContent;
+    try {
+      finalContent = await applyAIPostFormatting(cleanedContent);
+    } catch (error) {
+      if (error.message === 'Content altered during formatting - user decision required') {
+        console.error('🚨 Content alteration detected - returning enhanced content without formatting');
+        throw new Error('AI formatting altered content despite instructions. Please retry the enhancement process.');
+      } else {
+        console.warn('⚠️ AI post-formatting failed, using enhanced content without additional formatting:', error.message);
+        finalContent = cleanedContent;
+      }
     }
 
-    const improvedMetrics = calculateQualityMetrics(cleanedContent);
+    const improvedMetrics = calculateQualityMetrics(finalContent);
     
     console.log('✅ Enhancement completed successfully:', {
       chapterId,
       enhancementLevel: options.enhancementLevel,
       originalLength: contentToEnhance.length,
-      enhancedLength: cleanedContent.length,
+      enhancedLength: finalContent.length,
       readabilityImprovement: (improvedMetrics.readingEase - currentMetrics.readingEase).toFixed(2),
       processingStatus: 'enhancement_complete'
     });
 
-    // Use enhanced change tracking
-    const changes = await generateChangeTrackingData(contentToEnhance, cleanedContent);
+    // Use enhanced change tracking on final content (after both AI passes)
+    const changes = await generateChangeTrackingData(contentToEnhance, finalContent);
     
     console.log('🔍 Enhanced change tracking completed:', {
       chapterId,
@@ -1489,7 +1549,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      enhancedContent: cleanedContent,
+      enhancedContent: finalContent,
       changes: changes,
       metrics: {
         before: currentMetrics,
