@@ -219,6 +219,29 @@ export class UnifiedAnalysisOrchestrator {
           await this.storeCharacter(projectId, character, sourceChapterIds, useForce);
           totalStored++;
         }
+      } else if (extractedData.relationships && extractedData.relationships.length > 0) {
+        // Fallback: Create placeholder characters from relationships if no characters were extracted
+        console.log('🔄 [FALLBACK] No characters extracted, creating from relationships...');
+        const uniqueCharacterNames = new Set();
+        
+        extractedData.relationships.forEach(rel => {
+          if (rel.character_a_name) uniqueCharacterNames.add(rel.character_a_name);
+          if (rel.character_b_name) uniqueCharacterNames.add(rel.character_b_name);
+        });
+        
+        for (const characterName of uniqueCharacterNames) {
+          const placeholderCharacter = {
+            name: characterName,
+            description: `Character extracted from relationship data`,
+            traits: [],
+            role: 'character',
+            confidence_score: 0.3 // Lower confidence since it's inferred
+          };
+          
+          await this.storeCharacter(projectId, placeholderCharacter, sourceChapterIds, false);
+          totalStored++;
+          console.log(`✅ [FALLBACK] Created placeholder character: ${characterName}`);
+        }
       }
 
       // Store relationships  
@@ -300,6 +323,14 @@ export class UnifiedAnalysisOrchestrator {
     sourceChapterIds: string[],
     bypassDeduplication: boolean = false
   ): Promise<void> {
+    console.log(`🎭 [DEBUG] Attempting to store character:`, {
+      name: character.name,
+      description: character.description,
+      role: character.role,
+      confidence: character.confidence_score,
+      bypassDeduplication
+    });
+
     // Skip deduplication checks if bypass is enabled
     if (!bypassDeduplication) {
       // Normal deduplication logic would go here
@@ -308,30 +339,39 @@ export class UnifiedAnalysisOrchestrator {
       console.log(`🎭 Storing character with bypass: ${character.name}`);
     }
 
-    // Store the character
-    const { error } = await supabase
-      .from('knowledge_base')
-      .insert({
-        project_id: projectId,
-        name: character.name,
-        category: 'character',
-        subcategory: character.role,
-        description: character.description,
-        details: {
-          traits: character.traits || [],
-          role: character.role
-        },
-        confidence_score: character.confidence_score || 0.5,
-        extraction_method: 'llm_direct',
-        source_chapter_ids: sourceChapterIds,
-        is_newly_extracted: true,
-        ai_confidence_new: character.confidence_score || 0.5
-      });
+    try {
+      // Store the character
+      const { data, error } = await supabase
+        .from('knowledge_base')
+        .insert({
+          project_id: projectId,
+          name: character.name,
+          category: 'character',
+          subcategory: character.role,
+          description: character.description,
+          details: {
+            traits: character.traits || [],
+            role: character.role
+          },
+          confidence_score: character.confidence_score || 0.5,
+          extraction_method: 'llm_direct',
+          source_chapter_ids: sourceChapterIds,
+          is_newly_extracted: true,
+          ai_confidence_new: character.confidence_score || 0.5
+        })
+        .select();
 
-    if (error) {
-      console.error('Error storing character:', character.name, error);
-    } else {
-      console.log(`✅ Stored character: ${character.name}`);
+      if (error) {
+        console.error('❌ [ERROR] Failed to store character:', character.name, error);
+        console.error('❌ [ERROR] Character data that failed:', character);
+        throw error;
+      } else {
+        console.log(`✅ [SUCCESS] Stored character: ${character.name}`, data);
+      }
+    } catch (storageError) {
+      console.error('❌ [CRITICAL] Character storage exception:', storageError);
+      console.error('❌ [CRITICAL] Failed character object:', character);
+      // Don't rethrow to prevent breaking the entire process
     }
   }
 

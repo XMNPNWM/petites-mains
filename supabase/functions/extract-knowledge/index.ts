@@ -8,63 +8,45 @@ const corsHeaders = {
 };
 
 // Sequential extraction handler for single category with fresh context
-async function handleSequentialExtraction(content: string, projectId: string, targetCategory: string, freshContext: any, ai: any) {
+function handleSequentialExtractionResult(content: string, projectId: string, targetCategory: string, freshContext: any, ai: any) {
   console.log(`🔄 Sequential extraction for category: ${targetCategory}`);
   console.log('🔄 Fresh context available:', Object.keys(freshContext || {}));
 
-  let extractionResult = {};
+  return new Promise(async (resolve) => {
+    try {
+      let extractionResult = {};
 
-  try {
-    switch (targetCategory) {
-      case 'characters':
-        extractionResult = await extractCharactersSequential(content, ai);
-        break;
-      case 'character_relationships':
-        extractionResult = await extractRelationshipsSequential(content, freshContext, ai);
-        break;
-      case 'timeline_events':
-        extractionResult = await extractTimelineSequential(content, freshContext, ai);
-        break;
-      case 'plot_threads':
-        extractionResult = await extractPlotThreadsSequential(content, freshContext, ai);
-        break;
-      default:
-        console.log(`⚠️ Unsupported category for sequential extraction: ${targetCategory}`);
-        extractionResult = { [targetCategory]: [] };
-    }
-
-    const totalExtracted = Object.values(extractionResult).reduce((total, items) => 
-      total + (Array.isArray(items) ? items.length : 0), 0
-    );
-
-    console.log(`✅ Sequential extraction complete for ${targetCategory}: ${totalExtracted} items`);
-
-    return new Response(JSON.stringify({
-      success: true,
-      extractedData: extractionResult,
-      storageDetails: {
-        extractionMode: 'sequential',
-        targetCategory,
-        freshContextUsed: Object.keys(freshContext || {}),
-        totalExtracted,
-        processedAt: new Date().toISOString()
+      switch (targetCategory) {
+        case 'characters':
+          extractionResult = await extractCharactersSequential(content, ai);
+          console.log('🎭 Characters extracted in sequential mode:', extractionResult);
+          break;
+        case 'character_relationships':
+          extractionResult = await extractRelationshipsSequential(content, freshContext, ai);
+          break;
+        case 'timeline_events':
+          extractionResult = await extractTimelineSequential(content, freshContext, ai);
+          break;
+        case 'plot_threads':
+          extractionResult = await extractPlotThreadsSequential(content, freshContext, ai);
+          break;
+        default:
+          console.log(`⚠️ Unsupported category for sequential extraction: ${targetCategory}`);
+          extractionResult = {};
       }
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
 
-  } catch (error) {
-    console.error(`❌ Sequential extraction failed for ${targetCategory}:`, error);
-    
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message,
-      targetCategory
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
+      const itemsCount = Object.keys(extractionResult).reduce((total, key) => {
+        return total + (Array.isArray(extractionResult[key]) ? extractionResult[key].length : 0);
+      }, 0);
+
+      console.log(`✅ Sequential extraction complete for ${targetCategory}: ${itemsCount} items`);
+      
+      resolve(extractionResult);
+    } catch (error) {
+      console.error(`❌ Sequential extraction failed for ${targetCategory}:`, error);
+      resolve({});
+    }
+  });
 }
 
 // Extract characters in sequential mode
@@ -399,7 +381,17 @@ serve(async (req) => {
       // Handle different extraction modes
       if (isSequentialMode) {
         console.log(`🔄 Sequential mode: extracting single category ${targetCategory} with fresh context`);
-        return await handleSequentialExtraction(content, projectId, targetCategory, freshContext, ai);
+        
+        // Execute sequential extraction and populate results directly
+        const sequentialResult = await handleSequentialExtractionResult(content, projectId, targetCategory, freshContext, ai);
+        console.log('🔄 Sequential extraction result:', sequentialResult);
+        
+        // Merge sequential results into extractionResults
+        extractionResults = { ...extractionResults, ...sequentialResult };
+        console.log('✅ Sequential results merged into extractionResults:', {
+          characters: extractionResults.characters?.length || 0,
+          relationships: extractionResults.relationships?.length || 0
+        });
       } else if (isEnhancedGapFillMode) {
         console.log(`🎯 Enhanced gap-fill mode: analyzing ${targetCategories.join(', ')}, storing ${categoriesToStore?.join(', ') || 'all'}`);
       } else if (isGapFillMode) {
