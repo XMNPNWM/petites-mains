@@ -22,6 +22,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import { Toaster } from '@/components/ui/toaster';
 import ProjectExportPage from './pages/ProjectExportPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
             element={<LandingPage />}
           />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/user-guide" element={<UserGuidePage />} />
           <Route path="/help-center" element={<HelpCenterPage />} />

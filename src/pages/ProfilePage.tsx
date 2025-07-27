@@ -4,6 +4,7 @@ import ProfileHeader from '@/components/profile/ProfileHeader';
 import ProfileSidebar from '@/components/profile/ProfileSidebar';
 import ProfileForm from '@/components/profile/ProfileForm';
 import AvatarSection from '@/components/profile/AvatarSection';
+import PasswordChangeSection from '@/components/profile/PasswordChangeSection';
 import { useProfile } from '@/hooks/useProfile';
 
 const ProfilePage = () => {
@@ -50,7 +51,7 @@ const ProfilePage = () => {
             onChangeAvatar={() => setShowAvatarSelector(!showAvatarSelector)}
           />
 
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
             {showAvatarSelector ? (
               <AvatarSection
                 avatarUrl={avatarUrl}
@@ -59,14 +60,17 @@ const ProfilePage = () => {
                 onSave={handleAvatarSave}
               />
             ) : (
-              <ProfileForm
-                fullName={fullName}
-                bio={bio}
-                loading={loading}
-                onFullNameChange={setFullName}
-                onBioChange={setBio}
-                onSubmit={handleUpdateProfile}
-              />
+              <>
+                <ProfileForm
+                  fullName={fullName}
+                  bio={bio}
+                  loading={loading}
+                  onFullNameChange={setFullName}
+                  onBioChange={setBio}
+                  onSubmit={handleUpdateProfile}
+                />
+                <PasswordChangeSection />
+              </>
             )}
           </div>
         </div>
