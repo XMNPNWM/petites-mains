@@ -317,8 +317,8 @@ export class GapAwareAnalysisOrchestrator extends SmartAnalysisOrchestrator {
       }
 
       if (knowledgeResult?.success && knowledgeResult.extractedData) {
-        // Store the extracted knowledge - force flag ensures no similarity checks
-        console.log('📚 Storing gap-aware extracted data with force flag to bypass similarity checks');
+        // Store the extracted knowledge using the FIXED storage method with proper error handling
+        console.log('📚 Storing gap-aware extracted data using FIXED storage method');
         const storedItems = await SmartAnalysisOrchestrator.storeComprehensiveKnowledge(
           projectId, 
           knowledgeResult.extractedData, 
