@@ -52,6 +52,15 @@ const EditorStylesProvider = ({ children }: EditorStylesProviderProps) => {
           .page-break-node:hover .page-break-text {
             background: #f8fafc;
           }
+          
+          /* Paragraph spacing for TipTap editor */
+          .ProseMirror p {
+            margin-bottom: 1.5em;
+          }
+          
+          .ProseMirror p:last-child {
+            margin-bottom: 0;
+          }
         `
       }} />
     </>
