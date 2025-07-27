@@ -301,14 +301,22 @@ export class UnifiedAnalysisOrchestrator {
       // Store themes
       if (extractedData.themes && extractedData.themes.length > 0) {
         const useForce = isForceMode && selectedContentTypes.includes('themes');
+        console.log(`🎨 [BATCH] About to store ${extractedData.themes.length} themes`);
         for (const theme of extractedData.themes) {
-          await this.storeTheme(projectId, theme, sourceChapterIds, useForce);
-          totalStored++;
+          try {
+            await this.storeTheme(projectId, theme, sourceChapterIds, useForce);
+            totalStored++;
+            console.log(`🎨 [BATCH] Successfully stored theme: ${theme.name}`);
+          } catch (themeError) {
+            console.error(`❌ [BATCH] Failed to store theme ${theme.name}:`, themeError);
+            throw themeError; // Propagate the error to see what's failing
+          }
         }
       }
 
     } catch (error) {
-      console.error('Error storing extracted knowledge:', error);
+      console.error('❌ [CRITICAL] Error in storeExtractedKnowledge:', error);
+      throw error; // Propagate the error instead of swallowing it
     }
 
     return totalStored;
@@ -339,40 +347,55 @@ export class UnifiedAnalysisOrchestrator {
       console.log(`🎭 Storing character with bypass: ${character.name}`);
     }
 
-    try {
-      // Store the character
-      const { data, error } = await supabase
-        .from('knowledge_base')
-        .insert({
-          project_id: projectId,
-          name: character.name,
-          category: 'character',
-          subcategory: character.role,
-          description: character.description,
-          details: {
-            traits: character.traits || [],
-            role: character.role
-          },
-          confidence_score: character.confidence_score || 0.5,
-          extraction_method: 'llm_direct',
-          source_chapter_ids: sourceChapterIds,
-          is_newly_extracted: true,
-          ai_confidence_new: character.confidence_score || 0.5
-        })
-        .select();
-
-      if (error) {
-        console.error('❌ [ERROR] Failed to store character:', character.name, error);
-        console.error('❌ [ERROR] Character data that failed:', character);
-        throw error;
-      } else {
-        console.log(`✅ [SUCCESS] Stored character: ${character.name}`, data);
-      }
-    } catch (storageError) {
-      console.error('❌ [CRITICAL] Character storage exception:', storageError);
-      console.error('❌ [CRITICAL] Failed character object:', character);
-      // Don't rethrow to prevent breaking the entire process
+    // Validate required fields
+    if (!character.name || !character.name.trim()) {
+      console.error('❌ [VALIDATION] Character missing required name field:', character);
+      throw new Error(`Character validation failed: missing name`);
     }
+
+    console.log(`🎭 [ATTEMPT] About to store character with data:`, {
+      project_id: projectId,
+      name: character.name,
+      category: 'character',
+      subcategory: character.role,
+      description: character.description,
+      details: {
+        traits: character.traits || [],
+        role: character.role
+      },
+      confidence_score: character.confidence_score || 0.5,
+      source_chapter_ids: sourceChapterIds
+    });
+
+    // Store the character - NO try-catch to allow errors to propagate
+    const { data, error } = await supabase
+      .from('knowledge_base')
+      .insert({
+        project_id: projectId,
+        name: character.name,
+        category: 'character',
+        subcategory: character.role,
+        description: character.description,
+        details: {
+          traits: character.traits || [],
+          role: character.role
+        },
+        confidence_score: character.confidence_score || 0.5,
+        extraction_method: 'llm_direct',
+        source_chapter_ids: sourceChapterIds,
+        is_newly_extracted: true,
+        ai_confidence_new: character.confidence_score || 0.5
+      })
+      .select();
+
+    if (error) {
+      console.error('❌ [ERROR] Database error storing character:', character.name, error);
+      console.error('❌ [ERROR] Failed character data:', character);
+      console.error('❌ [ERROR] Error details:', JSON.stringify(error, null, 2));
+      throw new Error(`Failed to store character ${character.name}: ${error.message}`);
+    }
+    
+    console.log(`✅ [SUCCESS] Character stored successfully: ${character.name}`, data);
   }
 
   /**
@@ -638,11 +661,28 @@ export class UnifiedAnalysisOrchestrator {
       console.log(`🌍 Storing world building with bypass: ${worldElement.name}`);
     }
 
-    const { error } = await supabase
+    // Validate required fields
+    if (!worldElement.name || !worldElement.name.trim()) {
+      console.error('❌ [VALIDATION] World building element missing required name field:', worldElement);
+      throw new Error(`World building validation failed: missing name`);
+    }
+
+    console.log(`🌍 [ATTEMPT] About to store world building element with data:`, {
+      project_id: projectId,
+      name: worldElement.name,
+      category: 'world_building',
+      subcategory: worldElement.category || 'general',
+      description: worldElement.description,
+      details: worldElement.details || {},
+      confidence_score: worldElement.confidence_score || 0.8,
+      source_chapter_ids: sourceChapterIds
+    });
+
+    const { data, error } = await supabase
       .from('knowledge_base')
       .insert({
         project_id: projectId,
-        name: worldElement.name || 'Unnamed World Element',
+        name: worldElement.name,
         category: 'world_building',
         subcategory: worldElement.category || 'general',
         description: worldElement.description,
@@ -652,13 +692,17 @@ export class UnifiedAnalysisOrchestrator {
         source_chapter_ids: sourceChapterIds,
         is_newly_extracted: true,
         ai_confidence_new: worldElement.confidence_score || 0.8
-      });
+      })
+      .select();
 
     if (error) {
-      console.error('Error storing world building element:', worldElement, error);
-    } else {
-      console.log(`✅ Stored world building: ${worldElement.name}`);
+      console.error('❌ [ERROR] Database error storing world building element:', worldElement.name, error);
+      console.error('❌ [ERROR] Failed world building data:', worldElement);
+      console.error('❌ [ERROR] Error details:', JSON.stringify(error, null, 2));
+      throw new Error(`Failed to store world building element ${worldElement.name}: ${error.message}`);
     }
+    
+    console.log(`✅ [SUCCESS] World building element stored successfully: ${worldElement.name}`, data);
   }
 
   /**
@@ -676,11 +720,30 @@ export class UnifiedAnalysisOrchestrator {
       console.log(`🎨 Storing theme with bypass: ${theme.name}`);
     }
 
-    const { error } = await supabase
+    // Validate required fields
+    if (!theme.name || !theme.name.trim()) {
+      console.error('❌ [VALIDATION] Theme missing required name field:', theme);
+      throw new Error(`Theme validation failed: missing name`);
+    }
+
+    console.log(`🎨 [ATTEMPT] About to store theme with data:`, {
+      project_id: projectId,
+      name: theme.name,
+      category: 'theme',
+      subcategory: theme.type || 'general',
+      description: theme.description,
+      details: {
+        significance: theme.significance
+      },
+      confidence_score: theme.confidence_score || 0.7,
+      source_chapter_ids: sourceChapterIds
+    });
+
+    const { data, error } = await supabase
       .from('knowledge_base')
       .insert({
         project_id: projectId,
-        name: theme.name || 'Unnamed Theme',
+        name: theme.name,
         category: 'theme',
         subcategory: theme.type || 'general',
         description: theme.description,
@@ -692,12 +755,16 @@ export class UnifiedAnalysisOrchestrator {
         source_chapter_ids: sourceChapterIds,
         is_newly_extracted: true,
         ai_confidence_new: theme.confidence_score || 0.7
-      });
+      })
+      .select();
 
     if (error) {
-      console.error('Error storing theme:', theme, error);
-    } else {
-      console.log(`✅ Stored theme: ${theme.name}`);
+      console.error('❌ [ERROR] Database error storing theme:', theme.name, error);
+      console.error('❌ [ERROR] Failed theme data:', theme);
+      console.error('❌ [ERROR] Error details:', JSON.stringify(error, null, 2));
+      throw new Error(`Failed to store theme ${theme.name}: ${error.message}`);
     }
+    
+    console.log(`✅ [SUCCESS] Theme stored successfully: ${theme.name}`, data);
   }
 }
