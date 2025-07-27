@@ -30,6 +30,12 @@ function handleSequentialExtractionResult(content: string, projectId: string, ta
         case 'plot_threads':
           extractionResult = await extractPlotThreadsSequential(content, freshContext, ai);
           break;
+        case 'world_building':
+          extractionResult = await extractWorldBuildingSequential(content, freshContext, ai);
+          break;
+        case 'themes':
+          extractionResult = await extractThemesSequential(content, freshContext, ai);
+          break;
         default:
           console.log(`⚠️ Unsupported category for sequential extraction: ${targetCategory}`);
           extractionResult = {};
@@ -223,6 +229,86 @@ Return a JSON object with this exact structure:
   }
 }
 
+// Extract world building in sequential mode
+async function extractWorldBuildingSequential(content: string, freshContext: any, ai: any) {
+  console.log('🌍 Sequential: Extracting world building elements...');
+  
+  const worldPrompt = `Analyze the following text and extract world building elements in JSON format.
+
+Text to analyze: "${content}"
+
+Return a JSON object with this exact structure:
+{
+  "worldBuilding": [{"name": "", "description": "", "category": "", "confidence_score": 0.8}]
+}
+
+Extract locations, objects, cultural elements, technologies, and world-specific concepts.`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: worldPrompt
+  });
+
+  try {
+    let text = response.text;
+    console.log('🌍 Sequential world building raw response:', text);
+    
+    // Apply robust JSON parsing
+    text = text
+      .replace(/```json\n?|\n?```/g, '')
+      .replace(/```\n?|\n?```/g, '')
+      .replace(/^\s*[\w\s]*?({.*})\s*$/s, '$1')
+      .trim();
+
+    const data = JSON.parse(text);
+    console.log(`✅ Sequential world building extracted: ${data.worldBuilding?.length || 0}`);
+    return { worldBuilding: data.worldBuilding || [] };
+  } catch (error) {
+    console.error('❌ Failed to parse sequential world building:', error);
+    return { worldBuilding: [] };
+  }
+}
+
+// Extract themes in sequential mode
+async function extractThemesSequential(content: string, freshContext: any, ai: any) {
+  console.log('💭 Sequential: Extracting themes...');
+  
+  const themesPrompt = `Analyze the following text and extract themes in JSON format.
+
+Text to analyze: "${content}"
+
+Return a JSON object with this exact structure:
+{
+  "themes": [{"name": "", "description": "", "significance": "", "confidence_score": 0.8}]
+}
+
+Extract thematic content, moral messages, underlying concepts, and symbolic meanings.`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: themesPrompt
+  });
+
+  try {
+    let text = response.text;
+    console.log('💭 Sequential themes raw response:', text);
+    
+    // Apply robust JSON parsing
+    text = text
+      .replace(/```json\n?|\n?```/g, '')
+      .replace(/```\n?|\n?```/g, '')
+      .replace(/^\s*[\w\s]*?({.*})\s*$/s, '$1')
+      .trim();
+
+    const data = JSON.parse(text);
+    console.log(`✅ Sequential themes extracted: ${data.themes?.length || 0}`);
+    return { themes: data.themes || [] };
+  } catch (error) {
+    console.error('❌ Failed to parse sequential themes:', error);
+    return { themes: [] };
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -392,6 +478,46 @@ serve(async (req) => {
           characters: extractionResults.characters?.length || 0,
           relationships: extractionResults.relationships?.length || 0
         });
+        
+        // **CRITICAL FIX: Early return for sequential mode to prevent standard extraction from overwriting**
+        console.log('🚀 Sequential mode complete - skipping standard extraction passes');
+        console.log('🎯 Final sequential extraction results:', {
+          characters: extractionResults.characters?.length || 0,
+          relationships: extractionResults.relationships?.length || 0,
+          timelineEvents: extractionResults.timelineEvents?.length || 0,
+          plotThreads: extractionResults.plotThreads?.length || 0,
+          worldBuilding: extractionResults.worldBuilding?.length || 0,
+          themes: extractionResults.themes?.length || 0
+        });
+        
+        // Skip to the end - go directly to response phase
+        const totalExtracted = Object.values(extractionResults).reduce((total, items) => 
+          total + (Array.isArray(items) ? items.length : 0), 0
+        );
+        
+        console.log(`✅ Sequential knowledge extraction completed: ${totalExtracted} items extracted`);
+        
+        return new Response(JSON.stringify({
+          success: true,
+          extractedData: extractionResults,
+          storageDetails: {
+            language: 'detected_from_content',
+            extractionStats: {
+              totalExtracted,
+              processingReason,
+              embeddingsEnabled: useEmbeddingsBasedProcessing,
+              extractionSkipped: shouldSkipExtraction,
+              processedAt: new Date().toISOString()
+            }
+          },
+          validation: {
+            issues: shouldSkipExtraction ? ['Content extraction was skipped due to similarity'] : []
+          },
+          creditsUsed: 2,
+          remainingCredits: creditCheck[0].remaining_credits
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       } else if (isEnhancedGapFillMode) {
         console.log(`🎯 Enhanced gap-fill mode: analyzing ${targetCategories.join(', ')}, storing ${categoriesToStore?.join(', ') || 'all'}`);
       } else if (isGapFillMode) {
@@ -421,15 +547,60 @@ Extract only clearly evident characters. Assign confidence scores based on how e
         contents: charactersPrompt
       });
 
+      // **ENHANCED: Apply robust JSON parsing with multiple fallback strategies (same as relationships)**
       try {
-        const charactersText = charactersResponse.text.replace(/```json\n?|\n?```/g, '').trim();
-        console.log('🎭 Raw characters AI response:', charactersText.substring(0, 500) + '...');
-        const charactersData = JSON.parse(charactersText);
-        extractionResults.characters = charactersData.characters || [];
-        console.log(`✅ Extracted ${extractionResults.characters.length} characters:`, extractionResults.characters.map(c => c.name));
+        let charactersText = charactersResponse.text;
+        console.log('🎭 Full raw characters AI response:', charactersText);
+        
+        // Strategy 1: Clean up common JSON formatting issues
+        charactersText = charactersText
+          .replace(/```json\n?|\n?```/g, '') // Remove code blocks
+          .replace(/```\n?|\n?```/g, '') // Remove any remaining code blocks
+          .replace(/^\s*[\w\s]*?({.*})\s*$/s, '$1') // Extract JSON from surrounding text
+          .trim();
+        
+        console.log('🧹 Cleaned characters text:', charactersText);
+        
+        // Strategy 2: Try to parse the cleaned JSON
+        let charactersData;
+        try {
+          charactersData = JSON.parse(charactersText);
+        } catch (parseError) {
+          console.log('⚠️ First character parse failed, trying fallback strategies...');
+          
+          // Strategy 3: Try to extract JSON object from text
+          const jsonMatch = charactersText.match(/{.*}/s);
+          if (jsonMatch) {
+            console.log('🔍 Found character JSON match:', jsonMatch[0]);
+            charactersData = JSON.parse(jsonMatch[0]);
+          } else {
+            throw new Error('No JSON object found in character response');
+          }
+        }
+        
+        // **ENHANCED: Validate the structure before storing**
+        if (charactersData && Array.isArray(charactersData.characters)) {
+          // Validate each character has required fields
+          const validCharacters = charactersData.characters.filter(char => 
+            char.name && char.name.trim().length > 0 // At minimum, must have a name
+          );
+          
+          extractionResults.characters = validCharacters;
+          console.log(`✅ Extracted ${extractionResults.characters.length} valid characters:`, extractionResults.characters.map(c => c.name));
+          
+          // Log each character for debugging
+          extractionResults.characters.forEach((char, index) => {
+            console.log(`   ${index + 1}. ${char.name} (${char.role || 'Unknown role'})`);
+          });
+        } else {
+          console.log('⚠️ Invalid characters structure, using empty array');
+          extractionResults.characters = [];
+        }
+        
       } catch (error) {
-        console.error('❌ Failed to parse characters:', error);
-        console.error('Raw response that failed:', charactersResponse.text);
+        console.error('❌ All character parsing strategies failed:', error);
+        console.error('Raw response that failed all strategies:', charactersResponse.text);
+        extractionResults.characters = [];
       }
     }
 
@@ -692,14 +863,73 @@ Extract locations, objects, cultural elements, and thematic content.`;
         contents: worldPrompt
       });
 
+      // **ENHANCED: Apply robust JSON parsing with multiple fallback strategies**
       try {
-        const worldText = worldResponse.text.replace(/```json\n?|\n?```/g, '').trim();
-        const worldData = JSON.parse(worldText);
-        extractionResults.worldBuilding = worldData.worldBuilding || [];
-        extractionResults.themes = worldData.themes || [];
-        console.log(`✅ Extracted ${extractionResults.worldBuilding.length} world building elements, ${extractionResults.themes.length} themes`);
+        let worldText = worldResponse.text;
+        console.log('🌍 Full raw world building AI response:', worldText);
+        
+        // Strategy 1: Clean up common JSON formatting issues
+        worldText = worldText
+          .replace(/```json\n?|\n?```/g, '') // Remove code blocks
+          .replace(/```\n?|\n?```/g, '') // Remove any remaining code blocks
+          .replace(/^\s*[\w\s]*?({.*})\s*$/s, '$1') // Extract JSON from surrounding text
+          .trim();
+        
+        console.log('🧹 Cleaned world building text:', worldText);
+        
+        // Strategy 2: Try to parse the cleaned JSON
+        let worldData;
+        try {
+          worldData = JSON.parse(worldText);
+        } catch (parseError) {
+          console.log('⚠️ First world building parse failed, trying fallback strategies...');
+          
+          // Strategy 3: Try to extract JSON object from text
+          const jsonMatch = worldText.match(/{.*}/s);
+          if (jsonMatch) {
+            console.log('🔍 Found world building JSON match:', jsonMatch[0]);
+            worldData = JSON.parse(jsonMatch[0]);
+          } else {
+            throw new Error('No JSON object found in world building response');
+          }
+        }
+        
+        // **ENHANCED: Validate the structure before storing**
+        if (worldData) {
+          // Validate world building elements
+          if (Array.isArray(worldData.worldBuilding)) {
+            const validWorldBuilding = worldData.worldBuilding.filter(wb => 
+              wb.name && wb.name.trim().length > 0 // At minimum, must have a name
+            );
+            extractionResults.worldBuilding = validWorldBuilding;
+            console.log(`✅ Extracted ${extractionResults.worldBuilding.length} valid world building elements`);
+          } else {
+            console.log('⚠️ Invalid world building structure, using empty array');
+            extractionResults.worldBuilding = [];
+          }
+          
+          // Validate themes
+          if (Array.isArray(worldData.themes)) {
+            const validThemes = worldData.themes.filter(theme => 
+              theme.name && theme.name.trim().length > 0 // At minimum, must have a name
+            );
+            extractionResults.themes = validThemes;
+            console.log(`✅ Extracted ${extractionResults.themes.length} valid themes`);
+          } else {
+            console.log('⚠️ Invalid themes structure, using empty array');
+            extractionResults.themes = [];
+          }
+        } else {
+          console.log('⚠️ Invalid world data structure, using empty arrays');
+          extractionResults.worldBuilding = [];
+          extractionResults.themes = [];
+        }
+        
       } catch (error) {
-        console.error('Failed to parse world building and themes:', error);
+        console.error('❌ All world building and themes parsing strategies failed:', error);
+        console.error('Raw response that failed all strategies:', worldResponse.text);
+        extractionResults.worldBuilding = [];
+        extractionResults.themes = [];
       }
     }
 
