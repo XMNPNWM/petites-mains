@@ -1086,17 +1086,29 @@ ${enhancedContent}`;
  */
 async function applyAIPostFormatting(enhancedContent: string, apiKey: string): Promise<string> {
   try {
+    console.log('🔍 DEBUG: applyAIPostFormatting function entered');
+    console.log('🔍 DEBUG: Enhanced content length:', enhancedContent.length);
+    console.log('🔍 DEBUG: API Key received:', !!apiKey);
     console.log('🎨 Starting AI post-formatting for intelligent paragraphing...');
     
     // Create dedicated AI instance for post-formatting
+    console.log('🔍 DEBUG: About to create GoogleGenAI instance...');
     const ai = new GoogleGenAI({ apiKey });
+    console.log('🔍 DEBUG: GoogleGenAI instance created successfully');
     
+    console.log('🔍 DEBUG: Building formatting prompt...');
     const formattingPrompt = buildAIPostFormattingPrompt(enhancedContent);
+    console.log('🔍 DEBUG: Formatting prompt built, length:', formattingPrompt.length);
     
+    console.log('🔍 DEBUG: About to call AI models.generateContent...');
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-lite',
       contents: formattingPrompt
     });
+    console.log('🔍 DEBUG: AI generateContent call completed');
+
+    let formattedContent = response.text;
+    console.log('🔍 DEBUG: Response text received, length:', formattedContent ? formattedContent.length : 'null');
 
     let formattedContent = response.text;
 
@@ -1506,12 +1518,22 @@ serve(async (req) => {
       .trim();
 
     // 🎨 PHASE 2: Apply AI post-formatting for intelligent paragraphing
-    console.log('🎨 Starting Phase 2: AI post-formatting...');
+    console.log('🔍 DEBUG: Phase 2 execution checkpoint - about to start AI post-formatting');
+    console.log('🔍 DEBUG: Content length for formatting:', cleanedContent.length);
+    console.log('🔍 DEBUG: API Key available:', !!apiKey);
+    console.log('🔍 DEBUG: API Key length:', apiKey ? apiKey.length : 'null');
     
     let finalContent;
     try {
+      console.log('🔍 DEBUG: About to call applyAIPostFormatting function...');
       finalContent = await applyAIPostFormatting(cleanedContent, apiKey);
+      console.log('🔍 DEBUG: applyAIPostFormatting completed successfully');
+      console.log('🔍 DEBUG: Final content length after formatting:', finalContent.length);
     } catch (error) {
+      console.error('🔍 DEBUG: Error caught in Phase 2:', error);
+      console.error('🔍 DEBUG: Error message:', error.message);
+      console.error('🔍 DEBUG: Error stack:', error.stack);
+      
       if (error.message === 'Content altered during formatting - user decision required') {
         console.error('🚨 Content alteration detected - returning enhanced content without formatting');
         throw new Error('AI formatting altered content despite instructions. Please retry the enhancement process.');
