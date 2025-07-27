@@ -2,6 +2,7 @@
 
 // Define your allowed origins
 const ALLOWED_ORIGINS = [
+  'https://petites-mains.lovable.app',
   'https://aa975d18-a35c-4a78-838b-cbec95b38204.lovableproject.com',
   // For local development (uncomment as needed):
   // 'http://localhost:3000',
@@ -29,7 +30,7 @@ export { ALLOWED_ORIGINS };
 
 // Simple CORS headers for direct use (production-specific)
 export const simpleCorsHeaders = {
-  'Access-Control-Allow-Origin': 'https://aa975d18-a35c-4a78-838b-cbec95b38204.lovableproject.com',
+  'Access-Control-Allow-Origin': 'https://petites-mains.lovable.app',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
