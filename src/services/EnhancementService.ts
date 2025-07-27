@@ -491,15 +491,25 @@ export class EnhancementService {
 
       console.log('✅ Status update validation passed');
 
+      // ENHANCED: Generate new batch ID and update timestamp when enhancement starts
+      const currentBatchId = crypto.randomUUID();
+      const updateData: any = {
+        refinement_status: status,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Add batch tracking for enhanced data integrity
+      if (status === 'in_progress') {
+        updateData.current_batch_id = currentBatchId;
+        updateData.last_enhancement_at = new Date().toISOString();
+      }
+
       // Update ONLY the specific refinement record
       const { data, error } = await supabase
         .from('chapter_refinements')
-        .update({
-          refinement_status: status,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', refinementId)
-        .select('id, chapter_id, refinement_status');
+        .select('id, chapter_id, refinement_status, current_batch_id, last_enhancement_at');
 
       if (error) {
         console.error('❌ Status update failed:', error);
@@ -516,7 +526,9 @@ export class EnhancementService {
         updatedRecords: data.length,
         refinementId: data[0].id,
         chapterId: data[0].chapter_id,
-        newStatus: data[0].refinement_status
+        newStatus: data[0].refinement_status,
+        batchId: data[0].current_batch_id,
+        lastEnhancementAt: data[0].last_enhancement_at
       });
       
     } catch (error) {
@@ -529,15 +541,37 @@ export class EnhancementService {
     try {
       console.log('💾 Saving change tracking data for refinement:', refinementId);
       
-      // First, clear existing changes for this refinement
-      await supabase
+      // Get current batch ID from refinement record for data correlation
+      const { data: refinementData, error: refinementError } = await supabase
+        .from('chapter_refinements')
+        .select('current_batch_id, last_enhancement_at')
+        .eq('id', refinementId)
+        .single();
+        
+      if (refinementError) {
+        console.error('❌ Failed to get batch ID for change tracking:', refinementError);
+        throw refinementError;
+      }
+      
+      const batchId = refinementData.current_batch_id;
+      console.log('🔄 Using batch ID for change tracking:', batchId);
+      
+      // Enhanced clearing: Delete using both refinement_id and batch validation
+      const { error: deleteError } = await supabase
         .from('ai_change_tracking')
         .delete()
         .eq('refinement_id', refinementId);
+        
+      if (deleteError) {
+        console.error('❌ Failed to clear previous changes:', deleteError);
+        throw deleteError;
+      }
       
-      // Insert new changes with dual-position format
+      // Insert new changes with enhanced metadata
       const changeRecords = changes.map(change => ({
         refinement_id: refinementId,
+        processing_batch_id: batchId,
+        created_at_enhanced: new Date().toISOString(),
         change_type: change.change_type || 'style',
         original_text: change.original_text || '',
         enhanced_text: change.enhanced_text || '',
@@ -561,11 +595,97 @@ export class EnhancementService {
           throw error;
         }
         
-        console.log('✅ Successfully saved', changeRecords.length, 'change tracking records with dual positions');
+        console.log('✅ Successfully saved', changeRecords.length, 'change tracking records with batch ID:', batchId);
       }
     } catch (error) {
       console.error('❌ Error in saveChangeTrackingData:', error);
       // Don't throw error here as change tracking is not critical for the main functionality
+    }
+  }
+
+  /**
+   * Enhanced data validation for change tracking panel
+   */
+  static async validateChangeDataIntegrity(refinementId: string): Promise<{
+    isValid: boolean;
+    batchId: string | null;
+    lastEnhancementAt: string | null;
+    changeCount: number;
+    issues: string[];
+  }> {
+    try {
+      // Get refinement metadata
+      const { data: refinementData, error: refinementError } = await supabase
+        .from('chapter_refinements')
+        .select('current_batch_id, last_enhancement_at, enhanced_content')
+        .eq('id', refinementId)
+        .single();
+        
+      if (refinementError) {
+        return {
+          isValid: false,
+          batchId: null,
+          lastEnhancementAt: null,
+          changeCount: 0,
+          issues: [`Failed to fetch refinement data: ${refinementError.message}`]
+        };
+      }
+      
+      // Get changes for this refinement
+      const { data: changes, error: changesError } = await supabase
+        .from('ai_change_tracking')
+        .select('id, processing_batch_id, created_at_enhanced')
+        .eq('refinement_id', refinementId);
+        
+      if (changesError) {
+        return {
+          isValid: false,
+          batchId: refinementData.current_batch_id,
+          lastEnhancementAt: refinementData.last_enhancement_at,
+          changeCount: 0,
+          issues: [`Failed to fetch changes: ${changesError.message}`]
+        };
+      }
+      
+      const issues: string[] = [];
+      
+      // Validate batch consistency
+      const inconsistentBatch = changes.some(change => 
+        change.processing_batch_id !== refinementData.current_batch_id
+      );
+      
+      if (inconsistentBatch) {
+        issues.push('Some changes belong to different batch IDs');
+      }
+      
+      // Validate timestamp consistency (changes should be created after enhancement)
+      if (refinementData.last_enhancement_at) {
+        const enhancementTime = new Date(refinementData.last_enhancement_at);
+        const oldChanges = changes.filter(change => 
+          new Date(change.created_at_enhanced) < enhancementTime
+        );
+        
+        if (oldChanges.length > 0) {
+          issues.push(`${oldChanges.length} changes are older than last enhancement`);
+        }
+      }
+      
+      return {
+        isValid: issues.length === 0,
+        batchId: refinementData.current_batch_id,
+        lastEnhancementAt: refinementData.last_enhancement_at,
+        changeCount: changes.length,
+        issues
+      };
+      
+    } catch (error) {
+      return {
+        isValid: false,
+        batchId: null,
+        lastEnhancementAt: null,
+        changeCount: 0,
+        issues: [`Validation error: ${error.message}`]
+      };
     }
   }
 }

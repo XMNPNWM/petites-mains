@@ -19,6 +19,7 @@ export type Database = {
           change_type: string
           confidence_score: number | null
           created_at: string | null
+          created_at_enhanced: string | null
           enhanced_position_end: number
           enhanced_position_start: number
           enhanced_text: string
@@ -26,6 +27,7 @@ export type Database = {
           original_position_end: number
           original_position_start: number
           original_text: string
+          processing_batch_id: string | null
           refinement_id: string
           semantic_impact: string | null
           semantic_similarity: number | null
@@ -35,6 +37,7 @@ export type Database = {
           change_type: string
           confidence_score?: number | null
           created_at?: string | null
+          created_at_enhanced?: string | null
           enhanced_position_end: number
           enhanced_position_start: number
           enhanced_text: string
@@ -42,6 +45,7 @@ export type Database = {
           original_position_end: number
           original_position_start: number
           original_text: string
+          processing_batch_id?: string | null
           refinement_id: string
           semantic_impact?: string | null
           semantic_similarity?: number | null
@@ -51,6 +55,7 @@ export type Database = {
           change_type?: string
           confidence_score?: number | null
           created_at?: string | null
+          created_at_enhanced?: string | null
           enhanced_position_end?: number
           enhanced_position_start?: number
           enhanced_text?: string
@@ -58,6 +63,7 @@ export type Database = {
           original_position_end?: number
           original_position_start?: number
           original_text?: string
+          processing_batch_id?: string | null
           refinement_id?: string
           semantic_impact?: string | null
           semantic_similarity?: number | null
@@ -211,9 +217,11 @@ export type Database = {
           context_summary: string | null
           created_at: string | null
           creation_import_version: number | null
+          current_batch_id: string | null
           enhanced_content: string | null
           id: string
           last_creation_sync_at: string | null
+          last_enhancement_at: string | null
           original_content: string | null
           original_content_version: number | null
           refinement_status: string
@@ -226,9 +234,11 @@ export type Database = {
           context_summary?: string | null
           created_at?: string | null
           creation_import_version?: number | null
+          current_batch_id?: string | null
           enhanced_content?: string | null
           id?: string
           last_creation_sync_at?: string | null
+          last_enhancement_at?: string | null
           original_content?: string | null
           original_content_version?: number | null
           refinement_status?: string
@@ -241,9 +251,11 @@ export type Database = {
           context_summary?: string | null
           created_at?: string | null
           creation_import_version?: number | null
+          current_batch_id?: string | null
           enhanced_content?: string | null
           id?: string
           last_creation_sync_at?: string | null
+          last_enhancement_at?: string | null
           original_content?: string | null
           original_content_version?: number | null
           refinement_status?: string

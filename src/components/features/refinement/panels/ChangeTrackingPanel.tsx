@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { EnhancementService } from '@/services/EnhancementService';
 import ChangeTrackingHeader from './components/ChangeTrackingHeader';
 import ChangeList from './components/ChangeList';
 
@@ -60,26 +61,88 @@ const ChangeTrackingPanel = ({
   const [changes, setChanges] = useState<AIChange[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentRefinementId, setCurrentRefinementId] = useState<string>('');
+  const [dataIntegrity, setDataIntegrity] = useState<{
+    isValid: boolean;
+    batchId: string | null;
+    lastEnhancementAt: string | null;
+    changeCount: number;
+    issues: string[];
+  } | null>(null);
+  const [currentRefinementStatus, setCurrentRefinementStatus] = useState<string | null>(null);
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Update current refinement ID tracking to prevent unnecessary fetches during transitions
+  // ENHANCED: Update current refinement ID tracking with immediate data clearing
   useEffect(() => {
     if (refinementId && refinementId !== currentRefinementId && !isTransitioning) {
       setCurrentRefinementId(refinementId);
-      // Clear previous changes immediately when starting new enhancement
+      // ENHANCED: Immediately clear previous data and reset integrity state
       setChanges([]);
+      setDataIntegrity(null);
       setLoading(true);
       fetchChanges();
     }
   }, [refinementId, currentRefinementId, isTransitioning]);
 
-  // Clear changes when enhancement starts (when loading begins)
+  // ENHANCED: Clear data when enhancement starts with integrity reset
   useEffect(() => {
     if (loading) {
       setChanges([]);
+      setDataIntegrity(null);
     }
   }, [loading]);
+
+  // ENHANCED: Monitor refinement status changes to immediately clear stale data
+  useEffect(() => {
+    if (!refinementId) return;
+
+    let isSubscribed = true;
+
+    const monitorRefinementStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('chapter_refinements')
+          .select('refinement_status, last_enhancement_at')
+          .eq('id', refinementId)
+          .single();
+
+        if (error || !isSubscribed) return;
+
+        const newStatus = data.refinement_status;
+        
+        if (currentRefinementStatus !== newStatus) {
+          console.log('📊 ENHANCED: Refinement status changed:', {
+            from: currentRefinementStatus,
+            to: newStatus,
+            refinementId
+          });
+
+          setCurrentRefinementStatus(newStatus);
+
+          // CRITICAL: Clear data immediately when enhancement starts
+          if (newStatus === 'in_progress' && currentRefinementStatus !== 'in_progress') {
+            console.log('🧹 ENHANCED: Enhancement started - clearing stale change data immediately');
+            setChanges([]);
+            setDataIntegrity(null);
+            setLoading(true);
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ ENHANCED: Error monitoring refinement status:', error);
+      }
+    };
+
+    // Initial status check
+    monitorRefinementStatus();
+
+    // Set up periodic monitoring (every 2 seconds during active enhancement)
+    const interval = setInterval(monitorRefinementStatus, 2000);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+    };
+  }, [refinementId, currentRefinementStatus]);
 
   // Handle scroll synchronization
   useEffect(() => {
@@ -100,9 +163,18 @@ const ChangeTrackingPanel = ({
     
     setLoading(true);
     try {
-      console.log('🔍 PHASE 3: Fetching changes for refinement:', refinementId);
+      console.log('🔍 ENHANCED: Fetching changes for refinement with data integrity validation:', refinementId);
       
-      // PHASE 3: Enhanced query with explicit column selection and error handling
+      // ENHANCED: Validate data integrity before fetching
+      const validation = await EnhancementService.validateChangeDataIntegrity(refinementId);
+      setDataIntegrity(validation);
+      
+      if (!validation.isValid) {
+        console.warn('⚠️ ENHANCED: Data integrity issues detected:', validation.issues);
+        // Continue with fetch but log issues for debugging
+      }
+      
+      // ENHANCED: Query with batch ID validation
       const { data, error } = await supabase
         .from('ai_change_tracking')
         .select(`
@@ -112,35 +184,58 @@ const ChangeTrackingPanel = ({
           enhanced_position_start,
           enhanced_position_end,
           semantic_similarity,
-          semantic_impact
+          semantic_impact,
+          processing_batch_id,
+          created_at_enhanced
         `)
         .eq('refinement_id', refinementId)
         .order('original_position_start', { nullsFirst: false });
 
       if (error) {
-        console.error('💥 PHASE 3: Database query error:', error);
+        console.error('💥 ENHANCED: Database query error:', error);
         throw error;
       }
       
-      console.log('📊 PHASE 3: Raw database response:', {
-        recordCount: data?.length || 0,
-        sampleRecord: data?.[0] || null,
-        hasNewPositionColumns: data?.[0]?.original_position_start !== undefined
+      // ENHANCED: Filter changes by current batch ID if available
+      let filteredData = data || [];
+      if (validation.batchId && data) {
+        const currentBatchChanges = data.filter(change => 
+          change.processing_batch_id === validation.batchId
+        );
+        
+        if (currentBatchChanges.length > 0) {
+          filteredData = currentBatchChanges;
+          console.log('✅ ENHANCED: Filtered to current batch changes:', {
+            totalChanges: data.length,
+            currentBatchChanges: currentBatchChanges.length,
+            batchId: validation.batchId
+          });
+        } else {
+          console.warn('⚠️ ENHANCED: No changes found for current batch, using all changes');
+        }
+      }
+      
+      console.log('📊 ENHANCED: Raw database response:', {
+        recordCount: filteredData.length,
+        sampleRecord: filteredData[0] || null,
+        hasNewPositionColumns: filteredData[0]?.original_position_start !== undefined,
+        batchId: validation.batchId,
+        dataIntegrityValid: validation.isValid
       });
       
       // Cast database results to proper types
-      const typedChanges = (data || []).map(castToAIChange);
+      const typedChanges = filteredData.map(castToAIChange);
       
       setChanges(typedChanges);
       
-      console.log(`📊 PHASE 3: Loaded ${typedChanges.length} changes with dual positions`);
+      console.log(`📊 ENHANCED: Loaded ${typedChanges.length} changes with enhanced validation`);
       
       if (typedChanges.length === 0) {
-        console.warn('⚠️ PHASE 3: No changes found for refinement:', refinementId);
+        console.warn('⚠️ ENHANCED: No changes found for refinement:', refinementId);
       }
     } catch (error) {
-      console.error('💥 PHASE 3: Error fetching changes:', error);
-      console.error('💥 PHASE 3: Error details:', {
+      console.error('💥 ENHANCED: Error fetching changes:', error);
+      console.error('💥 ENHANCED: Error details:', {
         message: error.message,
         code: error.code,
         details: error.details,
@@ -189,7 +284,14 @@ const ChangeTrackingPanel = ({
       
       <Card className="flex-1 flex flex-col min-h-0">
         <CardHeader className="pb-3 flex-shrink-0">
-          <CardTitle className="text-sm text-slate-700">AI Modifications</CardTitle>
+          <CardTitle className="text-sm text-slate-700">
+            AI Modifications
+            {dataIntegrity && !dataIntegrity.isValid && (
+              <span className="text-xs text-amber-600 ml-2" title={`Data integrity issues: ${dataIntegrity.issues.join(', ')}`}>
+                ⚠️
+              </span>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex-1 pt-0 overflow-hidden min-h-0">
           <div 
