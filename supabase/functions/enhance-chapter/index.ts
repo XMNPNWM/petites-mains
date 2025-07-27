@@ -1084,14 +1084,17 @@ ${enhancedContent}`;
 /**
  * Apply AI post-formatting with content protection
  */
-async function applyAIPostFormatting(enhancedContent: string): Promise<string> {
+async function applyAIPostFormatting(enhancedContent: string, apiKey: string): Promise<string> {
   try {
     console.log('🎨 Starting AI post-formatting for intelligent paragraphing...');
     
+    // Create dedicated AI instance for post-formatting
+    const ai = new GoogleGenAI({ apiKey });
+    
     const formattingPrompt = buildAIPostFormattingPrompt(enhancedContent);
     
-    const response = await client.models.generateContent({
-      model: 'gemini-1.5-flash',
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-lite',
       contents: formattingPrompt
     });
 
@@ -1507,7 +1510,7 @@ serve(async (req) => {
     
     let finalContent;
     try {
-      finalContent = await applyAIPostFormatting(cleanedContent);
+      finalContent = await applyAIPostFormatting(cleanedContent, apiKey);
     } catch (error) {
       if (error.message === 'Content altered during formatting - user decision required') {
         console.error('🚨 Content alteration detected - returning enhanced content without formatting');
