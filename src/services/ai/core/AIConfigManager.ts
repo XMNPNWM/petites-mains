@@ -2,7 +2,7 @@
 export class AIConfigManager {
   static readonly MODELS = {
     CHAT: 'gemini-2.5-flash',
-    ANALYSIS: 'gemini-2.5-flash-lite',
+    ANALYSIS: 'gemini-2.5-flash',
     CONTENT_ENHANCEMENT: 'gemini-1.5-pro',
     EMBEDDINGS: 'text-embedding-004'
   };

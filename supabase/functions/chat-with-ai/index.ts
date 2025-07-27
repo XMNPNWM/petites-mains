@@ -300,7 +300,7 @@ serve(async (req) => {
     const combinedPrompt = `${storyContext}\n\nUser: ${message}`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite-preview-06-17",
+      model: "gemini-2.5-flash",
       contents: combinedPrompt
     });
 

@@ -1102,7 +1102,7 @@ async function applyAIPostFormatting(enhancedContent: string, apiKey: string): P
     
     console.log('🔍 DEBUG: About to call AI models.generateContent...');
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-lite',
+      model: 'gemini-2.5-flash',
       contents: formattingPrompt
     });
     console.log('🔍 DEBUG: AI generateContent call completed');
@@ -1505,7 +1505,7 @@ serve(async (req) => {
     const ai = new GoogleGenAI({ apiKey });
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: "gemini-2.5-flash",
       contents: enhancementPrompt
     });
 
