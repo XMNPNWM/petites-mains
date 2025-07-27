@@ -509,8 +509,59 @@ export class SmartAnalysisOrchestrator {
 
   // Missing methods needed by other components
   static async analyzeProject(projectId: string, options: any = {}): Promise<any> {
-    console.log('analyzeProject not implemented in simplified version');
-    return { success: true, message: 'Method not implemented' };
+    console.log('🚀 Starting SmartAnalysisOrchestrator project analysis:', projectId);
+    
+    try {
+      // Get all chapters for the project
+      const { data: chapters, error: chaptersError } = await supabase
+        .from('chapters')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('order_index');
+
+      if (chaptersError) {
+        console.error('❌ Failed to fetch chapters:', chaptersError);
+        throw chaptersError;
+      }
+
+      if (!chapters || chapters.length === 0) {
+        console.log('ℹ️ No chapters found for project');
+        return { success: true, message: 'No chapters to analyze' };
+      }
+
+      console.log(`📚 Found ${chapters.length} chapters to analyze`);
+
+      // Call extract-knowledge function for gap analysis
+      const { data: extractResult, error: extractError } = await supabase.functions.invoke('extract-knowledge', {
+        body: {
+          projectId,
+          chapterId: 'gap-analysis',
+          options: {
+            extractionMode: 'gap_analysis',
+            forceReExtraction: options.forceReExtraction || false,
+            contentTypesToExtract: 'all'
+          },
+          freshContext: chapters.map(c => ({
+            id: c.id,
+            title: c.title,
+            content: c.content || '',
+            word_count: c.word_count || 0
+          }))
+        }
+      });
+
+      if (extractError) {
+        console.error('❌ Extract-knowledge function failed:', extractError);
+        throw extractError;
+      }
+
+      console.log('✅ Project analysis completed successfully:', extractResult);
+      return { success: true, result: extractResult };
+
+    } catch (error) {
+      console.error('❌ SmartAnalysisOrchestrator.analyzeProject failed:', error);
+      throw error;
+    }
   }
 
   static async analyzeChapter(projectId: string, chapterId: string, onComplete?: () => void): Promise<void> {
