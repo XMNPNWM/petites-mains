@@ -460,6 +460,8 @@ serve(async (req) => {
       themes: []
     };
 
+    let isSequentialComplete = false;
+
     // Phase 2: Perform multi-pass extraction if not skipped
     if (!shouldSkipExtraction) {
       console.log('📊 Proceeding with knowledge extraction...');
@@ -479,7 +481,7 @@ serve(async (req) => {
           relationships: extractionResults.relationships?.length || 0
         });
         
-        // **CRITICAL FIX: Early return for sequential mode to prevent standard extraction from overwriting**
+        // **CRITICAL FIX: Set flag to skip standard extraction but allow storage flow**
         console.log('🚀 Sequential mode complete - skipping standard extraction passes');
         console.log('🎯 Final sequential extraction results:', {
           characters: extractionResults.characters?.length || 0,
@@ -490,34 +492,9 @@ serve(async (req) => {
           themes: extractionResults.themes?.length || 0
         });
         
-        // Skip to the end - go directly to response phase
-        const totalExtracted = Object.values(extractionResults).reduce((total, items) => 
-          total + (Array.isArray(items) ? items.length : 0), 0
-        );
-        
-        console.log(`✅ Sequential knowledge extraction completed: ${totalExtracted} items extracted`);
-        
-        return new Response(JSON.stringify({
-          success: true,
-          extractedData: extractionResults,
-          storageDetails: {
-            language: 'detected_from_content',
-            extractionStats: {
-              totalExtracted,
-              processingReason,
-              embeddingsEnabled: useEmbeddingsBasedProcessing,
-              extractionSkipped: shouldSkipExtraction,
-              processedAt: new Date().toISOString()
-            }
-          },
-          validation: {
-            issues: shouldSkipExtraction ? ['Content extraction was skipped due to similarity'] : []
-          },
-          creditsUsed: 2,
-          remainingCredits: creditCheck[0].remaining_credits
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+        // Set flag to skip standard extraction passes but continue to storage
+        isSequentialComplete = true;
+        console.log('🔄 Sequential extraction complete, proceeding to storage phase...');
       } else if (isEnhancedGapFillMode) {
         console.log(`🎯 Enhanced gap-fill mode: analyzing ${targetCategories.join(', ')}, storing ${categoriesToStore?.join(', ') || 'all'}`);
       } else if (isGapFillMode) {
@@ -526,8 +503,8 @@ serve(async (req) => {
         console.log('📊 Standard mode: full multi-pass extraction');
       }
       
-      // Pass 1: Extract Characters (skip in gap-fill mode unless needed)
-      if (!isGapFillMode || targetCategories.includes('characters') || isEnhancedGapFillMode) {
+      // Pass 1: Extract Characters (skip in sequential complete or gap-fill mode unless needed)
+      if (!isSequentialComplete && (!isGapFillMode || targetCategories.includes('characters') || isEnhancedGapFillMode)) {
         console.log('🎭 Pass 1: Extracting characters...');
       const charactersPrompt = `Analyze the following text and extract ONLY characters in JSON format. Focus on clearly identifiable people, beings, or entities that appear in the narrative.
 
@@ -604,8 +581,8 @@ Extract only clearly evident characters. Assign confidence scores based on how e
       }
     }
 
-      // Pass 2: Extract Relationships - Enhanced for gap-fill mode
-      if (!isGapFillMode || targetCategories.includes('character_relationships') || isEnhancedGapFillMode) {
+      // Pass 2: Extract Relationships - Enhanced for gap-fill mode (skip if sequential complete)
+      if (!isSequentialComplete && (!isGapFillMode || targetCategories.includes('character_relationships') || isEnhancedGapFillMode)) {
         console.log('🤝 RELATIONSHIP EXTRACTION BLOCK EXECUTING');
         
         let characterNames = '';
@@ -736,8 +713,8 @@ Si aucune relation trouvée, retourner: {"relationships": []}`;
         }
       }
 
-      // Pass 3: Extract Timeline Events - Enhanced for gap-fill mode  
-      if (!isGapFillMode || targetCategories.includes('timeline_events') || isEnhancedGapFillMode) {
+      // Pass 3: Extract Timeline Events - Enhanced for gap-fill mode (skip if sequential complete)
+      if (!isSequentialComplete && (!isGapFillMode || targetCategories.includes('timeline_events') || isEnhancedGapFillMode)) {
         console.log('⏰ Pass 3: Extracting timeline events...');
         
         let characterContext = '';
@@ -810,8 +787,8 @@ Si des personnages sont impliqués, utiliser les noms exacts de la liste des per
         }
       }
 
-      // Pass 4: Extract Plot Elements (skip in gap-fill mode unless needed)
-      if (!isGapFillMode || targetCategories.some(cat => ['plot_threads', 'plot_points', 'chapter_summaries'].includes(cat)) || isEnhancedGapFillMode) {
+      // Pass 4: Extract Plot Elements (skip if sequential complete or gap-fill mode unless needed)
+      if (!isSequentialComplete && (!isGapFillMode || targetCategories.some(cat => ['plot_threads', 'plot_points', 'chapter_summaries'].includes(cat)) || isEnhancedGapFillMode)) {
         console.log('📖 Pass 4: Extracting plot elements...');
       const plotPrompt = `Analyze the following text and extract plot threads, plot points, and chapter summaries in JSON format.
 
@@ -843,8 +820,8 @@ Extract story elements, narrative threads, and chapter-level information.`;
       }
     }
 
-      // Pass 5: Extract World Building and Themes (skip in gap-fill mode unless needed)
-      if (!isGapFillMode || targetCategories.some(cat => ['world_building', 'themes'].includes(cat)) || isEnhancedGapFillMode) {
+      // Pass 5: Extract World Building and Themes (skip if sequential complete or gap-fill mode unless needed)
+      if (!isSequentialComplete && (!isGapFillMode || targetCategories.some(cat => ['world_building', 'themes'].includes(cat)) || isEnhancedGapFillMode)) {
         console.log('🌍 Pass 5: Extracting world building and themes...');
       const worldPrompt = `Analyze the following text and extract world building elements and themes in JSON format.
 
