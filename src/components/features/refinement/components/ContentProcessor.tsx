@@ -16,17 +16,22 @@ const ContentProcessor = ({ content, linesPerPage, children }: ContentProcessorP
     const isHTML = /<[^>]+>/.test(content);
     
     if (isHTML) {
-      // For HTML content (enhanced), validate paragraph structure is preserved
-      // Ensure proper <p> tag structure exists
+      // For HTML content (enhanced), handle both existing and new paragraph breaks
       let htmlContent = content;
       
-      // If missing proper paragraph structure, add it
+      // Always process double line breaks to ensure paragraph spacing
+      // This handles cases where the second AI pass adds \n\n breaks to existing HTML
+      htmlContent = htmlContent.replace(/\n\n/g, '</p><p>');
+      
+      // If content doesn't have proper paragraph structure, add it
       if (!htmlContent.includes('<p>')) {
-        htmlContent = content
-          .replace(/\n\n/g, '</p><p>')  // Double line breaks become paragraph breaks
+        htmlContent = htmlContent
           .replace(/\n/g, '<br>')       // Single line breaks become <br>
           .replace(/^/, '<p>')          // Start with paragraph
           .replace(/$/, '</p>');        // End with paragraph
+      } else {
+        // Content already has paragraphs, just handle remaining single line breaks
+        htmlContent = htmlContent.replace(/\n/g, '<br>');
       }
       
       return htmlContent;
