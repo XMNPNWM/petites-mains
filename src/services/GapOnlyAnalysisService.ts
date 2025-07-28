@@ -380,10 +380,19 @@ export class GapOnlyAnalysisService {
   ): Promise<{ success: boolean; totalStored: number }> {
     
     try {
+      console.log(`💾 [STORAGE DEBUG] Storing ${data.length} items for category: ${category}`);
+      console.log(`💾 [STORAGE DEBUG] Data preview:`, data.slice(0, 2));
+      
       const categoryKey = this.convertFromEdgeFunctionFormat(category);
       const dataToStore = { [categoryKey]: data };
       
+      console.log(`💾 [STORAGE DEBUG] Formatted data with key '${categoryKey}':`, {
+        [categoryKey]: data.length + ' items'
+      });
+      
       const storageResult = await this.storeExtractedData(dataToStore, projectId, 'sequential-processing');
+      
+      console.log(`💾 [STORAGE DEBUG] Storage result for ${category}:`, storageResult);
       
       return {
         success: true,
