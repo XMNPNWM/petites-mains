@@ -473,6 +473,23 @@ export class GapOnlyAnalysisService {
     chapterId: string
   ): Promise<{ totalStored: number; categoriesStored: string[] }> {
     
+    // 🔍 VALIDATION: Check projectId before proceeding
+    if (!projectId || projectId === 'NULL' || projectId === 'null' || projectId === 'undefined') {
+      console.error('❌ [STORAGE ERROR] Invalid projectId detected:', projectId);
+      console.error('❌ [STORAGE ERROR] Type:', typeof projectId);
+      console.error('❌ [STORAGE ERROR] Stack trace:', new Error().stack);
+      throw new Error(`Invalid projectId: ${projectId}. Cannot store data with invalid project reference.`);
+    }
+
+    // UUID format validation
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(projectId)) {
+      console.error('❌ [STORAGE ERROR] ProjectId is not a valid UUID format:', projectId);
+      throw new Error(`Invalid UUID format for projectId: ${projectId}`);
+    }
+
+    console.log('✅ [STORAGE DEBUG] ProjectId validation passed:', projectId);
+    
     let totalStored = 0;
     const categoriesStored: string[] = [];
 
