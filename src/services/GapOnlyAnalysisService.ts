@@ -5,6 +5,7 @@ interface GapDetectionResult {
   timelineEvents: boolean;
   plotThreads: boolean;
   chapterSummaries: boolean;
+  characters: boolean;
   worldBuilding: boolean;
   themes: boolean;
 }
@@ -97,6 +98,7 @@ export class GapOnlyAnalysisService {
         timelineEventsCount,
         plotThreadsCount,
         chapterSummariesCount,
+        charactersCount,
         worldBuildingCount,
         themesCount
       ] = await Promise.all([
@@ -104,6 +106,7 @@ export class GapOnlyAnalysisService {
         supabase.from('timeline_events').select('id', { count: 'exact', head: true }).eq('project_id', projectId),
         supabase.from('plot_threads').select('id', { count: 'exact', head: true }).eq('project_id', projectId),
         supabase.from('chapter_summaries').select('id', { count: 'exact', head: true }).eq('project_id', projectId),
+        supabase.from('knowledge_base').select('id', { count: 'exact', head: true }).eq('project_id', projectId).eq('category', 'character'),
         supabase.from('knowledge_base').select('id', { count: 'exact', head: true }).eq('project_id', projectId).eq('category', 'world_building'),
         supabase.from('knowledge_base').select('id', { count: 'exact', head: true }).eq('project_id', projectId).eq('category', 'theme')
       ]);
@@ -114,6 +117,7 @@ export class GapOnlyAnalysisService {
         timelineEvents: { count: timelineEventsCount.count, error: timelineEventsCount.error },
         plotThreads: { count: plotThreadsCount.count, error: plotThreadsCount.error },
         chapterSummaries: { count: chapterSummariesCount.count, error: chapterSummariesCount.error },
+        characters: { count: charactersCount.count, error: charactersCount.error },
         worldBuilding: { count: worldBuildingCount.count, error: worldBuildingCount.error },
         themes: { count: themesCount.count, error: themesCount.error }
       });
@@ -123,6 +127,7 @@ export class GapOnlyAnalysisService {
         timelineEvents: (timelineEventsCount.count || 0) === 0,
         plotThreads: (plotThreadsCount.count || 0) === 0,
         chapterSummaries: (chapterSummariesCount.count || 0) === 0,
+        characters: (charactersCount.count || 0) === 0,
         worldBuilding: (worldBuildingCount.count || 0) === 0,
         themes: (themesCount.count || 0) === 0
       };
@@ -133,6 +138,7 @@ export class GapOnlyAnalysisService {
         timelineEvents: timelineEventsCount.count || 0,
         plotThreads: plotThreadsCount.count || 0,
         chapterSummaries: chapterSummariesCount.count || 0,
+        characters: charactersCount.count || 0,
         worldBuilding: worldBuildingCount.count || 0,
         themes: themesCount.count || 0
       };
@@ -582,7 +588,119 @@ export class GapOnlyAnalysisService {
         }
       }
 
+      // **CRITICAL FIX: Store characters in knowledge_base table**
+      if (extractedData.characters && extractedData.characters.length > 0) {
+        console.log(`💾 Storing ${extractedData.characters.length} characters...`);
+        
+        const charactersToStore = extractedData.characters.map((character: any) => ({
+          project_id: projectId,
+          name: character.name,
+          category: 'character',
+          subcategory: character.role || 'character',
+          description: character.description || character.traits?.join(', ') || '',
+          evidence: character.evidence || '',
+          confidence_score: character.confidence_score || 0.5,
+          source_chapter_ids: [chapterId],
+          is_newly_extracted: true,
+          extraction_method: 'llm_direct'
+        }));
+
+        const { data: charactersData, error: charactersError } = await supabase
+          .from('knowledge_base')
+          .insert(charactersToStore)
+          .select();
+
+        if (!charactersError && charactersData) {
+          totalStored += charactersData.length;
+          categoriesStored.push('characters');
+          console.log(`✅ Stored ${charactersData.length} characters`);
+          
+          charactersData.forEach((char: any, index: number) => {
+            console.log(`   ${index + 1}. ${char.name} (${char.subcategory}) [ID: ${char.id}]`);
+          });
+        } else {
+          console.error('❌ Failed to store characters:', charactersError);
+        }
+      } else {
+        console.log('ℹ️ No characters found in extracted data');
+      }
+
+      // **CRITICAL FIX: Store world building in knowledge_base table**
+      if (extractedData.worldBuilding && extractedData.worldBuilding.length > 0) {
+        console.log(`💾 Storing ${extractedData.worldBuilding.length} world building elements...`);
+        
+        const worldBuildingToStore = extractedData.worldBuilding.map((element: any) => ({
+          project_id: projectId,
+          name: element.name,
+          category: 'world_building',
+          subcategory: element.category || element.type || 'location',
+          description: element.description || '',
+          evidence: element.evidence || '',
+          confidence_score: element.confidence_score || 0.5,
+          source_chapter_ids: [chapterId],
+          is_newly_extracted: true,
+          extraction_method: 'llm_direct'
+        }));
+
+        const { data: worldBuildingData, error: worldBuildingError } = await supabase
+          .from('knowledge_base')
+          .insert(worldBuildingToStore)
+          .select();
+
+        if (!worldBuildingError && worldBuildingData) {
+          totalStored += worldBuildingData.length;
+          categoriesStored.push('worldBuilding');
+          console.log(`✅ Stored ${worldBuildingData.length} world building elements`);
+          
+          worldBuildingData.forEach((element: any, index: number) => {
+            console.log(`   ${index + 1}. ${element.name} (${element.subcategory}) [ID: ${element.id}]`);
+          });
+        } else {
+          console.error('❌ Failed to store world building:', worldBuildingError);
+        }
+      } else {
+        console.log('ℹ️ No world building found in extracted data');
+      }
+
+      // **CRITICAL FIX: Store themes in knowledge_base table**
+      if (extractedData.themes && extractedData.themes.length > 0) {
+        console.log(`💾 Storing ${extractedData.themes.length} themes...`);
+        
+        const themesToStore = extractedData.themes.map((theme: any) => ({
+          project_id: projectId,
+          name: theme.name,
+          category: 'theme',
+          subcategory: 'narrative_theme',
+          description: theme.description || '',
+          evidence: theme.significance || theme.evidence || '',
+          confidence_score: theme.confidence_score || 0.5,
+          source_chapter_ids: [chapterId],
+          is_newly_extracted: true,
+          extraction_method: 'llm_direct'
+        }));
+
+        const { data: themesData, error: themesError } = await supabase
+          .from('knowledge_base')
+          .insert(themesToStore)
+          .select();
+
+        if (!themesError && themesData) {
+          totalStored += themesData.length;
+          categoriesStored.push('themes');
+          console.log(`✅ Stored ${themesData.length} themes`);
+          
+          themesData.forEach((theme: any, index: number) => {
+            console.log(`   ${index + 1}. ${theme.name} [ID: ${theme.id}]`);
+          });
+        } else {
+          console.error('❌ Failed to store themes:', themesError);
+        }
+      } else {
+        console.log('ℹ️ No themes found in extracted data');
+      }
+
       console.log(`💾 Storage complete: ${totalStored} items stored across ${categoriesStored.length} categories`);
+      console.log(`📊 Categories stored: ${categoriesStored.join(', ')}`);
       
       return { totalStored, categoriesStored };
 
