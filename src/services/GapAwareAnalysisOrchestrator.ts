@@ -11,6 +11,9 @@ interface GapAwareAnalysisResult {
     timelineEvents: boolean;
     plotThreads: boolean;
     chapterSummaries: boolean;
+    characters: boolean;
+    worldBuilding: boolean;
+    themes: boolean;
   };
   processingStats?: {
     chunksProcessed: number;
@@ -139,7 +142,10 @@ export class GapAwareAnalysisOrchestrator extends SmartAnalysisOrchestrator {
           relationships: false,
           timelineEvents: false,
           plotThreads: false,
-          chapterSummaries: false
+          chapterSummaries: false,
+          characters: false,
+          worldBuilding: false,
+          themes: false
         }
       };
     }
@@ -153,6 +159,9 @@ export class GapAwareAnalysisOrchestrator extends SmartAnalysisOrchestrator {
     timelineEvents: boolean;
     plotThreads: boolean;
     chapterSummaries: boolean;
+    characters: boolean;
+    worldBuilding: boolean;
+    themes: boolean;
   }> {
     try {
       // Check relationships count
@@ -179,19 +188,50 @@ export class GapAwareAnalysisOrchestrator extends SmartAnalysisOrchestrator {
         .select('*', { count: 'exact', head: true })
         .eq('project_id', projectId);
       
+      // **CRITICAL FIX: Check knowledge_base categories**
+      
+      // Check characters count in knowledge_base
+      const { count: charactersCount } = await supabase
+        .from('knowledge_base')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', projectId)
+        .eq('category', 'character');
+      
+      // Check world building count in knowledge_base
+      const { count: worldBuildingCount } = await supabase
+        .from('knowledge_base')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', projectId)
+        .eq('category', 'world_building');
+      
+      // Check themes count in knowledge_base
+      const { count: themesCount } = await supabase
+        .from('knowledge_base')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', projectId)
+        .eq('category', 'theme');
+      
       const gaps = {
         relationships: (relationshipsCount || 0) === 0,
         timelineEvents: (timelineEventsCount || 0) === 0,
         plotThreads: (plotThreadsCount || 0) === 0,
-        chapterSummaries: (chapterSummariesCount || 0) === 0
+        chapterSummaries: (chapterSummariesCount || 0) === 0,
+        characters: (charactersCount || 0) === 0,
+        worldBuilding: (worldBuildingCount || 0) === 0,
+        themes: (themesCount || 0) === 0
       };
       
       console.log('📊 Category counts:', {
         relationships: relationshipsCount || 0,
         timelineEvents: timelineEventsCount || 0,
         plotThreads: plotThreadsCount || 0,
-        chapterSummaries: chapterSummariesCount || 0
+        chapterSummaries: chapterSummariesCount || 0,
+        characters: charactersCount || 0,
+        worldBuilding: worldBuildingCount || 0,
+        themes: themesCount || 0
       });
+      
+      console.log('🔍 Detected gaps:', gaps);
       
       return gaps;
     } catch (error) {
@@ -200,7 +240,10 @@ export class GapAwareAnalysisOrchestrator extends SmartAnalysisOrchestrator {
         relationships: false,
         timelineEvents: false,
         plotThreads: false,
-        chapterSummaries: false
+        chapterSummaries: false,
+        characters: false,
+        worldBuilding: false,
+        themes: false
       };
     }
   }
@@ -288,6 +331,17 @@ export class GapAwareAnalysisOrchestrator extends SmartAnalysisOrchestrator {
       }
       if (gapsDetected.chapterSummaries) {
         contentTypesToExtract.push('chapter_summaries');
+      }
+      
+      // **CRITICAL FIX: Include knowledge_base categories**
+      if (gapsDetected.characters) {
+        contentTypesToExtract.push('characters');
+      }
+      if (gapsDetected.worldBuilding) {
+        contentTypesToExtract.push('world_building');
+      }
+      if (gapsDetected.themes) {
+        contentTypesToExtract.push('themes');
       }
       
       // If no gaps, extract all types (normal analysis)
