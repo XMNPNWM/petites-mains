@@ -655,7 +655,7 @@ export class GapOnlyAnalysisService {
               description: character.description || character.traits?.join(', ') || '',
               evidence: character.evidence || character.source_text || '',
               confidence_score: Math.min(Math.max(Number(character.confidence_score) || 0.5, 0), 1),
-              source_chapter_ids: [chapterId],
+               source_chapter_ids: chapterId === 'sequential-processing' ? [] : [chapterId],
               is_newly_extracted: true,
               extraction_method: 'llm_direct' as const
             };
@@ -724,7 +724,7 @@ export class GapOnlyAnalysisService {
               description: element.description || '',
               evidence: element.evidence || element.source_text || '',
               confidence_score: Math.min(Math.max(Number(element.confidence_score) || 0.5, 0), 1),
-              source_chapter_ids: [chapterId],
+               source_chapter_ids: chapterId === 'sequential-processing' ? [] : [chapterId],
               is_newly_extracted: true,
               extraction_method: 'llm_direct' as const
             };
@@ -793,7 +793,7 @@ export class GapOnlyAnalysisService {
               description: theme.description || '',
               evidence: theme.significance || theme.evidence || theme.source_text || '',
               confidence_score: Math.min(Math.max(Number(theme.confidence_score) || 0.5, 0), 1),
-              source_chapter_ids: [chapterId],
+               source_chapter_ids: chapterId === 'sequential-processing' ? [] : [chapterId],
               is_newly_extracted: true,
               extraction_method: 'llm_direct' as const
             };
