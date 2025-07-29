@@ -116,17 +116,26 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         if (hasEmptyCategories) {
           // Gap Analysis - Independent gap-filling
           console.log('🎯 Scenario: Gap Analysis - Filling empty categories');
-          const gapResult = await GapOnlyAnalysisService.executeGapAnalysis(projectId);
+          console.log('🎯 About to call GapOnlyAnalysisService.executeGapAnalysis with projectId:', projectId);
           
-          if (gapResult.success) {
-            toast({
-              title: "Gap Analysis Complete",
-              description: `Filled ${gapResult.gapsFilled.length} empty categories, extracted ${gapResult.totalExtracted} new items`,
-            });
-          } else {
-            throw new Error(gapResult.error || 'Gap analysis failed');
+          try {
+            const gapResult = await GapOnlyAnalysisService.executeGapAnalysis(projectId);
+            console.log('🎯 Gap analysis result:', gapResult);
+            
+            if (gapResult.success) {
+              toast({
+                title: "Gap Analysis Complete",
+                description: `Filled ${gapResult.gapsFilled.length} empty categories, extracted ${gapResult.totalExtracted} new items`,
+              });
+              result = { success: true };
+            } else {
+              console.error('🎯 Gap analysis failed:', gapResult.error);
+              throw new Error(gapResult.error || 'Gap analysis failed');
+            }
+          } catch (gapError) {
+            console.error('🎯 Exception during gap analysis:', gapError);
+            throw gapError;
           }
-          result = { success: gapResult.success };
         } else {
           // Standard Analysis - Full pipeline with existing data
           console.log('🔄 Scenario: Standard Analysis - Full pipeline');
