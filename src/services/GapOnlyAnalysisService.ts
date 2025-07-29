@@ -473,7 +473,7 @@ export class GapOnlyAnalysisService {
     chapterId: string
   ): Promise<{ totalStored: number; categoriesStored: string[] }> {
     
-    // 🔍 VALIDATION: Check projectId before proceeding
+    // 🔍 ENHANCED VALIDATION: Comprehensive input validation
     if (!projectId || projectId === 'NULL' || projectId === 'null' || projectId === 'undefined') {
       console.error('❌ [STORAGE ERROR] Invalid projectId detected:', projectId);
       console.error('❌ [STORAGE ERROR] Type:', typeof projectId);
@@ -481,14 +481,27 @@ export class GapOnlyAnalysisService {
       throw new Error(`Invalid projectId: ${projectId}. Cannot store data with invalid project reference.`);
     }
 
-    // UUID format validation
+    if (!chapterId || chapterId === 'NULL' || chapterId === 'null' || chapterId === 'undefined') {
+      console.error('❌ [STORAGE ERROR] Invalid chapterId detected:', chapterId);
+      console.error('❌ [STORAGE ERROR] Type:', typeof chapterId);
+      throw new Error(`Invalid chapterId: ${chapterId}. Cannot store data with invalid chapter reference.`);
+    }
+
+    // UUID format validation for both IDs (with special handling for sequential processing)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
     if (!uuidRegex.test(projectId)) {
       console.error('❌ [STORAGE ERROR] ProjectId is not a valid UUID format:', projectId);
       throw new Error(`Invalid UUID format for projectId: ${projectId}`);
     }
 
-    console.log('✅ [STORAGE DEBUG] ProjectId validation passed:', projectId);
+    // Special handling for sequential processing chapterId
+    if (chapterId !== 'sequential-processing' && !uuidRegex.test(chapterId)) {
+      console.error('❌ [STORAGE ERROR] ChapterId is not a valid UUID format:', chapterId);
+      throw new Error(`Invalid UUID format for chapterId: ${chapterId}`);
+    }
+
+    console.log('✅ [STORAGE DEBUG] Input validation passed:', { projectId, chapterId });
     
     let totalStored = 0;
     const categoriesStored: string[] = [];
@@ -614,115 +627,211 @@ export class GapOnlyAnalysisService {
         }
       }
 
-      // **CRITICAL FIX: Store characters in knowledge_base table**
+      // **ENHANCED: Store characters in knowledge_base table with comprehensive validation**
       if (extractedData.characters && extractedData.characters.length > 0) {
-        console.log(`💾 Storing ${extractedData.characters.length} characters...`);
+        console.log(`💾 [CHARACTERS] Storing ${extractedData.characters.length} characters...`);
+        console.log(`💾 [CHARACTERS] Raw data preview:`, extractedData.characters.slice(0, 2));
         
-        const charactersToStore = extractedData.characters.map((character: any) => ({
-          project_id: projectId,
-          name: character.name,
-          category: 'character',
-          subcategory: character.role || 'character',
-          description: character.description || character.traits?.join(', ') || '',
-          evidence: character.evidence || '',
-          confidence_score: character.confidence_score || 0.5,
-          source_chapter_ids: [chapterId],
-          is_newly_extracted: true,
-          extraction_method: 'llm_direct'
-        }));
-
-        const { data: charactersData, error: charactersError } = await supabase
-          .from('knowledge_base')
-          .insert(charactersToStore)
-          .select();
-
-        if (!charactersError && charactersData) {
-          totalStored += charactersData.length;
-          categoriesStored.push('characters');
-          console.log(`✅ Stored ${charactersData.length} characters`);
+        // Validate and prepare characters data
+        const validCharacters = extractedData.characters.filter((character: any) => {
+          const isValid = character?.name && 
+                          typeof character.name === 'string' && 
+                          character.name.trim().length > 0;
           
-          charactersData.forEach((char: any, index: number) => {
-            console.log(`   ${index + 1}. ${char.name} (${char.subcategory}) [ID: ${char.id}]`);
+          if (!isValid) {
+            console.log('⚠️ [CHARACTERS] Skipping invalid character:', character);
+          }
+          return isValid;
+        });
+
+        if (validCharacters.length > 0) {
+          const charactersToStore = validCharacters.map((character: any) => {
+            // Ensure all required fields are properly set
+            const record = {
+              project_id: projectId,
+              name: String(character.name).trim(),
+              category: 'character' as const,
+              subcategory: character.role || character.subcategory || 'character',
+              description: character.description || character.traits?.join(', ') || '',
+              evidence: character.evidence || character.source_text || '',
+              confidence_score: Math.min(Math.max(Number(character.confidence_score) || 0.5, 0), 1),
+              source_chapter_ids: [chapterId],
+              is_newly_extracted: true,
+              extraction_method: 'llm_direct' as const
+            };
+            
+            console.log(`💾 [CHARACTERS] Prepared record:`, record);
+            return record;
           });
+
+          console.log(`💾 [CHARACTERS] Attempting to store ${charactersToStore.length} validated characters...`);
+
+          const { data: charactersData, error: charactersError } = await supabase
+            .from('knowledge_base')
+            .insert(charactersToStore)
+            .select();
+
+          if (!charactersError && charactersData) {
+            totalStored += charactersData.length;
+            categoriesStored.push('characters');
+            console.log(`✅ [CHARACTERS] Successfully stored ${charactersData.length} characters`);
+            
+            charactersData.forEach((char: any, index: number) => {
+              console.log(`   ${index + 1}. ${char.name} (${char.subcategory}) [ID: ${char.id}]`);
+            });
+          } else {
+            console.error('❌ [CHARACTERS] Failed to store characters:', charactersError);
+            console.error('❌ [CHARACTERS] Error details:', {
+              message: charactersError?.message,
+              details: charactersError?.details,
+              hint: charactersError?.hint,
+              code: charactersError?.code
+            });
+            console.error('❌ [CHARACTERS] Attempted data:', charactersToStore);
+          }
         } else {
-          console.error('❌ Failed to store characters:', charactersError);
+          console.log('⚠️ [CHARACTERS] No valid characters to store after validation');
         }
       } else {
-        console.log('ℹ️ No characters found in extracted data');
+        console.log('ℹ️ [CHARACTERS] No characters found in extracted data');
       }
 
-      // **CRITICAL FIX: Store world building in knowledge_base table**
+      // **ENHANCED: Store world building in knowledge_base table with comprehensive validation**
       if (extractedData.worldBuilding && extractedData.worldBuilding.length > 0) {
-        console.log(`💾 Storing ${extractedData.worldBuilding.length} world building elements...`);
+        console.log(`💾 [WORLD_BUILDING] Storing ${extractedData.worldBuilding.length} world building elements...`);
+        console.log(`💾 [WORLD_BUILDING] Raw data preview:`, extractedData.worldBuilding.slice(0, 2));
         
-        const worldBuildingToStore = extractedData.worldBuilding.map((element: any) => ({
-          project_id: projectId,
-          name: element.name,
-          category: 'world_building',
-          subcategory: element.category || element.type || 'location',
-          description: element.description || '',
-          evidence: element.evidence || '',
-          confidence_score: element.confidence_score || 0.5,
-          source_chapter_ids: [chapterId],
-          is_newly_extracted: true,
-          extraction_method: 'llm_direct'
-        }));
-
-        const { data: worldBuildingData, error: worldBuildingError } = await supabase
-          .from('knowledge_base')
-          .insert(worldBuildingToStore)
-          .select();
-
-        if (!worldBuildingError && worldBuildingData) {
-          totalStored += worldBuildingData.length;
-          categoriesStored.push('worldBuilding');
-          console.log(`✅ Stored ${worldBuildingData.length} world building elements`);
+        // Validate and prepare world building data
+        const validWorldBuilding = extractedData.worldBuilding.filter((element: any) => {
+          const isValid = element?.name && 
+                          typeof element.name === 'string' && 
+                          element.name.trim().length > 0;
           
-          worldBuildingData.forEach((element: any, index: number) => {
-            console.log(`   ${index + 1}. ${element.name} (${element.subcategory}) [ID: ${element.id}]`);
+          if (!isValid) {
+            console.log('⚠️ [WORLD_BUILDING] Skipping invalid element:', element);
+          }
+          return isValid;
+        });
+
+        if (validWorldBuilding.length > 0) {
+          const worldBuildingToStore = validWorldBuilding.map((element: any) => {
+            // Ensure all required fields are properly set
+            const record = {
+              project_id: projectId,
+              name: String(element.name).trim(),
+              category: 'world_building' as const,
+              subcategory: element.category || element.subcategory || element.type || 'Location',
+              description: element.description || '',
+              evidence: element.evidence || element.source_text || '',
+              confidence_score: Math.min(Math.max(Number(element.confidence_score) || 0.5, 0), 1),
+              source_chapter_ids: [chapterId],
+              is_newly_extracted: true,
+              extraction_method: 'llm_direct' as const
+            };
+            
+            console.log(`💾 [WORLD_BUILDING] Prepared record:`, record);
+            return record;
           });
+
+          console.log(`💾 [WORLD_BUILDING] Attempting to store ${worldBuildingToStore.length} validated elements...`);
+
+          const { data: worldBuildingData, error: worldBuildingError } = await supabase
+            .from('knowledge_base')
+            .insert(worldBuildingToStore)
+            .select();
+
+          if (!worldBuildingError && worldBuildingData) {
+            totalStored += worldBuildingData.length;
+            categoriesStored.push('worldBuilding');
+            console.log(`✅ [WORLD_BUILDING] Successfully stored ${worldBuildingData.length} world building elements`);
+            
+            worldBuildingData.forEach((element: any, index: number) => {
+              console.log(`   ${index + 1}. ${element.name} (${element.subcategory}) [ID: ${element.id}]`);
+            });
+          } else {
+            console.error('❌ [WORLD_BUILDING] Failed to store world building:', worldBuildingError);
+            console.error('❌ [WORLD_BUILDING] Error details:', {
+              message: worldBuildingError?.message,
+              details: worldBuildingError?.details,
+              hint: worldBuildingError?.hint,
+              code: worldBuildingError?.code
+            });
+            console.error('❌ [WORLD_BUILDING] Attempted data:', worldBuildingToStore);
+          }
         } else {
-          console.error('❌ Failed to store world building:', worldBuildingError);
+          console.log('⚠️ [WORLD_BUILDING] No valid world building elements to store after validation');
         }
       } else {
-        console.log('ℹ️ No world building found in extracted data');
+        console.log('ℹ️ [WORLD_BUILDING] No world building found in extracted data');
       }
 
-      // **CRITICAL FIX: Store themes in knowledge_base table**
+      // **ENHANCED: Store themes in knowledge_base table with comprehensive validation**
       if (extractedData.themes && extractedData.themes.length > 0) {
-        console.log(`💾 Storing ${extractedData.themes.length} themes...`);
+        console.log(`💾 [THEMES] Storing ${extractedData.themes.length} themes...`);
+        console.log(`💾 [THEMES] Raw data preview:`, extractedData.themes.slice(0, 2));
         
-        const themesToStore = extractedData.themes.map((theme: any) => ({
-          project_id: projectId,
-          name: theme.name,
-          category: 'theme',
-          subcategory: 'narrative_theme',
-          description: theme.description || '',
-          evidence: theme.significance || theme.evidence || '',
-          confidence_score: theme.confidence_score || 0.5,
-          source_chapter_ids: [chapterId],
-          is_newly_extracted: true,
-          extraction_method: 'llm_direct'
-        }));
-
-        const { data: themesData, error: themesError } = await supabase
-          .from('knowledge_base')
-          .insert(themesToStore)
-          .select();
-
-        if (!themesError && themesData) {
-          totalStored += themesData.length;
-          categoriesStored.push('themes');
-          console.log(`✅ Stored ${themesData.length} themes`);
+        // Validate and prepare themes data
+        const validThemes = extractedData.themes.filter((theme: any) => {
+          const isValid = theme?.name && 
+                          typeof theme.name === 'string' && 
+                          theme.name.trim().length > 0;
           
-          themesData.forEach((theme: any, index: number) => {
-            console.log(`   ${index + 1}. ${theme.name} [ID: ${theme.id}]`);
+          if (!isValid) {
+            console.log('⚠️ [THEMES] Skipping invalid theme:', theme);
+          }
+          return isValid;
+        });
+
+        if (validThemes.length > 0) {
+          const themesToStore = validThemes.map((theme: any) => {
+            // Ensure all required fields are properly set
+            const record = {
+              project_id: projectId,
+              name: String(theme.name).trim(),
+              category: 'theme' as const,
+              subcategory: theme.subcategory || 'narrative_theme',
+              description: theme.description || '',
+              evidence: theme.significance || theme.evidence || theme.source_text || '',
+              confidence_score: Math.min(Math.max(Number(theme.confidence_score) || 0.5, 0), 1),
+              source_chapter_ids: [chapterId],
+              is_newly_extracted: true,
+              extraction_method: 'llm_direct' as const
+            };
+            
+            console.log(`💾 [THEMES] Prepared record:`, record);
+            return record;
           });
+
+          console.log(`💾 [THEMES] Attempting to store ${themesToStore.length} validated themes...`);
+
+          const { data: themesData, error: themesError } = await supabase
+            .from('knowledge_base')
+            .insert(themesToStore)
+            .select();
+
+          if (!themesError && themesData) {
+            totalStored += themesData.length;
+            categoriesStored.push('themes');
+            console.log(`✅ [THEMES] Successfully stored ${themesData.length} themes`);
+            
+            themesData.forEach((theme: any, index: number) => {
+              console.log(`   ${index + 1}. ${theme.name} [ID: ${theme.id}]`);
+            });
+          } else {
+            console.error('❌ [THEMES] Failed to store themes:', themesError);
+            console.error('❌ [THEMES] Error details:', {
+              message: themesError?.message,
+              details: themesError?.details,
+              hint: themesError?.hint,
+              code: themesError?.code
+            });
+            console.error('❌ [THEMES] Attempted data:', themesToStore);
+          }
         } else {
-          console.error('❌ Failed to store themes:', themesError);
+          console.log('⚠️ [THEMES] No valid themes to store after validation');
         }
       } else {
-        console.log('ℹ️ No themes found in extracted data');
+        console.log('ℹ️ [THEMES] No themes found in extracted data');
       }
 
       console.log(`💾 Storage complete: ${totalStored} items stored across ${categoriesStored.length} categories`);
