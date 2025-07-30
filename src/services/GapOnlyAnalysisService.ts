@@ -205,16 +205,11 @@ export class GapOnlyAnalysisService {
         willStore: dependencyPlan.categoriesToStore
       });
 
-      // Combine all chapter content for analysis
-      const combinedContent = chapters.map(chapter => 
-        `=== ${chapter.title} ===\n${chapter.content}`
-      ).join('\n\n');
-
-      console.log(`📖 Combined content length: ${combinedContent.length} characters from ${chapters.length} chapters`);
+      console.log(`📖 Processing ${chapters.length} chapters individually for gap analysis`);
       
-      // **NEW: Sequential processing with dependency chaining**
+      // **NEW: Sequential processing with dependency chaining - Chapter-by-chapter**
       const extractionResult = await this.executeSequentialProcessing(
-        combinedContent,
+        chapters,
         projectId,
         dependencyPlan
       );
@@ -244,56 +239,77 @@ export class GapOnlyAnalysisService {
   /**
    * NEW: Sequential processing with dependency chaining
    * Process categories in proper dependency order, using fresh data as context
+   * NEW: Chapter-by-chapter processing instead of content aggregation
    */
   private static async executeSequentialProcessing(
-    combinedContent: string,
+    chapters: any[],
     projectId: string,
     dependencyPlan: DependencyAnalysisPlan
   ): Promise<{ success: boolean; extractedCount: number; categoriesFilled: string[] }> {
     
     try {
-      console.log('🔄 Starting sequential processing with dependency chaining...');
+      console.log('🔄 Starting sequential processing with dependency chaining (chapter-by-chapter)...');
       
       let totalExtracted = 0;
       const categoriesFilled: string[] = [];
       const freshContext: Record<string, any[]> = {};
 
-      // Step 1: Process dependencies first (extract fresh data, don't store)
+      // Step 1: Process dependencies first (extract fresh data per chapter, don't store)
       for (const dependency of dependencyPlan.requiredDependencies) {
-        console.log(`📍 Processing dependency: ${dependency}`);
+        console.log(`📍 Processing dependency: ${dependency} across ${chapters.length} chapters`);
         
         const dependencyCategory = this.convertToEdgeFunctionFormat(dependency);
-        const dependencyResult = await this.extractSingleCategory(
-          combinedContent,
-          projectId,
-          dependencyCategory,
-          freshContext
-        );
+        const dependencyData: any[] = [];
         
-        if (dependencyResult.success && dependencyResult.extractedData) {
-          freshContext[dependency] = dependencyResult.extractedData;
-          console.log(`✅ Extracted ${dependencyResult.extractedData.length} ${dependency} for context`);
+        // Process each chapter for this dependency
+        for (const chapter of chapters) {
+          const dependencyResult = await this.extractSingleCategory(
+            chapter.content,
+            projectId,
+            chapter.id,
+            dependencyCategory,
+            freshContext
+          );
+          
+          if (dependencyResult.success && dependencyResult.extractedData) {
+            dependencyData.push(...dependencyResult.extractedData);
+          }
+        }
+        
+        if (dependencyData.length > 0) {
+          freshContext[dependency] = dependencyData;
+          console.log(`✅ Extracted ${dependencyData.length} ${dependency} for context`);
         } else {
           console.log(`⚠️ No ${dependency} extracted for context`);
         }
       }
 
-      // Step 2: Process empty categories with fresh context (extract and store)
+      // Step 2: Process empty categories with fresh context (extract and store per chapter)
       for (const category of dependencyPlan.emptyCategories) {
-        console.log(`🎯 Processing empty category: ${category} with fresh context`);
+        console.log(`🎯 Processing empty category: ${category} with fresh context across ${chapters.length} chapters`);
         
         const edgeFunctionCategory = this.convertToEdgeFunctionFormat(category);
-        const categoryResult = await this.extractSingleCategory(
-          combinedContent,
-          projectId,
-          edgeFunctionCategory,
-          freshContext
-        );
+        const categoryData: any[] = [];
         
-        if (categoryResult.success && categoryResult.extractedData && categoryResult.extractedData.length > 0) {
-          // Store the results for empty categories
+        // Process each chapter for this category
+        for (const chapter of chapters) {
+          const categoryResult = await this.extractSingleCategory(
+            chapter.content,
+            projectId,
+            chapter.id,
+            edgeFunctionCategory,
+            freshContext
+          );
+          
+          if (categoryResult.success && categoryResult.extractedData && categoryResult.extractedData.length > 0) {
+            categoryData.push(...categoryResult.extractedData);
+          }
+        }
+        
+        if (categoryData.length > 0) {
+          // Store the aggregated results for this category
           const storageResult = await this.storeSingleCategory(
-            categoryResult.extractedData,
+            categoryData,
             projectId,
             edgeFunctionCategory
           );
@@ -323,22 +339,23 @@ export class GapOnlyAnalysisService {
   }
 
   /**
-   * Extract a single category with fresh context
+   * Extract a single category with fresh context - Now per-chapter
    */
   private static async extractSingleCategory(
     content: string,
     projectId: string,
+    chapterId: string,
     category: string,
     freshContext: Record<string, any[]>
   ): Promise<{ success: boolean; extractedData: any[] | null }> {
     
     try {
-      console.log(`🔍 Extracting single category: ${category}`);
+      console.log(`🔍 Extracting single category: ${category} for chapter: ${chapterId}`);
       
       const { data: result, error } = await supabase.functions.invoke('extract-knowledge', {
         body: {
           projectId,
-          chapterId: 'sequential-processing',
+          chapterId,
           content,
           mode: 'sequential_gap_fill',
           targetCategory: category,
@@ -390,7 +407,7 @@ export class GapOnlyAnalysisService {
         [categoryKey]: data.length + ' items'
       });
       
-      const storageResult = await this.storeExtractedData(dataToStore, projectId, 'sequential-processing');
+      const storageResult = await this.storeExtractedData(dataToStore, projectId, null);
       
       console.log(`💾 [STORAGE DEBUG] Storage result for ${category}:`, storageResult);
       
@@ -470,7 +487,7 @@ export class GapOnlyAnalysisService {
   private static async storeExtractedData(
     extractedData: any,
     projectId: string,
-    chapterId: string
+    chapterId: string | null
   ): Promise<{ totalStored: number; categoriesStored: string[] }> {
     
     // 🔍 ENHANCED VALIDATION: Comprehensive input validation
@@ -481,24 +498,12 @@ export class GapOnlyAnalysisService {
       throw new Error(`Invalid projectId: ${projectId}. Cannot store data with invalid project reference.`);
     }
 
-    if (!chapterId || chapterId === 'NULL' || chapterId === 'null' || chapterId === 'undefined') {
-      console.error('❌ [STORAGE ERROR] Invalid chapterId detected:', chapterId);
-      console.error('❌ [STORAGE ERROR] Type:', typeof chapterId);
-      throw new Error(`Invalid chapterId: ${chapterId}. Cannot store data with invalid chapter reference.`);
-    }
-
-    // UUID format validation for both IDs (with special handling for sequential processing)
+    // UUID format validation for projectId
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     
     if (!uuidRegex.test(projectId)) {
       console.error('❌ [STORAGE ERROR] ProjectId is not a valid UUID format:', projectId);
       throw new Error(`Invalid UUID format for projectId: ${projectId}`);
-    }
-
-    // Special handling for sequential processing chapterId
-    if (chapterId !== 'sequential-processing' && !uuidRegex.test(chapterId)) {
-      console.error('❌ [STORAGE ERROR] ChapterId is not a valid UUID format:', chapterId);
-      throw new Error(`Invalid UUID format for chapterId: ${chapterId}`);
     }
 
     console.log('✅ [STORAGE DEBUG] Input validation passed:', { projectId, chapterId });
@@ -532,7 +537,7 @@ export class GapOnlyAnalysisService {
             relationship_type: rel.relationship_type,
             relationship_strength: rel.relationship_strength || 5,
             ai_confidence_new: rel.confidence_score || 0.5,
-            source_chapter_ids: [chapterId],
+               source_chapter_ids: chapterId ? [chapterId] : [],
             is_newly_extracted: true,
             extraction_method: 'llm_direct'
           }));
@@ -578,7 +583,7 @@ export class GapOnlyAnalysisService {
           chronological_order: event.chronological_order || 0,
           characters_involved_names: event.characters_involved_names || [],
           ai_confidence_new: event.confidence_score || 0.5,
-          source_chapter_ids: [chapterId],
+           source_chapter_ids: chapterId ? [chapterId] : [],
           is_newly_extracted: true,
           extraction_method: 'llm_direct'
         }));
@@ -608,7 +613,7 @@ export class GapOnlyAnalysisService {
           key_events: thread.key_events || [],
           thread_status: thread.status || 'active',
           ai_confidence_new: thread.confidence_score || 0.5,
-          source_chapter_ids: [chapterId],
+          source_chapter_ids: chapterId ? [chapterId] : [],
           is_newly_extracted: true,
           extraction_method: 'llm_direct'
         }));
@@ -655,7 +660,7 @@ export class GapOnlyAnalysisService {
               description: character.description || character.traits?.join(', ') || '',
               evidence: character.evidence || character.source_text || '',
               confidence_score: Math.min(Math.max(Number(character.confidence_score) || 0.5, 0), 1),
-               source_chapter_ids: chapterId === 'sequential-processing' ? [] : [chapterId],
+               source_chapter_ids: chapterId ? [chapterId] : [],
               is_newly_extracted: true,
               extraction_method: 'llm_direct' as const
             };
@@ -724,7 +729,7 @@ export class GapOnlyAnalysisService {
               description: element.description || '',
               evidence: element.evidence || element.source_text || '',
               confidence_score: Math.min(Math.max(Number(element.confidence_score) || 0.5, 0), 1),
-               source_chapter_ids: chapterId === 'sequential-processing' ? [] : [chapterId],
+               source_chapter_ids: chapterId ? [chapterId] : [],
               is_newly_extracted: true,
               extraction_method: 'llm_direct' as const
             };
@@ -793,7 +798,7 @@ export class GapOnlyAnalysisService {
               description: theme.description || '',
               evidence: theme.significance || theme.evidence || theme.source_text || '',
               confidence_score: Math.min(Math.max(Number(theme.confidence_score) || 0.5, 0), 1),
-               source_chapter_ids: chapterId === 'sequential-processing' ? [] : [chapterId],
+               source_chapter_ids: chapterId ? [chapterId] : [],
               is_newly_extracted: true,
               extraction_method: 'llm_direct' as const
             };
