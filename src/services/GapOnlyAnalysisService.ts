@@ -289,7 +289,7 @@ export class GapOnlyAnalysisService {
         console.log(`🎯 Processing empty category: ${category} with fresh context across ${chapters.length} chapters`);
         
         const edgeFunctionCategory = this.convertToEdgeFunctionFormat(category);
-        const categoryData: any[] = [];
+        let categoryTotalStored = 0;
         
         // Process each chapter for this category
         for (const chapter of chapters) {
@@ -302,23 +302,25 @@ export class GapOnlyAnalysisService {
           );
           
           if (categoryResult.success && categoryResult.extractedData && categoryResult.extractedData.length > 0) {
-            categoryData.push(...categoryResult.extractedData);
+            // Store immediately with proper chapter context
+            const storageResult = await this.storeSingleCategory(
+              categoryResult.extractedData,
+              projectId,
+              edgeFunctionCategory,
+              chapter.id
+            );
+            
+            if (storageResult.success) {
+              categoryTotalStored += storageResult.totalStored;
+              console.log(`✅ Stored ${storageResult.totalStored} ${category} items from chapter ${chapter.id}`);
+            }
           }
         }
         
-        if (categoryData.length > 0) {
-          // Store the aggregated results for this category
-          const storageResult = await this.storeSingleCategory(
-            categoryData,
-            projectId,
-            edgeFunctionCategory
-          );
-          
-          if (storageResult.success) {
-            totalExtracted += storageResult.totalStored;
-            categoriesFilled.push(category);
-            console.log(`✅ Stored ${storageResult.totalStored} ${category} items`);
-          }
+        if (categoryTotalStored > 0) {
+          totalExtracted += categoryTotalStored;
+          categoriesFilled.push(category);
+          console.log(`✅ Total stored for ${category}: ${categoryTotalStored} items`);
         } else {
           console.log(`⚠️ No ${category} extracted`);
         }
@@ -388,12 +390,13 @@ export class GapOnlyAnalysisService {
   }
 
   /**
-   * Store data for a single category
+   * Store extracted data for a single category - Now with proper chapter context
    */
   private static async storeSingleCategory(
     data: any[],
     projectId: string,
-    category: string
+    category: string,
+    chapterId: string
   ): Promise<{ success: boolean; totalStored: number }> {
     
     try {
@@ -407,7 +410,7 @@ export class GapOnlyAnalysisService {
         [categoryKey]: data.length + ' items'
       });
       
-      const storageResult = await this.storeExtractedData(dataToStore, projectId, null);
+      const storageResult = await this.storeExtractedData(dataToStore, projectId, chapterId);
       
       console.log(`💾 [STORAGE DEBUG] Storage result for ${category}:`, storageResult);
       
