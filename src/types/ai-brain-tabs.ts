@@ -32,4 +32,8 @@ export interface TabComponentProps {
   // Type update handlers (optional)
   onUpdatePlotThreadType?: (id: string, threadType: string) => Promise<void>;
   onUpdateTimelineEventType?: (id: string, eventType: string) => Promise<void>;
+  // Synthesis-specific props
+  isSynthesizedView?: boolean;
+  onResynthesize?: (category: string, entityName: string) => Promise<void>;
+  onSynthesizeAll?: () => Promise<void>;
 }

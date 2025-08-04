@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { GapAwareAnalysisOrchestrator } from '@/services/smart';
 import { GapOnlyAnalysisService } from '@/services/GapOnlyAnalysisService';
 import { useAIBrainData } from '@/hooks/useAIBrainData';
+import { useAIBrainSynthesis } from '@/hooks/useAIBrainSynthesis';
 import { useSearchAndFilter } from '@/hooks/useSearchAndFilter';
 import { useAnalysisStatus } from '@/hooks/useAnalysisStatus';
 import { AIBrainHeader } from './ai-brain/AIBrainHeader';
@@ -18,6 +19,7 @@ import SearchFilterPanel from './ai-brain/SearchFilterPanel';
 import { UnifiedUpdateService } from '@/services/UnifiedUpdateService';
 import { UnifiedAnalysisOrchestrator } from '@/services/UnifiedAnalysisOrchestrator';
 import { getTabConfiguration } from '@/utils/tabConfiguration';
+import { SynthesisViewToggle } from './ai-brain/SynthesisViewToggle';
 
 import { supabase } from '@/integrations/supabase/client';
 
@@ -26,7 +28,10 @@ interface EnhancedAIBrainPanelProps {
 }
 
 const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
+  const [isSynthesizedView, setIsSynthesizedView] = useState(false);
+  
   const brainData = useAIBrainData(projectId);
+  const synthesisData = useAIBrainSynthesis(projectId);
   const {
     knowledge,
     chapterSummaries,
@@ -41,18 +46,32 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
     refresh
   } = brainData as any;
 
-  const {
-    filters,
-    setFilters,
-    filteredData,
-    totalResults
-  } = useSearchAndFilter(brainData);
-
   const { analysisStatus, refreshAnalysisStatus } = useAnalysisStatus(projectId);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   
   const { toast } = useToast();
+
+  // Choose data source based on view mode
+  const currentData = isSynthesizedView ? {
+    knowledge: synthesisData.synthesizedEntities.filter(e => e.category === 'character'),
+    themes: synthesisData.synthesizedEntities.filter(e => e.category === 'theme'), 
+    worldBuilding: synthesisData.synthesizedEntities.filter(e => e.category === 'world_building'),
+    chapterSummaries: brainData.chapterSummaries || [],
+    plotPoints: brainData.plotPoints || [],
+    plotThreads: brainData.plotThreads || [],
+    timelineEvents: brainData.timelineEvents || [],
+    characterRelationships: brainData.characterRelationships || [],
+    isLoading: brainData.isLoading,
+    error: brainData.error
+  } : brainData;
+
+  const {
+    filters,
+    setFilters,
+    filteredData,
+    totalResults
+  } = useSearchAndFilter(currentData);
 
   const jobManager = new AnalysisJobManager();
 
@@ -240,15 +259,21 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   };
 
 
-  // Unified update handlers using the service
+  // Enhanced update handlers with synthesis integration
   const handleUpdateKnowledge = async (id: string, field: 'name' | 'description' | 'subcategory', value: string) => {
     await UnifiedUpdateService.updateKnowledgeItem(id, field, value);
     await refresh();
+    if (isSynthesizedView) {
+      await synthesisData.refresh();
+    }
   };
 
   const handleToggleKnowledgeFlag = async (id: string, isFlagged: boolean) => {
     await UnifiedUpdateService.toggleKnowledgeFlag(id, isFlagged);
     await refresh();
+    if (isSynthesizedView) {
+      await synthesisData.refresh();
+    }
   };
 
   const handleUpdatePlotPoint = async (id: string, field: 'name' | 'description', value: string) => {
@@ -370,8 +395,46 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   const lowConfidenceItems = allKnowledge.filter(k => k.confidence_score < 0.6).length;
   const flaggedItems = allKnowledge.filter(k => k.is_flagged).length;
 
-  // Get tab configuration
-  const tabs = getTabConfiguration(brainData);
+  // Get tab configuration for data calculations
+  const tabConfigData = {
+    ...currentData,
+    isLoading: false,
+    error: null
+  };
+  const tabs = getTabConfiguration(tabConfigData);
+
+  // Synthesis handlers
+  const handleResynthesize = async (category: string, entityName: string) => {
+    try {
+      await synthesisData.synthesizeEntity(category as any, entityName);
+      toast({
+        title: "Re-synthesis Complete",
+        description: `Successfully re-synthesized ${entityName}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Re-synthesis Failed",
+        description: error instanceof Error ? error.message : "Failed to re-synthesize entity",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSynthesizeAll = async () => {
+    try {
+      await synthesisData.synthesizeAll();
+      toast({
+        title: "Full Synthesis Complete",
+        description: "All entities have been re-synthesized",
+      });
+    } catch (error) {
+      toast({
+        title: "Synthesis Failed", 
+        description: error instanceof Error ? error.message : "Failed to synthesize all entities",
+        variant: "destructive"
+      });
+    }
+  };
 
   // Helper function to get data for each tab
   const getTabData = (tabKey: string, filteredData: any) => {
@@ -406,7 +469,9 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         onAnalyzeProject={handleAnalyzeProject}
         onRetryAnalysis={handleRetryAnalysis}
         onCancelAnalysis={handleCancelAnalysis}
-        
+        isSynthesizedView={isSynthesizedView}
+        onSynthesizeAll={handleSynthesizeAll}
+        synthesisLoading={synthesisData.isLoading}
       />
 
 
@@ -426,6 +491,15 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         filters={filters}
         onFiltersChange={setFilters}
         resultsCount={totalResults}
+      />
+
+      <SynthesisViewToggle
+        isSynthesizedView={isSynthesizedView}
+        onToggle={setIsSynthesizedView}
+        synthesizedCount={synthesisData.synthesizedEntities.length}
+        granularCount={Object.values(brainData).reduce((sum, category) => {
+          return sum + (Array.isArray(category) ? category.length : 0);
+        }, 0)}
       />
 
       <Card className="p-6">
@@ -477,6 +551,10 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                     onDeleteRelationship={handleDeleteRelationship}
                     onDeletePlotPoint={handleDeletePlotPoint}
                     onDeletePlotThread={handleDeletePlotThread}
+                    // Synthesis-specific props
+                    isSynthesizedView={isSynthesizedView}
+                    onResynthesize={handleResynthesize}
+                    onSynthesizeAll={handleSynthesizeAll}
                     onDeleteTimelineEvent={handleDeleteTimelineEvent}
                     onDeleteKnowledgeItem={handleDeleteKnowledgeItem}
                     onUpdatePlotThreadType={handleUpdatePlotThreadType}

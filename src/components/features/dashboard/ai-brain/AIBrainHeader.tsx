@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Brain, Loader2, RotateCcw, XCircle, Clock } from 'lucide-react';
+import { Brain, Loader2, RotateCcw, XCircle, Clock, Sparkles } from 'lucide-react';
 import { AnalysisStatus } from '@/types/knowledge';
 
 interface AIBrainHeaderProps {
@@ -12,7 +12,10 @@ interface AIBrainHeaderProps {
   onAnalyzeProject: () => void;
   onRetryAnalysis: () => void;
   onCancelAnalysis: () => void;
-  
+  // Synthesis props
+  isSynthesizedView?: boolean;
+  onSynthesizeAll?: () => Promise<void>;
+  synthesisLoading?: boolean;
 }
 
 export const AIBrainHeader = ({
@@ -22,7 +25,9 @@ export const AIBrainHeader = ({
   onAnalyzeProject,
   onRetryAnalysis,
   onCancelAnalysis,
-  
+  isSynthesizedView = false,
+  onSynthesizeAll,
+  synthesisLoading = false
 }: AIBrainHeaderProps) => {
   return (
     <>
@@ -68,6 +73,23 @@ export const AIBrainHeader = ({
             </Button>
           )}
           
+          {/* Synthesis All Button - only show in synthesized view */}
+          {isSynthesizedView && onSynthesizeAll && (
+            <Button
+              onClick={onSynthesizeAll}
+              disabled={synthesisLoading || analysisStatus.isProcessing}
+              variant="outline"
+              size="sm"
+              className="text-purple-600 hover:text-purple-700 border-purple-200"
+            >
+              {synthesisLoading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4 mr-2" />
+              )}
+              {synthesisLoading ? 'Synthesizing...' : 'Synthesize All'}
+            </Button>
+          )}
           
           <Button
             onClick={onAnalyzeProject}

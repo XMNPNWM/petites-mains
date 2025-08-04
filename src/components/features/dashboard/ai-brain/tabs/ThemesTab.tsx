@@ -2,11 +2,14 @@ import React from 'react';
 import { Lightbulb } from 'lucide-react';
 import { TabComponentProps } from '@/types/ai-brain-tabs';
 import { EditableKnowledgeCard } from '../cards/EditableKnowledgeCard';
+import { SynthesizedEntityCard } from '../cards/SynthesizedEntityCard';
 
 export const ThemesTab: React.FC<TabComponentProps> = ({
   data,
   onUpdateKnowledge,
-  onToggleKnowledgeFlag
+  onToggleKnowledgeFlag,
+  isSynthesizedView = false,
+  onResynthesize
 }) => {
   if (data.length === 0) {
     return (
@@ -19,19 +22,38 @@ export const ThemesTab: React.FC<TabComponentProps> = ({
 
   return (
     <div className="space-y-3">
-      {data.map((theme) => (
-        <EditableKnowledgeCard
-          key={theme.id}
-          item={theme}
-          onUpdateName={(id, value) => onUpdateKnowledge(id, 'name', value)}
-          onUpdateDescription={(id, value) => onUpdateKnowledge(id, 'description', value)}
-          onToggleFlag={onToggleKnowledgeFlag}
-          nameFieldName="Theme name"
-          descriptionFieldName="Theme description"
-          namePlaceholder="Theme name..."
-          descriptionPlaceholder="Add theme description..."
-        />
-      ))}
+      {data.map((theme) => {
+        if (isSynthesizedView) {
+          return (
+            <SynthesizedEntityCard
+              key={theme.id}
+              item={theme}
+              onUpdateName={(id, value) => onUpdateKnowledge(id, 'name', value)}
+              onUpdateDescription={(id, value) => onUpdateKnowledge(id, 'description', value)}
+              onToggleFlag={onToggleKnowledgeFlag}
+              onResynthesize={onResynthesize}
+              nameFieldName="Theme name"
+              descriptionFieldName="Theme description"
+              namePlaceholder="Theme name..."
+              descriptionPlaceholder="Add theme description..."
+            />
+          );
+        }
+        
+        return (
+          <EditableKnowledgeCard
+            key={theme.id}
+            item={theme}
+            onUpdateName={(id, value) => onUpdateKnowledge(id, 'name', value)}
+            onUpdateDescription={(id, value) => onUpdateKnowledge(id, 'description', value)}
+            onToggleFlag={onToggleKnowledgeFlag}
+            nameFieldName="Theme name"
+            descriptionFieldName="Theme description"
+            namePlaceholder="Theme name..."
+            descriptionPlaceholder="Add theme description..."
+          />
+        );
+      })}
     </div>
   );
 };

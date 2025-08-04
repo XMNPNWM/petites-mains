@@ -2,13 +2,16 @@ import React from 'react';
 import { Users } from 'lucide-react';
 import { TabComponentProps } from '@/types/ai-brain-tabs';
 import { EditableKnowledgeCard } from '../cards/EditableKnowledgeCard';
+import { SynthesizedEntityCard } from '../cards/SynthesizedEntityCard';
 
 export const CharactersTab: React.FC<TabComponentProps> = ({
   data,
   onUpdateKnowledge,
   onToggleKnowledgeFlag,
   onDeleteKnowledgeItem,
-  onDataRefresh
+  onDataRefresh,
+  isSynthesizedView = false,
+  onResynthesize
 }) => {
   const characters = data.filter(k => k.category === 'character');
 
@@ -23,22 +26,44 @@ export const CharactersTab: React.FC<TabComponentProps> = ({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {characters.map((character) => (
-        <EditableKnowledgeCard
-          key={character.id}
-          item={character}
-          onUpdateName={(id, value) => onUpdateKnowledge(id, 'name', value)}
-          onUpdateDescription={(id, value) => onUpdateKnowledge(id, 'description', value)}
-          onToggleFlag={onToggleKnowledgeFlag}
-          onDelete={async (id) => {
-            await onDeleteKnowledgeItem?.(id);
-          }}
-          nameFieldName="Character name"
-          descriptionFieldName="Character description"
-          namePlaceholder="Character name..."
-          descriptionPlaceholder="Add character description..."
-        />
-      ))}
+      {characters.map((character) => {
+        if (isSynthesizedView) {
+          return (
+            <SynthesizedEntityCard
+              key={character.id}
+              item={character}
+              onUpdateName={(id, value) => onUpdateKnowledge(id, 'name', value)}
+              onUpdateDescription={(id, value) => onUpdateKnowledge(id, 'description', value)}
+              onToggleFlag={onToggleKnowledgeFlag}
+              onDelete={async (id) => {
+                await onDeleteKnowledgeItem?.(id);
+              }}
+              onResynthesize={onResynthesize}
+              nameFieldName="Character name"
+              descriptionFieldName="Character description"
+              namePlaceholder="Character name..."
+              descriptionPlaceholder="Add character description..."
+            />
+          );
+        }
+        
+        return (
+          <EditableKnowledgeCard
+            key={character.id}
+            item={character}
+            onUpdateName={(id, value) => onUpdateKnowledge(id, 'name', value)}
+            onUpdateDescription={(id, value) => onUpdateKnowledge(id, 'description', value)}
+            onToggleFlag={onToggleKnowledgeFlag}
+            onDelete={async (id) => {
+              await onDeleteKnowledgeItem?.(id);
+            }}
+            nameFieldName="Character name"
+            descriptionFieldName="Character description"
+            namePlaceholder="Character name..."
+            descriptionPlaceholder="Add character description..."
+          />
+        );
+      })}
     </div>
   );
 };
