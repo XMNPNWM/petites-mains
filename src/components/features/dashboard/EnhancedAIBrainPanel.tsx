@@ -2,14 +2,10 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertTriangle, Loader2 } from 'lucide-react';
-import { SmartAnalysisOrchestrator } from '@/services/SmartAnalysisOrchestrator';
-import { EnhancedAnalysisOrchestrator } from '@/services/EnhancedAnalysisOrchestrator';
 import { AnalysisJobManager } from '@/services/AnalysisJobManager';
 import { useToast } from '@/hooks/use-toast';
-import { GapAwareAnalysisOrchestrator } from '@/services/smart';
-import { GapOnlyAnalysisService } from '@/services/GapOnlyAnalysisService';
+import { FinalUnifiedAnalysisOrchestrator } from '@/services/FinalUnifiedAnalysisOrchestrator';
 import { useAIBrainData } from '@/hooks/useAIBrainData';
-import { useAIBrainSynthesis } from '@/hooks/useAIBrainSynthesis';
 import { useSearchAndFilter } from '@/hooks/useSearchAndFilter';
 import { useAnalysisStatus } from '@/hooks/useAnalysisStatus';
 import { AIBrainHeader } from './ai-brain/AIBrainHeader';
@@ -17,9 +13,7 @@ import { AIBrainStatusCards } from './ai-brain/AIBrainStatusCards';
 import { QualityReviewPanel } from './ai-brain/QualityReviewPanel';
 import SearchFilterPanel from './ai-brain/SearchFilterPanel';
 import { UnifiedUpdateService } from '@/services/UnifiedUpdateService';
-import { UnifiedAnalysisOrchestrator } from '@/services/UnifiedAnalysisOrchestrator';
 import { getTabConfiguration } from '@/utils/tabConfiguration';
-import { SynthesisViewToggle } from './ai-brain/SynthesisViewToggle';
 import { useChapters } from '@/hooks/useChapters';
 
 import { supabase } from '@/integrations/supabase/client';
@@ -29,10 +23,7 @@ interface EnhancedAIBrainPanelProps {
 }
 
 const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
-  const [isSynthesizedView, setIsSynthesizedView] = useState(false);
-  
   const brainData = useAIBrainData(projectId);
-  const synthesisData = useAIBrainSynthesis(projectId);
   const { chapters } = useChapters(projectId);
   const {
     knowledge,
@@ -54,19 +45,8 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   
   const { toast } = useToast();
 
-  // Choose data source based on view mode
-  const currentData = isSynthesizedView ? {
-    knowledge: synthesisData.synthesizedEntities.filter(e => e.category === 'character'),
-    themes: synthesisData.synthesizedEntities.filter(e => e.category === 'theme'), 
-    worldBuilding: synthesisData.synthesizedEntities.filter(e => e.category === 'world_building'),
-    chapterSummaries: brainData.chapterSummaries || [],
-    plotPoints: brainData.plotPoints || [],
-    plotThreads: brainData.plotThreads || [],
-    timelineEvents: brainData.timelineEvents || [],
-    characterRelationships: brainData.characterRelationships || [],
-    isLoading: brainData.isLoading,
-    error: brainData.error
-  } : brainData;
+  // Use brain data directly - view logic handled by chapter filtering
+  const currentData = brainData;
 
   const {
     filters,
@@ -104,72 +84,22 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
 
       let result;
       
-      if (totalDataCount === 0) {
-        // Empty Project Analysis - Full pipeline
-        console.log('📊 Scenario: Empty Project - Running full analysis');
-        result = await GapAwareAnalysisOrchestrator.analyzeProject(projectId);
+      // Use unified analysis orchestrator for all scenarios
+      console.log('🚀 Running unified analysis');
+      result = await FinalUnifiedAnalysisOrchestrator.analyzeProject(projectId);
+      
+      if (result.success) {
+        const stats = result.processingStats;
+        let description = `Processed ${stats.chaptersProcessed} chapters, extracted ${result.totalExtracted} items`;
         
-        if (result.success) {
-          toast({
-            title: "Project Analysis Complete",
-            description: `Initial extraction completed: ${result.totalExtracted || 0} items extracted`,
-          });
+        if (stats.gapsDetected.length > 0) {
+          description = `Filled ${stats.gapsFilled.length} gaps (${stats.gapsDetected.join(', ')}), extracted ${result.totalExtracted} items`;
         }
-      } else {
-        // Check for gaps with detailed logging
-        console.log('🔍 Starting gap detection for project:', projectId);
-        console.log('📊 Current data counts:', {
-          relationships: brainData.characterRelationships?.length || 0,
-          timelineEvents: brainData.timelineEvents?.length || 0,
-          plotThreads: brainData.plotThreads?.length || 0,
-          chapterSummaries: brainData.chapterSummaries?.length || 0,
-          worldBuilding: brainData.worldBuilding?.length || 0,
-          themes: brainData.themes?.length || 0
+        
+        toast({
+          title: "Analysis Complete", 
+          description,
         });
-        
-        const gaps = await GapOnlyAnalysisService.detectEmptyCategories(projectId);
-        console.log('🎯 EXACT GAPS OBJECT:', JSON.stringify(gaps, null, 2));
-        
-        const hasEmptyCategories = Object.values(gaps).some(isEmpty => isEmpty);
-        console.log('❓ HAS EMPTY CATEGORIES EVALUATION:', hasEmptyCategories);
-        console.log('📋 Empty categories found:', Object.entries(gaps).filter(([_, isEmpty]) => isEmpty).map(([category]) => category));
-        
-        if (hasEmptyCategories) {
-          // Gap Analysis - Independent gap-filling
-          console.log('🎯 Scenario: Gap Analysis - Filling empty categories');
-          console.log('🎯 About to call GapOnlyAnalysisService.executeGapAnalysis with projectId:', projectId);
-          
-          try {
-            const gapResult = await GapOnlyAnalysisService.executeGapAnalysis(projectId);
-            console.log('🎯 Gap analysis result:', gapResult);
-            
-            if (gapResult.success) {
-              toast({
-                title: "Gap Analysis Complete",
-                description: `Filled ${gapResult.gapsFilled.length} empty categories, extracted ${gapResult.totalExtracted} new items`,
-              });
-              result = { success: true };
-            } else {
-              console.error('🎯 Gap analysis failed:', gapResult.error);
-              throw new Error(gapResult.error || 'Gap analysis failed');
-            }
-          } catch (gapError) {
-            console.error('🎯 Exception during gap analysis:', gapError);
-            throw gapError;
-          }
-        } else {
-          // Standard Analysis - Full pipeline with existing data
-          console.log('🔄 Scenario: Standard Analysis - Full pipeline');
-          result = await GapAwareAnalysisOrchestrator.analyzeProject(projectId);
-          
-          if (result.success) {
-            const stats = result.processingStats;
-            toast({
-              title: "Analysis Complete",
-              description: `Updated analysis: processed ${stats?.chunksProcessed || 0} chunks, merged ${stats?.itemsMerged || 0} items`,
-            });
-          }
-        }
       }
       
       if (result.success && refresh) {
@@ -261,21 +191,15 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   };
 
 
-  // Enhanced update handlers with synthesis integration
+  // Update handlers
   const handleUpdateKnowledge = async (id: string, field: 'name' | 'description' | 'subcategory', value: string) => {
     await UnifiedUpdateService.updateKnowledgeItem(id, field, value);
     await refresh();
-    if (isSynthesizedView) {
-      await synthesisData.refresh();
-    }
   };
 
   const handleToggleKnowledgeFlag = async (id: string, isFlagged: boolean) => {
     await UnifiedUpdateService.toggleKnowledgeFlag(id, isFlagged);
     await refresh();
-    if (isSynthesizedView) {
-      await synthesisData.refresh();
-    }
   };
 
   const handleUpdatePlotPoint = async (id: string, field: 'name' | 'description', value: string) => {
@@ -405,61 +329,48 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   };
   const tabs = getTabConfiguration(tabConfigData);
 
-  // Synthesis handlers
-  const handleResynthesize = async (category: string, entityName: string) => {
-    try {
-      await synthesisData.synthesizeEntity(category as any, entityName);
-      toast({
-        title: "Re-synthesis Complete",
-        description: `Successfully re-synthesized ${entityName}`,
-      });
-    } catch (error) {
-      toast({
-        title: "Re-synthesis Failed",
-        description: error instanceof Error ? error.message : "Failed to re-synthesize entity",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleSynthesizeAll = async () => {
-    try {
-      await synthesisData.synthesizeAll();
-      toast({
-        title: "Full Synthesis Complete",
-        description: "All entities have been re-synthesized",
-      });
-    } catch (error) {
-      toast({
-        title: "Synthesis Failed", 
-        description: error instanceof Error ? error.message : "Failed to synthesize all entities",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Helper function to get data for each tab
+  // Helper function to get data for each tab with chapter-based logic
   const getTabData = (tabKey: string, filteredData: any) => {
-    switch (tabKey) {
-      case 'characters':
-        return filteredData.knowledge.filter((k: any) => k.category === 'character');
-      case 'relationships':
-        return filteredData.characterRelationships;
-      case 'plot-points':
-        return filteredData.plotPoints;
-      case 'plot-threads':
-        return filteredData.plotThreads;
-      case 'timeline':
-        return filteredData.timelineEvents;
-      case 'world-building':
-        return filteredData.worldBuilding;
-      case 'summaries':
-        return filteredData.chapterSummaries;
-      case 'themes':
-        return filteredData.themes;
-      default:
-        return [];
+    const data = (() => {
+      switch (tabKey) {
+        case 'characters':
+          return filteredData.knowledge.filter((k: any) => k.category === 'character');
+        case 'relationships':
+          return filteredData.characterRelationships;
+        case 'plot-points':
+          return filteredData.plotPoints;
+        case 'plot-threads':
+          return filteredData.plotThreads;
+        case 'timeline':
+          return filteredData.timelineEvents;
+        case 'world-building':
+          return filteredData.worldBuilding;
+        case 'summaries':
+          return filteredData.chapterSummaries;
+        case 'themes':
+          return filteredData.themes;
+        default:
+          return [];
+      }
+    })();
+
+    // Chapter-based view logic:
+    // - "All Chapters" shows synthesized entities (those with multiple source_chapter_ids)
+    // - Specific chapter shows granular records from that chapter only
+    if (filters.chapterFilter === 'all') {
+      // Show synthesized entities (cross-chapter entities)
+      return data.filter((item: any) => 
+        item.source_chapter_ids && item.source_chapter_ids.length > 1
+      );
+    } else if (filters.chapterFilter) {
+      // Show granular records from specific chapter
+      return data.filter((item: any) => 
+        item.source_chapter_id === filters.chapterFilter ||
+        (item.source_chapter_ids && item.source_chapter_ids.includes(filters.chapterFilter))
+      );
     }
+    
+    return data;
   };
 
   return (
@@ -471,11 +382,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         onAnalyzeProject={handleAnalyzeProject}
         onRetryAnalysis={handleRetryAnalysis}
         onCancelAnalysis={handleCancelAnalysis}
-        isSynthesizedView={isSynthesizedView}
-        onSynthesizeAll={handleSynthesizeAll}
-        synthesisLoading={synthesisData.isLoading}
       />
-
 
       <AIBrainStatusCards
         totalKnowledgeItems={totalKnowledgeItems}
@@ -489,21 +396,14 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         onDataRefresh={refresh}
       />
 
-      <SearchFilterPanel
-        filters={filters}
-        onFiltersChange={setFilters}
-        resultsCount={totalResults}
-        chapters={chapters}
-      />
-
-      <SynthesisViewToggle
-        isSynthesizedView={isSynthesizedView}
-        onToggle={setIsSynthesizedView}
-        synthesizedCount={synthesisData.synthesizedEntities.length}
-        granularCount={Object.values(brainData).reduce((sum, category) => {
-          return sum + (Array.isArray(category) ? category.length : 0);
-        }, 0)}
-      />
+      <Card className="p-6">
+        <SearchFilterPanel
+          filters={filters}
+          onFiltersChange={setFilters}
+          resultsCount={totalResults}
+          chapters={chapters}
+        />
+      </Card>
 
       <Card className="p-6">
         <Tabs defaultValue="characters" className="w-full">
@@ -554,14 +454,11 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
                     onDeleteRelationship={handleDeleteRelationship}
                     onDeletePlotPoint={handleDeletePlotPoint}
                     onDeletePlotThread={handleDeletePlotThread}
-                    // Synthesis-specific props
-                    isSynthesizedView={isSynthesizedView}
-                    onResynthesize={handleResynthesize}
-                    onSynthesizeAll={handleSynthesizeAll}
                     onDeleteTimelineEvent={handleDeleteTimelineEvent}
                     onDeleteKnowledgeItem={handleDeleteKnowledgeItem}
                     onUpdatePlotThreadType={handleUpdatePlotThreadType}
                     onUpdateTimelineEventType={handleUpdateTimelineEventType}
+                    chapters={chapters}
                   />
                 </div>
               </TabsContent>
