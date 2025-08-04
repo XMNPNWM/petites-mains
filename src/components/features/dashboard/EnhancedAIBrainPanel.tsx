@@ -20,6 +20,7 @@ import { UnifiedUpdateService } from '@/services/UnifiedUpdateService';
 import { UnifiedAnalysisOrchestrator } from '@/services/UnifiedAnalysisOrchestrator';
 import { getTabConfiguration } from '@/utils/tabConfiguration';
 import { SynthesisViewToggle } from './ai-brain/SynthesisViewToggle';
+import { useChapters } from '@/hooks/useChapters';
 
 import { supabase } from '@/integrations/supabase/client';
 
@@ -32,6 +33,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
   
   const brainData = useAIBrainData(projectId);
   const synthesisData = useAIBrainSynthesis(projectId);
+  const { chapters } = useChapters(projectId);
   const {
     knowledge,
     chapterSummaries,
@@ -491,6 +493,7 @@ const EnhancedAIBrainPanel = ({ projectId }: EnhancedAIBrainPanelProps) => {
         filters={filters}
         onFiltersChange={setFilters}
         resultsCount={totalResults}
+        chapters={chapters}
       />
 
       <SynthesisViewToggle

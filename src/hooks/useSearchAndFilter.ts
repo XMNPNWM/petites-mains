@@ -16,7 +16,8 @@ const defaultFilters: FilterState = {
   confidenceLevel: 'all',
   extractionStatus: 'all',
   categoryType: 'all',
-  verificationStatus: 'all'
+  verificationStatus: 'all',
+  chapterFilter: 'all'
 };
 
 export const useSearchAndFilter = (data: AIBrainData) => {
@@ -38,6 +39,8 @@ export const useSearchAndFilter = (data: AIBrainData) => {
       (item) => item.is_newly_extracted || false,
       () => false,
       () => false,
+      undefined,
+      (item) => (item as any).source_chapter_id || null
     );
 
     // Filter other data types
@@ -55,6 +58,8 @@ export const useSearchAndFilter = (data: AIBrainData) => {
       (item) => item.is_newly_extracted || false,
       () => false,
       () => false,
+      undefined,
+      (item) => (item as any).chapter_id || null
     );
 
     return {

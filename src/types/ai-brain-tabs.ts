@@ -36,4 +36,10 @@ export interface TabComponentProps {
   isSynthesizedView?: boolean;
   onResynthesize?: (category: string, entityName: string) => Promise<void>;
   onSynthesizeAll?: () => Promise<void>;
+  // Chapter context
+  chapters?: Array<{
+    id: string;
+    title: string;
+    order_index: number;
+  }>;
 }

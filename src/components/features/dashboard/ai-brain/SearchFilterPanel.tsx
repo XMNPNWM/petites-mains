@@ -12,15 +12,23 @@ export interface FilterState {
   extractionStatus: 'all' | 'new' | 'existing';
   categoryType: 'all' | 'character' | 'location' | 'theme' | 'setting' | 'plot';
   verificationStatus: 'all' | 'flagged' | 'verified' | 'unverified';
+  chapterFilter: 'all' | string; // 'all' or chapter ID
+}
+
+export interface Chapter {
+  id: string;
+  title: string;
+  order_index: number;
 }
 
 interface SearchFilterPanelProps {
   filters: FilterState;
   onFiltersChange: (filters: FilterState) => void;
   resultsCount: number;
+  chapters?: Chapter[];
 }
 
-const SearchFilterPanel = ({ filters, onFiltersChange, resultsCount }: SearchFilterPanelProps) => {
+const SearchFilterPanel = ({ filters, onFiltersChange, resultsCount, chapters = [] }: SearchFilterPanelProps) => {
   const handleSearchChange = (value: string) => {
     onFiltersChange({ ...filters, searchTerm: value });
   };
@@ -35,7 +43,8 @@ const SearchFilterPanel = ({ filters, onFiltersChange, resultsCount }: SearchFil
       confidenceLevel: 'all',
       extractionStatus: 'all',
       categoryType: 'all',
-      verificationStatus: 'all'
+      verificationStatus: 'all',
+      chapterFilter: 'all'
     });
   };
 
@@ -134,6 +143,23 @@ const SearchFilterPanel = ({ filters, onFiltersChange, resultsCount }: SearchFil
           </SelectContent>
         </Select>
 
+        <Select
+          value={filters.chapterFilter}
+          onValueChange={(value) => handleFilterChange('chapterFilter', value)}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Chapter" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Chapters</SelectItem>
+            {chapters.map((chapter) => (
+              <SelectItem key={chapter.id} value={chapter.id}>
+                Ch. {chapter.order_index}: {chapter.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         {activeFiltersCount > 0 && (
           <Button
             variant="outline"
@@ -177,9 +203,14 @@ const SearchFilterPanel = ({ filters, onFiltersChange, resultsCount }: SearchFil
               Category: {filters.categoryType}
             </Badge>
           )}
-          {filters.verificationStatus !== 'all' && (
+           {filters.verificationStatus !== 'all' && (
             <Badge variant="secondary" className="text-xs">
               Verification: {filters.verificationStatus}
+            </Badge>
+          )}
+          {filters.chapterFilter !== 'all' && (
+            <Badge variant="secondary" className="text-xs">
+              Chapter: {chapters.find(c => c.id === filters.chapterFilter)?.title || 'Unknown'}
             </Badge>
           )}
         </div>

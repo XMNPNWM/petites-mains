@@ -11,7 +11,8 @@ export const CharactersTab: React.FC<TabComponentProps> = ({
   onDeleteKnowledgeItem,
   onDataRefresh,
   isSynthesizedView = false,
-  onResynthesize
+  onResynthesize,
+  chapters
 }) => {
   const characters = data.filter(k => k.category === 'character');
 
@@ -61,6 +62,7 @@ export const CharactersTab: React.FC<TabComponentProps> = ({
             descriptionFieldName="Character description"
             namePlaceholder="Character name..."
             descriptionPlaceholder="Add character description..."
+            chapters={chapters}
           />
         );
       })}

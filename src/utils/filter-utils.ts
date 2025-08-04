@@ -12,7 +12,8 @@ export const applyFilters = <T extends any>(
   getIsNew: (item: T) => boolean, 
   getIsFlagged: (item: T) => boolean, 
   getIsVerified: (item: T) => boolean, 
-  getCategory?: (item: T) => string
+  getCategory?: (item: T) => string,
+  getChapterId?: (item: T) => string | null
 ) => {
   return items.filter(item => {
     // Search filter
@@ -70,6 +71,12 @@ export const applyFilters = <T extends any>(
       }
     }
 
+    // Chapter filter
+    if (filters.chapterFilter !== 'all' && getChapterId) {
+      const chapterId = getChapterId(item);
+      if (chapterId !== filters.chapterFilter) return false;
+    }
+
     return true;
   });
 };
@@ -84,7 +91,8 @@ export const filterKnowledge = (knowledge: KnowledgeBase[], filters: FilterState
     (item) => item.is_newly_extracted || false,
     (item) => item.is_flagged || false,
     (item) => item.is_verified || false,
-    (item) => item.category
+    (item) => item.category,
+    (item) => (item as any).source_chapter_id || null
   );
 };
 
@@ -97,6 +105,8 @@ export const filterPlotThreads = (plotThreads: PlotThread[], filters: FilterStat
     (item) => item.is_newly_extracted || false,
     () => false,
     () => false,
+    undefined,
+    (item) => (item as any).source_chapter_id || null
   );
 };
 
@@ -109,6 +119,8 @@ export const filterTimelineEvents = (timelineEvents: TimelineEvent[], filters: F
     (item) => item.is_newly_extracted || false,
     () => false,
     () => false,
+    undefined,
+    (item) => (item as any).source_chapter_id || null
   );
 };
 
@@ -121,6 +133,8 @@ export const filterCharacterRelationships = (relationships: CharacterRelationshi
     (item) => item.is_newly_extracted || false,
     () => false,
     () => false,
+    undefined,
+    (item) => (item as any).source_chapter_id || null
   );
 };
 
@@ -133,6 +147,7 @@ export const filterWorldBuilding = (worldBuilding: KnowledgeBase[], filters: Fil
     (item) => item.is_newly_extracted || false,
     (item) => item.is_flagged || false,
     (item) => item.is_verified || false,
-    (item) => item.subcategory || 'general'
+    (item) => item.subcategory || 'general',
+    (item) => (item as any).source_chapter_id || null
   );
 };

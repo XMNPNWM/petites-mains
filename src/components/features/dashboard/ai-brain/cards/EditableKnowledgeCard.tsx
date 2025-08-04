@@ -5,6 +5,7 @@ import { ConfidenceBadge } from '@/components/ui/confidence-badge';
 import { FlagToggleButton } from '@/components/ui/flag-toggle-button';
 import { DeleteButton } from '@/components/ui/delete-button';
 import { EditableSelect } from '@/components/ui/editable-select';
+import { ChapterBadge } from '../ChapterBadge';
 
 interface EditableKnowledgeCardProps {
   item: {
@@ -18,6 +19,7 @@ interface EditableKnowledgeCardProps {
     evidence?: string;
     category?: string;
     subcategory?: string;
+    source_chapter_id?: string | null;
   };
   onUpdateName: (id: string, value: string) => Promise<void>;
   onUpdateDescription: (id: string, value: string) => Promise<void>;
@@ -28,6 +30,11 @@ interface EditableKnowledgeCardProps {
   descriptionFieldName: string;
   namePlaceholder: string;
   descriptionPlaceholder: string;
+  chapters?: Array<{
+    id: string;
+    title: string;
+    order_index: number;
+  }>;
 }
 
 export const EditableKnowledgeCard: React.FC<EditableKnowledgeCardProps> = ({
@@ -40,7 +47,8 @@ export const EditableKnowledgeCard: React.FC<EditableKnowledgeCardProps> = ({
   nameFieldName,
   descriptionFieldName,
   namePlaceholder,
-  descriptionPlaceholder
+  descriptionPlaceholder,
+  chapters
 }) => {
   const worldBuildingTypes = [
     'Location', 'Organization', 'Culture', 'Magic System', 'Technology', 'Religion', 'Custom'
@@ -73,6 +81,10 @@ export const EditableKnowledgeCard: React.FC<EditableKnowledgeCardProps> = ({
           fieldName={nameFieldName}
         />
         <div className="flex items-center space-x-2 ml-2">
+          <ChapterBadge 
+            chapterId={item.source_chapter_id} 
+            chapters={chapters}
+          />
           <ConfidenceBadge 
             confidence={item.confidence_score || 0} 
             isUserModified={item.is_verified}
