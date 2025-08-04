@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { KnowledgeSynthesisService } from './KnowledgeSynthesisService';
 
 interface GapDetectionResult {
   relationships: boolean;
@@ -215,6 +216,18 @@ export class GapOnlyAnalysisService {
       );
 
       console.log(`✅ Sequential gap extraction complete. Total extracted: ${extractionResult.extractedCount}`);
+
+      // Trigger synthesis for extracted knowledge
+      if (extractionResult.extractedCount > 0) {
+        try {
+          console.log('🧩 Triggering knowledge synthesis after gap analysis...');
+          await KnowledgeSynthesisService.synthesizeAllEntities(projectId);
+          console.log('✅ Knowledge synthesis triggered successfully');
+        } catch (synthesisError) {
+          console.warn('⚠️ Knowledge synthesis failed, but gap analysis succeeded:', synthesisError);
+          // Don't fail the gap analysis if synthesis fails
+        }
+      }
 
       return {
         success: true,

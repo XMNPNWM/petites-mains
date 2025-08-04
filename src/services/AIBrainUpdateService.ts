@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { KnowledgeBase } from '@/types/knowledge';
 import { PlotThread, TimelineEvent, CharacterRelationship } from '@/types/ai-brain';
+import { KnowledgeSynthesisService } from './KnowledgeSynthesisService';
 
 export class AIBrainUpdateService {
   // Update knowledge base item
@@ -23,6 +24,22 @@ export class AIBrainUpdateService {
       .single();
 
     if (error) throw error;
+    
+    // Trigger synthesis for this entity after edit
+    if (data && updates.name) {
+      try {
+        await KnowledgeSynthesisService.synthesizeEntity(
+          data.project_id, 
+          data.category as 'character' | 'world_building' | 'theme', 
+          updates.name
+        );
+        console.log(`✅ Triggered synthesis for ${updates.name} after edit`);
+      } catch (synthesisError) {
+        console.warn('⚠️ Synthesis trigger failed after knowledge edit:', synthesisError);
+        // Don't throw - user edit succeeded, synthesis is secondary
+      }
+    }
+    
     return data;
   }
 
