@@ -289,6 +289,7 @@ export type Database = {
           primary_focus: Json | null
           project_id: string
           source_chapter_id: string | null
+          source_chapter_ids: Json | null
           summary_long: string | null
           summary_short: string | null
           temporal_markers: Json | null
@@ -312,6 +313,7 @@ export type Database = {
           primary_focus?: Json | null
           project_id: string
           source_chapter_id?: string | null
+          source_chapter_ids?: Json | null
           summary_long?: string | null
           summary_short?: string | null
           temporal_markers?: Json | null
@@ -335,6 +337,7 @@ export type Database = {
           primary_focus?: Json | null
           project_id?: string
           source_chapter_id?: string | null
+          source_chapter_ids?: Json | null
           summary_long?: string | null
           summary_short?: string | null
           temporal_markers?: Json | null
@@ -433,6 +436,7 @@ export type Database = {
           relationship_start_chapter_id: string | null
           relationship_strength: number
           relationship_type: string
+          source_chapter_id: string | null
           source_chapter_ids: Json | null
           source_character_name: string | null
           strength_history: Json | null
@@ -469,6 +473,7 @@ export type Database = {
           relationship_start_chapter_id?: string | null
           relationship_strength?: number
           relationship_type: string
+          source_chapter_id?: string | null
           source_chapter_ids?: Json | null
           source_character_name?: string | null
           strength_history?: Json | null
@@ -505,6 +510,7 @@ export type Database = {
           relationship_start_chapter_id?: string | null
           relationship_strength?: number
           relationship_type?: string
+          source_chapter_id?: string | null
           source_chapter_ids?: Json | null
           source_character_name?: string | null
           strength_history?: Json | null
@@ -538,6 +544,13 @@ export type Database = {
           {
             foreignKeyName: "character_relationships_relationship_start_chapter_id_fkey"
             columns: ["relationship_start_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "character_relationships_source_chapter_id_fkey"
+            columns: ["source_chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
             referencedColumns: ["id"]
@@ -1285,6 +1298,7 @@ export type Database = {
           plot_thread_name: string | null
           project_id: string
           significance: string | null
+          source_chapter_id: string | null
           source_chapter_ids: Json | null
           temporal_markers: Json | null
           updated_at: string | null
@@ -1308,6 +1322,7 @@ export type Database = {
           plot_thread_name?: string | null
           project_id: string
           significance?: string | null
+          source_chapter_id?: string | null
           source_chapter_ids?: Json | null
           temporal_markers?: Json | null
           updated_at?: string | null
@@ -1331,12 +1346,21 @@ export type Database = {
           plot_thread_name?: string | null
           project_id?: string
           significance?: string | null
+          source_chapter_id?: string | null
           source_chapter_ids?: Json | null
           temporal_markers?: Json | null
           updated_at?: string | null
           user_edited?: boolean | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "plot_points_source_chapter_id_fkey"
+            columns: ["source_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       plot_threads: {
         Row: {
@@ -1362,6 +1386,7 @@ export type Database = {
           original_ai_value: Json | null
           project_id: string
           resolution_status: string | null
+          source_chapter_id: string | null
           source_chapter_ids: Json | null
           start_chapter_id: string | null
           temporal_markers: Json | null
@@ -1394,6 +1419,7 @@ export type Database = {
           original_ai_value?: Json | null
           project_id: string
           resolution_status?: string | null
+          source_chapter_id?: string | null
           source_chapter_ids?: Json | null
           start_chapter_id?: string | null
           temporal_markers?: Json | null
@@ -1426,6 +1452,7 @@ export type Database = {
           original_ai_value?: Json | null
           project_id?: string
           resolution_status?: string | null
+          source_chapter_id?: string | null
           source_chapter_ids?: Json | null
           start_chapter_id?: string | null
           temporal_markers?: Json | null
@@ -1448,6 +1475,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plot_threads_source_chapter_id_fkey"
+            columns: ["source_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
             referencedColumns: ["id"]
           },
           {
@@ -1794,6 +1828,7 @@ export type Database = {
           plot_threads_impacted_names: Json | null
           project_id: string
           significance: string | null
+          source_chapter_id: string | null
           source_chapter_ids: Json | null
           temporal_markers: Json | null
           updated_at: string | null
@@ -1834,6 +1869,7 @@ export type Database = {
           plot_threads_impacted_names?: Json | null
           project_id: string
           significance?: string | null
+          source_chapter_id?: string | null
           source_chapter_ids?: Json | null
           temporal_markers?: Json | null
           updated_at?: string | null
@@ -1874,6 +1910,7 @@ export type Database = {
           plot_threads_impacted_names?: Json | null
           project_id?: string
           significance?: string | null
+          source_chapter_id?: string | null
           source_chapter_ids?: Json | null
           temporal_markers?: Json | null
           updated_at?: string | null
@@ -1892,6 +1929,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timeline_events_source_chapter_id_fkey"
+            columns: ["source_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
             referencedColumns: ["id"]
           },
         ]

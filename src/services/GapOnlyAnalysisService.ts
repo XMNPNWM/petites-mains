@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { KnowledgeSynthesisService } from './KnowledgeSynthesisService';
+import { validateRequiredUUID, isValidUUIDv4 } from '@/utils/uuidValidation';
 
 interface GapDetectionResult {
   relationships: boolean;
@@ -507,20 +508,10 @@ export class GapOnlyAnalysisService {
   ): Promise<{ totalStored: number; categoriesStored: string[] }> {
     
     // 🔍 ENHANCED VALIDATION: Comprehensive input validation
-    if (!projectId || projectId === 'NULL' || projectId === 'null' || projectId === 'undefined') {
-      console.error('❌ [STORAGE ERROR] Invalid projectId detected:', projectId);
-      console.error('❌ [STORAGE ERROR] Type:', typeof projectId);
-      console.error('❌ [STORAGE ERROR] Stack trace:', new Error().stack);
-      throw new Error(`Invalid projectId: ${projectId}. Cannot store data with invalid project reference.`);
-    }
-
-    // UUID format validation for projectId
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    validateRequiredUUID(projectId, 'projectId');
     
-    if (!uuidRegex.test(projectId)) {
-      console.error('❌ [STORAGE ERROR] ProjectId is not a valid UUID format:', projectId);
-      throw new Error(`Invalid UUID format for projectId: ${projectId}`);
-    }
+    // Validate chapterId (must always be a valid UUID, never null)
+    validateRequiredUUID(chapterId, 'chapterId');
 
     console.log('✅ [STORAGE DEBUG] Input validation passed:', { projectId, chapterId });
     
@@ -548,12 +539,13 @@ export class GapOnlyAnalysisService {
         if (validRelationships.length > 0) {
           const relationshipsToStore = validRelationships.map((rel: any) => ({
             project_id: projectId,
+            source_chapter_id: chapterId,
             character_a_name: rel.character_a_name,
             character_b_name: rel.character_b_name,
             relationship_type: rel.relationship_type,
             relationship_strength: rel.relationship_strength || 5,
             ai_confidence_new: rel.confidence_score || 0.5,
-               source_chapter_ids: chapterId ? [chapterId] : [],
+            source_chapter_ids: chapterId ? [chapterId] : [],
             is_newly_extracted: true,
             extraction_method: 'llm_direct'
           }));
@@ -593,13 +585,14 @@ export class GapOnlyAnalysisService {
         
         const timelineToStore = extractedData.timelineEvents.map((event: any) => ({
           project_id: projectId,
+          source_chapter_id: chapterId,
           event_name: event.event_name,
           event_type: event.event_type,
           event_description: event.event_summary, // **CRITICAL FIX: Map event_summary to event_description**
           chronological_order: event.chronological_order || 0,
           characters_involved_names: event.characters_involved_names || [],
           ai_confidence_new: event.confidence_score || 0.5,
-           source_chapter_ids: chapterId ? [chapterId] : [],
+          source_chapter_ids: chapterId ? [chapterId] : [],
           is_newly_extracted: true,
           extraction_method: 'llm_direct'
         }));
@@ -624,6 +617,7 @@ export class GapOnlyAnalysisService {
         
         const plotThreadsToStore = extractedData.plotThreads.map((thread: any) => ({
           project_id: projectId,
+          source_chapter_id: chapterId,
           thread_name: thread.thread_name,
           thread_type: thread.thread_type,
           key_events: thread.key_events || [],
@@ -670,13 +664,14 @@ export class GapOnlyAnalysisService {
             // Ensure all required fields are properly set
             const record = {
               project_id: projectId,
+              source_chapter_id: chapterId,
               name: String(character.name).trim(),
               category: 'character' as const,
               subcategory: character.role || character.subcategory || 'character',
               description: character.description || character.traits?.join(', ') || '',
               evidence: character.evidence || character.source_text || '',
               confidence_score: Math.min(Math.max(Number(character.confidence_score) || 0.5, 0), 1),
-               source_chapter_ids: chapterId ? [chapterId] : [],
+              source_chapter_ids: chapterId ? [chapterId] : [],
               is_newly_extracted: true,
               extraction_method: 'llm_direct' as const
             };
@@ -739,13 +734,14 @@ export class GapOnlyAnalysisService {
             // Ensure all required fields are properly set
             const record = {
               project_id: projectId,
+              source_chapter_id: chapterId,
               name: String(element.name).trim(),
               category: 'world_building' as const,
               subcategory: element.category || element.subcategory || element.type || 'Location',
               description: element.description || '',
               evidence: element.evidence || element.source_text || '',
               confidence_score: Math.min(Math.max(Number(element.confidence_score) || 0.5, 0), 1),
-               source_chapter_ids: chapterId ? [chapterId] : [],
+              source_chapter_ids: chapterId ? [chapterId] : [],
               is_newly_extracted: true,
               extraction_method: 'llm_direct' as const
             };
@@ -808,13 +804,14 @@ export class GapOnlyAnalysisService {
             // Ensure all required fields are properly set
             const record = {
               project_id: projectId,
+              source_chapter_id: chapterId,
               name: String(theme.name).trim(),
               category: 'theme' as const,
               subcategory: theme.subcategory || 'narrative_theme',
               description: theme.description || '',
               evidence: theme.significance || theme.evidence || theme.source_text || '',
               confidence_score: Math.min(Math.max(Number(theme.confidence_score) || 0.5, 0), 1),
-               source_chapter_ids: chapterId ? [chapterId] : [],
+              source_chapter_ids: chapterId ? [chapterId] : [],
               is_newly_extracted: true,
               extraction_method: 'llm_direct' as const
             };
