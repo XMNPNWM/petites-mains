@@ -65,7 +65,7 @@ export class KnowledgeSynthesisService {
         .flatMap(r => Array.isArray(r.source_chapter_ids) ? r.source_chapter_ids.map(id => String(id)) : [])
         .filter((id, index, arr) => arr.indexOf(id) === index); // deduplicate
       
-      // Build synthesis prompt
+      // Build synthesis prompt - include original flag information
       const synthesisData = records.map((record, index) => ({
         recordId: record.id,
         chapterContext: `Record ${index + 1} (from chapter ${record.source_chapter_ids?.[0] || 'unknown'})`,
@@ -74,7 +74,9 @@ export class KnowledgeSynthesisService {
         subcategory: record.subcategory || '',
         evidence: record.evidence || '',
         details: record.details || {},
-        confidence: record.confidence_score || 0.5
+        confidence: record.confidence_score || 0.5,
+        is_flagged: record.is_flagged || false,
+        is_verified: record.is_verified || false
       }));
       
       const synthesizedResult = await this.performAISynthesis(category, entityName, synthesisData);
@@ -236,11 +238,14 @@ export class KnowledgeSynthesisService {
     if (error) throw error;
     if (!records) return [];
     
-    // Group by category and entity name
+    // Group by category and entity name (exact matching)
+    // NOTE: Future Phase 3 enhancement - integrate semantic matching here
+    // Replace exact name matching with embeddings-based similarity matching
+    // to group entities like "John Smith" and "J. Smith" together
     const groupMap = new Map<string, EntityGroup>();
     
     records.forEach(record => {
-      const key = `${record.category}:${record.name}`;
+      const key = `${record.category}:${record.name}`; // TODO: Replace with semantic grouping key
       
       if (!groupMap.has(key)) {
         groupMap.set(key, {
@@ -287,6 +292,14 @@ export class KnowledgeSynthesisService {
       // Parse and validate AI response
       const synthesizedData = JSON.parse(response.content);
       
+      // Aggregate flags from source records
+      const aggregatedIsFlagged = records.some(r => r.is_flagged);
+      const aggregatedIsVerified = records.every(r => r.is_verified); // Strict: all must be verified
+      
+      // Deduplicate source chapter IDs
+      const sourceChapterIds = records.flatMap(r => (r.source_chapter_ids || []).map(id => String(id)));
+      const deduplicatedSourceChapterIds = [...new Set(sourceChapterIds)];
+      
       // Add synthesis metadata
       return {
         ...synthesizedData,
@@ -294,12 +307,26 @@ export class KnowledgeSynthesisService {
         category: category,
         confidence_score: Math.max(...records.map(r => r.confidence || 0.5)),
         extraction_method: 'ai_synthesis',
-        is_verified: false,
-        is_flagged: false,
-        source_chapter_ids: records.flatMap(r => (r.source_chapter_ids || []).map(id => String(id))),
+        is_verified: aggregatedIsVerified,
+        is_flagged: aggregatedIsFlagged,
+        source_chapter_ids: deduplicatedSourceChapterIds,
         synthesis_source_count: records.length,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        // Enhanced synthesis metadata
+        _synthesis_meta: {
+          source_record_count: records.length,
+          source_record_ids: records.map(r => r.recordId),
+          synthesis_timestamp: new Date().toISOString(),
+          ai_model: AIConfigManager.getModel('analysis'),
+          aggregated_is_flagged: aggregatedIsFlagged,
+          aggregated_is_verified: aggregatedIsVerified,
+          individual_flags: records.map(r => ({
+            record_id: r.recordId,
+            is_flagged: r.is_flagged || false,
+            is_verified: r.is_verified || false
+          }))
+        }
       };
       
     } catch (error) {
